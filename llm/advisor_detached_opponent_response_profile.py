@@ -32,6 +32,10 @@ LIVE_RESPONSE_BUNDLE_SCHEMA = "live-opponent-response-authority-bundle-v1"
 _ORDINARY_PAIR_BUNDLE_KEYS = {
     "first_action_sturdy_survival_authorities_by_order",
     "direct_heal_execution_authorities",
+    "atomic_item_swap_status_execution_authorities",
+    "taunt_application_authorities",
+    "encore_application_authorities",
+    "disable_application_authorities",
     "opponent_protection_success_authority",
     "incoming_contact_authority",
     "silk_trap_reactive_interaction_authority",

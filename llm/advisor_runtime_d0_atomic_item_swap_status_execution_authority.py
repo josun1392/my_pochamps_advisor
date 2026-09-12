@@ -69,9 +69,17 @@ def freeze_runtime_d0_atomic_item_swap_status_execution_authority(*, strategy_d0
 def _base(d0: Any, action: Any, actor: Any, target: Any) -> dict[str, Any] | None:
     if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not _owner(actor) or not _owner(target) or not isinstance(action, Mapping): return None
     active = d0.get("active_owners")
-    if not isinstance(active, Mapping) or actor != d0.get("decision_owner") or active.get(actor.get("side")) != dict(actor) or active.get(target.get("side")) != dict(target) or actor.get("side") == target.get("side"): return None
+    if not isinstance(active, Mapping) or active.get(actor.get("side")) != dict(actor) or active.get(target.get("side")) != dict(target) or actor.get("side") == target.get("side"): return None
     action_id, selected = action.get("action_id"), action.get("identity")
     if action.get("action_type") != "attack" or not isinstance(action_id, str) or not action_id or not isinstance(selected, str) or not selected: return None
+    # A live opponent response is actor-neutral, but only its frozen action
+    # authority may cross this boundary.  This preserves the original D0
+    # decision owner instead of fabricating an opponent-owned root.
+    bindings = (("session_id", "session_id"), ("source_runtime_fingerprint", "source_runtime_fingerprint"), ("source_branch_fingerprint", "strategy_preview_fingerprint"), ("decision_owner", "decision_owner"))
+    if actor != d0.get("decision_owner") and any(action.get(key) != d0[value] for key, value in bindings): return None
+    if any(key in action and action.get(key) != d0[value] for key, value in bindings): return None
+    declared_actor = action.get("opponent_actor", action.get("active_attacker"))
+    if declared_actor is not None and declared_actor != dict(actor): return None
     return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "actor": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "action_id": action_id, "selected_move_id": selected, "execution_move_id": selected, "move_id": selected, "move_family": "atomic_item_swap_status"}
 
 

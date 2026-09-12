@@ -236,21 +236,21 @@ def materialize_immediate_move_vs_move_action_pair(
         return _materialize_direct_heal_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
             orders=orders, authorities=direct_heal_execution_authorities)
-    if _is_atomic_item_swap_metadata(own_meta.get("metadata")):
+    if _is_atomic_item_swap_metadata(own_meta.get("metadata")) or _is_atomic_item_swap_metadata(opponent_meta.get("metadata")):
         return _materialize_atomic_item_swap_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
             orders=orders, authorities=atomic_item_swap_status_execution_authorities, pure_status_authorities=pure_status_execution_authorities)
-    if own_meta.get("metadata", {}).get("move_id") == "taunt":
+    if own_meta.get("metadata", {}).get("move_id") == "taunt" or opponent_meta.get("metadata", {}).get("move_id") == "taunt":
         return _materialize_taunt_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta,
             opponent_meta=opponent_meta, orders=orders, pure_status_authorities=pure_status_execution_authorities,
             applications=taunt_application_authorities)
-    if own_meta.get("metadata", {}).get("move_id") == "encore":
+    if own_meta.get("metadata", {}).get("move_id") == "encore" or opponent_meta.get("metadata", {}).get("move_id") == "encore":
         return _materialize_encore_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, opponent_meta=opponent_meta,
             orders=orders, pure_status_authorities=pure_status_execution_authorities,
             applications=encore_application_authorities)
-    if own_meta.get("metadata", {}).get("move_id") == "disable":
+    if own_meta.get("metadata", {}).get("move_id") == "disable" or opponent_meta.get("metadata", {}).get("move_id") == "disable":
         return _materialize_disable_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, opponent_meta=opponent_meta, orders=orders,
             pure_status_authorities=pure_status_execution_authorities, applications=disable_application_authorities)
@@ -324,52 +324,86 @@ def _is_atomic_item_swap_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and metadata.get("move_id") in {"trick", "switcheroo"} and metadata.get("category") == "status" and metadata.get("target") == "selected-pokemon" and metadata.get("contact") is False
 
 
+def _special_pair_roles(base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], move_id: str) -> tuple[Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]] | str:
+    """Return roles from the actual special actor, never from a side swap."""
+    own_move = own_meta.get("metadata", {}).get("move_id") if isinstance(own_meta, Mapping) and isinstance(own_meta.get("metadata"), Mapping) else None
+    foe_move = opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta, Mapping) and isinstance(opponent_meta.get("metadata"), Mapping) else None
+    if own_move == move_id and foe_move == move_id:
+        return "special_status_mirror_pair_requires_path_local_rebinding"
+    if own_move == move_id:
+        return (own_action, own_meta, base["own_actor"], base["opponent_actor"], opponent_action, opponent_meta, base["opponent_actor"], base["own_actor"])
+    if foe_move == move_id:
+        return (opponent_action, opponent_meta, base["opponent_actor"], base["own_actor"], own_action, own_meta, base["own_actor"], base["opponent_actor"])
+    return "special_status_actor_not_found"
+
+
+def _atomic_item_swap_roles(base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any]) -> tuple[Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]] | str:
+    own_swap = _is_atomic_item_swap_metadata(own_meta.get("metadata"))
+    foe_swap = _is_atomic_item_swap_metadata(opponent_meta.get("metadata"))
+    if own_swap and foe_swap: return "atomic_item_swap_second_swap_rebinding_required"
+    if own_swap: return (own_action, own_meta, base["own_actor"], base["opponent_actor"], opponent_action, opponent_meta, base["opponent_actor"], base["own_actor"])
+    if foe_swap: return (opponent_action, opponent_meta, base["opponent_actor"], base["own_actor"], own_action, own_meta, base["own_actor"], base["opponent_actor"])
+    return "atomic_item_swap_actor_not_found"
+
+
+def _ordinary_special_pending_leaf(strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None) -> Mapping[str, Any] | str:
+    if actor.get("side") == "opponent":
+        root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=action)
+        if root.get("status") != "resolved": return {"status": _status(root), "reason": root.get("reason", "actor_neutral_pending_root_unavailable")}
+        if metadata.get("metadata", {}).get("category") in {"physical", "special"}:
+            ledger = _attack_ledger(strategy_d0=root["predictive_strategy_d0"], runtime_snapshot=root["predictive_runtime_snapshot"], actor=actor, target=target, metadata_authority=metadata, action=action)
+            return ledger
+    return _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, actor=actor, target=target, metadata=metadata, pure_status_authorities=pure_status_authorities)
+
+
 def _materialize_atomic_item_swap_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None, pure_status_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
     """Production adapter for one selected Trick/Switcheroo action.
 
     It owns no swap policy: the frozen authority is materialized verbatim, and
     status-first second attacks consume the established detached item overlay.
     """
-    authority = authorities.get(own_action.get("action_id")) if isinstance(authorities, Mapping) else None
+    roles = _atomic_item_swap_roles(base, own_action, opponent_action, own_meta, opponent_meta)
+    if isinstance(roles, str): return _result("incomplete", roles, base)
+    swap_action, swap_meta, swap_actor, swap_target, pending_action, pending_meta, pending_actor, pending_target = roles
+    authority = authorities.get(swap_action.get("action_id")) if isinstance(authorities, Mapping) else None
     if not isinstance(authority, Mapping): return _result("incomplete", "atomic_item_swap_status_execution_authority_missing", base)
     status = materialize_detached_atomic_item_swap_status(execution_authority=authority)
     if status.get("status") != "resolved": return _result(_status(status), status.get("reason", "atomic_item_swap_status_materialization_unavailable"), base)
-    if status.get("actor") != base["own_actor"] or status.get("target") != base["opponent_actor"] or status.get("action_id") != own_action.get("action_id") or status.get("move_id") != own_meta.get("metadata", {}).get("move_id"):
+    if status.get("actor") != swap_actor or status.get("target") != swap_target or status.get("action_id") != swap_action.get("action_id") or status.get("move_id") != swap_meta.get("metadata", {}).get("move_id"):
         return _result("rejected", "atomic_item_swap_status_materialization_binding_mismatch", base)
     swap_leaf = _atomic_item_swap_pair_leaf(status, strategy_d0)
     if isinstance(swap_leaf, str): return _result("rejected", swap_leaf, base)
     branches=[]
     for plan in orders:
-        if plan["order"] == "own_first":
+        swap_first = (plan["order"] == "own_first") == (swap_actor == base["own_actor"])
+        if swap_first:
             intermediate = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=swap_leaf)
             if intermediate.get("status") != "resolved": return _result(_status(intermediate), intermediate.get("reason", "atomic_item_swap_intermediate_unavailable"), base)
-            if _fainted(intermediate, base["opponent_actor"]): branches.append(_branch(base, plan["order"], swap_leaf, intermediate, None, base["opponent_actor"], plan)); continue
-            if opponent_meta.get("metadata", {}).get("category") == "status":
-                pure = pure_status_authorities.get(opponent_action.get("action_id")) if isinstance(pure_status_authorities, Mapping) else None
+            if _fainted(intermediate, pending_actor): branches.append(_branch(base, plan["order"], swap_leaf, intermediate, None, pending_actor, plan)); continue
+            if pending_meta.get("metadata", {}).get("category") == "status":
+                pure = pure_status_authorities.get(pending_action.get("action_id")) if isinstance(pure_status_authorities, Mapping) else None
                 materialized = materialize_detached_pure_status_action(execution_authority=pure) if isinstance(pure, Mapping) else {"status":"incomplete"}
                 second = _pure_status_pair_leaf(materialized, strategy_d0)
                 if isinstance(second, str): return _result("incomplete", "atomic_item_swap_pending_status_second_action_unavailable", base)
-                branches.append(_branch(base, plan["order"], swap_leaf, intermediate, second, base["opponent_actor"], plan)); continue
-            if opponent_meta.get("metadata", {}).get("category") not in {"physical", "special"}: return _result("incomplete", "atomic_item_swap_pending_status_second_action_unavailable", base)
-            detached = freeze_detached_intermediate_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, intermediate_state=intermediate, actor=base["opponent_actor"], target=base["own_actor"], move_metadata_authority=opponent_meta)
+                branches.append(_branch(base, plan["order"], swap_leaf, intermediate, second, pending_actor, plan)); continue
+            if pending_meta.get("metadata", {}).get("category") not in {"physical", "special"}: return _result("incomplete", "atomic_item_swap_pending_status_second_action_unavailable", base)
+            detached = freeze_detached_intermediate_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, intermediate_state=intermediate, actor=pending_actor, target=pending_target, move_metadata_authority=pending_meta)
             if detached.get("status") != "resolved": return _result(_status(detached), detached.get("reason", "atomic_item_swap_second_action_authority_unavailable"), base)
             inputs = detached_intermediate_builder_inputs(detached)
             if inputs.get("status") != "resolved": return _result(_status(inputs), inputs.get("reason", "atomic_item_swap_second_action_inputs_unavailable"), base)
-            second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"], actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(opponent_meta, inputs), action=opponent_action)
+            second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"], actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(pending_meta, inputs), action=pending_action)
             if second.get("status") != "evaluable": return _result(_status(second), second.get("reason", "atomic_item_swap_second_action_ledger_unavailable"), base)
-            for leaf in second["terminal_leaves"]: branches.append(_branch(base, plan["order"], swap_leaf, intermediate, leaf, base["opponent_actor"], plan))
+            for leaf in second["terminal_leaves"]: branches.append(_branch(base, plan["order"], swap_leaf, intermediate, leaf, pending_actor, plan))
             continue
         # The earlier action remains entirely pre-swap.  A status second action
         # is represented by the already-bound exact authority; item-changing
         # first attacks are deliberately not silently rebased here.
-        if opponent_meta.get("metadata", {}).get("category") not in {"physical", "special"}: return _result("incomplete", "atomic_item_swap_first_status_action_unavailable", base)
-        root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
-        if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "atomic_item_swap_opponent_root_unavailable"), base)
-        first = _attack_ledger(strategy_d0=root["predictive_strategy_d0"], runtime_snapshot=root["predictive_runtime_snapshot"], actor=base["opponent_actor"], target=base["own_actor"], metadata_authority=opponent_meta, action=opponent_action)
+        first = _ordinary_special_pending_leaf(strategy_d0, runtime_snapshot, pending_action, pending_actor, pending_target, pending_meta, pure_status_authorities)
+        if isinstance(first, str): return _result("incomplete", first, base)
         if first.get("status") != "evaluable": return _result(_status(first), first.get("reason", "atomic_item_swap_first_action_ledger_unavailable"), base)
         for leaf in first["terminal_leaves"]:
             if any(isinstance(leaf.get("consequences", {}).get(key), Mapping) for key in ("knock_off_item_removal", "item_transfer_after_hit")): return _result("incomplete", "atomic_item_swap_item_mutating_first_action_requires_branch_authority", base)
-            branches.append(_branch(base, plan["order"], leaf, {}, swap_leaf, base["own_actor"], plan))
+            branches.append(_branch(base, plan["order"], leaf, {}, swap_leaf, swap_actor, plan))
     mass=sum((_fraction(row["probability"]) for row in branches), Fraction())
     if mass != Fraction(1,1): return _result("rejected", "atomic_item_swap_pair_probability_mass_not_one", base)
     return {"status":"evaluable", "schema_version":SCHEMA_VERSION, "horizon":HORIZON, **deepcopy(dict(base)), "action_order":{"atomic_item_swap":"external_exact_order_authority"}, "terminal_branches":tuple(branches), "terminal_probability_mass":_fd(mass), "aggregation":"none_preserve_atomic_item_swap_leaf_identity", "provenance":"strict_atomic_item_swap_status_immediate_pair_materialization_v1"}
@@ -489,25 +523,29 @@ def _materialize_tail_whip_status_pair(*, base: Mapping[str, Any], strategy_d0: 
 
 def _materialize_taunt_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None, applications: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
     """Narrow Taunt timing adapter; selected intent is never overwritten."""
-    application = applications.get(own_action.get("action_id")) if isinstance(applications, Mapping) else None
+    roles = _special_pair_roles(base, own_action, opponent_action, own_meta, opponent_meta, "taunt")
+    if isinstance(roles, str): return _result("rejected", roles, base)
+    special_action, special_meta, special_actor, special_target, pending_action, pending_meta, pending_actor, pending_target = roles
+    application = applications.get(special_action.get("action_id")) if isinstance(applications, Mapping) else None
     if not isinstance(application, Mapping): return _result("incomplete", "taunt_application_authority_missing", base)
     if application.get("status") != "resolved": return _result(_status(application), application.get("reason", "taunt_application_unavailable"), base)
-    if application.get("actor") != base["own_actor"] or application.get("target") != base["opponent_actor"] or application.get("action_id") != own_action.get("action_id"):
+    if application.get("actor") != special_actor or application.get("target") != special_target or application.get("action_id") != special_action.get("action_id"):
         return _result("rejected", "taunt_application_binding_mismatch", base)
     branches = []
     for plan in orders:
         taunt_leaf = _taunt_pair_leaf(application, strategy_d0)
         if isinstance(taunt_leaf, str): return _result("incomplete", taunt_leaf, base)
-        if plan["order"] == "own_first":
-            second = _taunt_pending_second_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=opponent_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=opponent_meta, application=application, pure_status_authorities=pure_status_authorities)
+        special_first = (plan["order"] == "own_first") == (special_actor == base["own_actor"])
+        if special_first:
+            second = _taunt_pending_second_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, application=application, pure_status_authorities=pure_status_authorities)
             if isinstance(second, Mapping) and second.get("status") != "evaluable": return _result(_status(second), second.get("reason", "taunt_pending_action_unavailable"), base)
             if isinstance(second, str): return _result("incomplete", second, base)
-            branches.append(_branch(base, plan["order"], taunt_leaf, {}, second["terminal_leaves"][0], base["opponent_actor"], plan))
+            branches.append(_branch(base, plan["order"], taunt_leaf, {}, second["terminal_leaves"][0], pending_actor, plan))
         else:
-            first = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=opponent_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=opponent_meta, pure_status_authorities=pure_status_authorities)
+            first = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, pure_status_authorities=pure_status_authorities)
             if isinstance(first, Mapping) and first.get("status") != "evaluable": return _result(_status(first), first.get("reason", "taunt_first_action_unavailable"), base)
             if isinstance(first, str): return _result("incomplete", first, base)
-            branches.append(_branch(base, plan["order"], first["terminal_leaves"][0], {}, taunt_leaf, base["own_actor"], plan))
+            branches.append(_branch(base, plan["order"], first["terminal_leaves"][0], {}, taunt_leaf, special_actor, plan))
     mass=sum((_fraction(x["probability"]) for x in branches), Fraction())
     if mass != Fraction(1,1): return _result("rejected", "taunt_pair_probability_mass_not_one", base)
     return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**deepcopy(dict(base)),"action_order":{"taunt":"external_exact_order_authority"},"terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_taunt_application_and_selected_intent","provenance":"strict_taunt_immediate_pair_materialization_v1"}
@@ -515,30 +553,36 @@ def _materialize_taunt_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str
 
 def _materialize_encore_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None, applications: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
     """Replace only a still-pending selected action; never retroactively reorder."""
-    application = applications.get(own_action.get("action_id")) if isinstance(applications, Mapping) else None
+    own_meta = own_action.get("metadata_authority", own_action.get("move_metadata_authority", {}))
+    roles = _special_pair_roles(base, own_action, opponent_action, own_meta, opponent_meta, "encore")
+    if isinstance(roles, str): return _result("rejected", roles, base)
+    special_action, special_meta, special_actor, special_target, pending_action, pending_meta, pending_actor, pending_target = roles
+    application = applications.get(special_action.get("action_id")) if isinstance(applications, Mapping) else None
     if not isinstance(application, Mapping): return _result("incomplete", "encore_application_authority_missing", base)
     if application.get("status") != "resolved": return _result(_status(application), application.get("reason", "encore_application_unavailable"), base)
-    if application.get("actor") != base["own_actor"] or application.get("target") != base["opponent_actor"] or application.get("action_id") != own_action.get("action_id"):
+    if application.get("actor") != special_actor or application.get("target") != special_target or application.get("action_id") != special_action.get("action_id"):
         return _result("rejected", "encore_application_binding_mismatch", base)
     branches = []
     for plan in orders:
         encore_leaf = _encore_pair_leaf(application, strategy_d0)
         if isinstance(encore_leaf, str): return _result("incomplete", encore_leaf, base)
-        if plan["order"] == "opponent_first":
-            first = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=opponent_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=opponent_meta, pure_status_authorities=pure_status_authorities)
+        special_first = (plan["order"] == "own_first") == (special_actor == base["own_actor"])
+        if not special_first:
+            first = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, pure_status_authorities=pure_status_authorities)
             if isinstance(first, str): return _result("incomplete", first, base)
-            branches.append(_branch(base, plan["order"], first["terminal_leaves"][0], {}, encore_leaf, base["own_actor"], plan)); continue
+            branches.append(_branch(base, plan["order"], first["terminal_leaves"][0], {}, encore_leaf, special_actor, plan)); continue
         if application.get("outcome") != "applicable":
-            second = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=opponent_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=opponent_meta, pure_status_authorities=pure_status_authorities)
+            second = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, pure_status_authorities=pure_status_authorities)
             if isinstance(second, str): return _result("incomplete", second, base)
-            branches.append(_branch(base, plan["order"], encore_leaf, {}, second["terminal_leaves"][0], base["opponent_actor"], plan)); continue
-        forced = materialize_encore_forced_execution_action(selected_action=opponent_action, actor=base["opponent_actor"], encore_application=application)
+            branches.append(_branch(base, plan["order"], encore_leaf, {}, second["terminal_leaves"][0], pending_actor, plan)); continue
+        forced = materialize_encore_forced_execution_action(selected_action=pending_action, actor=pending_actor, encore_application=application)
         if forced.get("status") != "resolved": return _result(_status(forced), forced.get("reason", "encore_forced_execution_unavailable"), base)
         forced_meta = {"status": "resolved", "metadata": forced["execution_move_metadata"]}
-        forced_action = {**deepcopy(dict(opponent_action)), "action_id": forced["execution_action_id"], "move_id": forced["execution_move_id"], "identity": forced["execution_move_id"], "metadata_authority": forced_meta}
-        second = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=forced_action, actor=base["opponent_actor"], target=base["own_actor"], metadata=forced_meta, pure_status_authorities=pure_status_authorities)
+        forced_action = {**deepcopy(dict(pending_action)), "action_id": forced["execution_action_id"], "move_id": forced["execution_move_id"], "identity": forced["execution_move_id"], "metadata_authority": forced_meta}
+        second = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=forced_action, actor=pending_actor, target=pending_target, metadata=forced_meta, pure_status_authorities=pure_status_authorities)
+        if isinstance(second, Mapping) and second.get("status") != "evaluable": return _result(_status(second), second.get("reason", "encore_forced_action_unavailable"), base)
         if isinstance(second, str): return _result("incomplete", second, base)
-        branch = _branch(base, plan["order"], encore_leaf, {}, _bind_encore_forced_leaf(second["terminal_leaves"][0], forced), base["opponent_actor"], plan)
+        branch = _branch(base, plan["order"], encore_leaf, {}, _bind_encore_forced_leaf(second["terminal_leaves"][0], forced), pending_actor, plan)
         branch["second_action"]["forced_execution_action"] = deepcopy(dict(forced))
         branch["second_action"]["execution_priority"] = forced["execution_priority"]
         branches.append(branch)
@@ -548,27 +592,32 @@ def _materialize_encore_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[st
 
 
 def _materialize_disable_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None, applications: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
-    application = applications.get(own_action.get("action_id")) if isinstance(applications, Mapping) else None
+    own_meta = own_action.get("metadata_authority", own_action.get("move_metadata_authority", {}))
+    roles = _special_pair_roles(base, own_action, opponent_action, own_meta, opponent_meta, "disable")
+    if isinstance(roles, str): return _result("rejected", roles, base)
+    special_action, special_meta, special_actor, special_target, pending_action, pending_meta, pending_actor, pending_target = roles
+    application = applications.get(special_action.get("action_id")) if isinstance(applications, Mapping) else None
     if not isinstance(application, Mapping): return _result("incomplete", "disable_application_authority_missing", base)
-    if application.get("status") != "resolved" or application.get("actor") != base["own_actor"] or application.get("target") != base["opponent_actor"] or application.get("action_id") != own_action.get("action_id"): return _result(_status(application), application.get("reason", "disable_application_binding_mismatch"), base)
+    if application.get("status") != "resolved" or application.get("actor") != special_actor or application.get("target") != special_target or application.get("action_id") != special_action.get("action_id"): return _result(_status(application), application.get("reason", "disable_application_binding_mismatch"), base)
     branches=[]
     for plan in orders:
         first_leaf=_disable_pair_leaf(application,strategy_d0)
         if isinstance(first_leaf,str):return _result("incomplete",first_leaf,base)
-        if plan["order"]=="opponent_first":
-            first=_ordinary_selected_leaf(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=opponent_action,actor=base["opponent_actor"],target=base["own_actor"],metadata=opponent_meta,pure_status_authorities=pure_status_authorities)
+        special_first=(plan["order"]=="own_first") == (special_actor==base["own_actor"])
+        if not special_first:
+            first=_ordinary_selected_leaf(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=pending_action,actor=pending_actor,target=pending_target,metadata=pending_meta,pure_status_authorities=pure_status_authorities)
             if isinstance(first,str):return _result("incomplete",first,base)
-            branches.append(_branch(base,plan["order"],first["terminal_leaves"][0],{},first_leaf,base["own_actor"],plan));continue
-        pending={**deepcopy(dict(opponent_action)),"metadata_authority":deepcopy(dict(opponent_meta))}
-        gate=materialize_disable_execution_gate(selected_action=pending,actor=base["opponent_actor"],same_branch_application=application)
+            branches.append(_branch(base,plan["order"],first["terminal_leaves"][0],{},first_leaf,special_actor,plan));continue
+        pending={**deepcopy(dict(pending_action)),"metadata_authority":deepcopy(dict(pending_meta))}
+        gate=materialize_disable_execution_gate(selected_action=pending,actor=pending_actor,same_branch_application=application)
         if gate.get("status")!="resolved":return _result(_status(gate),gate.get("reason","disable_execution_gate_unavailable"),base)
         if gate.get("execution_state")=="restricted_by_disable":
-            failure=disable_restriction_failure_leaf(strategy_d0=strategy_d0,action=opponent_action,actor=base["opponent_actor"],target=base["own_actor"],gate=gate)
+            failure=disable_restriction_failure_leaf(strategy_d0=strategy_d0,action=pending_action,actor=pending_actor,target=pending_target,gate=gate)
             if failure.get("status")!="evaluable":return _result(_status(failure),failure.get("reason","disable_failure_leaf_unavailable"),base)
-            branches.append(_branch(base,plan["order"],first_leaf,{},failure["terminal_leaves"][0],base["opponent_actor"],plan));continue
-        second=_ordinary_selected_leaf(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=opponent_action,actor=base["opponent_actor"],target=base["own_actor"],metadata=opponent_meta,pure_status_authorities=pure_status_authorities)
+            branches.append(_branch(base,plan["order"],first_leaf,{},failure["terminal_leaves"][0],pending_actor,plan));continue
+        second=_ordinary_selected_leaf(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=pending_action,actor=pending_actor,target=pending_target,metadata=pending_meta,pure_status_authorities=pure_status_authorities)
         if isinstance(second,str):return _result("incomplete",second,base)
-        branches.append(_branch(base,plan["order"],first_leaf,{},second["terminal_leaves"][0],base["opponent_actor"],plan))
+        branches.append(_branch(base,plan["order"],first_leaf,{},second["terminal_leaves"][0],pending_actor,plan))
     mass=sum((_fraction(x["probability"]) for x in branches),Fraction())
     if mass!=Fraction(1,1):return _result("rejected","disable_pair_probability_mass_not_one",base)
     return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**deepcopy(dict(base)),"action_order":{"disable":"existing_exact_order_authority"},"terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_disable_application_and_selected_intent","provenance":"strict_disable_immediate_pair_materialization_v1"}

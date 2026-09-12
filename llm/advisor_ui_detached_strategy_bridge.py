@@ -17,6 +17,8 @@ from llm.advisor_runtime_d0_quick_claw_action_order_authority import freeze_runt
 from llm.advisor_runtime_d0_focus_sash_survival_authority import freeze_runtime_d0_focus_sash_survival_authority
 from llm.advisor_runtime_d0_sturdy_survival_authority import freeze_runtime_d0_sturdy_survival_authority
 from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
+from llm.advisor_runtime_d0_atomic_item_swap_status_execution_authority import freeze_runtime_d0_atomic_item_swap_status_execution_authority
+from llm.advisor_runtime_d0_status_special_application_authority import freeze_runtime_d0_status_special_application_authority
 from llm.advisor_runtime_d0_nonconsecutive_protection_success_authority import freeze_runtime_d0_nonconsecutive_protection_success_authority
 from llm.advisor_hypothetical_protection_effects import canonical_protection_metadata
 from advisor.canonical_quick_guard_protection import canonical_quick_guard_protection_metadata
@@ -274,6 +276,26 @@ def _project_live_opponent_response_profiles(
                             action=response, actor=active_owners["opponent"],
                         ),
                     }
+                if _is_atomic_item_swap_metadata(response_metadata):
+                    applicability = _ordinary_status_execution_applicability(
+                        strategy_d0=strategy_d0, actor=active_owners["opponent"], target=active_owners["self"], action=response,
+                        target_action=own,
+                    )
+                    authorities["atomic_item_swap_status_execution_authorities"] = {
+                        response_id: freeze_runtime_d0_atomic_item_swap_status_execution_authority(
+                            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=response,
+                            actor=active_owners["opponent"], target=active_owners["self"],
+                            execution_applicability_authority=applicability,
+                        )
+                    }
+                if response_metadata.get("move_id") in {"taunt", "encore", "disable"}:
+                    application = freeze_runtime_d0_status_special_application_authority(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=response,
+                        actor=active_owners["opponent"], target=active_owners["self"], target_selected_action=own,
+                        canonical_move_metadata_authorities=canonical_move_metadata_authorities,
+                    )
+                    field = f"{response_metadata['move_id']}_application_authorities"
+                    authorities[field] = {response_id: application}
                 if canonical_protection_metadata(response_metadata.get("move_id") if isinstance(response_metadata, Mapping) else None) is not None:
                     protection = freeze_runtime_d0_nonconsecutive_protection_success_authority(
                         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
@@ -385,6 +407,21 @@ def _is_damaging_metadata(metadata: Any) -> bool:
 
 def _is_direct_heal_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and metadata.get("move_id") in {"recover", "slack-off", "soft-boiled"} and metadata.get("category") == "status" and metadata.get("target") == "self"
+
+
+def _is_atomic_item_swap_metadata(metadata: Any) -> bool:
+    return isinstance(metadata, Mapping) and metadata.get("move_id") in {"trick", "switcheroo"} and metadata.get("category") == "status" and metadata.get("target") == "selected-pokemon" and metadata.get("contact") is False
+
+
+def _ordinary_status_execution_applicability(*, strategy_d0: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], action: Mapping[str, Any], target_action: Mapping[str, Any]) -> dict[str, Any]:
+    """Prove only the no-protection ordinary case for an actor-neutral status response."""
+    meta = target_action.get("move_metadata_authority", target_action.get("metadata_authority")) if isinstance(target_action, Mapping) else None
+    target_meta = meta.get("metadata") if isinstance(meta, Mapping) else None
+    base = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "actor": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "action_id": action.get("action_id"), "move_id": action.get("identity", action.get("move_id"))}
+    if not isinstance(target_meta, Mapping): return {"status": "incomplete", **base, "reason": "atomic_item_swap_target_action_metadata_missing"}
+    if target_meta.get("move_id") in {"protect", "detect", "kings-shield", "spiky-shield", "baneful-bunker", "burning-bulwark", "silk-trap", "obstruct"}:
+        return {"status": "incomplete", **base, "reason": "atomic_item_swap_protection_authority_required"}
+    return {"status": "resolved", **base, "outcome": "ordinary", "provenance": "frozen_opposite_selected_action_no_protection_v1"}
 
 
 def _is_canonical_reactive_shield(move_id: Any) -> bool:

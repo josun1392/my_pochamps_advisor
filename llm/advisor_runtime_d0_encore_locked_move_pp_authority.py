@@ -16,7 +16,7 @@ def freeze_runtime_d0_encore_locked_move_pp_authority(*, strategy_d0: Mapping[st
     fresh = runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
     if fresh.get("status") != "current": return _result("rejected", fresh.get("reason", "stale_runtime_d0"), base)
     state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, Mapping) else None
-    side = state.get("opponent_side") if isinstance(state, Mapping) else None
+    side = state.get(f"{owner['side']}_side") if isinstance(state, Mapping) else None
     roster = side.get("pokemon") if isinstance(side, Mapping) else None
     pokemon = roster.get(owner["slot_index"]) if isinstance(roster, Mapping) else None
     records = pokemon.get("current_move_usability") if isinstance(pokemon, Mapping) else None
@@ -32,7 +32,7 @@ def freeze_runtime_d0_encore_locked_move_pp_authority(*, strategy_d0: Mapping[st
 
 def _base(d0: Any, owner: Any, move_id: Any) -> dict[str, Any] | None:
     required = {"session_id", "side", "slot_index", "pokemon_id"}
-    if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not isinstance(owner, Mapping) or set(owner) != required or owner.get("side") != "opponent" or d0.get("active_owners", {}).get("opponent") != dict(owner) or not isinstance(move_id, str) or not move_id:
+    if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not isinstance(owner, Mapping) or set(owner) != required or owner.get("side") not in {"self", "opponent"} or d0.get("active_owners", {}).get(owner.get("side")) != dict(owner) or not isinstance(move_id, str) or not move_id:
         return None
     if not all(isinstance(d0.get(key), str) and d0[key] for key in ("session_id", "source_runtime_fingerprint", "strategy_preview_fingerprint")): return None
     return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "owner": deepcopy(dict(owner)), "move_id": move_id}
