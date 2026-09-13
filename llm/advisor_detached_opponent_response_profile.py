@@ -32,6 +32,7 @@ LIVE_RESPONSE_BUNDLE_SCHEMA = "live-opponent-response-authority-bundle-v1"
 _ORDINARY_PAIR_BUNDLE_KEYS = {
     "first_action_sturdy_survival_authorities_by_order",
     "direct_heal_execution_authorities",
+    "rest_execution_authorities",
     "atomic_item_swap_status_execution_authorities",
     "taunt_application_authorities",
     "encore_application_authorities",
@@ -50,7 +51,9 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "pivot_entry_authorities",
 }
 _ORDINARY_PAIR_CONTEXT_KEYS = {"reactive_shield_common_block_context"}
-_GRAPH_PAIR_BUNDLE_KEYS = frozenset(_ORDINARY_PAIR_BUNDLE_KEYS)
+# The graph owner has not yet exposed Rest's detached state handoff.  Do not
+# pass an ordinary-pair-only authority as an unsupported graph kwarg.
+_GRAPH_PAIR_BUNDLE_KEYS = frozenset(_ORDINARY_PAIR_BUNDLE_KEYS - {"rest_execution_authorities"})
 
 
 def materialize_detached_opponent_response_profile(

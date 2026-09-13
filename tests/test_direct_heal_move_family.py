@@ -6,6 +6,7 @@ from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtim
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
 from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
+from llm.advisor_champions_sleep_application import materialize_champions_rest
 from tests.test_detached_opponent_response_profile import _owner, _snapshot, _state
 
 
@@ -57,4 +58,29 @@ def test_pair_uses_exact_order_and_ledger_replays_heal_fields():
     order = {"status":"resolved", "schema_version":"runtime-d0-action-order-authority-v1", "order":"own_first", "order_engine":{"status":"own_faster"}, "session_id":d0["session_id"], "source_runtime_fingerprint":d0["source_runtime_fingerprint"], "source_branch_fingerprint":d0["strategy_preview_fingerprint"], "decision_owner":d0["decision_owner"], "own_action_id":own["action_id"], "opponent_action_id":opponent["action_id"], "own_actor":actor, "opponent_actor":target}
     pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent, action_order_authority=order, direct_heal_execution_authorities={own["action_id"]:left, opponent["action_id"]:right})
     assert pair["status"] == "evaluable" and pair["terminal_probability_mass"] == {"numerator":1, "denominator":1}
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
+
+
+def test_rest_pair_carries_atomic_sleep_condition_and_exact_mass():
+    snapshot, d0, actor, _recover = _inputs(100, 301)
+    snapshot["state"]["self_side"]["pokemon"][0]["condition"] = "burn"
+    snapshot["state"]["self_side"]["pokemon"][0]["condition_provenance"]["condition"] = "burn"
+    snapshot = _snapshot(snapshot["state"])
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(snapshot["state"], "self"))
+    actor, target = d0["active_owners"]["self"], d0["active_owners"]["opponent"]
+    metadata = {"move_id":"rest", "category":"status", "target":"self", "priority":0, "accuracy":None, "power":None}
+    own = {"action_id":"attack:rest", "action_type":"attack", "identity":"rest", "move_metadata_authority":{"status":"resolved", "move_id":"rest", "metadata":metadata, "candidate_id":"attack:rest", "active_attacker":actor, "session_id":d0["session_id"], "source_runtime_fingerprint":d0["source_runtime_fingerprint"], "source_branch_fingerprint":d0["strategy_preview_fingerprint"], "decision_owner":d0["decision_owner"]}}
+    opponent = {"status":"resolved", "action_id":"opponent_attack:rest", "action_type":"attack", "move_id":"rest", "identity":"rest", "session_id":d0["session_id"], "source_runtime_fingerprint":d0["source_runtime_fingerprint"], "source_branch_fingerprint":d0["strategy_preview_fingerprint"], "decision_owner":d0["decision_owner"], "metadata_authority":{"status":"resolved", "move_id":"rest", "metadata":metadata}, "usability":{"status":"known_usable"}, "selectability":"selectable"}
+    opponent_action = {"action_id": opponent["action_id"], "action_type":"attack", "identity":"rest", "metadata_authority":opponent["metadata_authority"]}
+    order = {"status":"resolved", "schema_version":"runtime-d0-action-order-authority-v1", "order":"own_first", "order_engine":{"status":"own_faster"}, "session_id":d0["session_id"], "source_runtime_fingerprint":d0["source_runtime_fingerprint"], "source_branch_fingerprint":d0["strategy_preview_fingerprint"], "decision_owner":d0["decision_owner"], "own_action_id":own["action_id"], "opponent_action_id":opponent["action_id"], "own_actor":actor, "opponent_actor":target}
+    rest_authorities = {
+        own["action_id"]: materialize_champions_rest(strategy_d0=d0, runtime_snapshot=snapshot, actor=actor, action=own),
+        opponent["action_id"]: materialize_champions_rest(strategy_d0=d0, runtime_snapshot=snapshot, actor=target, action=opponent_action),
+    }
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent, action_order_authority=order, rest_execution_authorities=rest_authorities)
+    assert pair["status"] == "evaluable", pair
+    first = pair["terminal_branches"][0]["first_action_leaf"]
+    assert first["consequences"]["rest_application"]["rest_applied"] is True
+    assert first["consequences"]["rest_application"]["runtime_snapshot"]["state"]["self_side"]["pokemon"][0]["condition"] == "sleep"
+    assert pair["terminal_probability_mass"] == {"numerator":1, "denominator":1}
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"

@@ -7,6 +7,7 @@ from tests.test_atomic_item_swap_status_execution_authority import _inputs as _s
 from tests.test_detached_immediate_protection_response_pair import _inputs as _protection_inputs, _own_action, _protect_action, _success, _spiky_damage_authority, _silk_interaction, _kings_interaction, _obstruct_interaction
 from llm.advisor_runtime_d0_atomic_item_swap_status_execution_authority import freeze_runtime_d0_atomic_item_swap_status_execution_authority
 from llm.advisor_champions_gated_selected_action_execution import execute_gated_selected_action, consume_deferred_protection_setup
+from tests.test_champions_sleep_application import fixture as _sleep_fixture, refresh as _sleep_refresh
 
 
 def test_direct_heal_selected_action_result_is_detached_and_has_no_gate_mass():
@@ -83,6 +84,37 @@ def test_gated_handoff_uses_selected_action_probability_only_and_detached_heal_s
     assert path["probability"] == {"numerator": 1, "denominator": 1}
     assert path["post_action_runtime_snapshot"]["state"]["self_side"]["pokemon"][0]["current_hp"] == 252
     assert snapshot == before
+
+
+def test_rest_selected_action_reuses_atomic_rest_state_and_gated_handoff():
+    snapshot, d0, actor, target, _unused, _hit = _sleep_fixture()
+    raw = snapshot["state"]["self_side"]["pokemon"][0]
+    raw["current_hp"] = 40
+    raw["condition"] = "burn"
+    raw["condition_provenance"]["condition"] = "burn"
+    snapshot, d0 = _sleep_refresh(snapshot, actor)
+    action = {"action_id": "attack:rest", "action_type": "attack", "identity": "rest"}
+    metadata = {"move_id": "rest", "category": "status", "target": "self"}
+    before = deepcopy(snapshot)
+    result = materialize_detached_selected_action_execution_result(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=action, actor=actor,
+        target=target, move_metadata=metadata,
+    )
+    assert result["status"] == "resolved", result
+    path = result["paths"][0]
+    after = path["post_action_runtime_snapshot"]["state"]["self_side"]["pokemon"][0]
+    assert result["execution_family"] == "rest"
+    assert path["probability"] == {"numerator": 1, "denominator": 1}
+    assert after["current_hp"] == after["max_hp"]
+    assert after["condition"] == "sleep"
+    assert after["champions_status_progression"]["sleep_duration"] == 2
+    assert snapshot == before
+    gated = execute_gated_selected_action(
+        strategy_d0=d0, runtime_snapshot=snapshot, action=action, actor=actor,
+        target=target, metadata_authority={"status": "resolved", "metadata": metadata},
+    )
+    assert gated["status"] == "resolved", gated
+    assert gated["paths"][0]["post_action_runtime_snapshot"]["state"]["self_side"]["pokemon"][0]["condition"] == "sleep"
 
 
 def test_gated_protection_setup_keeps_pending_attack_unexecuted():

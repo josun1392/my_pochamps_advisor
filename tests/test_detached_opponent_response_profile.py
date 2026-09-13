@@ -12,6 +12,7 @@ from llm.advisor_reducer_state_model import project_atomic_transition, state_fin
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
 from llm.advisor_runtime_d0_opponent_action_authority import METADATA_SCHEMA_VERSION, freeze_runtime_d0_opponent_known_move_action_authority
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_seismic_toss_predictive_input, freeze_runtime_strategy_d0
+from llm.advisor_champions_sleep_application import materialize_champions_rest
 from llm.advisor_substitute import update_substitute_state_context
 
 
@@ -113,6 +114,55 @@ def test_complete_response_set_materializes_all_exact_pairs_without_probabilitie
     assert result["response_probability"] == "not_modeled" and result["ranking_influence"] == "none"
     state["opponent_side"]["pokemon"][0]["current_hp"] = 1
     assert len(result["response_entries"]) == 2
+
+
+def test_live_response_bundle_routes_rest_through_exact_atomic_materializer():
+    state, snapshot, d0, own_action, response_set, _orders = _inputs(own_hp=100, opponent_hp=100)
+    opponent = d0["active_owners"]["opponent"]
+    metadata = {"move_id": "rest", "category": "status", "target": "self", "priority": 0, "accuracy": None, "power": None}
+    response = {
+        "status": "resolved", "action_id": "opponent_attack:rest", "action_type": "attack",
+        "identity": "rest", "move_id": "rest", "session_id": d0["session_id"],
+        "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"],
+        "decision_owner": d0["decision_owner"],
+        "metadata_authority": {"status": "resolved", "move_id": "rest", "metadata": metadata},
+        "usability": {"status": "known_usable"}, "selectability": "selectable", "response_kind": "move",
+    }
+    response_set = {
+        **response_set,
+        "response_action_ids": (response["action_id"],),
+        "selectable_response_action_ids": (response["action_id"],),
+        "actions": (response,),
+    }
+    order = {
+        "status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "opponent_first",
+        "order_engine": {"status": "opponent_faster"}, "session_id": d0["session_id"],
+        "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+        "own_action_id": own_action["action_id"], "opponent_action_id": response["action_id"],
+        "own_actor": d0["active_owners"]["self"], "opponent_actor": opponent,
+    }
+    rest = materialize_champions_rest(strategy_d0=d0, runtime_snapshot=snapshot, actor=opponent, action=response)
+    bundle = {
+        "status": "resolved", "schema_version": "live-opponent-response-authority-bundle-v1",
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+        "own_action_id": own_action["action_id"], "opponent_response_action_id": response["action_id"],
+        "ordinary_pair_authorities": {"rest_execution_authorities": {response["action_id"]: rest}},
+        "graph_pair_authorities": {}, "provenance": "test_rest_live_response_bundle_v1",
+    }
+    result = materialize_detached_opponent_response_profile(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own_action,
+        response_set_authority=response_set, action_order_authorities={response["action_id"]: order},
+        response_authority_bundles={response["action_id"]: bundle},
+    )
+    assert result["status"] == "evaluable", result["response_entries"][0]["pair"].get("reason")
+    pair = result["response_entries"][0]["pair"]
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    rest_leaf = pair["terminal_branches"][0]["first_action_leaf"]
+    assert rest_leaf["consequences"]["rest_application"]["rest_applied"] is False
+    assert result["response_entries"][0]["descriptive_metrics"]["status"] == "resolved"
 
 
 def test_unusable_excluded_incomplete_pair_blocks_and_binding_mismatch_rejects():

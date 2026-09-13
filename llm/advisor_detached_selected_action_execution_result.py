@@ -15,6 +15,7 @@ from llm.advisor_detached_pure_status_action_materializer import materialize_det
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_detached_predictive_intermediate_state import freeze_detached_actor_neutral_root_predictive_authority
 from llm.advisor_runtime_d0_endure_turn_survival_authority import materialize_detached_endure_turn_context
+from llm.advisor_champions_sleep_application import materialize_champions_rest, validate_champions_rest
 
 SCHEMA_VERSION = "detached-selected-action-execution-result-v1"
 _GRAPH_MOVES = frozenset({"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"})
@@ -36,6 +37,8 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
         return _graph(base, strategy_d0, runtime_snapshot, action, actor, target, metadata, authorities)
     if move_id in {"recover", "slack-off", "soft-boiled"}:
         return _direct_heal(base, runtime_snapshot, authorities.get("direct_heal_execution_authority"))
+    if move_id == "rest":
+        return _rest(base, strategy_d0, runtime_snapshot, action)
     if move_id in {"trick", "switcheroo"}:
         return _atomic_item_swap(base, strategy_d0, authorities.get("atomic_item_swap_execution_authority"))
     if move_id in {"taunt", "encore", "disable"}:
@@ -83,6 +86,44 @@ def _direct_heal(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority
     d0=freeze_runtime_strategy_d0(runtime_snapshot=post_snapshot,decision_owner=base["actor"])
     if d0.get("status")!="resolved": return _result("incomplete",d0.get("reason","direct_heal_post_state_unavailable"),base)
     return {"status":"resolved","schema_version":SCHEMA_VERSION,**base,"execution_family":"direct_heal","probability_owner":"selected_action_only","paths":({"probability":deepcopy(materialized["probability"]),"action_consequence":materialized,"post_action_runtime_snapshot":post_snapshot,"post_action_strategy_d0":d0},),"provenance":"selected_action_to_existing_direct_heal_materializer_v1"}
+
+
+def _rest(base: Mapping[str, Any], d0: Mapping[str, Any], snapshot: Mapping[str, Any], action: Mapping[str, Any]) -> dict[str, Any]:
+    """Apply the existing atomic Rest owner on this exact detached branch."""
+    materialized = materialize_champions_rest(
+        strategy_d0=d0, runtime_snapshot=snapshot, actor=base["actor"], action=action,
+    )
+    if materialized.get("status") != "resolved":
+        return _result(materialized.get("status", "incomplete"), materialized.get("reason", "rest_execution_unavailable"), base)
+    for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "actor", "action_id", "move_id"):
+        if materialized.get(key) != base.get(key):
+            return _result("rejected", "rest_execution_binding_mismatch", base)
+    if materialized.get("rest_applied") is True:
+        if validate_champions_rest(materialized).get("status") != "resolved":
+            return _result("rejected", "rest_execution_provenance_invalid", base)
+        post_snapshot = materialized.get("runtime_snapshot")
+        if not isinstance(post_snapshot, Mapping):
+            return _result("rejected", "rest_post_action_snapshot_missing", base)
+    elif materialized.get("rest_applied") is False:
+        # A resolved no-effect result still has a detached continuation view.
+        post_snapshot = deepcopy(dict(snapshot))
+    else:
+        return _result("rejected", "rest_execution_outcome_invalid", base)
+    post_d0 = freeze_runtime_strategy_d0(runtime_snapshot=post_snapshot, decision_owner=base["actor"])
+    if post_d0.get("status") != "resolved":
+        return _result("incomplete", post_d0.get("reason", "rest_post_action_d0_unavailable"), base)
+    return {
+        "status": "resolved", "schema_version": SCHEMA_VERSION, **base,
+        "execution_family": "rest", "probability_owner": "selected_action_only",
+        "paths": ({
+            "probability": {"numerator": 1, "denominator": 1},
+            "action_consequence": deepcopy(materialized),
+            "rest_application": deepcopy(materialized),
+            "post_action_runtime_snapshot": deepcopy(dict(post_snapshot)),
+            "post_action_strategy_d0": post_d0,
+        },),
+        "provenance": "selected_action_to_existing_champions_rest_materializer_v1",
+    }
 
 
 def _graph(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], authorities: Mapping[str, Any]) -> dict[str, Any]:

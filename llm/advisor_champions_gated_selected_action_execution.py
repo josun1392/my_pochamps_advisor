@@ -106,6 +106,17 @@ def _family_authorities(strategy_d0: Mapping[str, Any], runtime_snapshot: Mappin
                 out["direct_heal_execution_authority"] = freeze_runtime_d0_direct_heal_execution_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, actor=actor)
             else:
                 out["direct_heal_execution_authority"] = {"status": "rejected", "reason": "gated_direct_heal_root_authority_binding_mismatch"}
+    elif move_id == "rest":
+        # Rest is its own strict, self-targeted materializer.  It must replay
+        # against the gate's detached branch rather than reuse root HP/status.
+        # A supplied live record is only an action-identity witness; the
+        # selected-action executor rebinds the actual materialization below.
+        supplied = pick("rest_execution_authorities")
+        if isinstance(supplied, Mapping):
+            if all(supplied.get(k) == value for k, value in (("session_id", strategy_d0.get("session_id")), ("actor", actor), ("action_id", action_id), ("move_id", "rest"))):
+                out["rest_execution_authority"] = supplied
+            else:
+                out["rest_execution_authority"] = {"status": "rejected", "reason": "gated_rest_root_authority_binding_mismatch"}
     elif move_id in {"trick", "switcheroo"}:
         out["atomic_item_swap_execution_authority"] = pick("atomic_item_swap_status_execution_authorities")
     elif move_id in {"taunt", "encore", "disable"}:

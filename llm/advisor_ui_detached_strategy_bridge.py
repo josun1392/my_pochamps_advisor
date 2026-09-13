@@ -17,6 +17,7 @@ from llm.advisor_runtime_d0_quick_claw_action_order_authority import freeze_runt
 from llm.advisor_runtime_d0_focus_sash_survival_authority import freeze_runtime_d0_focus_sash_survival_authority
 from llm.advisor_runtime_d0_sturdy_survival_authority import freeze_runtime_d0_sturdy_survival_authority
 from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
+from llm.advisor_champions_sleep_application import materialize_champions_rest
 from llm.advisor_runtime_d0_atomic_item_swap_status_execution_authority import freeze_runtime_d0_atomic_item_swap_status_execution_authority
 from llm.advisor_runtime_d0_status_special_application_authority import freeze_runtime_d0_status_special_application_authority
 from llm.advisor_runtime_d0_pivot_replacement_authority import freeze_runtime_d0_pivot_replacement_authority
@@ -298,6 +299,16 @@ def _project_live_opponent_response_profiles(
                             action=response, actor=active_owners["opponent"],
                         ),
                     }
+                if _is_rest_metadata(response_metadata):
+                    # Rest's existing materializer is the strict current-D0
+                    # authority.  The pair/gate will replay it on a detached
+                    # branch when preceding consequences changed its state.
+                    authorities["rest_execution_authorities"] = {
+                        response_id: materialize_champions_rest(
+                            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+                            actor=active_owners["opponent"], action=response,
+                        ),
+                    }
                 if _is_atomic_item_swap_metadata(response_metadata):
                     applicability = _ordinary_status_execution_applicability(
                         strategy_d0=strategy_d0, actor=active_owners["opponent"], target=active_owners["self"], action=response,
@@ -444,6 +455,10 @@ def _is_damaging_metadata(metadata: Any) -> bool:
 
 def _is_direct_heal_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and metadata.get("move_id") in {"recover", "slack-off", "soft-boiled"} and metadata.get("category") == "status" and metadata.get("target") == "self"
+
+
+def _is_rest_metadata(metadata: Any) -> bool:
+    return isinstance(metadata, Mapping) and metadata.get("move_id") == "rest" and metadata.get("category") == "status" and metadata.get("target") == "self"
 
 
 def _is_atomic_item_swap_metadata(metadata: Any) -> bool:

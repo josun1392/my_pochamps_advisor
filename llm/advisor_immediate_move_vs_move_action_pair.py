@@ -137,6 +137,8 @@ from llm.advisor_detached_pure_status_action_materializer import materialize_det
 from llm.advisor_detached_atomic_item_swap_status_materializer import materialize_detached_atomic_item_swap_status
 from llm.advisor_detached_direct_heal_materializer import materialize_detached_direct_heal
 from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
+from llm.advisor_champions_sleep_application import materialize_champions_rest, validate_champions_rest
+from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -184,6 +186,7 @@ def materialize_immediate_move_vs_move_action_pair(
     pure_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     atomic_item_swap_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     direct_heal_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    rest_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     crafty_shield_pure_status_applicability_authority: Mapping[str, Any] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     taunt_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
@@ -219,13 +222,13 @@ def materialize_immediate_move_vs_move_action_pair(
             return _result("incomplete", "champions_status_pair_extension_binding_required", base)
     if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and any(member.get("current_confusion") == "confused" for member in status_members):
         from llm.advisor_champions_status_confusion_gated_pair import materialize_champions_status_confusion_gated_pair
-        return materialize_champions_status_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
+        return materialize_champions_status_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
     if any(member.get("current_confusion") == "confused" for member in status_members):
         from llm.advisor_champions_confusion_gated_pair import materialize_champions_confusion_gated_pair
-        return materialize_champions_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
+        return materialize_champions_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
     if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and (not pending_status_execution_authorities or any(member.get("champions_status_progression") for member in status_members)):
         from llm.advisor_champions_status_gated_pair import materialize_champions_status_gated_pair
-        return materialize_champions_status_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
+        return materialize_champions_status_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
     if canonical_endure_metadata(own_meta.get("metadata", {}).get("move_id") if isinstance(own_meta.get("metadata"), Mapping) else None) is not None or canonical_endure_metadata(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None:
         if any(meta.get("metadata", {}).get("move_id") in {"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"} for meta in (own_meta, opponent_meta)):
             from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair import materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair
@@ -239,10 +242,11 @@ def materialize_immediate_move_vs_move_action_pair(
                 endure_turn_survival_authority=endure_turn_survival_authority,
             )
         return _materialize_endure_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, endure_authority=endure_turn_survival_authority)
-    if _is_direct_heal_metadata(own_meta.get("metadata")) or _is_direct_heal_metadata(opponent_meta.get("metadata")):
+    if _is_recovery_metadata(own_meta.get("metadata")) or _is_recovery_metadata(opponent_meta.get("metadata")):
         return _materialize_direct_heal_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
-            orders=orders, authorities=direct_heal_execution_authorities)
+            orders=orders, authorities=direct_heal_execution_authorities,
+            rest_authorities=rest_execution_authorities)
     if _is_atomic_item_swap_metadata(own_meta.get("metadata")) or _is_atomic_item_swap_metadata(opponent_meta.get("metadata")):
         return _materialize_atomic_item_swap_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
@@ -334,6 +338,14 @@ def _gated_extension_authorities(**authorities: Any) -> dict[str, Any]:
 
 def _is_direct_heal_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and metadata.get("move_id") in {"recover", "slack-off", "soft-boiled"} and metadata.get("category") == "status" and metadata.get("target") == "self"
+
+
+def _is_rest_metadata(metadata: Any) -> bool:
+    return isinstance(metadata, Mapping) and metadata.get("move_id") == "rest" and metadata.get("category") == "status" and metadata.get("target") == "self"
+
+
+def _is_recovery_metadata(metadata: Any) -> bool:
+    return _is_direct_heal_metadata(metadata) or _is_rest_metadata(metadata)
 
 
 def _is_atomic_item_swap_metadata(metadata: Any) -> bool:
@@ -494,28 +506,29 @@ def _materialize_endure_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[st
     if mass != Fraction(1,1): return _result("rejected", "endure_pair_probability_mass_not_one", base, terminal_probability_mass=_fd(mass))
     return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**deepcopy(dict(base)),"action_order":{"endure":"existing_exact_order_authority"},"terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_endure_attack_leaf_identity","provenance":"strict_detached_endure_turn_survival_pair_materialization_v1"}
 
-def _materialize_direct_heal_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+def _materialize_direct_heal_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None, rest_authorities: Mapping[str, Mapping[str, Any]] | None = None) -> dict[str, Any]:
     """Small adapter: attacks stay in their canonical ledger; healing owns only HP restoration."""
-    if not isinstance(authorities, Mapping): return _result("incomplete", "direct_heal_execution_authorities_required", base)
+    if not isinstance(authorities, Mapping): authorities = {}
+    if not isinstance(rest_authorities, Mapping): rest_authorities = {}
     actions = {"own": (own_action, own_meta, base["own_actor"], base["opponent_actor"]), "opponent": (opponent_action, opponent_meta, base["opponent_actor"], base["own_actor"])}
     branches = []
     for plan in orders:
         first_key, second_key = ("own", "opponent") if plan["order"] == "own_first" else ("opponent", "own")
         first_action, first_meta, first_actor, first_target = actions[first_key]
         second_action, second_meta, second_actor, second_target = actions[second_key]
-        if _is_direct_heal_metadata(first_meta.get("metadata")):
-            first = _direct_heal_leaf(authorities.get(first_action.get("action_id")), strategy_d0, runtime_snapshot, first_action, first_actor, first_target, None)
+        if _is_recovery_metadata(first_meta.get("metadata")):
+            first = _recovery_leaf(first_meta.get("metadata"), authorities.get(first_action.get("action_id")), rest_authorities.get(first_action.get("action_id")), strategy_d0, runtime_snapshot, first_action, first_actor, first_target, None)
             if isinstance(first, str): return _result("incomplete", first, base)
-            if _is_direct_heal_metadata(second_meta.get("metadata")):
+            if _is_recovery_metadata(second_meta.get("metadata")):
                 hp = {"current_hp": _current_hp(strategy_d0, second_actor), "max_hp": _max_hp(strategy_d0, second_actor), "fainted": False}
-                second = _direct_heal_leaf(authorities.get(second_action.get("action_id")), strategy_d0, runtime_snapshot, second_action, second_actor, second_target, hp)
+                second = _recovery_leaf(second_meta.get("metadata"), authorities.get(second_action.get("action_id")), rest_authorities.get(second_action.get("action_id")), strategy_d0, runtime_snapshot, second_action, second_actor, second_target, hp)
                 if isinstance(second, str): return _result("incomplete", second, base)
                 branches.append(_branch(base, plan["order"], first, {}, second, second_actor, plan)); continue
-            attack_d0, attack_snapshot = strategy_d0, runtime_snapshot
-            if second_actor == base["opponent_actor"]:
-                root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
-                if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
-                attack_d0, attack_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
+            # Rest's exact post-state, including its fixed sleep progression,
+            # is the second action's source.  This is not an HP-only rebase.
+            attack_snapshot = first.get("consequences", {}).get("rest_application", {}).get("runtime_snapshot", runtime_snapshot)
+            attack_d0 = freeze_runtime_strategy_d0(runtime_snapshot=attack_snapshot, decision_owner=second_actor)
+            if attack_d0.get("status") != "resolved": return _result("incomplete", attack_d0.get("reason", "rest_second_action_d0_unavailable"), base)
             ledger = _attack_ledger(strategy_d0=attack_d0, runtime_snapshot=attack_snapshot, actor=second_actor, target=second_target, metadata_authority=second_meta, action=second_action)
             if ledger.get("status") != "evaluable": return _result(_status(ledger), ledger.get("reason", "second_action_ledger_unavailable"), base)
             for raw in ledger["terminal_leaves"]:
@@ -525,6 +538,7 @@ def _materialize_direct_heal_pair(*, base: Mapping[str, Any], strategy_d0: Mappi
         # First action is a canonical damaging attack.  Each exact terminal
         # leaf supplies the path-local HP source for the later self-heal.
         attack_d0, attack_snapshot = strategy_d0, runtime_snapshot
+        root = None
         if first_actor == base["opponent_actor"]:
             root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
             if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "opponent_root_predictive_authority_unavailable"), base)
@@ -535,7 +549,25 @@ def _materialize_direct_heal_pair(*, base: Mapping[str, Any], strategy_d0: Mappi
             hp = {"current_hp": first["consequences"]["target_final_hp"], "max_hp": _max_hp(strategy_d0, second_actor), "fainted": first["consequences"]["target_final_hp"] == 0}
             if hp["fainted"]:
                 branches.append(_branch(base, plan["order"], first, {}, None, second_actor, plan)); continue
-            second = _direct_heal_leaf(authorities.get(second_action.get("action_id")), strategy_d0, runtime_snapshot, second_action, second_actor, second_target, hp)
+            if _is_rest_metadata(second_meta.get("metadata")):
+                # Rest reads condition and sleep-prevention facts.  An exact
+                # first-action condition transition cannot be replaced with
+                # request-start state while the generic detached builder has
+                # no status-aware snapshot adapter, so retain strict
+                # incompleteness instead of healing from stale authority.
+                intermediate = materialize_detached_predictive_intermediate_state(
+                    strategy_d0=strategy_d0, terminal_leaf=first,
+                    root_predictive_authority=root,
+                )
+                if intermediate.get("status") != "resolved":
+                    return _result(_status(intermediate), intermediate.get("reason", "rest_second_intermediate_state_unavailable"), base)
+                condition = intermediate.get("active", {}).get(second_actor.get("side"), {}).get("hypothetical_condition")
+                if isinstance(condition, Mapping) and condition.get("source") in {
+                    "exact_terminal_leaf_condition_effect",
+                    "exact_terminal_leaf_condition_removal",
+                }:
+                    return _result("incomplete", "rest_second_action_changed_condition_requires_status_aware_intermediate_adapter", base)
+            second = _recovery_leaf(second_meta.get("metadata"), authorities.get(second_action.get("action_id")), rest_authorities.get(second_action.get("action_id")), strategy_d0, runtime_snapshot, second_action, second_actor, second_target, hp)
             if isinstance(second, str): return _result("incomplete", second, base)
             branches.append(_branch(base, plan["order"], first, {}, second, second_actor, plan))
     mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
@@ -557,6 +589,37 @@ def _direct_heal_leaf(authority: Any, d0: Mapping[str, Any], snapshot: Mapping[s
     target_hp = _current_hp(d0, target)
     if target_hp is None: return "direct_heal_target_hp_authority_missing"
     return {"leaf_id":f"{materialized['action_id']}:{materialized['outcome']}","candidate_id":materialized["action_id"],"branch_path":(materialized["outcome"],),"probability":deepcopy(materialized["probability"]),"hit_state":"not_applicable","critical_state":"not_applicable","damage_roll":"not_applicable","consequences":{"damage":0,"own_final_hp":heal["post_hp"],"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":False,"secondary":None,"contact":"not_applicable","direct_heal":deepcopy(heal)},"provenance":{"session_id":materialized["session_id"],"source_runtime_fingerprint":materialized["source_runtime_fingerprint"],"source_branch_fingerprint":materialized["source_branch_fingerprint"],"decision_owner":deepcopy(materialized["decision_owner"]),"attacker":deepcopy(materialized["actor"]),"target":deepcopy(target),"move_id":materialized["move_id"],"direct_heal_execution_authority":deepcopy(authority)}}
+
+
+def _recovery_leaf(metadata: Any, authority: Any, rest_authority: Any, d0: Mapping[str, Any], snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], path_hp: Mapping[str, Any] | None) -> dict[str, Any] | str:
+    if _is_direct_heal_metadata(metadata):
+        return _direct_heal_leaf(authority, d0, snapshot, action, actor, target, path_hp)
+    if not _is_rest_metadata(metadata):
+        return "recovery_move_metadata_invalid"
+    if isinstance(rest_authority, Mapping):
+        if rest_authority.get("status") != "resolved":
+            return rest_authority.get("reason", "rest_execution_authority_unavailable")
+        for key, value in (("session_id", d0.get("session_id")), ("actor", actor), ("action_id", action.get("action_id")), ("move_id", "rest")):
+            if rest_authority.get(key) != value:
+                return "rest_execution_authority_binding_mismatch"
+    state = deepcopy(snapshot.get("state"))
+    if not isinstance(state, Mapping): return "rest_runtime_snapshot_invalid"
+    row = state.get(f"{actor.get('side')}_side", {}).get("pokemon", {}).get(actor.get("slot_index"))
+    if not isinstance(row, Mapping): return "rest_actor_state_missing"
+    if isinstance(path_hp, Mapping):
+        hp = path_hp.get("current_hp")
+        if not isinstance(hp, int) or isinstance(hp, bool): return "rest_path_hp_authority_invalid"
+        row["current_hp"], row["fainted"] = hp, hp == 0
+    branch_snapshot = {"status":"runtime_snapshot_ready", "session_id":state.get("session_id"), "state":state, "state_fingerprint":state_fingerprint(state)}
+    branch_d0 = freeze_runtime_strategy_d0(runtime_snapshot=branch_snapshot, decision_owner=actor)
+    if branch_d0.get("status") != "resolved": return branch_d0.get("reason", "rest_branch_d0_unavailable")
+    materialized = materialize_champions_rest(strategy_d0=branch_d0, runtime_snapshot=branch_snapshot, actor=actor, action=action)
+    if materialized.get("status") != "resolved": return materialized.get("reason", "rest_materialization_unavailable")
+    if materialized.get("rest_applied") is True and validate_champions_rest(materialized).get("status") != "resolved": return "rest_materialization_provenance_invalid"
+    actor_hp = materialized.get("hp_after") if materialized.get("rest_applied") is True else row.get("current_hp")
+    target_hp = state.get(f"{target.get('side')}_side", {}).get("pokemon", {}).get(target.get("slot_index"), {}).get("current_hp")
+    if not _hp(actor_hp) or not _hp(target_hp): return "rest_post_action_hp_unknown"
+    return {"leaf_id":f"{action['action_id']}:{materialized.get('outcome')}","candidate_id":action["action_id"],"action_type":"attack","branch_path":("rest",materialized.get("outcome")),"probability":_fd(Fraction(1,1)),"hit_state":"not_applicable","critical_state":"not_applicable","damage_roll":"not_applicable","consequences":{"damage":0,"own_final_hp":actor_hp,"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":actor_hp==0,"secondary":None,"contact":"not_applicable","rest_application":deepcopy(materialized)},"provenance":{"session_id":materialized["session_id"],"source_runtime_fingerprint":materialized["source_runtime_fingerprint"],"source_branch_fingerprint":materialized["source_branch_fingerprint"],"decision_owner":deepcopy(materialized["decision_owner"]),"attacker":deepcopy(actor),"target":deepcopy(target),"move_id":"rest","rest_application":deepcopy(materialized)}}
 
 
 def _current_hp(d0: Mapping[str, Any], owner: Mapping[str, Any]) -> int | None:
