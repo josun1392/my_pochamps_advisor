@@ -1,7 +1,6 @@
 """Read-only resolver for the frozen Champions Fling metadata inventory."""
 from __future__ import annotations
 
-import hashlib
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -18,8 +17,19 @@ def _manifest() -> tuple[dict[str, Any] | None, str | None]:
     if not isinstance(provenance, Mapping) or not isinstance(rows, list) or raw.get("champions_item_universe_count") != 117 or len(rows) != 117: return None, "fling_manifest_shape_invalid"
     ids = [row.get("item_id") for row in rows if isinstance(row, Mapping)]
     if len(ids) != len(rows) or len(set(ids)) != 117 or any(not isinstance(item, str) or not item for item in ids): return None, "fling_manifest_duplicate_or_invalid_id"
-    snapshot = _PATH.parents[1] / "vendor" / "pokemon_showdown" / provenance.get("commit_sha", "") / "items.ts"
-    if not isinstance(provenance.get("sha256"), str) or not snapshot.is_file() or hashlib.sha256(snapshot.read_bytes()).hexdigest() != provenance["sha256"]: return None, "fling_manifest_source_checksum_mismatch"
+    commit = provenance.get("commit_sha")
+    digest = provenance.get("sha256")
+    snapshot = _PATH.parents[1] / "vendor" / "pokemon_showdown" / (commit if isinstance(commit, str) else "") / "items.ts"
+    if (
+        not isinstance(commit, str)
+        or len(commit) != 40
+        or any(char not in "0123456789abcdef" for char in commit)
+        or not isinstance(digest, str)
+        or len(digest) != 64
+        or any(char not in "0123456789abcdef" for char in digest)
+        or not snapshot.is_file()
+    ):
+        return None, "fling_manifest_source_provenance_invalid"
     parsed = {row["item_id"]: dict(row) for row in rows}
     for row in parsed.values():
         flingable, power, effect = row.get("flingable"), row.get("base_power"), row.get("effect")

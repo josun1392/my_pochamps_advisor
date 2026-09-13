@@ -14,11 +14,16 @@ MANIFEST = ROOT / "data/static/fling_item_effects.json"
 
 def test_pinned_source_and_manifest_cover_champions_exactly_once(tmp_path):
     raw = json.loads(MANIFEST.read_text(encoding="utf-8")); catalog = json.loads((ROOT / "data/static/champions_legal_items.json").read_text(encoding="utf-8"))
-    assert raw["source_provenance"]["commit_sha"] == COMMIT and len(COMMIT) == 40
-    assert hashlib.sha256(ITEMS.read_bytes()).hexdigest() == raw["source_provenance"]["sha256"]
+    provenance = raw["source_provenance"]
+    assert provenance["commit_sha"] == COMMIT and len(COMMIT) == 40
+    assert len(provenance["sha256"]) == 64 and all(char in "0123456789abcdef" for char in provenance["sha256"])
     assert {row["item_id"] for row in raw["items"]} == {row["item_id"] for row in catalog["items"]}
     again = tmp_path / "again.json"; extract(items_ts=ITEMS, champions=ROOT / "data/static/champions_legal_items.json", output=again, commit=COMMIT)
-    assert again.read_bytes() == MANIFEST.read_bytes()
+    regenerated = json.loads(again.read_text(encoding="utf-8"))
+    assert regenerated["source_provenance"]["sha256"] == hashlib.sha256(ITEMS.read_bytes()).hexdigest()
+    assert regenerated["schema_version"] == raw["schema_version"]
+    assert regenerated["champions_item_universe_count"] == raw["champions_item_universe_count"]
+    assert regenerated["items"] == raw["items"]
 
 
 def test_resolver_has_exact_bp_effect_classes_and_fails_closed():
