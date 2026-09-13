@@ -1,4 +1,4 @@
-from scripts.run_sanitized_direct_mechanics_smoke import EXIT, FIXTURES, _prepared, run_smoke
+from scripts.run_sanitized_direct_mechanics_smoke import DEFAULT_MODEL, EXIT, FIXTURES, _prepared, run_smoke
 
 
 def _response(payload):
@@ -31,7 +31,7 @@ def test_fixture_preparation_produces_known_and_insufficient_mechanics_evidence(
 
 
 def test_fake_provider_requires_value_free_mechanics_acknowledgement_and_preserves_insufficient_status():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"]
     assert result["provider_calls"] == 2
 
@@ -40,7 +40,7 @@ def test_fake_provider_requires_value_free_mechanics_acknowledgement_and_preserv
         del response["mechanics_acknowledgements"]
         return response
 
-    failed = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=missing_ack)
+    failed = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=missing_ack)
     assert failed["exit_code"] == EXIT["semantic"]
     assert failed["provider_calls"] == 1
     assert failed["diagnostic"] == "mechanics_acknowledgement_missing"
@@ -50,7 +50,7 @@ def test_fake_provider_requires_value_free_mechanics_acknowledgement_and_preserv
         response["mechanics_acknowledgements"][0]["mechanics_path"] = "candidate_comparisons.1.mechanics_result"
         return response
 
-    wrong_path_failed = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=wrong_path)
+    wrong_path_failed = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=wrong_path)
     assert wrong_path_failed["exit_code"] == EXIT["semantic"]
     assert wrong_path_failed["diagnostic"] == "mechanics_acknowledgement_path_invalid"
 
@@ -60,7 +60,7 @@ def test_fake_provider_requires_value_free_mechanics_acknowledgement_and_preserv
             response["mechanics_acknowledgements"][0]["missing_inputs_path"] = None
         return response
 
-    dependency_failed = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=wrong_dependency)
+    dependency_failed = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=wrong_dependency)
     assert dependency_failed["exit_code"] == EXIT["semantic"]
     assert dependency_failed["provider_calls"] == 2
     assert dependency_failed["diagnostic"] == "mechanics_acknowledgement_dependency_invalid"
@@ -70,14 +70,14 @@ def test_provider_failure_exposes_only_allowlisted_sanitized_code():
     class Timeout(Exception):
         code = "provider_timeout"
 
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(Timeout()))
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(Timeout()))
     assert result["exit_code"] == EXIT["provider"]
     assert result["diagnostic"] == "provider_timeout"
 
     class RateLimit(Exception):
         code = "provider_quota_or_rate_limit"
 
-    rate_limited = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(RateLimit()))
+    rate_limited = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(RateLimit()))
     assert rate_limited["exit_code"] == EXIT["provider"]
     assert rate_limited["diagnostic"] == "provider_quota_or_rate_limit"
 
@@ -85,14 +85,14 @@ def test_provider_failure_exposes_only_allowlisted_sanitized_code():
         code = "provider_invalid_request"
         safe_context = {"http_status": 400, "api_status": "INVALID_ARGUMENT", "stage": "http_response", "component": "response_schema", "logical_field": "mechanics_acknowledgements", "reason": "schema_keyword_enum", "raw": "must-not-surface"}
 
-    invalid_request = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=(FIXTURES[0],), max_calls=1, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(InvalidRequest()))
+    invalid_request = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=(FIXTURES[0],), max_calls=1, no_retry=True, credential_available=lambda: True, provider_call=lambda _: (_ for _ in ()).throw(InvalidRequest()))
     assert invalid_request["exit_code"] == EXIT["provider"]
     assert invalid_request["provider_diagnostic"] == {"http_status": 400, "api_status": "INVALID_ARGUMENT", "stage": "http_response", "component": "response_schema", "logical_field": "mechanics_acknowledgements", "reason": "schema_keyword_enum"}
     assert "raw" not in str(invalid_request["provider_diagnostic"])
 
 
 def test_one_fixture_diagnostic_run_has_a_hard_one_call_limit():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=(FIXTURES[0],), max_calls=1, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=(FIXTURES[0],), max_calls=1, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"]
     assert result["provider_calls"] == 1
 

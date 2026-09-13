@@ -96,10 +96,12 @@ import os
 import runpy
 import sys
 import types
+sys.path.insert(0, {str(PROJECT_ROOT)!r})
 import config
 fake_loader = types.ModuleType('config.env_loader')
 fake_loader.load_dotenv = lambda **kwargs: None
 sys.modules['config.env_loader'] = fake_loader
+os.environ['GEMINI_MODEL'] = {DEFAULT_MODEL!r}
 os.environ.pop('GEMINI_API_KEY', None)
 os.environ.pop('GOOGLE_API_KEY', None)
 sys.argv = [{str(RUNNER)!r}, '--actual', '--model', {DEFAULT_MODEL!r}, '--fixtures', *{list(REQUIRED_FIXTURES)!r}, '--max-calls', '2', '--no-retry']
@@ -132,8 +134,17 @@ def test_direct_script_subprocess_rejects_invalid_arguments_before_adapter_const
 
 def test_direct_script_subprocess_allows_fake_provider_to_reach_grounding_validation():
     code = f"""
+import os
 import runpy
 import sys
+import types
+sys.path.insert(0, {str(PROJECT_ROOT)!r})
+import config
+fake_loader = types.ModuleType('config.env_loader')
+fake_loader.load_dotenv = lambda **kwargs: None
+sys.modules['config.env_loader'] = fake_loader
+os.environ['GEMINI_MODEL'] = {DEFAULT_MODEL!r}
+os.environ['GEMINI_API_KEY'] = 'offline-test-placeholder'
 import llm.advisor_client as client
 client.call_structured_recommendation_provider = lambda **kwargs: ({{'grounding': {{'schema_version': 'grounding-v1', 'confirmed_facts': [], 'unknown_facts': [{{'path': 'field.weather', 'authority': 'runtime'}}], 'evidence_only': [], 'conflicts': [], 'conditional_dependencies': []}}}}, {{}})
 sys.argv = [{str(RUNNER)!r}, '--actual', '--model', {DEFAULT_MODEL!r}, '--fixtures', *{list(REQUIRED_FIXTURES)!r}, '--max-calls', '2', '--no-retry']
@@ -147,6 +158,15 @@ runpy.run_path({str(RUNNER)!r}, run_name='__main__')
 
 def test_subprocess_cli_surfaces_structural_diagnostic_without_provider_content():
     code = f"""
+import os
+import sys
+import types
+sys.path.insert(0, {str(PROJECT_ROOT)!r})
+import config
+fake_loader = types.ModuleType('config.env_loader')
+fake_loader.load_dotenv = lambda **kwargs: None
+sys.modules['config.env_loader'] = fake_loader
+os.environ['GEMINI_MODEL'] = {DEFAULT_MODEL!r}
 import scripts.run_sanitized_runtime_grounding_smoke as smoke
 factory = lambda **kwargs: ((lambda: True), (lambda fixture_id: {{'grounding': {{'schema_version': 'wrong'}}}}))
 raise SystemExit(smoke.main(['--actual', '--model', {DEFAULT_MODEL!r}, '--fixtures', *{list(REQUIRED_FIXTURES)!r}, '--max-calls', '2', '--no-retry'], actual_adapter_factory=factory))

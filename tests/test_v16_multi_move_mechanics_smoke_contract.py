@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 
-from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, DEFENDER_ABILITY_FIXTURES, EXACT_KO_PROBABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, KO_INTERPRETATION_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
+from scripts.run_sanitized_multi_move_mechanics_smoke import ABILITY_FIXTURES, ACCURACY_FIXTURES, ACCURACY_STAGE_FIXTURES, CONSEQUENCE_FIXTURES, CURRENT_TYPE_Q12_FIXTURES, DARK_TYPE_PRANKSTER_FIXTURES, DEFAULT_MODEL, DEFENDER_ABILITY_FIXTURES, EXACT_KO_PROBABILITY_FIXTURES, EXIT, FIXED_DAMAGE_FIXTURES, FIXED_HIT_FIXTURES, FIXTURES, GALE_WINGS_FIXTURES, GROUNDING_FIXTURES, ITEM_FIXTURES, KO_INTERPRETATION_FIXTURES, MODIFIER_FIXTURES, PARALYSIS_FIXTURES, PRANKSTER_FIXTURES, PRIORITY_BLOCKING_ABILITY_FIXTURES, PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, SPEED_STAGE_FIXTURES, STAGE_FIXTURES, STATIC_SPEED_FIXTURES, STATUS_FIXTURES, TAILWIND_FIXTURES, TERRAIN_FIXTURES, TRICK_ROOM_FIXTURES, TRIAGE_FIXTURES, _prepared, main, offline_ability_authority_variants, offline_defender_ability_authority_variants, offline_grounded_terrain_authority_variants, offline_item_authority_variants, run_smoke
 
 
 def _code(rows, winner):
@@ -21,12 +21,12 @@ def _response(payload, *, selected=None):
 
 
 def test_three_fixture_fake_provider_binds_deterministic_acknowledgements():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=3, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXTURES, max_calls=3, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 3
 
 
 def test_multi_candidate_grounding_fixtures_preserve_isolated_mechanics_and_action_order():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=GROUNDING_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=GROUNDING_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     complete = _prepared(GROUNDING_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert all(row["comparison_facts"]["candidate_id"] == {"slot_index": row["slot_index"], "move": row["move"]} for row in complete)
@@ -36,7 +36,7 @@ def test_multi_candidate_grounding_fixtures_preserve_isolated_mechanics_and_acti
 
 
 def test_ko_fixture_pair_keeps_server_owned_labels_and_unknown_hp_selectable():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=KO_INTERPRETATION_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=KO_INTERPRETATION_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     known, unknown = (_prepared(fixture)["recommendation_request"]["candidate_comparisons"] for fixture in KO_INTERPRETATION_FIXTURES)
     assert known[0]["mechanics_result"]["ko_interpretation"]["primary_ko_label"] == "possible_ohko"
@@ -45,7 +45,7 @@ def test_ko_fixture_pair_keeps_server_owned_labels_and_unknown_hp_selectable():
 
 
 def test_exact_probability_fixture_pair_preflights_fractions_and_keeps_unknown_hp_formula_selectable():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=EXACT_KO_PROBABILITY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=EXACT_KO_PROBABILITY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     known, unknown = (_prepared(fixture) for fixture in EXACT_KO_PROBABILITY_FIXTURES)
     probability = known["candidates"][0]["mechanics_result"]["ko_probability"]
@@ -56,7 +56,7 @@ def test_exact_probability_fixture_pair_preflights_fractions_and_keeps_unknown_h
 
 
 def test_accuracy_fixture_pair_preserves_numeric_and_always_hit_distinction():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=ACCURACY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=ACCURACY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     known = _prepared(ACCURACY_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert [row["accuracy_evidence"]["status"] for row in known] == ["known_accuracy", "known_accuracy"]
@@ -66,7 +66,7 @@ def test_accuracy_fixture_pair_preserves_numeric_and_always_hit_distinction():
 
 
 def test_accuracy_stage_fixture_pair_keeps_adjusted_evidence_and_always_hit_control():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=ACCURACY_STAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=ACCURACY_STAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(ACCURACY_STAGE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert [row["accuracy_evidence"].get("adjusted_accuracy") for row in supported[:2]] == [100, 93]
@@ -77,7 +77,7 @@ def test_accuracy_stage_fixture_pair_keeps_adjusted_evidence_and_always_hit_cont
 
 
 def test_status_fixture_pair_keeps_roles_separate_from_damage_and_selected_evidence():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=STATUS_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=STATUS_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     damage_status = _prepared(STATUS_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert [row["status_move_evidence"]["role_tags"] for row in damage_status] == [[], ["recovery"], ["self_stat_raise"]]
@@ -88,7 +88,7 @@ def test_status_fixture_pair_keeps_roles_separate_from_damage_and_selected_evide
 
 
 def test_consequence_fixture_pair_keeps_canonical_tags_candidate_local():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=CONSEQUENCE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=CONSEQUENCE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     recoil = _prepared(CONSEQUENCE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert [row["move_consequence_evidence"]["consequence_tags"] for row in recoil] == [["recoil"], ["drain_or_healing_from_damage"], []]
@@ -97,7 +97,7 @@ def test_consequence_fixture_pair_keeps_canonical_tags_candidate_local():
 
 
 def test_fixed_hit_fixture_pair_preserves_per_hit_total_and_variable_hit_boundary():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXED_HIT_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXED_HIT_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     complete = _prepared(FIXED_HIT_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     fixed = complete[0]["mechanics_result"]
@@ -112,7 +112,7 @@ def test_fixed_hit_fixture_pair_preserves_per_hit_total_and_variable_hit_boundar
 
 
 def test_fixed_damage_fixture_pair_keeps_level_model_q12_and_immunity_isolated():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXED_DAMAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXED_DAMAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     complete = _prepared(FIXED_DAMAGE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert complete[0]["mechanics_result"]["damage_model"] == "level_based_fixed"
@@ -126,7 +126,7 @@ def test_fixed_damage_fixture_pair_keeps_level_model_q12_and_immunity_isolated()
 
 
 def test_modifier_fixture_pair_preserves_candidate_local_known_and_fail_closed_evidence():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=MODIFIER_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=MODIFIER_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     combined = _prepared(MODIFIER_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert [row["mechanics_result"].get("applied_damage_modifiers") for row in combined] == [
@@ -142,7 +142,7 @@ def test_modifier_fixture_pair_preserves_candidate_local_known_and_fail_closed_e
 
 
 def test_ability_fixture_pair_preserves_static_matching_and_level_fixed_control():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=ABILITY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=ABILITY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(ABILITY_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert [row["mechanics_result"].get("applied_damage_modifiers") for row in supported] == [["ability_iron_fist_boost"], [], None]
@@ -165,7 +165,7 @@ def test_offline_ability_authority_variants_never_call_provider_or_default_to_ab
 
 
 def test_item_fixture_pair_preserves_matching_fixed_hit_and_level_fixed_control():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=ITEM_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=ITEM_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(ITEM_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert [row["mechanics_result"].get("applied_damage_modifiers") for row in supported] == [["item_choice_band_boost"], ["item_choice_band_boost"], [], None]
@@ -190,7 +190,7 @@ def test_offline_item_authority_variants_never_call_provider_or_default_to_absen
 
 
 def test_defender_ability_fixture_pair_preserves_matching_fixed_hit_and_level_fixed_control():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=DEFENDER_ABILITY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=DEFENDER_ABILITY_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(DEFENDER_ABILITY_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert [row["mechanics_result"].get("applied_damage_modifiers") for row in supported] == [["defender_ability_fur_coat_reduction"], [], None]
@@ -202,7 +202,7 @@ def test_defender_ability_fixture_pair_preserves_matching_fixed_hit_and_level_fi
 
 
 def test_stage_fixture_pair_preserves_physical_special_mapping_and_level_fixed_control():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=STAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=STAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(STAGE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert supported[0]["mechanics_result"]["stat_stage_evidence"]["offensive_stage_stat"] == "attack"
@@ -214,7 +214,7 @@ def test_stage_fixture_pair_preserves_physical_special_mapping_and_level_fixed_c
 
 
 def test_speed_stage_fixture_pair_keeps_priority_first_and_unknown_fail_closed():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=SPEED_STAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=SPEED_STAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(SPEED_STAGE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert supported[0]["action_order"]["speed_stage_adjustment_applied"] is True
@@ -225,7 +225,7 @@ def test_speed_stage_fixture_pair_keeps_priority_first_and_unknown_fail_closed()
 
 
 def test_grounded_terrain_fixture_pair_keeps_candidate_local_q12_evidence():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=TERRAIN_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=TERRAIN_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(TERRAIN_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert [row["mechanics_result"].get("applied_damage_modifiers") for row in supported] == [["terrain_electric_boost"], [], ["terrain_electric_boost"], None]
@@ -237,7 +237,7 @@ def test_grounded_terrain_fixture_pair_keeps_candidate_local_q12_evidence():
 
 
 def test_trick_room_fixture_pair_keeps_priority_and_reverse_speed_evidence_isolated():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=TRICK_ROOM_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=TRICK_ROOM_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(TRICK_ROOM_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert supported[0]["action_order"]["trick_room"] == "active"
@@ -251,7 +251,7 @@ def test_trick_room_fixture_pair_keeps_priority_and_reverse_speed_evidence_isola
 
 
 def test_tailwind_fixture_pair_keeps_side_owned_speed_evidence_isolated():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=TAILWIND_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=TAILWIND_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(TAILWIND_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert supported[0]["action_order"]["self_tailwind"] == "active"
@@ -266,7 +266,7 @@ def test_tailwind_fixture_pair_keeps_side_owned_speed_evidence_isolated():
 
 
 def test_paralysis_fixture_pair_keeps_side_owned_speed_evidence_isolated():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=PARALYSIS_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=PARALYSIS_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(PARALYSIS_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert supported[0]["action_order"]["self_paralysis"] == "paralyzed"
@@ -283,7 +283,7 @@ def test_paralysis_fixture_pair_keeps_side_owned_speed_evidence_isolated():
 
 
 def test_static_speed_fixture_pair_keeps_item_authority_and_priority_isolated():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=STATIC_SPEED_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=STATIC_SPEED_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(STATIC_SPEED_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert supported[0]["action_order"]["self_speed_item_applied"] == "choice-scarf"
@@ -297,7 +297,7 @@ def test_static_speed_fixture_pair_keeps_item_authority_and_priority_isolated():
 
 
 def test_prankster_fixture_pair_keeps_status_priority_and_unknown_authority_isolated():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=PRANKSTER_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=PRANKSTER_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(PRANKSTER_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert supported[0]["action_order"]["self_prankster_applied"] is True
@@ -312,7 +312,7 @@ def test_prankster_fixture_pair_keeps_status_priority_and_unknown_authority_isol
 
 
 def test_gale_wings_fixture_pair_keeps_exact_hp_authority_and_priority_isolated():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=GALE_WINGS_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=GALE_WINGS_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(GALE_WINGS_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert supported[0]["action_order"]["self_gale_wings_applied"] is True
@@ -327,7 +327,7 @@ def test_gale_wings_fixture_pair_keeps_exact_hp_authority_and_priority_isolated(
 
 
 def test_triage_fixture_pair_keeps_canonical_healing_authority_and_q12_evidence_isolated():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=TRIAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=TRIAGE_FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
     supported = _prepared(TRIAGE_FIXTURES[0])["recommendation_request"]["candidate_comparisons"]
     assert supported[0]["action_order"]["self_triage_applied"] is True
@@ -370,157 +370,157 @@ def test_offline_defender_ability_authority_variants_never_call_provider_or_defa
 
 def test_cli_allows_only_the_bounded_multi_candidate_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *GROUNDING_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *GROUNDING_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_status_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *STATUS_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *STATUS_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_fixed_hit_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *FIXED_HIT_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *FIXED_HIT_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_fixed_damage_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *FIXED_DAMAGE_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *FIXED_DAMAGE_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_modifier_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *MODIFIER_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *MODIFIER_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_ability_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *ABILITY_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *ABILITY_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_item_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *ITEM_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *ITEM_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_defender_ability_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *DEFENDER_ABILITY_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *DEFENDER_ABILITY_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_speed_stage_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *SPEED_STAGE_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *SPEED_STAGE_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_grounded_terrain_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *TERRAIN_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *TERRAIN_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_trick_room_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *TRICK_ROOM_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *TRICK_ROOM_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_tailwind_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *TAILWIND_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *TAILWIND_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_paralysis_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *PARALYSIS_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *PARALYSIS_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_static_speed_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *STATIC_SPEED_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *STATIC_SPEED_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_prankster_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *PRANKSTER_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *PRANKSTER_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_cli_allows_the_bounded_gale_wings_fixture_pair(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         return (lambda: True), _response
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *GALE_WINGS_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *GALE_WINGS_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
 
 
 def test_psychic_terrain_priority_block_fixture_pair_excludes_blocked_candidates_and_binds_only_control_evidence(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         def provider(payload):
             winner = next(row for row in payload["candidate_comparisons"] if isinstance(row.get("mechanics_comparison"), dict) and row["mechanics_comparison"].get("rank") == 1)
             return {"recommendation_status": "resolved", "selected_candidate_id": winner["slot_index"], "explanation_code": "clear_ranked_winner"}
         return (lambda: True), provider
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
     supported = _prepared(PSYCHIC_TERRAIN_PRIORITY_BLOCK_FIXTURES[0])["recommendation_request"]
     assert supported["selectable_candidate_exact_set"] == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "tackle"}]
@@ -531,13 +531,13 @@ def test_psychic_terrain_priority_block_fixture_pair_excludes_blocked_candidates
 
 def test_priority_blocking_ability_fixture_pair_excludes_blocked_candidates_and_preserves_source_short_circuit(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         def provider(payload):
             winner = next(row for row in payload["candidate_comparisons"] if isinstance(row.get("mechanics_comparison"), dict) and row["mechanics_comparison"].get("rank") == 1)
             return {"recommendation_status": "resolved", "selected_candidate_id": winner["slot_index"], "explanation_code": "clear_ranked_winner"}
         return (lambda: True), provider
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *PRIORITY_BLOCKING_ABILITY_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *PRIORITY_BLOCKING_ABILITY_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
     supported = _prepared(PRIORITY_BLOCKING_ABILITY_FIXTURES[0])["recommendation_request"]
     assert supported["selectable_candidate_exact_set"] == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "night-shade"}]
@@ -548,13 +548,13 @@ def test_priority_blocking_ability_fixture_pair_excludes_blocked_candidates_and_
 
 def test_dark_prankster_fixture_pair_excludes_blocked_or_unknown_candidates_and_binds_only_controls(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
         def provider(payload):
             winner = next(row for row in payload["candidate_comparisons"] if isinstance(row.get("mechanics_comparison"), dict) and row["mechanics_comparison"].get("rank") == 1)
             return {"recommendation_status": "resolved", "selected_candidate_id": winner["slot_index"], "explanation_code": "clear_ranked_winner"}
         return (lambda: True), provider
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *DARK_TYPE_PRANKSTER_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *DARK_TYPE_PRANKSTER_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
     supported = _prepared(DARK_TYPE_PRANKSTER_FIXTURES[0])["recommendation_request"]
     assert supported["selectable_candidate_exact_set"] == [{"slot_index": 1, "move": "seismic-toss"}, {"slot_index": 2, "move": "night-shade"}]
@@ -565,7 +565,7 @@ def test_dark_prankster_fixture_pair_excludes_blocked_or_unknown_candidates_and_
 
 def test_current_type_q12_fixture_pair_binds_only_server_owned_override_or_fixed_control(capsys):
     def adapters(*, model):
-        assert model == "gemini-2.5-flash"
+        assert model == DEFAULT_MODEL
 
         def provider(payload):
             winner = next(row for row in payload["candidate_comparisons"] if isinstance(row.get("mechanics_comparison"), dict) and row["mechanics_comparison"].get("rank") == 1)
@@ -574,7 +574,7 @@ def test_current_type_q12_fixture_pair_binds_only_server_owned_override_or_fixed
 
         return (lambda: True), provider
 
-    assert main(["--actual", "--model", "gemini-2.5-flash", "--fixtures", *CURRENT_TYPE_Q12_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
+    assert main(["--actual", "--model", DEFAULT_MODEL, "--fixtures", *CURRENT_TYPE_Q12_FIXTURES, "--max-calls", "2", "--no-retry"], adapter_factory=adapters) == EXIT["ok"]
     assert json.loads(capsys.readouterr().out) == {"exit_code": EXIT["ok"], "provider_calls": 2}
     override = _prepared(CURRENT_TYPE_Q12_FIXTURES[0])["recommendation_request"]
     formula = override["candidate_comparisons"][0]

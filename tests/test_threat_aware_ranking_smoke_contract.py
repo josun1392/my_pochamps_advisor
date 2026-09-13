@@ -1,4 +1,4 @@
-from scripts.run_sanitized_threat_ranking_smoke import EXIT, FIXTURES, _prepared, run_smoke
+from scripts.run_sanitized_threat_ranking_smoke import DEFAULT_MODEL, EXIT, FIXTURES, _prepared, run_smoke
 
 
 def _response(payload):
@@ -7,7 +7,7 @@ def _response(payload):
 
 
 def test_fake_provider_grounding_preflights_partial_danger_and_neutral_fixtures():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=FIXTURES, max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["ok"] and result["provider_calls"] == 2
 
 
@@ -19,5 +19,5 @@ def test_fixture_one_penalizes_danger_and_fixture_two_preserves_base_order():
 
 
 def test_smoke_runner_rejects_unapproved_fixture_order_before_provider_call():
-    result = run_smoke(actual=True, model="gemini-2.5-flash", fixtures=(FIXTURES[1], FIXTURES[0]), max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
+    result = run_smoke(actual=True, model=DEFAULT_MODEL, fixtures=(FIXTURES[1], FIXTURES[0]), max_calls=2, no_retry=True, credential_available=lambda: True, provider_call=_response)
     assert result["exit_code"] == EXIT["usage"] and result["provider_calls"] == 0
