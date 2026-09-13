@@ -36,6 +36,7 @@ def materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
     action: Mapping[str, Any], execution_authority: Mapping[str, Any],
     sturdy_survival_authority: Mapping[str, Any] | None = None,
     focus_sash_survival_authority: Mapping[str, Any] | None = None,
+    endure_turn_context: Mapping[str, Any] | None = None,
     contact_reactive_contact_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze exact action accuracy, count, and ordered per-hit path edges."""
@@ -66,6 +67,7 @@ def materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
         action_accuracy=accuracy, target_hp=target_hp,
         sturdy_survival_authority=sturdy_survival_authority,
         focus_sash_survival_authority=focus_sash_survival_authority,
+        endure_turn_context=endure_turn_context,
         contact_reactive_contact_authority=contact_reactive_contact_authority,
     )
     if isinstance(roots, Mapping):
@@ -85,7 +87,7 @@ def materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
     }
 
 
-def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], hit_count_distribution: tuple[tuple[int, Fraction], ...], action_accuracy: int, target_hp: int, sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None, contact_reactive_contact_authority: Mapping[str, Any] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], Fraction] | tuple[dict[str, str], None, None, None]:
+def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], hit_count_distribution: tuple[tuple[int, Fraction], ...], action_accuracy: int, target_hp: int, sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None, endure_turn_context: Mapping[str, Any] | None, contact_reactive_contact_authority: Mapping[str, Any] | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], Fraction] | tuple[dict[str, str], None, None, None]:
     roots: list[dict[str, Any]] = []
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
@@ -137,6 +139,7 @@ def _path_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
                 single_metadata=single_metadata,
                 sturdy_survival_authority=sturdy_survival_authority if can_use_sturdy else None,
                 focus_sash_survival_authority=focus_sash_survival_authority if can_use_focus_sash else None,
+                endure_turn_context=endure_turn_context,
                 attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], node["attacker_hp"]),
                 low_hp_source_hit=source_hit,
                 attacker_condition_authority=_guts_path_condition_authority(current_d0, base, node["attacker_condition"]),

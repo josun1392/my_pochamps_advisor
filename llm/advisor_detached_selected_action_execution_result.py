@@ -14,6 +14,7 @@ from llm.advisor_detached_atomic_item_swap_status_materializer import materializ
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_detached_predictive_intermediate_state import freeze_detached_actor_neutral_root_predictive_authority
+from llm.advisor_runtime_d0_endure_turn_survival_authority import materialize_detached_endure_turn_context
 
 SCHEMA_VERSION = "detached-selected-action-execution-result-v1"
 _GRAPH_MOVES = frozenset({"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"})
@@ -39,6 +40,8 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
         return _atomic_item_swap(base, strategy_d0, authorities.get("atomic_item_swap_execution_authority"))
     if move_id in {"taunt", "encore", "disable"}:
         return _status_special(base, strategy_d0, authorities.get("status_special_application_authority"))
+    if move_id == "endure":
+        return _endure(base, runtime_snapshot, authorities.get("endure_turn_survival_authority"))
     if move_id in {"protect", "detect", "quick-guard", "mat-block", "silk-trap", "kings-shield", "obstruct", "spiky-shield", "baneful-bunker", "burning-bulwark"}:
         return _protection(base, strategy_d0, runtime_snapshot, move_metadata, authorities.get("protection_execution_result"))
     if move_id in {"u-turn", "volt-switch", "flip-turn"}:
@@ -46,7 +49,12 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
     if metadata.get("category") not in {"physical", "special"}: return _result("unsupported", "selected_action_family_not_materialized", base)
     # Ordinary attack remains owned by the existing predictive attack ledger.
     from llm.advisor_immediate_move_vs_move_action_pair import _attack_ledger
-    ledger = _attack_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority={"status":"resolved", "metadata":deepcopy(dict(metadata))}, action=action)
+    ledger = _attack_ledger(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        actor=actor, target=target,
+        metadata_authority={"status":"resolved", "metadata":deepcopy(dict(metadata))},
+        action=action, endure_turn_survival_authority=authorities.get("endure_turn_context"),
+    )
     if ledger.get("status") != "evaluable": return _result(ledger.get("status", "incomplete"), ledger.get("reason", "ordinary_selected_action_unavailable"), base)
     paths=[]
     for leaf in ledger.get("terminal_leaves", ()):
@@ -55,6 +63,15 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
         paths.append({"probability":deepcopy(leaf["probability"]), "action_leaf":deepcopy(leaf), "post_action_state":deepcopy(state)})
     return {"status":"resolved", "schema_version":SCHEMA_VERSION, **base, "execution_family":"ordinary_attack", "probability_owner":"selected_action_only", "paths":tuple(paths), "provenance":"selected_action_to_existing_predictive_attack_ledger_v1"}
 
+
+def _endure(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority: Any) -> dict[str, Any]:
+    """Establish only Endure's turn-local survival context; no attack is run."""
+    context = materialize_detached_endure_turn_context(authority=authority) if isinstance(authority, Mapping) else {"status": "incomplete", "reason": "endure_turn_survival_authority_missing"}
+    if context.get("status") != "resolved":
+        return _result(context.get("status", "incomplete"), context.get("reason", "endure_turn_survival_unavailable"), base)
+    if any(context.get(key) != base.get(key) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")) or context.get("endure_user") != base["actor"] or context.get("endure_action_id") != base["action_id"]:
+        return _result("rejected", "endure_turn_survival_binding_mismatch", base)
+    return {"status":"resolved","schema_version":SCHEMA_VERSION,**deepcopy(dict(base)),"execution_family":"endure_turn_survival","probability_owner":"selected_action_only","paths":({"probability":{"numerator":1,"denominator":1},"post_action_runtime_snapshot":deepcopy(dict(snapshot)),"endure_turn_context":context,"pending_action_executed":False},),"provenance":"selected_action_to_runtime_d0_endure_turn_survival_authority_v1"}
 
 def _direct_heal(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority: Any) -> dict[str, Any]:
     materialized=materialize_detached_direct_heal(execution_authority=authority) if isinstance(authority, Mapping) else {"status":"incomplete", "reason":"direct_heal_execution_authority_missing"}
@@ -88,6 +105,7 @@ def _graph(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snap
         metadata_authority={"status": "resolved", "metadata": deepcopy(dict(metadata))},
         sturdy_survival_authority=authorities.get("sturdy_survival_authority"),
         focus_sash_survival_authority=authorities.get("focus_sash_survival_authority"),
+        endure_turn_context=authorities.get("endure_turn_context"),
     )
     if graph.get("status") != "evaluable":
         return _result(graph.get("status", "incomplete"), graph.get("reason", "native_graph_execution_unavailable"), base)

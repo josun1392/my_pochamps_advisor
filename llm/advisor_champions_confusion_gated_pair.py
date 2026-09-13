@@ -9,7 +9,7 @@ SCHEMA="champions-confusion-gated-immediate-action-pair-v1"
 
 def materialize_champions_confusion_gated_pair(*,strategy_d0,runtime_snapshot,base,own_action,opponent_action,own_meta,opponent_meta,orders,action_order_authority,quick_claw_action_order_authority=None,extension_authorities=None):
     from llm.advisor_immediate_move_vs_move_action_pair import _pending_second_action_flinch
-    from llm.advisor_champions_gated_selected_action_execution import execute_gated_selected_action, consume_deferred_protection_setup
+    from llm.advisor_champions_gated_selected_action_execution import execute_gated_selected_action, consume_deferred_protection_setup, preceding_endure_turn_context
     from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
     from llm.advisor_detached_predictive_intermediate_state import materialize_detached_predictive_intermediate_state
     terminals=[]; error=None
@@ -38,7 +38,7 @@ def materialize_champions_confusion_gated_pair(*,strategy_d0,runtime_snapshot,ba
                     if index==1 or roll["self_fainted"]: finish(plan,weight*Fraction(1,16),[*events,row] if index==1 else [*events,row,{"state":"cancelled_due_to_faint","actor":deepcopy(target),"action_id":lineup[1][1]["action_id"]}],next_hp)
                     else: walk(plan,lineup,1,{"status":"runtime_snapshot_ready","session_id":after["session_id"],"state":after,"state_fingerprint":__import__('llm.advisor_reducer_state_model',fromlist=['state_fingerprint']).state_fingerprint(after)},weight*Fraction(1,16),[*events,row],next_hp)
                 continue
-            selected=execute_gated_selected_action(strategy_d0=view["strategy_d0"],runtime_snapshot=view["runtime_snapshot"],action=action,actor=actor,target=target,metadata_authority=meta,extension_authorities=extension_authorities,pending_action=lineup[1][1],pending_metadata_authority=lineup[1][2])
+            selected=execute_gated_selected_action(strategy_d0=view["strategy_d0"],runtime_snapshot=view["runtime_snapshot"],action=action,actor=actor,target=target,metadata_authority=meta,extension_authorities=extension_authorities,pending_action=lineup[1][1],pending_metadata_authority=lineup[1][2],turn_local_endure_context=preceding_endure_turn_context(events) if index==1 else None)
             if selected.get("status")!="resolved": error=selected;return
             for selected_path in selected["paths"]:
                 if index==1 and events:

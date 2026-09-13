@@ -13,7 +13,7 @@ SCHEMA = "champions-status-confusion-gated-immediate-action-pair-v1"
 
 def materialize_champions_status_confusion_gated_pair(*,strategy_d0,runtime_snapshot,base,own_action,opponent_action,own_meta,opponent_meta,orders,action_order_authority,quick_claw_action_order_authority=None,extension_authorities=None):
     from llm.advisor_immediate_move_vs_move_action_pair import _pending_second_action_flinch
-    from llm.advisor_champions_gated_selected_action_execution import execute_gated_selected_action, consume_deferred_protection_setup
+    from llm.advisor_champions_gated_selected_action_execution import execute_gated_selected_action, consume_deferred_protection_setup, preceding_endure_turn_context
     from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
     from llm.advisor_detached_predictive_intermediate_state import materialize_detached_predictive_intermediate_state
     from llm.advisor_detached_intermediate_predictive_authority import freeze_detached_intermediate_predictive_authority
@@ -72,7 +72,7 @@ def materialize_champions_status_confusion_gated_pair(*,strategy_d0,runtime_snap
             if target_raw.get("condition")=="freeze" and (meta["metadata"].get("type")=="fire" or meta["metadata"].get("self_thaw") is True):
                 error={"status":"incomplete","reason":"target_thaw_effect_authority_required"};return
             d0=freeze_runtime_strategy_d0(runtime_snapshot=outcome["snapshot"],decision_owner=actor)
-            selected=execute_gated_selected_action(strategy_d0=d0,runtime_snapshot=outcome["snapshot"],action=action,actor=actor,target=target,metadata_authority=meta,extension_authorities=extension_authorities,pending_action=lineup[1][1],pending_metadata_authority=lineup[1][2])
+            selected=execute_gated_selected_action(strategy_d0=d0,runtime_snapshot=outcome["snapshot"],action=action,actor=actor,target=target,metadata_authority=meta,extension_authorities=extension_authorities,pending_action=lineup[1][1],pending_metadata_authority=lineup[1][2],turn_local_endure_context=preceding_endure_turn_context(rows) if index==1 else None)
             if selected.get("status")!="resolved": error=selected;return
             for selected_path in selected["paths"]:
                 if index==1 and rows:

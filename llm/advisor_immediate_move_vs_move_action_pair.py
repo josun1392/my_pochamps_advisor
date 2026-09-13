@@ -62,6 +62,9 @@ from llm.advisor_hypothetical_protection_effects import (
     prevent_supported_direct_damage,
     project_self_protection,
 )
+from llm.advisor_runtime_d0_endure_turn_survival_authority import (
+    canonical_endure_metadata, materialize_detached_endure_turn_context,
+)
 from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata
 from advisor.canonical_spiky_shield_reactive_damage import canonical_spiky_shield_reactive_damage_metadata
 from advisor.canonical_baneful_bunker_reactive_poison import canonical_baneful_bunker_reactive_poison_metadata
@@ -189,6 +192,7 @@ def materialize_immediate_move_vs_move_action_pair(
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     post_source_retaliation_protection_authority: Mapping[str, Any] | None = None,
+    endure_turn_survival_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one known-usable opponent move conditional on its selection."""
     base = _base(strategy_d0, own_action, opponent_action)
@@ -222,6 +226,19 @@ def materialize_immediate_move_vs_move_action_pair(
     if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and (not pending_status_execution_authorities or any(member.get("champions_status_progression") for member in status_members)):
         from llm.advisor_champions_status_gated_pair import materialize_champions_status_gated_pair
         return materialize_champions_status_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
+    if canonical_endure_metadata(own_meta.get("metadata", {}).get("move_id") if isinstance(own_meta.get("metadata"), Mapping) else None) is not None or canonical_endure_metadata(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None:
+        if any(meta.get("metadata", {}).get("move_id") in {"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"} for meta in (own_meta, opponent_meta)):
+            from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair import materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair
+            return materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own_action, opponent_action=opponent_action,
+                action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority,
+                first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
+                first_action_sturdy_survival_authorities_by_order=first_action_sturdy_survival_authorities_by_order,
+                first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority,
+                first_action_focus_sash_survival_authorities_by_order=first_action_focus_sash_survival_authorities_by_order,
+                endure_turn_survival_authority=endure_turn_survival_authority,
+            )
+        return _materialize_endure_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, endure_authority=endure_turn_survival_authority)
     if _is_direct_heal_metadata(own_meta.get("metadata")) or _is_direct_heal_metadata(opponent_meta.get("metadata")):
         return _materialize_direct_heal_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,
@@ -417,6 +434,65 @@ def _atomic_item_swap_pair_leaf(materialized: Mapping[str, Any], strategy_d0: Ma
     if not _hp(own_hp) or not _hp(target_hp) or not isinstance(transition, Mapping): return "atomic_item_swap_pair_leaf_shape_invalid"
     return {"leaf_id":f"{materialized['action_id']}:{materialized['outcome']}", "candidate_id":materialized["action_id"], "action_type":"attack", "branch_path":("atomic_item_swap_status", materialized["outcome"]), "probability":deepcopy(materialized["probability"]), "hit_state":"not_applicable", "critical_state":"not_applicable", "damage_roll":"not_applicable", "consequences":{"damage":0,"own_final_hp":own_hp,"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":own_hp==0,"secondary":None,"contact":"not_applicable","atomic_item_swap_status":deepcopy(transition)}, "provenance":{"session_id":materialized["session_id"],"source_runtime_fingerprint":materialized["source_runtime_fingerprint"],"source_branch_fingerprint":materialized["source_branch_fingerprint"],"decision_owner":deepcopy(materialized["decision_owner"]),"attacker":deepcopy(actor),"target":deepcopy(target),"move_id":materialized["move_id"],"atomic_item_swap_status_execution_authority":deepcopy(transition["authority"])}}
 
+
+def _endure_roles(base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any]) -> tuple[Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]] | str:
+    own_endure = canonical_endure_metadata(own_meta.get("metadata", {}).get("move_id") if isinstance(own_meta.get("metadata"), Mapping) else None) is not None
+    opponent_endure = canonical_endure_metadata(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None
+    if own_endure == opponent_endure: return "endure_pair_requires_exact_single_endure_actor"
+    if own_endure: return own_action, own_meta, base["own_actor"], opponent_action, opponent_meta, base["opponent_actor"]
+    return opponent_action, opponent_meta, base["opponent_actor"], own_action, own_meta, base["own_actor"]
+
+
+def _endure_pair_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], context: Mapping[str, Any]) -> dict[str, Any] | None:
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    actor_hp = active.get(actor.get("side"), {}).get("current_hp") if isinstance(active, Mapping) else None
+    target_hp = active.get(target.get("side"), {}).get("current_hp") if isinstance(active, Mapping) else None
+    if not _hp(actor_hp) or not _hp(target_hp): return None
+    return {"leaf_id":f"{action['action_id']}:endure", "candidate_id":action["action_id"], "action_type":"protection", "branch_path":("endure", "turn_local_survival_established"), "probability":_fd(Fraction(1,1)), "hit_state":"not_applicable", "critical_state":"not_applicable", "damage_roll":"not_applicable", "consequences":{"damage":0,"own_final_hp":actor_hp,"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":actor_hp==0,"secondary":None,"endure_turn_context":deepcopy(dict(context))}, "provenance":{"session_id":base["session_id"],"source_runtime_fingerprint":base["source_runtime_fingerprint"],"source_branch_fingerprint":base["source_branch_fingerprint"],"decision_owner":deepcopy(dict(base["decision_owner"])),"attacker":deepcopy(dict(actor)),"target":deepcopy(dict(target)),"move_id":"endure"}}
+
+
+def _materialize_endure_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], endure_authority: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Order-aware Endure pair adapter.  Endure sets survival; it never blocks."""
+    roles = _endure_roles(base, own_action, opponent_action, own_meta, opponent_meta)
+    if isinstance(roles, str): return _result("incomplete", roles, base)
+    endure_action, endure_meta, endure_actor, attack_action, attack_meta, attack_actor = roles
+    context = materialize_detached_endure_turn_context(authority=endure_authority) if isinstance(endure_authority, Mapping) else {"status":"incomplete", "reason":"endure_turn_survival_authority_missing"}
+    if context.get("status") != "resolved": return _result(_status(context), context.get("reason", "endure_turn_survival_unavailable"), base)
+    if any(context.get(key) != base.get(key) for key in ("session_id","source_runtime_fingerprint","source_branch_fingerprint","decision_owner")) or context.get("endure_user") != endure_actor or context.get("endure_action_id") != endure_action.get("action_id"):
+        return _result("rejected", "endure_turn_survival_authority_binding_mismatch", base)
+    if attack_meta.get("metadata", {}).get("category") not in {"physical", "special"}: return _result("unsupported", "endure_pending_action_not_supported_direct_damage", base)
+    branches=[]
+    for plan in orders:
+        endure_first = (plan["order"] == "own_first") == (endure_actor == base["own_actor"])
+        if endure_first:
+            setup = _endure_pair_leaf(base, strategy_d0, endure_action, endure_actor, attack_actor, context)
+            if setup is None: return _result("incomplete", "endure_setup_hp_authority_unavailable", base)
+            exec_d0, exec_snapshot, root = strategy_d0, runtime_snapshot, None
+            if attack_actor == base["opponent_actor"]:
+                root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
+                if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "endure_opponent_attack_root_unavailable"), base)
+                exec_d0, exec_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
+            ledger = _attack_ledger(strategy_d0=exec_d0, runtime_snapshot=exec_snapshot, actor=attack_actor, target=endure_actor, metadata_authority=attack_meta, action=attack_action, endure_turn_survival_authority=context)
+            if ledger.get("status") != "evaluable": return _result(_status(ledger), ledger.get("reason", "endure_pending_attack_ledger_unavailable"), base)
+            for leaf in ledger["terminal_leaves"]:
+                branches.append(_branch(base, plan["order"], setup, {}, leaf, attack_actor, plan))
+        else:
+            exec_d0, exec_snapshot, root = strategy_d0, runtime_snapshot, None
+            if attack_actor == base["opponent_actor"]:
+                root = freeze_detached_actor_neutral_root_predictive_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action)
+                if root.get("status") != "resolved": return _result(_status(root), root.get("reason", "endure_opponent_attack_root_unavailable"), base)
+                exec_d0, exec_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
+            ledger = _attack_ledger(strategy_d0=exec_d0, runtime_snapshot=exec_snapshot, actor=attack_actor, target=endure_actor, metadata_authority=attack_meta, action=attack_action)
+            if ledger.get("status") != "evaluable": return _result(_status(ledger), ledger.get("reason", "pre_endure_attack_ledger_unavailable"), base)
+            for leaf in ledger["terminal_leaves"]:
+                if leaf.get("consequences", {}).get("target_ko") is True:
+                    branches.append(_branch(base, plan["order"], leaf, {}, None, endure_actor, plan)); continue
+                setup = _endure_pair_leaf(base, strategy_d0, endure_action, endure_actor, attack_actor, context)
+                if setup is None: return _result("incomplete", "endure_setup_hp_authority_unavailable", base)
+                branches.append(_branch(base, plan["order"], leaf, {}, setup, endure_actor, plan))
+    mass=sum((_fraction(row["probability"]) for row in branches),Fraction())
+    if mass != Fraction(1,1): return _result("rejected", "endure_pair_probability_mass_not_one", base, terminal_probability_mass=_fd(mass))
+    return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**deepcopy(dict(base)),"action_order":{"endure":"existing_exact_order_authority"},"terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_endure_attack_leaf_identity","provenance":"strict_detached_endure_turn_survival_pair_materialization_v1"}
 
 def _materialize_direct_heal_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
     """Small adapter: attacks stay in their canonical ledger; healing owns only HP restoration."""
@@ -1374,7 +1450,7 @@ def _attack_ledger(**kwargs: Any) -> dict[str, Any]:
     return _apply_ability_item_steal_to_ledger(ledger=ledger, strategy_d0=kwargs["strategy_d0"], runtime_snapshot=kwargs["runtime_snapshot"], actor=kwargs["actor"], target=kwargs["target"])
 
 
-def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None, source_terminal_leaf: Mapping[str, Any] | None = None, source_selected_action: Mapping[str, Any] | None = None, source_execution_order_provenance: Mapping[str, Any] | None = None, pending_target_action: Mapping[str, Any] | None = None, action_order: str | None = None) -> dict[str, Any]:
+def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None, source_terminal_leaf: Mapping[str, Any] | None = None, source_selected_action: Mapping[str, Any] | None = None, source_execution_order_provenance: Mapping[str, Any] | None = None, pending_target_action: Mapping[str, Any] | None = None, action_order: str | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     fling_execution = None
@@ -1385,7 +1461,7 @@ def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runti
         if fling_execution.get("outcome") != "ready_throw": return _fling_failure_ledger(strategy_d0=strategy_d0, actor=actor, target=target, action=action, authority=fling_execution)
         metadata = {**metadata, "power": fling_execution["resolved_base_power"], "fling_execution_authority": fling_execution}
     if metadata.get("move_id") == "seismic-toss":
-        return _seismic_toss_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority)
+        return _seismic_toss_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_survival_authority=endure_turn_survival_authority)
     if metadata.get("move_id") in {"super-fang", "natures-madness", "ruination"}:
         return _fractional_target_hp_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata=metadata)
     if metadata.get("move_id") == "endeavor":
@@ -1432,12 +1508,12 @@ def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runti
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor,
             target=target, metadata_authority=metadata_authority,
             sturdy_survival_authority=sturdy_survival_authority,
-            focus_sash_survival_authority=focus_sash_survival_authority,
+            focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_survival_authority=endure_turn_survival_authority,
             action=action,
             analytic_action_order_authority=analytic_action_order_authority,
             stakeout_switch_authority=stakeout_switch_authority,
         )
-    normal = _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, fling_execution_authority=fling_execution)
+    normal = _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_survival_authority=endure_turn_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, fling_execution_authority=fling_execution)
     if fling_execution is not None:
         thrown = _apply_fling_item_throw_to_ledger(ledger=normal, authority=fling_execution)
         return _apply_fling_deterministic_target_effect_to_ledger(ledger=thrown, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, authority=fling_execution, pending_target_action=pending_target_action, action_order=action_order)
@@ -1543,7 +1619,7 @@ def _bind_last_respects_faint_power_authority_to_ledger(ledger:Mapping[str,Any],
     result=deepcopy(dict(ledger));result["terminal_leaves"]=tuple(rows);return result
 
 
-def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Adapt already-validated canonical metadata to the fixed-two-hit owner.
 
     This is only a tagged D0-local selection view.  It neither looks up move
@@ -1586,6 +1662,7 @@ def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: M
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
         execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority,
         focus_sash_survival_authority=focus_sash_survival_authority,
+        endure_turn_context=endure_turn_survival_authority,
         contact_reactive_contact_authority=contact,
         analytic_action_order_authority=analytic_action_order_authority,
         stakeout_switch_authority=stakeout_switch_authority,
@@ -1595,7 +1672,7 @@ def _fixed_two_hit_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: M
     return leaves
 
 
-def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     frozen = freeze_runtime_seismic_toss_predictive_input(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
         attacker=actor, target=target, move_id="seismic-toss",
@@ -1610,6 +1687,7 @@ def _seismic_toss_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Ma
         move_id="seismic-toss", predictive_authority=authority,
         sturdy_survival_authority=sturdy_survival_authority,
         focus_sash_survival_authority=focus_sash_survival_authority,
+        endure_turn_context=endure_turn_survival_authority,
     )
     if leaf.get("status") != "evaluable": return _result(_status(leaf), leaf.get("reason", "fixed_damage_terminal_leaf_unavailable"), {})
     action = {"action_id": "attack:seismic-toss", "action_type": "attack", "identity": "seismic-toss"}
@@ -1705,7 +1783,7 @@ def _recent_damage_retaliation_ledger(*, strategy_d0: Mapping[str, Any], runtime
     return _apply_contact_reactive_status_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,defender=target,source_action=source,contact_authority=contact)
 
 
-def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, fling_execution_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, fling_execution_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     sparkling_aria = None
@@ -1778,15 +1856,15 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     interval_input = {"snapshot_damage_input": normal["snapshot_damage_input"], "stat_provenance": normal["stat_provenance"], "trusted_level": normal["trusted_level"]}
     paired = materialize_predictive_critical_damage_contexts(branch_state=strategy_d0["strategy_state"], decision_owner=actor, target_owner=target, source_runtime_fingerprint=strategy_d0["source_runtime_fingerprint"], **interval_input)
     if paired.get("status") != "resolved": return _result(_status(paired), paired.get("reason", "critical_damage_context_unavailable"), {})
-    post_input = {"move_metadata": metadata, **normal["post_hit_authority"], "target_sturdy_survival_authority": sturdy_survival_authority, "target_focus_sash_survival_authority": focus_sash_survival_authority}
+    post_input = {"move_metadata": metadata, **normal["post_hit_authority"], "target_sturdy_survival_authority": sturdy_survival_authority, "target_focus_sash_survival_authority": focus_sash_survival_authority, "endure_turn_context": endure_turn_survival_authority}
     non = _normal_formula_facts(candidate, paired["non_critical_context"], own_hp, post_input, normal,
         probabilistic_self_stage_effect_authority=self_stage,
         probabilistic_target_stage_effect_authority=target_stage,
-        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch or fake_out_flinch, sparkling_aria_burn_clearing_authority=sparkling_aria, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority)
+        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch or fake_out_flinch, sparkling_aria_burn_clearing_authority=sparkling_aria, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_context=endure_turn_survival_authority)
     critical = _normal_formula_facts(candidate, paired["critical_context"], own_hp, post_input, normal,
         probabilistic_self_stage_effect_authority=self_stage,
         probabilistic_target_stage_effect_authority=target_stage,
-        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch or fake_out_flinch, sparkling_aria_burn_clearing_authority=sparkling_aria, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority)
+        thunderbolt_paralysis_authority=thunderbolt, iron_head_flinch_authority=iron_head_flinch or fake_out_flinch, sparkling_aria_burn_clearing_authority=sparkling_aria, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_context=endure_turn_survival_authority)
     if any(isinstance(authority, Mapping) and authority.get("status") == "ready" for authority in (sturdy_survival_authority, focus_sash_survival_authority)):
         failed = next((fact.get("post_hit_failure") for fact in (non, critical) if isinstance(fact.get("post_hit_failure"), Mapping)), None)
         if failed is not None:

@@ -16,6 +16,7 @@ def execute_gated_selected_action(*, strategy_d0: Mapping[str, Any], runtime_sna
     action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any],
     metadata_authority: Mapping[str, Any], extension_authorities: Mapping[str, Any] | None = None,
     pending_action: Mapping[str, Any] | None = None, pending_metadata_authority: Mapping[str, Any] | None = None,
+    turn_local_endure_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Execute one permitted action and expose branch-local continuation views.
 
@@ -26,7 +27,7 @@ def execute_gated_selected_action(*, strategy_d0: Mapping[str, Any], runtime_sna
     metadata = metadata_authority.get("metadata") if isinstance(metadata_authority, Mapping) else None
     if not isinstance(metadata, Mapping):
         return {"status": "rejected", "reason": "gated_selected_action_metadata_invalid"}
-    family = _family_authorities(strategy_d0, runtime_snapshot, action, actor, target, metadata, extension_authorities, pending_action, pending_metadata_authority)
+    family = _family_authorities(strategy_d0, runtime_snapshot, action, actor, target, metadata, extension_authorities, pending_action, pending_metadata_authority, turn_local_endure_context)
     result = materialize_detached_selected_action_execution_result(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
         actor=actor, target=target, move_metadata=metadata, family_authorities=family,
@@ -57,7 +58,24 @@ def execute_gated_selected_action(*, strategy_d0: Mapping[str, Any], runtime_sna
     return {"status": "resolved", "execution_result": result, "paths": tuple(paths)}
 
 
-def _family_authorities(strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], ext: Mapping[str, Any] | None, pending_action: Mapping[str, Any] | None, pending_metadata_authority: Mapping[str, Any] | None) -> dict[str, Any]:
+def preceding_endure_turn_context(events: Any) -> Mapping[str, Any] | None:
+    """Return only a resolved Endure setup established by the prior action.
+
+    Gate callers use this when the later action has received its own execution
+    opportunity.  A cancelled Endure never creates a selected-action path, so
+    it cannot leak a survival effect into that later action.
+    """
+    if not isinstance(events, (tuple, list)):
+        return None
+    for event in reversed(events):
+        path = event.get("selected_action_path") if isinstance(event, Mapping) else None
+        context = path.get("endure_turn_context") if isinstance(path, Mapping) else None
+        if isinstance(context, Mapping):
+            return deepcopy(dict(context))
+    return None
+
+
+def _family_authorities(strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], ext: Mapping[str, Any] | None, pending_action: Mapping[str, Any] | None, pending_metadata_authority: Mapping[str, Any] | None, turn_local_endure_context: Mapping[str, Any] | None) -> dict[str, Any]:
     ext = ext if isinstance(ext, Mapping) else {}
     action_id = action.get("action_id")
     move_id = metadata.get("move_id")
@@ -70,6 +88,13 @@ def _family_authorities(strategy_d0: Mapping[str, Any], runtime_snapshot: Mappin
         "sturdy_survival_authority": pick("first_action_sturdy_survival_authority"),
         "focus_sash_survival_authority": pick("first_action_focus_sash_survival_authority"),
     }
+    if turn_local_endure_context is not None:
+        if not isinstance(turn_local_endure_context, Mapping):
+            out["endure_turn_context"] = {"status": "rejected", "reason": "gated_endure_turn_context_invalid"}
+        elif turn_local_endure_context.get("endure_user") != target:
+            out["endure_turn_context"] = {"status": "rejected", "reason": "gated_endure_turn_context_target_binding_mismatch"}
+        else:
+            out["endure_turn_context"] = deepcopy(dict(turn_local_endure_context))
     if move_id in {"recover", "slack-off", "soft-boiled"}:
         supplied = pick("direct_heal_execution_authorities")
         # The supplied record proves this exact selected move was frozen at the
@@ -88,6 +113,9 @@ def _family_authorities(strategy_d0: Mapping[str, Any], runtime_snapshot: Mappin
     elif move_id in {"u-turn", "volt-switch", "flip-turn"}:
         out["pivot_replacement_authorities"] = deepcopy(ext.get("pivot_replacement_authorities"))
         out["pivot_entry_authorities"] = deepcopy(ext.get("pivot_entry_authorities"))
+    elif move_id == "endure":
+        from llm.advisor_runtime_d0_endure_turn_survival_authority import freeze_runtime_d0_endure_turn_survival_authority
+        out["endure_turn_survival_authority"] = freeze_runtime_d0_endure_turn_survival_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, endure_user=actor, endure_action=action)
     elif move_id in {"protect", "detect", "quick-guard", "mat-block", "silk-trap", "kings-shield", "obstruct", "spiky-shield", "baneful-bunker", "burning-bulwark"}:
         out["protection_execution_result"] = _protection_setup(
             strategy_d0=strategy_d0, action=action, actor=actor, target=target, metadata=metadata,

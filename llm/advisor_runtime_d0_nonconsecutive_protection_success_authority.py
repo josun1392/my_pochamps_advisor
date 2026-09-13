@@ -59,9 +59,9 @@ def freeze_runtime_d0_nonconsecutive_protection_success_authority(
 
 
 def _base(d0: Any, owner: Any, action: Any) -> dict[str, Any] | None:
-    if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not isinstance(owner, Mapping) or d0.get("active_owners", {}).get("opponent") != dict(owner) or not isinstance(action, Mapping):
+    if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or not isinstance(owner, Mapping) or d0.get("active_owners", {}).get(owner.get("side")) != dict(owner) or not isinstance(action, Mapping):
         return None
-    metadata = action.get("metadata_authority", {}).get("metadata") if isinstance(action.get("metadata_authority"), Mapping) else None
+    metadata = action.get("metadata_authority", {}).get("metadata") if isinstance(action.get("metadata_authority"), Mapping) else action.get("move_metadata_authority", {}).get("metadata") if isinstance(action.get("move_metadata_authority"), Mapping) else None
     move_id = metadata.get("move_id") if isinstance(metadata, Mapping) else None
     if action.get("action_type") != "attack" or not isinstance(action.get("action_id"), str) or action.get("move_id", action.get("identity")) != move_id or canonical_protection_success_chain_metadata(move_id) is None:
         return None

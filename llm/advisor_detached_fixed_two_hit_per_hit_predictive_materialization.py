@@ -42,6 +42,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     action: Mapping[str, Any], execution_authority: Mapping[str, Any],
     sturdy_survival_authority: Mapping[str, Any] | None = None,
     focus_sash_survival_authority: Mapping[str, Any] | None = None,
+    endure_turn_context: Mapping[str, Any] | None = None,
     contact_reactive_contact_authority: Mapping[str, Any] | None = None,
     analytic_action_order_authority: Mapping[str, Any] | None = None,
     stakeout_switch_authority: Mapping[str, Any] | None = None,
@@ -80,7 +81,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
         first = _hit_events(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
             single_metadata=single, sturdy_survival_authority=sturdy_survival_authority,
-            focus_sash_survival_authority=focus_sash_survival_authority,
+            focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_context=endure_turn_context,
             attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"]),
             low_hp_source_hit={"hit_index": 1, "path_id": "fixed-two-hit:hit:1"},
             attacker_condition_authority=_guts_path_condition_authority(strategy_d0, base, base["attacker_condition"]),
@@ -137,7 +138,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                 second = _hit_events(
                     strategy_d0=second_d0, runtime_snapshot=second_snapshot, base=base,
                     single_metadata=single, sturdy_survival_authority=second_sturdy,
-                    focus_sash_survival_authority=second_focus_sash,
+                    focus_sash_survival_authority=second_focus_sash, endure_turn_context=endure_turn_context,
                     attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], first_attacker_hp),
                     low_hp_source_hit={"hit_index": 2, "path_id": "fixed-two-hit:hit:2"},
                     attacker_condition_authority=_guts_path_condition_authority(second_d0, base, first_condition),
@@ -194,7 +195,7 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     }
 
 
-def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None, attacker_condition_authority: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
+def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None, attacker_condition_authority: Mapping[str, Any] | None = None, endure_turn_context: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
     if attacker_hp_authority is None:
         attacker_hp_authority = _path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"])
     if attacker_hp_authority is None:
@@ -234,6 +235,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             target_ability=normal["post_hit_authority"]["target_ability"], attacker_item_known=normal["post_hit_authority"]["attacker_item_known"],
             target_sturdy_survival_authority=sturdy_survival_authority,
             target_focus_sash_survival_authority=focus_sash_survival_authority,
+            endure_turn_context=endure_turn_context,
         )
         if post.get("status") != "resolved":
             return {"status": post.get("status", "rejected"), "reason": post.get("reason", "fixed_two_hit_post_hit_unavailable")}
@@ -263,6 +265,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
                 "sturdy_survival": deepcopy(dict(sturdy)) if isinstance(sturdy, Mapping) else {"outcome": "not_applicable"},
                 "focus_sash_applied": isinstance(focus, Mapping) and focus.get("outcome") == "applied",
                 "focus_sash_survival": deepcopy(dict(focus)) if isinstance(focus, Mapping) else {"outcome": "not_applicable"},
+                "endure_turn_survival": deepcopy(dict(post_row.get("endure_turn_survival"))) if isinstance(post_row.get("endure_turn_survival"), Mapping) else {"outcome": "not_applicable"},
                 **({"low_hp_type_ability": deepcopy(dict(low_hp))} if isinstance(low_hp, Mapping) else {}),
                 **({"guts_status_attack_ability": deepcopy(dict(native["native_evaluation"]["guts_status_attack_ability_evidence"]))} if isinstance(native.get("native_evaluation"), Mapping) and isinstance(native["native_evaluation"].get("guts_status_attack_ability_evidence"), Mapping) else {}),
                 **({"full_hp_defender_ability": deepcopy(dict(native["native_evaluation"]["full_hp_defender_ability_evidence"]))} if isinstance(native.get("native_evaluation"), Mapping) and isinstance(native["native_evaluation"].get("full_hp_defender_ability_evidence"), Mapping) else {}),

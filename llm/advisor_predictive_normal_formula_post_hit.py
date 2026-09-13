@@ -7,10 +7,11 @@ from llm.advisor_runtime_d0_life_orb_immediate_authority import (
     materialize_detached_life_orb_recoil,
 )
 from llm.advisor_focus_sash_survival import apply_focus_sash_to_hit
+from llm.advisor_runtime_d0_endure_turn_survival_authority import apply_endure_turn_survival_to_hit
 
 _UNSUPPORTED_RECOIL={"struggle","mind-blown","steel-beam","chloroblast","high-jump-kick","jump-kick"}
 
-def compose_predictive_normal_formula_post_hit(*, interval: Mapping[str, Any], move_metadata: Mapping[str, Any], attacker_hp: Mapping[str, Any], attacker_item: str | None, attacker_ability: str | None, target_ability: str | None = None, attacker_item_known: bool = True, target_sturdy_survival_authority: Mapping[str, Any] | None = None, target_focus_sash_survival_authority: Mapping[str, Any] | None = None, focus_sash_consumed: bool = False, life_orb_authority_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def compose_predictive_normal_formula_post_hit(*, interval: Mapping[str, Any], move_metadata: Mapping[str, Any], attacker_hp: Mapping[str, Any], attacker_item: str | None, attacker_ability: str | None, target_ability: str | None = None, attacker_item_known: bool = True, target_sturdy_survival_authority: Mapping[str, Any] | None = None, target_focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_context: Mapping[str, Any] | None = None, focus_sash_consumed: bool = False, life_orb_authority_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Apply move drain/recoil then Life Orb to each exact direct-damage branch."""
     if not isinstance(interval,Mapping) or interval.get("schema_version")!="deterministic-predictive-normal-formula-interval-v1" or interval.get("completeness")!="exact_complete": return _r("incomplete","normal_formula_interval_incomplete")
     if not isinstance(move_metadata,Mapping) or move_metadata.get("move_id")!=interval.get("move_id"): return _r("rejected","post_hit_move_binding_mismatch")
@@ -24,10 +25,18 @@ def compose_predictive_normal_formula_post_hit(*, interval: Mapping[str, Any], m
     if attacker_item=="life-orb" and (attacker_ability is None or target_ability is None): return _r("incomplete","life_orb_ability_authority_unknown")
     rolls=interval.get("exact_damage_rolls"); target_hp=_target_hp(interval)
     if not isinstance(rolls,tuple) or not isinstance(target_hp,int): return _r("incomplete","target_hp_unknown")
-    sturdy=_sturdy(target_sturdy_survival_authority, interval, move_metadata, target_hp)
-    if isinstance(sturdy, str): return _r("unsupported" if sturdy == "sturdy_multi_hit_unsupported" else "rejected", sturdy)
-    focus=_focus(target_focus_sash_survival_authority, interval, move_metadata, target_hp)
-    if isinstance(focus, str): return _r("unsupported" if focus == "focus_sash_multi_hit_unsupported" else "rejected", focus)
+    # Endure is an already-active turn effect.  It owns lethal survival for
+    # this hit and therefore takes precedence over item/ability one-shot
+    # survivals; neither Focus Sash consumption nor Sturdy activation may be
+    # fabricated while that context is active.
+    if endure_turn_context is not None:
+        sturdy = False
+        focus = False
+    else:
+        sturdy=_sturdy(target_sturdy_survival_authority, interval, move_metadata, target_hp)
+        if isinstance(sturdy, str): return _r("unsupported" if sturdy == "sturdy_multi_hit_unsupported" else "rejected", sturdy)
+        focus=_focus(target_focus_sash_survival_authority, interval, move_metadata, target_hp)
+        if isinstance(focus, str): return _r("unsupported" if focus == "focus_sash_multi_hit_unsupported" else "rejected", focus)
     if sturdy is True and focus is True: return _r("unsupported","simultaneous_sturdy_focus_sash_survival_precedence_unsupported")
     current,maximum=attacker_hp["current_hp"],attacker_hp["max_hp"]
     branches=[]
@@ -38,6 +47,9 @@ def compose_predictive_normal_formula_post_hit(*, interval: Mapping[str, Any], m
         focus_row=apply_focus_sash_to_hit(authority=target_focus_sash_survival_authority, consumed=focus_sash_consumed, hp_before=target_hp, raw_damage=raw, actual_damage=actual, source_hit={"move_id":interval["move_id"],"critical_scope":deepcopy(interval.get("scope",{}).get("critical"))}) if focus is True else None
         if isinstance(focus_row,Mapping) and focus_row.get("status") in {"incomplete","unsupported","rejected"}: return _r(focus_row["status"], focus_row["reason"])
         if isinstance(focus_row,Mapping): actual=focus_row["actual_damage"]
+        endure_row=apply_endure_turn_survival_to_hit(context=endure_turn_context,target=interval["target"],hp_before=target_hp,raw_damage=raw,actual_damage=actual,source_hit={"move_id":interval["move_id"],"critical_scope":deepcopy(interval.get("scope",{}).get("critical"))})
+        if endure_row.get("status") in {"incomplete","unsupported","rejected"}: return _r(endure_row["status"],endure_row["reason"])
+        actual=endure_row["actual_damage"]
         native=actual*abs(drain)//100 if drain else 0
         after_native=min(maximum,current+native) if drain>0 else max(0,current-native) if drain<0 else current
         life_authority = _life_orb_authority(life_orb_authority_context, interval, move_metadata, current=after_native, maximum=maximum, qualifying_damage=actual > 0)
@@ -53,7 +65,7 @@ def compose_predictive_normal_formula_post_hit(*, interval: Mapping[str, Any], m
             life=compute_life_orb_recoil(RecoilPokemon(max_hp=maximum,item=attacker_item,ability=effective_ability),RecoilMove(move_id=interval["move_id"],category=move_metadata.get("category","status")),HitResult(targets_hit=1 if actual>0 else 0)) if attacker_item=="life-orb" else 0
             post_life = max(0, after_native-life)
             life_record = None
-        branches.append({"raw_damage":raw,"actual_damage":actual,"move_native_hp_delta":native if drain>0 else -native,"life_orb_recoil":life,"life_orb":life_record,"attacker_post_hit_hp":post_life,"sturdy_survival":({"outcome":"applied","target_final_hp":1,"provenance":"exact_detached_opponent_switch_in_sturdy_survival_v1"} if activated else {"outcome":"not_triggered"} if sturdy is True else {"outcome":"not_applicable"}),"focus_sash_survival":(deepcopy(focus_row["survival"]) if isinstance(focus_row,Mapping) else {"outcome":"not_applicable"})})
+        branches.append({"raw_damage":raw,"actual_damage":actual,"move_native_hp_delta":native if drain>0 else -native,"life_orb_recoil":life,"life_orb":life_record,"attacker_post_hit_hp":post_life,"sturdy_survival":({"outcome":"applied","target_final_hp":1,"provenance":"exact_detached_opponent_switch_in_sturdy_survival_v1"} if activated else {"outcome":"not_triggered"} if sturdy is True else {"outcome":"not_applicable"}),"focus_sash_survival":(deepcopy(focus_row["survival"]) if isinstance(focus_row,Mapping) else {"outcome":"not_applicable"}),"endure_turn_survival":deepcopy(endure_row["survival"])})
     hp_values=tuple(sorted({row["attacker_post_hit_hp"] for row in branches})); faints=[value==0 for value in hp_values]
     return {"status":"resolved","schema_version":"deterministic-predictive-normal-formula-post-hit-v1","session_id":interval["session_id"],"source_branch_fingerprint":interval["source_branch_fingerprint"],"decision_owner":deepcopy(dict(interval["decision_owner"])),"move_id":interval["move_id"],"ordering":["direct_damage","move_native_hp_effect","life_orb_post_hit"],"branches":tuple(branches),"attacker_post_hit_hp_values":hp_values,"attacker_post_hit_hp_range":{"minimum":min(hp_values),"maximum":max(hp_values)},"guaranteed_attacker_faint":all(faints),"possible_attacker_faint":any(faints) and not all(faints),"guaranteed_attacker_survival":not any(faints),"provenance":"existing_drain_recoil_then_life_orb_v1"}
 def _target_hp(interval):

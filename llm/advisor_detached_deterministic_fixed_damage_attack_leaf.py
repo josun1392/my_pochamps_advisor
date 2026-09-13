@@ -4,6 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 from llm.advisor_focus_sash_survival import apply_focus_sash_to_hit
+from llm.advisor_runtime_d0_endure_turn_survival_authority import apply_endure_turn_survival_to_hit
 
 
 SCHEMA_VERSION = "detached-deterministic-fixed-damage-attack-leaf-v1"
@@ -15,6 +16,7 @@ def materialize_detached_deterministic_fixed_damage_attack_leaf(
     move_id: str, predictive_authority: Mapping[str, Any],
     sturdy_survival_authority: Mapping[str, Any] | None = None,
     focus_sash_survival_authority: Mapping[str, Any] | None = None,
+    endure_turn_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Project one already-exact fixed-damage result into one ``1/1`` leaf.
 
@@ -33,15 +35,18 @@ def materialize_detached_deterministic_fixed_damage_attack_leaf(
     result = predictive_authority.get("predicted_result")
     if not isinstance(result, Mapping):
         return _result("rejected", "fixed_damage_predicted_result_missing", base)
-    sturdy = _sturdy(sturdy_survival_authority, base)
-    if isinstance(sturdy, Mapping):
-        return _result(sturdy["status"], sturdy["reason"], base)
-    focus = _focus(focus_sash_survival_authority, base)
-    if isinstance(focus, Mapping):
-        return _result(focus["status"], focus["reason"], base)
+    if endure_turn_context is not None:
+        sturdy, focus = False, False
+    else:
+        sturdy = _sturdy(sturdy_survival_authority, base)
+        if isinstance(sturdy, Mapping):
+            return _result(sturdy["status"], sturdy["reason"], base)
+        focus = _focus(focus_sash_survival_authority, base)
+        if isinstance(focus, Mapping):
+            return _result(focus["status"], focus["reason"], base)
     if sturdy and focus:
         return _result("unsupported", "simultaneous_sturdy_focus_sash_survival_precedence_unsupported", base)
-    projected = _consequences(strategy_d0, attacker, target, result, sturdy, focus_sash_survival_authority if focus else None)
+    projected = _consequences(strategy_d0, attacker, target, result, sturdy, focus_sash_survival_authority if focus else None, endure_turn_context)
     if isinstance(projected, str):
         return _result("rejected", projected, base)
     leaf = {
@@ -96,7 +101,7 @@ def _authority(value: Any, base: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _consequences(d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], result: Mapping[str, Any], sturdy: bool, focus_sash: Mapping[str, Any] | None) -> dict[str, Any] | str:
+def _consequences(d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Mapping[str, Any], result: Mapping[str, Any], sturdy: bool, focus_sash: Mapping[str, Any] | None, endure_turn_context: Mapping[str, Any] | None) -> dict[str, Any] | str:
     damage = result.get("damage")
     active = d0.get("strategy_state", {}).get("active", {})
     own = active.get(attacker["side"]) if isinstance(active, Mapping) else None
@@ -116,14 +121,21 @@ def _consequences(d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Ma
         focus_applied = isinstance(focus_row, Mapping) and focus_row.get("activated") is True
         if focus_applied:
             actual_damage = focus_row["actual_damage"]
-        target_hp, target_ko = max(0, before - actual_damage), not sturdy_applied and fainted
-        if focus_applied:
-            target_ko = False
+        endure_row = apply_endure_turn_survival_to_hit(
+            context=endure_turn_context, target=target, hp_before=before,
+            raw_damage=damage, actual_damage=min(before, actual_damage),
+            source_hit={"move_id": "seismic-toss", "damage_route": "target"},
+        )
+        if endure_row.get("status") in {"incomplete", "unsupported", "rejected"}:
+            return str(endure_row.get("reason", "endure_turn_survival_unavailable"))
+        actual_damage, target_hp = endure_row["actual_damage"], endure_row["post_hp"]
+        target_ko = target_hp == 0
     elif route == "substitute":
         before, after, fainted = result.get("substitute_hp_before"), result.get("substitute_hp_after"), result.get("target_fainted")
         if not isinstance(before, int) or isinstance(before, bool) or not isinstance(after, int) or isinstance(after, bool) or after != max(0, before - damage) or fainted is not False:
             return "fixed_damage_substitute_result_mismatch"
         target_hp, target_ko, actual_damage, sturdy_applied = defender["current_hp"], False, damage, False
+        endure_row = {"survival": {"outcome": "not_applicable"}}
     else:
         return "fixed_damage_route_unsupported"
     return {
@@ -135,6 +147,7 @@ def _consequences(d0: Mapping[str, Any], attacker: Mapping[str, Any], target: Ma
             {"outcome": "not_triggered"} if sturdy else {"outcome": "not_applicable"}
         ),
         "focus_sash_survival": deepcopy(focus_row["survival"]) if isinstance(focus_row, Mapping) else {"outcome": "not_applicable"},
+        "endure_turn_survival": deepcopy(endure_row["survival"]),
         "deterministic_fixed_damage": {
             "damage_route": route, "raw_damage": damage, "actual_damage": actual_damage,
             "predicted_result": deepcopy(dict(result)),

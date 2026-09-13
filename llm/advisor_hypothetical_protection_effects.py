@@ -27,6 +27,12 @@ def canonical_protection_success_chain_metadata(move_id: Any) -> dict[str, Any] 
     ordinary = canonical_protection_metadata(move_id)
     if ordinary is not None:
         return {"move_id": move_id, "family": "ordinary", "metadata": ordinary}
+    # Endure shares only the maintained repeated-use success chain.  It is
+    # deliberately not ordinary protection: it never blocks direct damage.
+    from llm.advisor_runtime_d0_endure_turn_survival_authority import canonical_endure_metadata
+    endure = canonical_endure_metadata(move_id)
+    if endure is not None:
+        return {"move_id": move_id, "family": "endure", "metadata": endure}
     from advisor.canonical_silk_trap_reactive_protection import canonical_silk_trap_metadata, canonical_kings_shield_metadata, canonical_obstruct_metadata
     from advisor.canonical_spiky_shield_reactive_damage import canonical_spiky_shield_reactive_damage_metadata
     from advisor.canonical_baneful_bunker_reactive_poison import canonical_baneful_bunker_reactive_poison_metadata

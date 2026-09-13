@@ -99,6 +99,10 @@ from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_strategy_d0,
     resolve_runtime_d0_selectable_move_metadata_authority,
 )
+from llm.advisor_runtime_d0_endure_turn_survival_authority import (
+    canonical_endure_metadata,
+    materialize_detached_endure_turn_context,
+)
 
 
 SCHEMA_VERSION = "detached-variable-two-to-five-hit-graph-immediate-move-pair-v1"
@@ -136,6 +140,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     mat_block_direct_damage_applicability_authority: Mapping[str, Any] | None = None,
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    endure_turn_survival_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compose one exact pair whenever either selected move uses a native hit graph."""
     base = _base(strategy_d0, own_action, opponent_action)
@@ -185,11 +190,19 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
         "mat_block_direct_damage_applicability_authority": mat_block_direct_damage_applicability_authority,
         "pivot_replacement_authorities": pivot_replacement_authorities,
         "pivot_entry_authorities": pivot_entry_authorities,
+        "endure_turn_survival_authority": endure_turn_survival_authority,
     }
     order_graphs: list[dict[str, Any]] = []
     total_mass = Fraction()
     for plan in orders:
-        graph = _materialize_order_graph(
+        graph = _materialize_endure_graph_order(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
+            own_action=own_action, opponent_action=opponent_action,
+            own_metadata=own_metadata, opponent_metadata=opponent_metadata,
+            order_plan=plan, first_action_sturdy_survival_authority=sturdy_by_order.get(plan["order"], first_action_sturdy_survival_authority),
+            first_action_focus_sash_survival_authority=focus_by_order.get(plan["order"], first_action_focus_sash_survival_authority),
+            endure_turn_survival_authority=endure_turn_survival_authority,
+        ) if _is_endure_metadata(own_metadata) or _is_endure_metadata(opponent_metadata) else _materialize_order_graph(
             strategy_d0=strategy_d0,
             runtime_snapshot=runtime_snapshot,
             base=base,
@@ -381,6 +394,95 @@ def _materialize_order_graph(
     )
 
 
+def _is_endure_metadata(authority: Any) -> bool:
+    metadata = _metadata_for_inputs(authority, None)
+    return isinstance(metadata, Mapping) and canonical_endure_metadata(metadata.get("move_id")) is not None
+
+
+def _materialize_endure_graph_order(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
+    own_metadata: Mapping[str, Any], opponent_metadata: Mapping[str, Any],
+    order_plan: Mapping[str, Any], first_action_sturdy_survival_authority: Mapping[str, Any] | None,
+    first_action_focus_sash_survival_authority: Mapping[str, Any] | None,
+    endure_turn_survival_authority: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Compose Endure with a native graph without flattening any graph path."""
+    own_endure, foe_endure = _is_endure_metadata(own_metadata), _is_endure_metadata(opponent_metadata)
+    if own_endure == foe_endure:
+        return _result("incomplete", "endure_graph_pair_requires_exact_single_endure_actor", {})
+    endure_actor = base["own_actor"] if own_endure else base["opponent_actor"]
+    endure_target = base["opponent_actor"] if own_endure else base["own_actor"]
+    endure_action = own_action if own_endure else opponent_action
+    graph_actor, graph_target = endure_target, endure_actor
+    graph_action = opponent_action if own_endure else own_action
+    graph_metadata = opponent_metadata if own_endure else own_metadata
+    if not _is_graph_metadata(graph_metadata):
+        return _result("unsupported", "endure_graph_pair_requires_supported_graph_attack", {})
+    context = materialize_detached_endure_turn_context(authority=endure_turn_survival_authority) if isinstance(endure_turn_survival_authority, Mapping) else {"status":"incomplete", "reason":"endure_turn_survival_authority_missing"}
+    if context.get("status") != "resolved":
+        return _result(_status(context), context.get("reason", "endure_turn_survival_unavailable"), {})
+    if any(context.get(key) != base.get(key) for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")) or context.get("endure_user") != endure_actor or context.get("endure_action_id") != endure_action.get("action_id"):
+        return _result("rejected", "endure_graph_turn_context_binding_mismatch", {})
+    endure_first = (order_plan["order"] == "own_first") == own_endure
+    execution_d0, execution_snapshot, root = strategy_d0, runtime_snapshot, None
+    if graph_actor == base["opponent_actor"]:
+        root = freeze_detached_actor_neutral_root_predictive_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, opponent_action=opponent_action,
+        )
+        if root.get("status") != "resolved":
+            return _result(_status(root), root.get("reason", "endure_graph_opponent_root_unavailable"), {})
+        execution_d0, execution_snapshot = root["predictive_strategy_d0"], root["predictive_runtime_snapshot"]
+    graph = _variable_action_graph(
+        strategy_d0=execution_d0, runtime_snapshot=execution_snapshot, actor=graph_actor, target=graph_target,
+        metadata_authority=graph_metadata,
+        sturdy_survival_authority=first_action_sturdy_survival_authority if not endure_first else None,
+        focus_sash_survival_authority=first_action_focus_sash_survival_authority if not endure_first else None,
+        endure_turn_context=context if endure_first else None,
+    )
+    if graph.get("status") != "evaluable":
+        return _result(_status(graph), graph.get("reason", "endure_graph_execution_unavailable"), {})
+    sources = _terminal_sources(graph)
+    if isinstance(sources, str):
+        return _result("rejected", sources, {})
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    def setup_leaf(actor_hp: Any, target_hp: Any) -> dict[str, Any] | None:
+        if not isinstance(actor_hp, int) or not isinstance(target_hp, int) or actor_hp < 0 or target_hp < 0:
+            return None
+        return {
+            "leaf_id": f"{endure_action['action_id']}:endure", "candidate_id": endure_action["action_id"],
+            "action_type":"protection", "branch_path":("endure", "turn_local_survival_established"),
+            "probability":_fd(Fraction(1, 1)), "hit_state":"not_applicable", "critical_state":"not_applicable", "damage_roll":"not_applicable",
+            "consequences":{"damage":0,"own_final_hp":actor_hp,"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":actor_hp==0,"secondary":None,"endure_turn_context":deepcopy(dict(context))},
+            "provenance":{"session_id":base["session_id"],"source_runtime_fingerprint":base["source_runtime_fingerprint"],"source_branch_fingerprint":base["source_branch_fingerprint"],"decision_owner":deepcopy(dict(base["decision_owner"])),"attacker":deepcopy(dict(endure_actor)),"target":deepcopy(dict(endure_target)),"move_id":"endure"},
+        }
+    transitions=[]
+    initial_setup = setup_leaf(active.get(endure_actor["side"], {}).get("current_hp"), active.get(endure_target["side"], {}).get("current_hp"))
+    if endure_first and initial_setup is None:
+        return _result("incomplete", "endure_graph_setup_hp_authority_unavailable", {})
+    for source in sources:
+        graph_leaf = _synthetic_terminal_leaf(first_graph=graph, source=source)
+        consequences = graph_leaf.get("consequences", {})
+        transition={"incoming_path_probability":deepcopy(source["path_probability"]),"ordered_terminal_hit":deepcopy(source.get("ordered_hit"))}
+        if endure_first:
+            transition.update({"first_terminal_source_id":f"leaf:{initial_setup['leaf_id']}","first_terminal_consequences":deepcopy(initial_setup["consequences"]),"first_terminal_leaf":deepcopy(initial_setup),"second_action":{"state":"executed_native_graph","actor":deepcopy(dict(graph_actor)),"native_graph_terminal_source":deepcopy(dict(source)),"conditional_probability":_fd(Fraction(1,1))}})
+        else:
+            transition.update({"first_terminal_source_id":f"graph:{source['source_id']}","first_terminal_consequences":deepcopy(dict(consequences)),"first_terminal_leaf":graph_leaf})
+            if consequences.get("target_ko") is True:
+                transition["second_action"] = _cancelled_second(endure_actor)
+            else:
+                setup=setup_leaf(consequences.get("target_final_hp"), consequences.get("own_final_hp"))
+                if setup is None:
+                    return _result("incomplete", "endure_graph_post_attack_hp_authority_unavailable", {})
+                transition["second_action"]={"state":"executed_endure","actor":deepcopy(dict(endure_actor)),"terminal_leaf":setup,"conditional_probability":_fd(Fraction(1,1))}
+        transitions.append(transition)
+    payload = _order_payload(order_plan=order_plan, first_actor=endure_actor if endure_first else graph_actor, second_actor=graph_actor if endure_first else endure_actor, first_action_graph=None if endure_first else graph, first_action_leaf_set=(deepcopy(initial_setup),) if endure_first else None, terminal_transitions=transitions, root=root)
+    if endure_first:
+        payload["second_action_graph"] = deepcopy(dict(graph))
+        payload["endure_turn_context"] = deepcopy(dict(context))
+    return payload
+
+
 def _order_payload(
     *, order_plan: Mapping[str, Any], first_actor: Mapping[str, Any],
     second_actor: Mapping[str, Any], terminal_transitions: list[dict[str, Any]],
@@ -420,7 +522,7 @@ def _is_graph_metadata(authority: Any) -> bool:
     return isinstance(metadata, Mapping) and metadata.get("move_id") in _GRAPH_MOVES
 
 
-def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     opponent_side = "opponent" if isinstance(actor, Mapping) and actor.get("side") == "self" else "self"
     if metadata is None or metadata.get("move_id") not in _GRAPH_MOVES or actor != strategy_d0.get("decision_owner") or target != strategy_d0.get("active_owners", {}).get(opponent_side):
@@ -456,11 +558,11 @@ def _variable_action_graph(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
     if execution.get("status") != "resolved":
         return _result(_status(execution), execution.get("reason", "variable_multi_hit_execution_authority_unavailable"), {})
     graph = (materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, contact_reactive_contact_authority=contact,
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_context=endure_turn_context, contact_reactive_contact_authority=contact,
     ) if metadata["move_id"] == "population-bomb" else materialize_detached_escalating_three_hit_predictive_graph(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, contact_reactive_contact_authority=contact,
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_context=endure_turn_context, contact_reactive_contact_authority=contact,
     ) if metadata["move_id"] in _ESCALATING_MOVES else materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, contact_reactive_contact_authority=contact,
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, execution_authority=execution, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_context=endure_turn_context, contact_reactive_contact_authority=contact,
     ))
     return graph if graph.get("status") == "evaluable" else _result(_status(graph), graph.get("reason", "variable_multi_hit_path_graph_unavailable"), {})
 
