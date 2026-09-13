@@ -50,6 +50,7 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "pivot_entry_authorities",
 }
 _ORDINARY_PAIR_CONTEXT_KEYS = {"reactive_shield_common_block_context"}
+_GRAPH_PAIR_BUNDLE_KEYS = frozenset(_ORDINARY_PAIR_BUNDLE_KEYS)
 
 
 def materialize_detached_opponent_response_profile(
@@ -101,13 +102,14 @@ def materialize_detached_opponent_response_profile(
         if kind == "move":
             if action.get("usability", {}).get("status") != "known_usable":
                 return _result("rejected", "selectable_move_response_usability_invalid", base)
-            pair_builder = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair if own_action.get("identity") in {"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"} else materialize_immediate_move_vs_move_action_pair
+            graph_pair = _is_graph_action(own_action) or _is_graph_action(action)
+            pair_builder = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair if graph_pair else materialize_immediate_move_vs_move_action_pair
             bundle_kwargs: dict[str, Any] = {}
             if response_authority_bundles is not None:
                 bundle_kwargs = _bundle_kwargs(
                     bundle=response_authority_bundles.get(action_id), base=base,
                     opponent_action=action, runtime_snapshot=runtime_snapshot,
-                    ordinary_pair=pair_builder is materialize_immediate_move_vs_move_action_pair,
+                    ordinary_pair=not graph_pair, graph_pair=graph_pair,
                 )
                 if "status" in bundle_kwargs:
                     return _result(bundle_kwargs["status"], bundle_kwargs["reason"], base)
@@ -159,7 +161,10 @@ def _base(d0: Any, own: Any, response_set: Any) -> dict[str, Any] | None:
     return {"own_action_id": own["action_id"], **{key: deepcopy(value) if isinstance(value, Mapping) else value for key, value in expected.items()}}
 
 
-def _bundle_kwargs(*, bundle: Any, base: Mapping[str, Any], opponent_action: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], ordinary_pair: bool) -> dict[str, Any]:
+def _bundle_kwargs(
+    *, bundle: Any, base: Mapping[str, Any], opponent_action: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any], ordinary_pair: bool, graph_pair: bool = False,
+) -> dict[str, Any]:
     if not isinstance(bundle, Mapping) or bundle.get("schema_version") != LIVE_RESPONSE_BUNDLE_SCHEMA:
         return {"status": "rejected", "reason": "live_response_authority_bundle_invalid"}
     required = ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id")
@@ -169,14 +174,42 @@ def _bundle_kwargs(*, bundle: Any, base: Mapping[str, Any], opponent_action: Map
         return {"status": "rejected", "reason": "live_response_authority_bundle_response_binding_mismatch"}
     if bundle.get("status") != "resolved":
         return {"status": _status(bundle), "reason": bundle.get("reason", "live_response_authority_bundle_unavailable")}
-    values = bundle.get("ordinary_pair_authorities")
-    if not isinstance(values, Mapping) or set(values) - (_ORDINARY_PAIR_BUNDLE_KEYS | _ORDINARY_PAIR_CONTEXT_KEYS) or not all(isinstance(value, Mapping) for value in values.values()):
+    ordinary = bundle.get("ordinary_pair_authorities")
+    graph = bundle.get("graph_pair_authorities")
+    if (
+        not isinstance(ordinary, Mapping)
+        or set(ordinary) - (_ORDINARY_PAIR_BUNDLE_KEYS | _ORDINARY_PAIR_CONTEXT_KEYS)
+        or not all(isinstance(value, Mapping) for value in ordinary.values())
+    ):
         return {"status": "rejected", "reason": "live_response_authority_bundle_payload_invalid"}
-    # The specialized gate owns its own extension composition.  Passing even
-    # unrelated authority maps would turn a valid status-gated pair incomplete.
-    if not ordinary_pair or _status_or_confusion_gate(runtime_snapshot, base):
+    if graph is not None and (
+        not isinstance(graph, Mapping)
+        or set(graph) - _GRAPH_PAIR_BUNDLE_KEYS
+        or not all(isinstance(value, Mapping) for value in graph.values())
+    ):
+        return {"status": "rejected", "reason": "live_graph_response_authority_bundle_payload_invalid"}
+    # Status/confusion specialized owners intentionally keep exclusive control
+    # over extension composition.
+    if _status_or_confusion_gate(runtime_snapshot, base):
         return {}
-    return {key: deepcopy(dict(value)) for key, value in values.items() if key in _ORDINARY_PAIR_BUNDLE_KEYS}
+    if ordinary_pair:
+        return {key: deepcopy(dict(value)) for key, value in ordinary.items() if key in _ORDINARY_PAIR_BUNDLE_KEYS}
+    if not graph_pair:
+        return {}
+    if not isinstance(graph, Mapping):
+        return {"status": "incomplete", "reason": "live_graph_response_authority_bundle_missing"}
+    return {key: deepcopy(dict(value)) for key, value in graph.items()}
+
+
+def _is_graph_action(action: Any) -> bool:
+    if not isinstance(action, Mapping):
+        return False
+    move_id = action.get("identity", action.get("move_id"))
+    if not isinstance(move_id, str):
+        metadata = action.get("metadata_authority")
+        if isinstance(metadata, Mapping):
+            move_id = metadata.get("move_id", metadata.get("metadata", {}).get("move_id"))
+    return move_id in {"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"}
 
 
 def _status_or_confusion_gate(snapshot: Mapping[str, Any], base: Mapping[str, Any]) -> bool:

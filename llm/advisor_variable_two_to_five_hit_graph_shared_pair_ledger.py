@@ -60,7 +60,7 @@ def normalize_variable_two_to_five_hit_graph_pair(*, pair: Mapping[str, Any], ba
 
 
 def graph_metric_rows(*, ledger: Mapping[str, Any], base: Mapping[str, Any]) -> tuple[dict[str, Any], ...] | str:
-    """Traverse graph transition outcomes exactly for descriptive metrics."""
+    """Traverse graph transition outcomes exactly without flattening stored graphs."""
     if ledger.get("terminal_leaf_representation") != "exact_variable_multi_hit_graph_paths":
         return "variable_graph_ledger_representation_invalid"
     orders = ledger.get("validated_order_graphs")
@@ -75,14 +75,21 @@ def graph_metric_rows(*, ledger: Mapping[str, Any], base: Mapping[str, Any]) -> 
             return "variable_graph_metric_order_payload_invalid"
         for transition in transitions:
             incoming = _fraction(transition.get("incoming_path_probability"))
-            first_final = _final_from_consequences(transition.get("first_terminal_consequences"), first_actor, base)
+            first_final = _final_from_consequences(
+                transition.get("first_terminal_consequences"), first_actor, base,
+            )
             second = transition.get("second_action")
             if incoming <= 0 or isinstance(first_final, str) or not isinstance(second, Mapping):
                 return first_final if isinstance(first_final, str) else "variable_graph_metric_transition_invalid"
             state = second.get("state")
-            if state == "cancelled_due_to_faint":
-                if _fraction(second.get("conditional_probability")) != Fraction(1, 1): return "variable_graph_metric_faint_cancellation_probability_invalid"
-                rows.append(_row(order, transition, "cancelled_due_to_faint", None, order_probability * incoming, first_final)); continue
+            if state in {
+                "cancelled_due_to_faint", "executed_protection",
+                "prevented_by_protection", "prevented_by_mat_block",
+            }:
+                if _fraction(second.get("conditional_probability")) != Fraction(1, 1):
+                    return "variable_graph_metric_terminal_second_probability_invalid"
+                rows.append(_row(order, transition, state, None, order_probability * incoming, first_final))
+                continue
             if state != "outcome_graph" or _fraction(second.get("conditional_probability")) != Fraction(1, 1):
                 return "variable_graph_metric_second_action_payload_invalid"
             outcomes = second.get("outcomes")
@@ -91,114 +98,318 @@ def graph_metric_rows(*, ledger: Mapping[str, Any], base: Mapping[str, Any]) -> 
             outcome_mass = Fraction()
             for outcome in outcomes:
                 conditional = _fraction(outcome.get("conditional_probability"))
-                if conditional <= 0: return "variable_graph_metric_second_outcome_probability_invalid"
+                if conditional <= 0:
+                    return "variable_graph_metric_second_outcome_probability_invalid"
                 outcome_mass += conditional
-                if outcome.get("state") == "cancelled_due_to_paralysis":
-                    rows.append(_row(order, transition, "cancelled_due_to_paralysis", None, order_probability * incoming * conditional, first_final)); continue
-                if outcome.get("state") != "executed" or not isinstance(outcome.get("second_action_terminal_leaves"), tuple):
+                if outcome.get("state") in {
+                    "cancelled_due_to_paralysis", "cancelled_due_to_sleep", "cancelled_due_to_freeze",
+                }:
+                    rows.append(_row(
+                        order, transition, outcome["state"], None,
+                        order_probability * incoming * conditional, first_final,
+                    ))
+                    continue
+                if outcome.get("state") != "executed":
                     return "variable_graph_metric_second_outcome_invalid"
-                leaves = outcome["second_action_terminal_leaves"]
-                leaf_mass = sum((_fraction(leaf.get("probability")) for leaf in leaves if isinstance(leaf, Mapping)), Fraction())
-                if not leaves or leaf_mass != Fraction(1, 1) or _fraction(outcome.get("second_action_terminal_probability_mass")) != leaf_mass:
+                graph = outcome.get("second_action_graph")
+                leaves = outcome.get("second_action_terminal_leaves")
+                if isinstance(graph, Mapping):
+                    if leaves is not None:
+                        return "variable_graph_metric_second_execution_representation_conflict"
+                    sources = _terminal_sources(graph)
+                    if isinstance(sources, str):
+                        return f"variable_graph_metric_second_{sources}"
+                    graph_mass = sum((source["path_probability"] for source in sources), Fraction())
+                    if (
+                        graph_mass != Fraction(1, 1)
+                        or _fraction(outcome.get("second_action_terminal_probability_mass")) != graph_mass
+                    ):
+                        return "variable_graph_metric_second_graph_mass_invalid"
+                    for source in sources:
+                        final = _final_from_consequences(source["consequences"], graph.get("attacker"), base)
+                        if isinstance(final, str):
+                            return final
+                        rows.append(_row(
+                            order, transition, "executed_graph", source["source_id"],
+                            order_probability * incoming * conditional * source["path_probability"], final,
+                        ))
+                    continue
+                if not isinstance(leaves, tuple) or not leaves:
+                    return "variable_graph_metric_second_execution_payload_missing"
+                leaf_mass = sum(
+                    (_fraction(leaf.get("probability")) for leaf in leaves if isinstance(leaf, Mapping)),
+                    Fraction(),
+                )
+                if (
+                    leaf_mass != Fraction(1, 1)
+                    or _fraction(outcome.get("second_action_terminal_probability_mass")) != leaf_mass
+                ):
                     return "variable_graph_metric_second_leaf_mass_invalid"
+                pivots = {
+                    row.get("leaf_id"): row.get("pivot_transition")
+                    for row in outcome.get("second_action_pivot_transitions", ())
+                    if isinstance(row, Mapping) and isinstance(row.get("leaf_id"), str)
+                }
                 for leaf in leaves:
-                    final = _final_from_leaf(leaf, base)
-                    if isinstance(final, str): return final
-                    rows.append(_row(order, transition, "executed", leaf.get("leaf_id"), order_probability * incoming * conditional * _fraction(leaf["probability"]), final))
-            if outcome_mass != Fraction(1, 1): return "variable_graph_metric_second_outcome_mass_not_one"
+                    final = _final_from_leaf(leaf, base, pivots.get(leaf.get("leaf_id")))
+                    if isinstance(final, str):
+                        return final
+                    rows.append(_row(
+                        order, transition, "executed", leaf.get("leaf_id"),
+                        order_probability * incoming * conditional * _fraction(leaf["probability"]), final,
+                    ))
+            if outcome_mass != Fraction(1, 1):
+                return "variable_graph_metric_second_outcome_mass_not_one"
     mass = sum((row["probability"] for row in rows), Fraction())
     return tuple(rows) if mass == Fraction(1, 1) else "variable_graph_metric_root_mass_not_one"
 
-
 def _order_graph(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
-    if not isinstance(value, Mapping) or value.get("status") != "evaluable" or value.get("schema_version") != PAIR_SCHEMA or value.get("action_order") not in {"own_first", "opponent_first"}:
+    if (
+        not isinstance(value, Mapping)
+        or value.get("status") != "evaluable"
+        or value.get("schema_version") != PAIR_SCHEMA
+        or value.get("action_order") not in {"own_first", "opponent_first"}
+    ):
         return "variable_graph_order_graph_invalid"
     order_probability = _fraction(value.get("order_conditional_probability"))
     conditional_mass = _fraction(value.get("conditional_terminal_probability_mass"))
     weighted = _fraction(value.get("order_weighted_terminal_probability_mass"))
     if order_probability <= 0 or conditional_mass != Fraction(1, 1) or weighted != order_probability:
         return "variable_graph_order_probability_composition_invalid"
+
+    provenance = value.get("provenance")
+    first_actor = provenance.get("first_actor") if isinstance(provenance, Mapping) else None
+    if first_actor != base["own_actor"] and first_actor != base["opponent_actor"]:
+        return "variable_graph_first_actor_binding_mismatch"
+
     graph = value.get("first_action_graph")
-    if not isinstance(graph, Mapping) or graph.get("status") != "evaluable" or _fraction(graph.get("terminal_probability_mass")) != Fraction(1, 1):
-        return "variable_graph_first_action_graph_invalid"
-    for entry in (*graph.get("terminal_leaf_nodes", ()), *graph.get("terminal_leaf_edges", ()), *graph.get("terminal_leaf_roots", ())):
-        if isinstance(entry, Mapping) and ("ability_item_steal" in entry or "ability_item_steal" in entry.get("terminal_consequences", {}) or "ability_item_steal" in entry.get("consequences", {})):
-            return "variable_graph_ability_steal_outside_terminal_adapter"
-    sources = _terminal_sources(graph)
-    if isinstance(sources, str): return f"variable_graph_first_action_{sources}"
-    source_by_id = {row["source_id"]: row for row in sources}
+    leaf_set = value.get("first_action_leaf_set")
+    if isinstance(graph, Mapping) == isinstance(leaf_set, tuple):
+        return "variable_graph_first_action_representation_invalid"
+
+    if isinstance(graph, Mapping):
+        if graph.get("status") != "evaluable" or _fraction(graph.get("terminal_probability_mass")) != Fraction(1, 1):
+            return "variable_graph_first_action_graph_invalid"
+        if graph.get("attacker") != first_actor:
+            return "variable_graph_first_actor_binding_mismatch"
+        for entry in (
+            *graph.get("terminal_leaf_nodes", ()),
+            *graph.get("terminal_leaf_edges", ()),
+            *graph.get("terminal_leaf_roots", ()),
+        ):
+            if isinstance(entry, Mapping) and (
+                "ability_item_steal" in entry
+                or "ability_item_steal" in entry.get("terminal_consequences", {})
+                or "ability_item_steal" in entry.get("consequences", {})
+            ):
+                return "variable_graph_ability_steal_outside_terminal_adapter"
+        sources = _terminal_sources(graph)
+        if isinstance(sources, str):
+            return f"variable_graph_first_action_{sources}"
+        source_by_id = {row["source_id"]: row for row in sources}
+        representation = "graph"
+    else:
+        if not leaf_set:
+            return "variable_graph_first_action_leaf_set_missing"
+        source_by_id: dict[str, dict[str, Any]] = {}
+        total = Fraction()
+        for leaf in leaf_set:
+            if (
+                not isinstance(leaf, Mapping)
+                or not isinstance(leaf.get("leaf_id"), str)
+                or not isinstance(leaf.get("provenance"), Mapping)
+                or leaf["provenance"].get("attacker") != first_actor
+            ):
+                return "variable_graph_first_action_leaf_invalid"
+            probability = _fraction(leaf.get("probability"))
+            if probability <= 0 or not isinstance(leaf.get("consequences"), Mapping):
+                return "variable_graph_first_action_leaf_invalid"
+            source_id = f"leaf:{leaf['leaf_id']}"
+            if source_id in source_by_id:
+                return "variable_graph_first_action_leaf_duplicate"
+            source_by_id[source_id] = {
+                "source_id": source_id,
+                "path_probability": probability,
+                "consequences": deepcopy(dict(leaf["consequences"])),
+                "ordered_hit": None,
+                "native_terminal": None,
+                "terminal_leaf": deepcopy(dict(leaf)),
+            }
+            total += probability
+        if total != Fraction(1, 1):
+            return "variable_graph_first_action_leaf_mass_not_one"
+        representation = "leaf_set"
+
     transitions = value.get("terminal_transitions")
-    if not isinstance(transitions, tuple) or len(transitions) != len(source_by_id): return "variable_graph_terminal_transition_set_invalid"
+    if not isinstance(transitions, tuple) or len(transitions) != len(source_by_id):
+        return "variable_graph_terminal_transition_set_invalid"
     parsed = []
     for transition in transitions:
-        if not isinstance(transition, Mapping) or not isinstance(transition.get("first_terminal_source_id"), str): return "variable_graph_terminal_transition_invalid"
+        if not isinstance(transition, Mapping) or not isinstance(transition.get("first_terminal_source_id"), str):
+            return "variable_graph_terminal_transition_invalid"
         source = source_by_id.get(transition["first_terminal_source_id"])
         consequences = transition.get("first_terminal_consequences")
-        if not isinstance(consequences, Mapping): return "variable_graph_terminal_consequences_invalid"
-        native_consequences = {k: v for k, v in consequences.items() if k != "ability_item_steal"}
-        if source is None or _fraction(transition.get("incoming_path_probability")) != source["path_probability"] or native_consequences != source["consequences"]:
+        if source is None or not isinstance(consequences, Mapping):
+            return "variable_graph_terminal_consequences_invalid"
+        native_consequences = (
+            {k: v for k, v in consequences.items() if k != "ability_item_steal"}
+            if representation == "graph"
+            else consequences
+        )
+        if (
+            _fraction(transition.get("incoming_path_probability")) != source["path_probability"]
+            or native_consequences != source["consequences"]
+        ):
             return "variable_graph_terminal_transition_source_mismatch"
+        if representation == "leaf_set" and transition.get("first_terminal_leaf") != source["terminal_leaf"]:
+            return "variable_graph_first_terminal_leaf_mismatch"
+
         effect = transition.get("ability_item_steal_terminal_effect")
-        if effect is not None or "ability_item_steal" in consequences:
+        if representation == "graph" and (effect is not None or "ability_item_steal" in consequences):
             from llm.advisor_ability_item_steal_ledger_validation import validate_ability_item_steal_leaf
             from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair import _synthetic_terminal_leaf
             from llm.advisor_runtime_d0_canonical_contact_classification_authority import canonical_move_contact_metadata
-            if not isinstance(effect, Mapping) or not isinstance(source.get("native_terminal"), Mapping): return "variable_graph_steal_nonterminal"
+            if not isinstance(effect, Mapping) or not isinstance(source.get("native_terminal"), Mapping):
+                return "variable_graph_steal_nonterminal"
             leaf = _synthetic_terminal_leaf(first_graph=graph, source=source)
             landed = source["consequences"].get("landed_hit_count", 1 if source.get("ordered_hit") else 0)
             leaf["hit_state"] = "hit" if landed else "miss"
             contact = canonical_move_contact_metadata(graph["move_id"])
-            leaf["consequences"]["contact"] = ("successful_contact_eligible" if contact.get("contact_state") == "contact" else "successful_non_contact") if landed and contact.get("status") == "resolved" else "not_applicable"
+            leaf["consequences"]["contact"] = (
+                "successful_contact_eligible" if contact.get("contact_state") == "contact" else "successful_non_contact"
+            ) if landed and contact.get("status") == "resolved" else "not_applicable"
             leaf["consequences"]["ability_item_steal"] = consequences.get("ability_item_steal")
             leaf["provenance"]["ability_item_steal_completion_authority"] = effect.get("effect_authority")
-            error = validate_ability_item_steal_leaf(leaf, envelope=effect, native_terminal=source["native_terminal"], pair_base=base, first_action=True)
-            if error is not None: return error
-        low_hp_error = _low_hp_type_hit(source.get("ordered_hit"))
-        if low_hp_error is not None:
-            return low_hp_error
-        guts_error = _guts_status_attack_hit(source.get("ordered_hit"))
-        if guts_error is not None:
-            return guts_error
+            error = validate_ability_item_steal_leaf(
+                leaf, envelope=effect, native_terminal=source["native_terminal"], pair_base=base, first_action=True,
+            )
+            if error is not None:
+                return error
+        if representation == "graph":
+            low_hp_error = _low_hp_type_hit(source.get("ordered_hit"))
+            if low_hp_error is not None:
+                return low_hp_error
+            guts_error = _guts_status_attack_hit(source.get("ordered_hit"))
+            if guts_error is not None:
+                return guts_error
+
         second = _validate_second(transition.get("second_action"))
-        if isinstance(second, str): return second
-        parsed.append({"first_terminal_source_id": transition["first_terminal_source_id"], "incoming_path_probability": source["path_probability"], "first_terminal_consequences": deepcopy(dict(consequences)), "ability_item_steal_terminal_effect": deepcopy(effect), "ordered_terminal_hit": deepcopy(source.get("ordered_hit")), "second_action": second})
-    if len({row["first_terminal_source_id"] for row in parsed}) != len(parsed): return "variable_graph_duplicate_terminal_transition_source"
-    if sum((row["incoming_path_probability"] for row in parsed), Fraction()) != Fraction(1, 1): return "variable_graph_terminal_transition_mass_not_one"
-    first_actor = value.get("provenance", {}).get("first_actor") if isinstance(value.get("provenance"), Mapping) else None
-    if (
-        first_actor != graph.get("attacker")
-        or (first_actor != base["own_actor"] and first_actor != base["opponent_actor"])
-    ):
-        return "variable_graph_first_actor_binding_mismatch"
-    return {"action_order": value["action_order"], "order_conditional_probability": order_probability, "order_weighted_terminal_probability_mass": weighted, "first_actor": deepcopy(dict(first_actor)), "terminal_transitions": tuple(parsed), "first_action_graph": deepcopy(dict(graph))}
+        if isinstance(second, str):
+            return second
+        parsed.append({
+            "first_terminal_source_id": transition["first_terminal_source_id"],
+            "incoming_path_probability": source["path_probability"],
+            "first_terminal_consequences": deepcopy(dict(consequences)),
+            **({"first_terminal_leaf": deepcopy(source["terminal_leaf"])} if representation == "leaf_set" else {}),
+            "ability_item_steal_terminal_effect": deepcopy(effect),
+            "ordered_terminal_hit": deepcopy(source.get("ordered_hit")),
+            **({"pivot_transition": deepcopy(transition.get("pivot_transition"))} if transition.get("pivot_transition") is not None else {}),
+            "second_action": second,
+        })
+
+    if len({row["first_terminal_source_id"] for row in parsed}) != len(parsed):
+        return "variable_graph_duplicate_terminal_transition_source"
+    if sum((row["incoming_path_probability"] for row in parsed), Fraction()) != Fraction(1, 1):
+        return "variable_graph_terminal_transition_mass_not_one"
+    result = {
+        "action_order": value["action_order"],
+        "order_conditional_probability": order_probability,
+        "order_weighted_terminal_probability_mass": weighted,
+        "first_actor": deepcopy(dict(first_actor)),
+        "terminal_transitions": tuple(parsed),
+        "first_action_representation": representation,
+    }
+    if representation == "graph":
+        result["first_action_graph"] = deepcopy(dict(graph))
+    else:
+        result["first_action_leaf_set"] = deepcopy(leaf_set)
+    return result
 
 
 def _validate_second(value: Any) -> dict[str, Any] | str:
-    if not isinstance(value, Mapping): return "variable_graph_second_action_missing"
+    if not isinstance(value, Mapping):
+        return "variable_graph_second_action_missing"
     state = value.get("state")
-    if state == "cancelled_due_to_faint":
-        return deepcopy(dict(value)) if _fraction(value.get("conditional_probability")) == Fraction(1, 1) and value.get("reason") == "second_action_cancelled_due_to_faint" else "variable_graph_faint_cancellation_invalid"
-    if state != "outcome_graph" or _fraction(value.get("conditional_probability")) != Fraction(1, 1) or not isinstance(value.get("outcomes"), tuple): return "variable_graph_second_action_outcome_graph_invalid"
+    terminal_states = {
+        "cancelled_due_to_faint",
+        "executed_protection",
+        "prevented_by_protection",
+        "prevented_by_mat_block",
+    }
+    if state in terminal_states:
+        if _fraction(value.get("conditional_probability")) != Fraction(1, 1):
+            return "variable_graph_terminal_second_action_probability_invalid"
+        if value.get("reason") != state and state != "cancelled_due_to_faint":
+            return "variable_graph_terminal_second_action_reason_invalid"
+        if state == "cancelled_due_to_faint" and value.get("reason") != "second_action_cancelled_due_to_faint":
+            return "variable_graph_faint_cancellation_invalid"
+        return deepcopy(dict(value))
+    if (
+        state != "outcome_graph"
+        or _fraction(value.get("conditional_probability")) != Fraction(1, 1)
+        or not isinstance(value.get("outcomes"), tuple)
+        or not value["outcomes"]
+    ):
+        return "variable_graph_second_action_outcome_graph_invalid"
+
     mass = Fraction()
     for outcome in value["outcomes"]:
-        if not isinstance(outcome, Mapping) or _fraction(outcome.get("conditional_probability")) <= 0: return "variable_graph_second_action_outcome_invalid"
-        mass += _fraction(outcome["conditional_probability"])
-        if outcome.get("state") == "cancelled_due_to_paralysis":
-            if outcome.get("reason") != "second_action_cancelled_due_to_paralysis": return "variable_graph_paralysis_cancellation_invalid"
-        elif outcome.get("state") == "executed":
-            leaves = outcome.get("second_action_terminal_leaves")
-            if not isinstance(leaves, tuple) or not leaves or sum((_fraction(leaf.get("probability")) for leaf in leaves if isinstance(leaf, Mapping)), Fraction()) != Fraction(1, 1): return "variable_graph_second_action_leaf_set_invalid"
-            for leaf in leaves:
-                from llm.advisor_ability_item_steal_ledger_validation import validate_ability_item_steal_leaf
-                error = validate_ability_item_steal_leaf(leaf)
-                if error is not None: return error
-                error = _low_hp_type_leaf(leaf)
+        if not isinstance(outcome, Mapping):
+            return "variable_graph_second_action_outcome_invalid"
+        conditional = _fraction(outcome.get("conditional_probability"))
+        if conditional <= 0:
+            return "variable_graph_second_action_outcome_invalid"
+        mass += conditional
+        if outcome.get("state") in {
+            "cancelled_due_to_paralysis", "cancelled_due_to_sleep", "cancelled_due_to_freeze",
+        }:
+            continue
+        if outcome.get("state") != "executed":
+            return "variable_graph_second_action_outcome_state_invalid"
+        graph = outcome.get("second_action_graph")
+        leaves = outcome.get("second_action_terminal_leaves")
+        if isinstance(graph, Mapping):
+            if leaves is not None or graph.get("status") != "evaluable":
+                return "variable_graph_second_action_graph_invalid"
+            sources = _terminal_sources(graph)
+            if isinstance(sources, str):
+                return f"variable_graph_second_action_{sources}"
+            graph_mass = sum((row["path_probability"] for row in sources), Fraction())
+            if (
+                graph_mass != Fraction(1, 1)
+                or _fraction(outcome.get("second_action_terminal_probability_mass")) != graph_mass
+            ):
+                return "variable_graph_second_action_graph_mass_invalid"
+            for source in sources:
+                error = _low_hp_type_hit(source.get("ordered_hit"))
                 if error is not None:
                     return error
-                error = _guts_status_attack_leaf(leaf)
+                error = _guts_status_attack_hit(source.get("ordered_hit"))
                 if error is not None:
                     return error
-        else: return "variable_graph_second_action_outcome_state_invalid"
+            continue
+        if not isinstance(leaves, tuple) or not leaves:
+            return "variable_graph_second_action_leaf_set_invalid"
+        leaf_mass = sum(
+            (_fraction(leaf.get("probability")) for leaf in leaves if isinstance(leaf, Mapping)),
+            Fraction(),
+        )
+        if (
+            leaf_mass != Fraction(1, 1)
+            or _fraction(outcome.get("second_action_terminal_probability_mass")) != leaf_mass
+        ):
+            return "variable_graph_second_action_leaf_set_invalid"
+        for leaf in leaves:
+            from llm.advisor_ability_item_steal_ledger_validation import validate_ability_item_steal_leaf
+            error = validate_ability_item_steal_leaf(leaf)
+            if error is not None:
+                return error
+            error = _low_hp_type_leaf(leaf)
+            if error is not None:
+                return error
+            error = _guts_status_attack_leaf(leaf)
+            if error is not None:
+                return error
     return deepcopy(dict(value)) if mass == Fraction(1, 1) else "variable_graph_second_action_outcome_mass_not_one"
 
 
@@ -220,9 +431,34 @@ def _final_from_consequences(consequences: Any, actor: Mapping[str, Any], base: 
     return {"own_final_hp": own, "opponent_final_hp": opponent, "own_fainted": own == 0, "opponent_fainted": opponent == 0, "supported_stage_consequence": deepcopy(consequences.get("deterministic_stage_effect")), "supported_secondary_consequence": deepcopy(consequences.get("secondary")), "contact_reactive_damage_consequence": deepcopy(consequences.get("contact_reactive_damage")), "contact_reactive_status_consequence": deepcopy(consequences.get("contact_reactive_status")), "life_orb_consequence": deepcopy(consequences.get("life_orb"))}
 
 
-def _final_from_leaf(leaf: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
-    if not isinstance(leaf, Mapping) or not isinstance(leaf.get("provenance"), Mapping): return "variable_graph_second_leaf_invalid"
-    return _final_from_consequences(leaf.get("consequences"), leaf["provenance"].get("attacker"), base)
+def _final_from_leaf(
+    leaf: Any, base: Mapping[str, Any], pivot_transition: Mapping[str, Any] | None = None,
+) -> dict[str, Any] | str:
+    if not isinstance(leaf, Mapping) or not isinstance(leaf.get("provenance"), Mapping):
+        return "variable_graph_second_leaf_invalid"
+    final = _final_from_consequences(
+        leaf.get("consequences"), leaf["provenance"].get("attacker"), base,
+    )
+    if isinstance(final, str) or not isinstance(pivot_transition, Mapping):
+        return final
+    incoming = pivot_transition.get("resulting_active_owner")
+    authority = pivot_transition.get("pivot_authority")
+    if not isinstance(incoming, Mapping) or not isinstance(authority, Mapping):
+        return "variable_graph_second_pivot_transition_invalid"
+    hp = incoming.get("current_hp")
+    if not _hp(hp):
+        return "variable_graph_second_pivot_incoming_hp_invalid"
+    side = authority.get("attacker", {}).get("side")
+    if side == "self":
+        final["own_final_hp"] = hp
+        final["own_fainted"] = hp == 0
+    elif side == "opponent":
+        final["opponent_final_hp"] = hp
+        final["opponent_fainted"] = hp == 0
+    else:
+        return "variable_graph_second_pivot_actor_invalid"
+    final["pivot_transition"] = deepcopy(dict(pivot_transition))
+    return final
 
 
 def _life_orb(value: Any) -> bool:

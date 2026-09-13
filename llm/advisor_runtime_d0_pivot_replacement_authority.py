@@ -52,7 +52,27 @@ def freeze_runtime_d0_pivot_replacement_authority(*, strategy_d0: Mapping[str, A
     if len(candidates) != 1: return {"status": "incomplete", "schema_version": SCHEMA_VERSION, **base, "reason": "opponent_pivot_replacement_choice_policy_required", "candidate_owners": tuple(deepcopy(candidates)), "provenance": "runtime_exact_pivot_replacement_choice_v1"}
     incoming = freeze_runtime_incoming_current_state_authority(strategy_d0=pivot_d0, runtime_snapshot=runtime_snapshot, incoming_owner=candidates[0])
     if incoming.get("status") != "resolved": return {"status": incoming.get("status", "incomplete"), "schema_version": SCHEMA_VERSION, **base, "reason": incoming.get("reason", "pivot_incoming_authority_unavailable")}
-    target = _base_record(pivot_d0["session_id"], candidates[0]["slot_index"], candidates[0]["pokemon_id"], roster[candidates[0]["slot_index"]])
+    incoming_raw = roster[candidates[0]["slot_index"]]
+    target = {
+        **_base_record(
+            pivot_d0["session_id"], candidates[0]["slot_index"],
+            candidates[0]["pokemon_id"], incoming_raw,
+        ),
+        "side": pivot_actor["side"],
+    }
+    item_provenance = incoming_raw.get("known_item_provenance")
+    if (
+        incoming_raw.get("known_item") is None
+        and isinstance(item_provenance, Mapping)
+        and item_provenance.get("event_kind") in {
+            "current_item_observed",
+            "current_opponent_switch_target_combat_observed",
+            "item_consumption_observed",
+            "item_removed_observed",
+        }
+        and item_provenance.get("trust") == "user_confirmed_observation"
+    ):
+        target["item_authority"] = {"status": "known", "value": None}
     entry = {
         "hazards": project_switch_hazard_context(state, affected_side=pivot_actor["side"]),
         "target_roster_mechanics": target,

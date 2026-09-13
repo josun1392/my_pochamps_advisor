@@ -77,6 +77,26 @@ from llm.advisor_strategy_explanation import explain_detached_strategy
 
 
 SCHEMA = "ui-detached-strategy-bridge-result-v1"
+_GRAPH_PAIR_LIVE_AUTHORITY_KEYS = frozenset({
+    "first_action_sturdy_survival_authorities_by_order",
+    "direct_heal_execution_authorities",
+    "atomic_item_swap_status_execution_authorities",
+    "taunt_application_authorities",
+    "encore_application_authorities",
+    "disable_application_authorities",
+    "opponent_protection_success_authority",
+    "incoming_contact_authority",
+    "silk_trap_reactive_interaction_authority",
+    "kings_shield_reactive_interaction_authority",
+    "obstruct_reactive_interaction_authority",
+    "spiky_shield_reactive_damage_authority",
+    "baneful_bunker_reactive_poison_authority",
+    "burning_bulwark_reactive_burn_authority",
+    "quick_guard_priority_applicability_authority",
+    "mat_block_direct_damage_applicability_authority",
+    "pivot_replacement_authorities",
+    "pivot_entry_authorities",
+})
 
 
 def run_current_ui_detached_strategy(
@@ -401,6 +421,11 @@ def _project_live_opponent_response_profiles(
                     "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
                     "own_action_id": own["action_id"], "opponent_response_action_id": response_id,
                     "ordinary_pair_authorities": authorities,
+                    "graph_pair_authorities": {
+                        key: deepcopy(value)
+                        for key, value in authorities.items()
+                        if key in _GRAPH_PAIR_LIVE_AUTHORITY_KEYS
+                    },
                     "provenance": "runtime_d0_live_opponent_response_sparse_authority_bundle_v1",
                 }
         result[action_id] = materialize_detached_opponent_response_profile(
