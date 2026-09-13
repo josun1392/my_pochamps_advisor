@@ -344,10 +344,58 @@ def test_equal_speed_status_paths_validate_and_ko_does_not_attempt(condition):
             assert "gate" not in path["actions"][1]
 
 
-def test_wake_then_thunderbolt_preserves_existing_second_action_paralysis():
+def test_wake_then_thunderbolt_preserves_existing_second_action_paralysis(monkeypatch):
+    """Keep the wake/secondary/cancellation contract without expanding every damage roll."""
     from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
+    from llm.advisor_runtime_strategy_d0 import freeze_runtime_d0_thunderbolt_paralysis_authority
+
+    def bounded_normal_ledger(*, strategy_d0, runtime_snapshot, actor, target, metadata_authority, action=None, **_):
+        move_id = metadata_authority["move_id"]
+        actor_hp = strategy_d0["strategy_state"]["active"][actor["side"]]["current_hp"]
+        target_hp = strategy_d0["strategy_state"]["active"][target["side"]]["current_hp"]
+        base = {
+            "candidate_id": f"attack:{move_id}", "action_type": "attack",
+            "branch_path": ({"branch": "hit", "conditional_probability": {"numerator": 1, "denominator": 1}},),
+            "hit_state": "hit", "critical_state": "non_critical",
+            "damage_roll": {"roll_index": 0, "random_factor_percent": 85, "damage": 1},
+            "consequences": {"damage": 1, "own_final_hp": actor_hp, "target_final_hp": target_hp - 1,
+                             "target_ko": False, "self_fainted": False, "contact": "non_contact"},
+            "provenance": {"session_id": strategy_d0["session_id"],
+                           "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+                           "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+                           "decision_owner": strategy_d0["decision_owner"], "attacker": actor,
+                           "target": target, "move_id": move_id},
+        }
+        if move_id != "thunderbolt":
+            return {"status": "evaluable", "terminal_leaves": ({"leaf_id": f"{action['action_id']}:hit", "probability": {"numerator": 1, "denominator": 1}, **base, "consequences": {**base["consequences"], "secondary": None}},)}
+
+        paralysis = freeze_runtime_d0_thunderbolt_paralysis_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor,
+            target=target, move_metadata=metadata_authority,
+        )
+        assert paralysis["status"] == "resolved", paralysis
+        probability = paralysis["capability_resolution"]["probability"]
+        numerator, denominator = probability["numerator"], probability["denominator"]
+        condition = {
+            "schema_version": "detached-hypothetical-current-condition-v1", "owner": target,
+            "previous_condition": {"status": "known_none"}, "resulting_condition": "paralysis",
+            "provenance": "thunderbolt_successful_damage_roll_secondary_v1",
+        }
+        no_effect = {"leaf_id": f"{action['action_id']}:thunderbolt:no_effect",
+                     "probability": {"numerator": denominator - numerator, "denominator": denominator}, **base,
+                     "consequences": {**base["consequences"], "secondary": {"branch": "no_effect"}},
+                     "provenance": {**base["provenance"], "thunderbolt_paralysis_authority": paralysis}}
+        effect = {"leaf_id": f"{action['action_id']}:thunderbolt:paralysis",
+                  "probability": probability, **base,
+                  "consequences": {**base["consequences"], "secondary": {"branch": "effect", "hypothetical_target_condition": condition}},
+                  "provenance": {**base["provenance"], "thunderbolt_paralysis_authority": paralysis}}
+        return {"status": "evaluable", "terminal_leaves": (no_effect, effect)}
+
+    monkeypatch.setattr("llm.advisor_immediate_move_vs_move_action_pair._normal_formula_ledger", bounded_normal_ledger)
     result = pair("sleep", prior=1, duration=2, move="thunderbolt")
     assert result["status"] == "evaluable", result
+    executing = [p for p in result["terminal_paths"] if not p["actions"][0]["state"].startswith("cancelled")]
+    assert executing and all(p["actions"][0]["condition_after"] == "none" for p in executing)
     cancelled = [p for p in result["terminal_paths"] if p["actions"][1]["state"] == "cancelled_due_to_paralysis"]
     assert sum((fraction(p["probability"]) for p in cancelled), Fraction()) == Fraction(1, 80)
     assert all("attack_leaf" not in p["actions"][1] for p in cancelled)
