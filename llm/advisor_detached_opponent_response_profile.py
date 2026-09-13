@@ -188,10 +188,9 @@ def _bundle_kwargs(
         or not all(isinstance(value, Mapping) for value in graph.values())
     ):
         return {"status": "rejected", "reason": "live_graph_response_authority_bundle_payload_invalid"}
-    # Status/confusion specialized owners intentionally keep exclusive control
-    # over extension composition.
-    if _status_or_confusion_gate(runtime_snapshot, base):
-        return {}
+    # Gates own execution opportunity, not the sparse exact family evidence
+    # needed once an opportunity executes.  The immediate-pair owner forwards
+    # only these validated maps into the one-action handoff.
     if ordinary_pair:
         return {key: deepcopy(dict(value)) for key, value in ordinary.items() if key in _ORDINARY_PAIR_BUNDLE_KEYS}
     if not graph_pair:

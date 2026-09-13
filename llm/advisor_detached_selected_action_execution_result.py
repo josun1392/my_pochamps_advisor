@@ -40,7 +40,7 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
     if move_id in {"taunt", "encore", "disable"}:
         return _status_special(base, strategy_d0, authorities.get("status_special_application_authority"))
     if move_id in {"protect", "detect", "quick-guard", "mat-block", "silk-trap", "kings-shield", "obstruct", "spiky-shield", "baneful-bunker", "burning-bulwark"}:
-        return _protection(base, strategy_d0, move_metadata, authorities.get("protection_execution_result"))
+        return _protection(base, strategy_d0, runtime_snapshot, move_metadata, authorities.get("protection_execution_result"))
     if move_id in {"u-turn", "volt-switch", "flip-turn"}:
         return _pivot(base, strategy_d0, runtime_snapshot, action, actor, target, metadata, authorities)
     if metadata.get("category") not in {"physical", "special"}: return _result("unsupported", "selected_action_family_not_materialized", base)
@@ -161,7 +161,7 @@ def _family_result(base: Mapping[str, Any], family: str, paths: tuple[Mapping[st
             "probability_owner":"selected_action_only", "paths":tuple(deepcopy(dict(path)) for path in paths), "provenance":provenance}
 
 
-def _protection(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadata: Mapping[str, Any], authority: Any) -> dict[str, Any]:
+def _protection(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], metadata: Mapping[str, Any], authority: Any) -> dict[str, Any]:
     """Materialize the protection action from frozen pending-action facts.
 
     The pending action provides only actor/action/metadata binding.  It is
@@ -176,6 +176,13 @@ def _protection(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadat
     success = authority.get("protection_success_authority")
     if not isinstance(pending, Mapping) or pending.get("actor") != base["target"] or not isinstance(pending.get("action_id"), str) or not isinstance(pending.get("move_metadata"), Mapping):
         return _result("rejected", "protection_pending_action_context_binding_mismatch", base)
+    setup_kind = authority.get("protection_setup_kind")
+    if setup_kind in {"quick_guard", "mat_block"}:
+        applicable = authority.get("quick_guard_priority_applicability_authority") if setup_kind == "quick_guard" else authority.get("mat_block_direct_damage_applicability_authority")
+        if not isinstance(applicable, Mapping) or applicable.get("status") != "resolved" or applicable.get("outcome") not in {"applies", "not_applicable"}:
+            return _result("incomplete", "protection_setup_applicability_unavailable", base)
+        paths = _protection_paths(base, runtime_snapshot, authority)
+        return _family_result(base, "protection", paths, "selected_action_to_existing_guard_setup_v1")
     if not isinstance(success, Mapping): return _result("incomplete", "protection_success_authority_missing", base)
     pair_base={"session_id":base["session_id"], "source_runtime_fingerprint":base["source_runtime_fingerprint"], "source_branch_fingerprint":base["source_branch_fingerprint"], "decision_owner":deepcopy(base["decision_owner"]), "own_actor":deepcopy(base["target"]), "opponent_actor":deepcopy(base["actor"]), "own_action_id":pending["action_id"], "opponent_action_id":base["action_id"]}
     # The existing projector names its shielding owner `opponent`.  This
@@ -190,13 +197,22 @@ def _protection(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadat
     if leaf is None: return _result("incomplete", "protection_post_action_hp_unavailable", base)
     # Restore source actor/target provenance (the role view was local only).
     leaf["provenance"]["attacker"], leaf["provenance"]["target"] = deepcopy(base["actor"]), deepcopy(base["target"])
-    paths=_paths_from_leaves(strategy_d0, (leaf,))
-    if isinstance(paths, str): return _result("incomplete", paths, base)
-    for path in paths:
-        path["protection_consequence"] = deepcopy(effect)
-        path["pending_action_executed"] = False
+    paths = _protection_paths(base, runtime_snapshot, authority, effect)
     return _family_result(base, "protection", paths, "selected_action_to_existing_protection_projector_v1")
 
+
+
+def _protection_setup_leaf(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], metadata: Mapping[str, Any], authority: Mapping[str, Any]) -> dict[str, Any]:
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    actor_hp = active.get(base["actor"]["side"], {}).get("current_hp")
+    target_hp = active.get(base["target"]["side"], {}).get("current_hp")
+    if not isinstance(actor_hp, int) or not isinstance(target_hp, int): raise ValueError("protection_setup_hp_missing")
+    return {"leaf_id": f"{base['action_id']}:setup", "candidate_id": base["action_id"], "action_type":"protection", "branch_path":("protection_setup",), "probability":{"numerator":1,"denominator":1}, "hit_state":"not_applicable", "critical_state":"not_applicable", "damage_roll":"not_applicable", "consequences":{"own_final_hp":actor_hp,"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":actor_hp==0,"secondary":None,"protection_setup":deepcopy(dict(authority))}, "provenance":{"session_id":base["session_id"],"source_runtime_fingerprint":base["source_runtime_fingerprint"],"source_branch_fingerprint":base["source_branch_fingerprint"],"decision_owner":deepcopy(base["decision_owner"]),"attacker":deepcopy(base["actor"]),"target":deepcopy(base["target"]),"move_id":metadata["move_id"]}}
+
+
+def _protection_paths(base: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], authority: Mapping[str, Any], effect: Mapping[str, Any] | None = None) -> tuple[dict[str, Any], ...]:
+    """A setup action has no HP/condition effect before the pending attempt."""
+    return ({"probability":{"numerator":1,"denominator":1}, "post_action_runtime_snapshot":deepcopy(dict(runtime_snapshot)), "protection_setup":deepcopy(dict(authority)), "protection_consequence":deepcopy(dict(effect)) if isinstance(effect, Mapping) else None, "pending_action_executed":False},)
 
 def _pivot(base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], authorities: Mapping[str, Any]) -> dict[str, Any]:
     """Run only the pivot's attack, then the established continuation owner."""

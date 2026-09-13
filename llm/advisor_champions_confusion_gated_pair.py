@@ -7,8 +7,9 @@ from llm.advisor_champions_confusion_self_hit import materialize_confusion_self_
 
 SCHEMA="champions-confusion-gated-immediate-action-pair-v1"
 
-def materialize_champions_confusion_gated_pair(*,strategy_d0,runtime_snapshot,base,own_action,opponent_action,own_meta,opponent_meta,orders,action_order_authority,quick_claw_action_order_authority=None):
-    from llm.advisor_immediate_move_vs_move_action_pair import _attack_ledger, _metadata_for_inputs, _pending_second_action_flinch
+def materialize_champions_confusion_gated_pair(*,strategy_d0,runtime_snapshot,base,own_action,opponent_action,own_meta,opponent_meta,orders,action_order_authority,quick_claw_action_order_authority=None,extension_authorities=None):
+    from llm.advisor_immediate_move_vs_move_action_pair import _pending_second_action_flinch
+    from llm.advisor_champions_gated_selected_action_execution import execute_gated_selected_action, consume_deferred_protection_setup
     from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
     from llm.advisor_detached_predictive_intermediate_state import materialize_detached_predictive_intermediate_state
     terminals=[]; error=None
@@ -37,13 +38,17 @@ def materialize_champions_confusion_gated_pair(*,strategy_d0,runtime_snapshot,ba
                     if index==1 or roll["self_fainted"]: finish(plan,weight*Fraction(1,16),[*events,row] if index==1 else [*events,row,{"state":"cancelled_due_to_faint","actor":deepcopy(target),"action_id":lineup[1][1]["action_id"]}],next_hp)
                     else: walk(plan,lineup,1,{"status":"runtime_snapshot_ready","session_id":after["session_id"],"state":after,"state_fingerprint":__import__('llm.advisor_reducer_state_model',fromlist=['state_fingerprint']).state_fingerprint(after)},weight*Fraction(1,16),[*events,row],next_hp)
                 continue
-            rebound={"status":"resolved","schema_version":"runtime-d0-selectable-move-metadata-authority-v1","candidate_id":f"attack:{gate['move_id']}","move_id":gate["move_id"],"metadata":_metadata_for_inputs(meta,None),"session_id":d0["session_id"],"source_runtime_fingerprint":view["strategy_d0"]["source_runtime_fingerprint"],"source_branch_fingerprint":view["strategy_d0"]["strategy_preview_fingerprint"],"decision_owner":deepcopy(actor),"active_attacker":deepcopy(actor)}
-            ledger=_attack_ledger(strategy_d0=view["strategy_d0"],runtime_snapshot=view["runtime_snapshot"],actor=actor,target=target,metadata_authority=rebound,action={"action_id":action["action_id"],"action_type":"attack","identity":gate["move_id"],"move_metadata_authority":rebound})
-            if ledger.get("status")!="evaluable": error=ledger;return
-            for leaf in ledger["terminal_leaves"]:
-                final={actor["side"]:leaf["consequences"]["own_final_hp"],target["side"]:leaf["consequences"]["target_final_hp"]}; row={**event,"attack_leaf":leaf}
-                if index==1 or 0 in final.values(): finish(plan,weight*fraction(leaf["probability"]),[*events,row] if index==1 else [*events,row,{"state":"cancelled_due_to_faint","actor":deepcopy(target),"action_id":lineup[1][1]["action_id"]}],final)
-                else: walk(plan,lineup,1,view["runtime_snapshot"],weight*fraction(leaf["probability"]),[*events,row],final)
+            selected=execute_gated_selected_action(strategy_d0=view["strategy_d0"],runtime_snapshot=view["runtime_snapshot"],action=action,actor=actor,target=target,metadata_authority=meta,extension_authorities=extension_authorities,pending_action=lineup[1][1],pending_metadata_authority=lineup[1][2])
+            if selected.get("status")!="resolved": error=selected;return
+            for selected_path in selected["paths"]:
+                if index==1 and events:
+                    deferred=consume_deferred_protection_setup(setup_path=events[-1].get("selected_action_path"),pending_action=action,pending_metadata_authority=meta,pending_branch_snapshot=view["runtime_snapshot"],selected_path=selected_path)
+                    if deferred.get("status")=="rejected": error=deferred;return
+                    if deferred.get("status")=="resolved": selected_path=deferred["selected_path"]
+                final=selected_path["final_hp"]; row={**event,"state":"confusion_selected_action_executes","selected_action_execution":selected["execution_result"],"selected_action_path":selected_path}
+                if isinstance(selected_path.get("action_leaf"),dict): row["attack_leaf"]=selected_path["action_leaf"]
+                if index==1 or 0 in final.values(): finish(plan,prob*fraction(branch["probability"])*fraction(selected_path["probability"]),[*events,row] if index==1 else [*events,row,{"state":"cancelled_due_to_faint","actor":deepcopy(target),"action_id":lineup[1][1]["action_id"]}],final)
+                else: walk(plan,lineup,1,selected_path["post_action_runtime_snapshot"],prob*fraction(branch["probability"])*fraction(selected_path["probability"]),[*events,row],final)
     hp={side:runtime_snapshot["state"][f"{side}_side"]["pokemon"][owner["slot_index"]]["current_hp"] for side,owner in strategy_d0["active_owners"].items()}
     for plan in orders:
         line=((base["own_actor"],own_action,own_meta),(base["opponent_actor"],opponent_action,opponent_meta)) if plan["order"]=="own_first" else ((base["opponent_actor"],opponent_action,opponent_meta),(base["own_actor"],own_action,own_meta));walk(plan,line,0,runtime_snapshot,plan["probability"],[],hp)
@@ -64,7 +69,7 @@ def normalize_champions_confusion_gated_pair(pair):
                 if event["state"]=="confusion_self_hit":
                     hit=event.get("self_hit"); roll=event.get("self_hit_roll")
                     if not isinstance(hit,dict) or hit.get("critical") is not False or hit.get("stab") is not False or hit.get("contact") is not False or "attack_leaf" in event or roll not in hit.get("damage_rolls",()): raise ValueError()
-                if event["state"]=="confusion_selected_action_executes" and "attack_leaf" not in event: raise ValueError()
+                if event["state"]=="confusion_selected_action_executes" and not isinstance(event.get("selected_action_execution"),dict): raise ValueError()
         from llm.advisor_exact_immediate_action_pair_outcome_ledger import _base
         base=_base(pair)
         if base is None: raise ValueError()

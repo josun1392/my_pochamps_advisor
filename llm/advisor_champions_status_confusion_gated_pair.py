@@ -11,8 +11,9 @@ from llm.advisor_champions_confusion_self_hit import materialize_confusion_self_
 
 SCHEMA = "champions-status-confusion-gated-immediate-action-pair-v1"
 
-def materialize_champions_status_confusion_gated_pair(*,strategy_d0,runtime_snapshot,base,own_action,opponent_action,own_meta,opponent_meta,orders,action_order_authority,quick_claw_action_order_authority=None):
-    from llm.advisor_immediate_move_vs_move_action_pair import _attack_ledger,_metadata_for_inputs,_pending_second_action_flinch
+def materialize_champions_status_confusion_gated_pair(*,strategy_d0,runtime_snapshot,base,own_action,opponent_action,own_meta,opponent_meta,orders,action_order_authority,quick_claw_action_order_authority=None,extension_authorities=None):
+    from llm.advisor_immediate_move_vs_move_action_pair import _pending_second_action_flinch
+    from llm.advisor_champions_gated_selected_action_execution import execute_gated_selected_action, consume_deferred_protection_setup
     from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
     from llm.advisor_detached_predictive_intermediate_state import materialize_detached_predictive_intermediate_state
     from llm.advisor_detached_intermediate_predictive_authority import freeze_detached_intermediate_predictive_authority
@@ -67,18 +68,21 @@ def materialize_champions_status_confusion_gated_pair(*,strategy_d0,runtime_snap
                 if index==1 or outcome.get("self_fainted"): finish(plan,weight,rows if index==1 else [*rows,{"state":"cancelled_due_to_faint","actor":deepcopy(target),"action_id":lineup[1][1]["action_id"]}],next_hp)
                 else: walk(plan,lineup,1,outcome["snapshot"],weight,rows,next_hp)
                 continue
-            d0=freeze_runtime_strategy_d0(runtime_snapshot=outcome["snapshot"],decision_owner=actor); rebound={"status":"resolved","schema_version":"runtime-d0-selectable-move-metadata-authority-v1","candidate_id":f"attack:{meta['metadata']['move_id']}","move_id":meta["metadata"]["move_id"],"metadata":_metadata_for_inputs(meta,None),"session_id":d0["session_id"],"source_runtime_fingerprint":d0["source_runtime_fingerprint"],"source_branch_fingerprint":d0["strategy_preview_fingerprint"],"decision_owner":deepcopy(actor),"active_attacker":deepcopy(actor)}
-            ledger=_attack_ledger(strategy_d0=d0,runtime_snapshot=outcome["snapshot"],actor=actor,target=target,metadata_authority=rebound,action={"action_id":action["action_id"],"action_type":"attack","identity":meta["metadata"]["move_id"],"move_metadata_authority":rebound})
-            if ledger.get("status")!="evaluable": error=ledger;return
-            for leaf in ledger["terminal_leaves"]:
-                final={actor["side"]:leaf["consequences"]["own_final_hp"],target["side"]:leaf["consequences"]["target_final_hp"]}; event={"state":"selected_action_executes","actor":deepcopy(actor),"action_id":action["action_id"],"attack_leaf":leaf}
-                if index==1 or 0 in final.values(): finish(plan,weight*fraction(leaf["probability"]),[*rows,event] if index==1 else [*rows,event,{"state":"cancelled_due_to_faint","actor":deepcopy(target),"action_id":lineup[1][1]["action_id"]}],final)
-                else:
-                    inter=materialize_detached_predictive_intermediate_state(strategy_d0=d0,terminal_leaf=leaf); pending=freeze_detached_intermediate_predictive_authority(strategy_d0=d0,runtime_snapshot=outcome["snapshot"],intermediate_state=inter,actor=target,target=actor,move_metadata_authority={**deepcopy(lineup[1][2]),"session_id":d0["session_id"],"source_runtime_fingerprint":d0["source_runtime_fingerprint"],"source_branch_fingerprint":d0["strategy_preview_fingerprint"],"decision_owner":deepcopy(actor)})
-                    if pending.get("status")!="resolved": error=pending;return
-                    nxt=consume_detached_intermediate_paralysis_for_second_action(intermediate_predictive_authority=pending)
-                    if nxt.get("status")!="resolved": error=nxt;return
-                    for ex in nxt["second_action_execution_branches"]: walk(plan,lineup,1,nxt["builder_inputs"]["runtime_snapshot"],weight*fraction(leaf["probability"])*fraction(ex["conditional_probability"]),[*rows,event],final,ex)
+            target_raw=outcome["snapshot"]["state"][f"{target['side']}_side"]["pokemon"][target["slot_index"]]
+            if target_raw.get("condition")=="freeze" and (meta["metadata"].get("type")=="fire" or meta["metadata"].get("self_thaw") is True):
+                error={"status":"incomplete","reason":"target_thaw_effect_authority_required"};return
+            d0=freeze_runtime_strategy_d0(runtime_snapshot=outcome["snapshot"],decision_owner=actor)
+            selected=execute_gated_selected_action(strategy_d0=d0,runtime_snapshot=outcome["snapshot"],action=action,actor=actor,target=target,metadata_authority=meta,extension_authorities=extension_authorities,pending_action=lineup[1][1],pending_metadata_authority=lineup[1][2])
+            if selected.get("status")!="resolved": error=selected;return
+            for selected_path in selected["paths"]:
+                if index==1 and rows:
+                    deferred=consume_deferred_protection_setup(setup_path=next((item.get("selected_action_path") for item in reversed(rows) if isinstance(item,dict) and item.get("selected_action_path") is not None),None),pending_action=action,pending_metadata_authority=meta,pending_branch_snapshot=outcome["snapshot"],selected_path=selected_path)
+                    if deferred.get("status")=="rejected": error=deferred;return
+                    if deferred.get("status")=="resolved": selected_path=deferred["selected_path"]
+                final=selected_path["final_hp"]; event={"state":"selected_action_executes","actor":deepcopy(actor),"action_id":action["action_id"],"selected_action_execution":selected["execution_result"],"selected_action_path":selected_path}
+                if isinstance(selected_path.get("action_leaf"),dict): event["attack_leaf"]=selected_path["action_leaf"]
+                if index==1 or 0 in final.values(): finish(plan,weight*fraction(selected_path["probability"]),[*rows,event] if index==1 else [*rows,event,{"state":"cancelled_due_to_faint","actor":deepcopy(target),"action_id":lineup[1][1]["action_id"]}],final)
+                else: walk(plan,lineup,1,selected_path["post_action_runtime_snapshot"],weight*fraction(selected_path["probability"]),[*rows,event],final)
     hp={side:runtime_snapshot["state"][f"{side}_side"]["pokemon"][owner["slot_index"]]["current_hp"] for side,owner in strategy_d0["active_owners"].items()}
     for plan in orders:
         lineup=((base["own_actor"],own_action,own_meta),(base["opponent_actor"],opponent_action,opponent_meta)) if plan["order"]=="own_first" else ((base["opponent_actor"],opponent_action,opponent_meta),(base["own_actor"],own_action,own_meta));walk(plan,lineup,0,runtime_snapshot,plan["probability"],[],hp)
