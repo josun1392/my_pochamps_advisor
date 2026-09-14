@@ -1,6 +1,9 @@
 from copy import deepcopy
 
+import pytest
+
 from llm.advisor_detached_opponent_response_profile import materialize_detached_opponent_response_profile
+from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
 from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair import (
     materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair,
 )
@@ -28,6 +31,7 @@ from llm.advisor_runtime_d0_pivot_replacement_authority import (
 )
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from llm.advisor_champions_sleep_application import materialize_champions_rest
 from llm.advisor_substitute import update_substitute_state_context
 from tests.test_detached_immediate_protection_response_pair import (
     _protect_action,
@@ -42,6 +46,43 @@ from tests.test_detached_variable_two_to_five_hit_graph_immediate_move_pair impo
     _variable_action,
 )
 from tests.test_fixed_two_hit_immediate_move_pair_integration import _order
+
+
+def _rest_action(d0):
+    actor = d0["active_owners"]["self"]
+    metadata = {"move_id": "rest", "category": "status", "target": "self", "priority": 0, "accuracy": None, "power": None}
+    authority = {
+        "status": "resolved", "move_id": "rest", "metadata": metadata,
+        "candidate_id": "attack:rest", "active_attacker": actor,
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+    }
+    return {"action_id": "attack:rest", "action_type": "attack", "identity": "rest", "move_metadata_authority": authority}
+
+
+def _opponent_native_graph(d0, move_id, power=1):
+    canonical_power = {"triple-axel": 20, "triple-kick": 10}.get(move_id, power)
+    metadata = {
+        "move_id": move_id, "category": "physical", "target": "selected-pokemon",
+        "priority": 0, "accuracy": 100, "power": canonical_power,
+        "type": {"bullet-seed": "grass", "rock-blast": "rock", "population-bomb": "normal", "triple-axel": "ice", "triple-kick": "fighting"}[move_id],
+    }
+    if move_id in {"bullet-seed", "rock-blast"}:
+        metadata.update(min_hits=2, max_hits=5)
+    elif move_id == "population-bomb":
+        metadata.update(min_hits=10, max_hits=10, multiaccuracy=True)
+    else:
+        metadata.update(min_hits=3, max_hits=3, bp_escalation=True, multiaccuracy=True)
+    return {
+        "status": "resolved", "schema_version": "runtime-d0-opponent-known-move-action-authority-v1",
+        "action_id": f"opponent_attack:{move_id}", "action_type": "attack",
+        "identity": move_id, "move_id": move_id, "opponent_actor": d0["active_owners"]["opponent"],
+        "target_owner": d0["active_owners"]["self"], "selectability": "selectable",
+        "usability": {"status": "known_usable"},
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+        "metadata_authority": {"status": "resolved", "move_id": move_id, "metadata": metadata},
+    }
 
 
 def _ordinary_opponent(response_set):
@@ -911,3 +952,108 @@ def test_opponent_pivot_zero_one_multiple_replacement_policy_is_preserved():
     assert results[2]["status"] == "incomplete"
     assert results[2]["reason"] == "opponent_pivot_replacement_choice_policy_required"
 
+
+
+
+@pytest.mark.parametrize("move_id", ("bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"))
+def test_rest_first_rebinds_every_native_graph_to_atomic_post_rest_state(move_id):
+    state, _snapshot, _d0, _own, _responses, _orders = _inputs(own_hp=50, opponent_hp=100)
+    state["self_side"]["pokemon"][0]["condition"] = "burn"
+    state["self_side"]["pokemon"][0]["condition_provenance"]["condition"] = "burn"
+    snapshot = {"status": "runtime_snapshot_ready", "session_id": state["session_id"], "state": deepcopy(state), "state_fingerprint": state_fingerprint(state)}
+    self_owner = {"session_id": state["session_id"], "side": "self", "slot_index": 0, "pokemon_id": state["self_side"]["pokemon"][0]["pokemon_id"]}
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=self_owner)
+    own = _rest_action(d0)
+    opponent = _opponent_native_graph(d0, move_id)
+    witness = materialize_champions_rest(strategy_d0=d0, runtime_snapshot=snapshot, actor=d0["active_owners"]["self"], action=own)
+    pair = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent,
+        action_order_authority=_order(d0, own, opponent, "own_first"),
+        rest_execution_authorities={own["action_id"]: witness},
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    order = pair["order_graphs"][0]
+    first = order["first_action_leaf_set"][0]
+    rest = first["consequences"]["rest_application"]
+    assert rest["rest_applied"] is True
+    assert rest["runtime_snapshot"]["state"]["self_side"]["pokemon"][0]["current_hp"] == 100
+    assert rest["runtime_snapshot"]["state"]["self_side"]["pokemon"][0]["condition"] == "sleep"
+    assert all(
+        row["second_action"]["state"] == "outcome_graph"
+        and any(
+            outcome.get("second_action_graph", {}).get("move_id") == move_id
+            and outcome["second_action_graph"]["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+            for outcome in row["second_action"]["outcomes"]
+        )
+        for row in order["terminal_transitions"]
+    )
+    assert snapshot["state"]["self_side"]["pokemon"][0]["current_hp"] == 50
+    assert snapshot["state"]["self_side"]["pokemon"][0]["condition"] == "burn"
+
+
+def test_graph_ko_before_rest_cancels_rest_without_atomic_application():
+    _state, snapshot, d0, _own, _responses, _orders = _inputs(own_hp=1, opponent_hp=100)
+    own = _rest_action(d0)
+    opponent = _opponent_native_graph(d0, "rock-blast", power=500)
+    pair = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent,
+        action_order_authority=_order(d0, own, opponent, "opponent_first"),
+        rest_execution_authorities={own["action_id"]: materialize_champions_rest(strategy_d0=d0, runtime_snapshot=snapshot, actor=d0["active_owners"]["self"], action=own)},
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert all(
+        row["second_action"]["state"] == "cancelled_due_to_faint"
+        for row in pair["order_graphs"][0]["terminal_transitions"]
+    )
+
+
+
+@pytest.mark.parametrize("move_id", ("bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"))
+def test_surviving_graph_before_rest_executes_rest_from_exact_intermediate_branch(move_id):
+    _state, snapshot, d0, _own, _responses, _orders = _inputs(own_hp=90, opponent_hp=100)
+    own = _rest_action(d0)
+    opponent = _opponent_native_graph(d0, move_id, power=1)
+    witness = materialize_champions_rest(
+        strategy_d0=d0, runtime_snapshot=snapshot, actor=d0["active_owners"]["self"], action=own,
+    )
+    pair = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent,
+        action_order_authority=_order(d0, own, opponent, "opponent_first"),
+        rest_execution_authorities={own["action_id"]: witness},
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert pair["order_graphs"][0]["first_action_graph"]["move_id"] == move_id
+    outcomes = [
+        outcome for row in pair["order_graphs"][0]["terminal_transitions"]
+        for outcome in row["second_action"].get("outcomes", ())
+        if outcome.get("state") == "executed"
+    ]
+    assert outcomes
+    rests = [
+        leaf["consequences"]["rest_application"]
+        for outcome in outcomes
+        for leaf in outcome["second_action_terminal_leaves"]
+    ]
+    assert rests and all(rest["rest_applied"] is True and rest["hp_after"] == 100 for rest in rests)
+
+
+def test_public_immediate_pair_dispatches_rest_graph_to_native_owner():
+    _state, snapshot, d0, _own, _responses, _orders = _inputs(own_hp=50, opponent_hp=100)
+    own = _rest_action(d0)
+    opponent = _opponent_native_graph(d0, "rock-blast", power=1)
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent,
+        action_order_authority=_order(d0, own, opponent, "own_first"),
+        rest_execution_authorities={
+            own["action_id"]: materialize_champions_rest(
+                strategy_d0=d0, runtime_snapshot=snapshot,
+                actor=d0["active_owners"]["self"], action=own,
+            )
+        },
+    )
+    assert pair["status"] == "evaluable", pair.get("reason")
+    assert pair["terminal_leaf_representation"] == "exact_side_neutral_native_action_graph_composition"
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}

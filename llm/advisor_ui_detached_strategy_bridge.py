@@ -81,6 +81,7 @@ SCHEMA = "ui-detached-strategy-bridge-result-v1"
 _GRAPH_PAIR_LIVE_AUTHORITY_KEYS = frozenset({
     "first_action_sturdy_survival_authorities_by_order",
     "direct_heal_execution_authorities",
+    "rest_execution_authorities",
     "atomic_item_swap_status_execution_authorities",
     "taunt_application_authorities",
     "encore_application_authorities",

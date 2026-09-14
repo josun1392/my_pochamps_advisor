@@ -242,6 +242,23 @@ def materialize_immediate_move_vs_move_action_pair(
                 endure_turn_survival_authority=endure_turn_survival_authority,
             )
         return _materialize_endure_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, endure_authority=endure_turn_survival_authority)
+    if (
+        (_is_rest_metadata(own_meta.get("metadata")) or _is_rest_metadata(opponent_meta.get("metadata")))
+        and any(meta.get("metadata", {}).get("move_id") in {"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"} for meta in (own_meta, opponent_meta))
+    ):
+        from llm.advisor_detached_variable_two_to_five_hit_graph_immediate_move_pair import materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair
+        return materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            own_action=own_action, opponent_action=opponent_action,
+            action_order_authority=action_order_authority,
+            quick_claw_action_order_authority=quick_claw_action_order_authority,
+            first_action_sturdy_survival_authority=first_action_sturdy_survival_authority,
+            first_action_sturdy_survival_authorities_by_order=first_action_sturdy_survival_authorities_by_order,
+            first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority,
+            first_action_focus_sash_survival_authorities_by_order=first_action_focus_sash_survival_authorities_by_order,
+            pending_status_execution_authorities=pending_status_execution_authorities,
+            rest_execution_authorities=rest_execution_authorities,
+        )
     if _is_recovery_metadata(own_meta.get("metadata")) or _is_recovery_metadata(opponent_meta.get("metadata")):
         return _materialize_direct_heal_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta,

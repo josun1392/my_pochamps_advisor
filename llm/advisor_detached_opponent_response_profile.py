@@ -51,9 +51,9 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "pivot_entry_authorities",
 }
 _ORDINARY_PAIR_CONTEXT_KEYS = {"reactive_shield_common_block_context"}
-# The graph owner has not yet exposed Rest's detached state handoff.  Do not
-# pass an ordinary-pair-only authority as an unsupported graph kwarg.
-_GRAPH_PAIR_BUNDLE_KEYS = frozenset(_ORDINARY_PAIR_BUNDLE_KEYS - {"rest_execution_authorities"})
+# Native graph pairs consume the same strict Rest witness and replay the
+# atomic materializer against their exact detached branch.
+_GRAPH_PAIR_BUNDLE_KEYS = frozenset(_ORDINARY_PAIR_BUNDLE_KEYS)
 
 
 def materialize_detached_opponent_response_profile(

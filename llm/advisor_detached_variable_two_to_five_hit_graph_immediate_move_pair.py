@@ -103,6 +103,10 @@ from llm.advisor_runtime_d0_endure_turn_survival_authority import (
     canonical_endure_metadata,
     materialize_detached_endure_turn_context,
 )
+from llm.advisor_champions_sleep_application import (
+    materialize_champions_rest,
+    validate_champions_rest,
+)
 
 
 SCHEMA_VERSION = "detached-variable-two-to-five-hit-graph-immediate-move-pair-v1"
@@ -124,6 +128,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
     first_action_focus_sash_survival_authorities_by_order: Mapping[str, Mapping[str, Any]] | None = None,
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     direct_heal_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    rest_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     atomic_item_swap_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     taunt_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     encore_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
@@ -174,6 +179,7 @@ def materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
 
     extension_authorities = {
         "direct_heal_execution_authorities": direct_heal_execution_authorities,
+        "rest_execution_authorities": rest_execution_authorities,
         "atomic_item_swap_status_execution_authorities": atomic_item_swap_status_execution_authorities,
         "taunt_application_authorities": taunt_application_authorities,
         "encore_application_authorities": encore_application_authorities,
@@ -697,6 +703,19 @@ def _materialize_graph_second_order(
     leaf_mass = sum((_fraction(leaf.get("probability")) for leaf in first_leaves), Fraction())
     if leaf_mass != Fraction(1, 1):
         return _result("rejected", "graph_second_first_action_leaf_mass_not_one", {})
+    if _is_rest_metadata(first_metadata.get("metadata")):
+        if len(first_leaves) != 1:
+            return _result("rejected", "graph_second_rest_leaf_set_invalid", {})
+        return _materialize_graph_second_after_rest(
+            first_actor=first_actor,
+            second_actor=second_actor,
+            second_target=second_target,
+            second_action=second_action,
+            second_metadata=second_metadata,
+            first_leaf=first_leaves[0],
+            order_plan=order_plan,
+            root=root,
+        )
     if _is_direct_heal_metadata(first_metadata.get("metadata")):
         if len(first_leaves) != 1:
             return _result("rejected", "graph_second_direct_heal_leaf_set_invalid", {})
@@ -1163,6 +1182,120 @@ def _status_special_second_from_intermediate(
         "terminal_probability_mass": _fd(Fraction(1, 1)),
     }
 
+def _is_rest_metadata(metadata: Any) -> bool:
+    return (
+        isinstance(metadata, Mapping)
+        and metadata.get("move_id") == "rest"
+        and metadata.get("category") == "status"
+        and metadata.get("target") == "self"
+    )
+
+
+def _rest_leaf(
+    witness: Any, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any],
+) -> dict[str, Any] | str:
+    if isinstance(witness, Mapping):
+        if witness.get("status") != "resolved":
+            return witness.get("reason", "rest_execution_authority_unavailable")
+        if any(witness.get(key) != value for key, value in (
+            ("session_id", strategy_d0.get("session_id")),
+            ("actor", actor), ("action_id", action.get("action_id")), ("move_id", "rest"),
+        )):
+            return "rest_execution_authority_binding_mismatch"
+    materialized = materialize_champions_rest(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        actor=actor, action=action,
+    )
+    if materialized.get("status") != "resolved":
+        return materialized.get("reason", "rest_materialization_unavailable")
+    if materialized.get("rest_applied") is True and validate_champions_rest(materialized).get("status") != "resolved":
+        return "rest_materialization_provenance_invalid"
+    snapshot = materialized.get("runtime_snapshot") if materialized.get("rest_applied") is True else runtime_snapshot
+    # The atomic Rest owner establishes exact sleep after its own execution.
+    # Mark that detached continuation view so later graph damage accepts the
+    # already-owned sleep state without treating it as a request-start damage
+    # modifier or resampling a status gate.
+    if materialized.get("rest_applied") is True and isinstance(snapshot, Mapping) and isinstance(snapshot.get("state"), Mapping):
+        continuation_state = deepcopy(dict(snapshot["state"]))
+        continuation_row = continuation_state.get(f"{actor.get('side')}_side", {}).get("pokemon", {}).get(actor.get("slot_index"))
+        if not isinstance(continuation_row, Mapping) or continuation_row.get("condition") != "sleep":
+            return "rest_post_action_sleep_state_invalid"
+        continuation_row["detached_champions_status_gate_view"] = True
+        snapshot = {
+            "status": "runtime_snapshot_ready", "session_id": continuation_state.get("session_id"),
+            "state": continuation_state, "state_fingerprint": state_fingerprint(continuation_state),
+        }
+    state = snapshot.get("state") if isinstance(snapshot, Mapping) else None
+    actor_row = state.get(f"{actor.get('side')}_side", {}).get("pokemon", {}).get(actor.get("slot_index")) if isinstance(state, Mapping) else None
+    target_row = state.get(f"{target.get('side')}_side", {}).get("pokemon", {}).get(target.get("slot_index")) if isinstance(state, Mapping) else None
+    actor_hp = actor_row.get("current_hp") if isinstance(actor_row, Mapping) else None
+    target_hp = target_row.get("current_hp") if isinstance(target_row, Mapping) else None
+    if not _hp_value(actor_hp) or not _hp_value(target_hp):
+        return "rest_post_action_hp_unknown"
+    return {
+        "leaf_id": f"{action.get('action_id')}:rest:{materialized.get('outcome')}",
+        "candidate_id": action.get("action_id"), "action_type": "attack",
+        "branch_path": ("rest", materialized.get("outcome")),
+        "probability": _fd(Fraction(1, 1)),
+        "hit_state": "not_applicable", "critical_state": "not_applicable",
+        "damage_roll": "not_applicable",
+        "consequences": {
+            "damage": 0, "own_final_hp": actor_hp, "target_final_hp": target_hp,
+            "target_ko": target_hp == 0, "self_fainted": actor_hp == 0,
+            "secondary": None, "contact": "not_applicable",
+            "rest_application": deepcopy(dict(materialized)),
+            "rest_runtime_snapshot": deepcopy(dict(snapshot)),
+        },
+        "provenance": {
+            "session_id": materialized["session_id"],
+            "source_runtime_fingerprint": materialized["source_runtime_fingerprint"],
+            "source_branch_fingerprint": materialized["source_branch_fingerprint"],
+            "decision_owner": deepcopy(dict(materialized["decision_owner"])),
+            "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)),
+            "move_id": "rest",
+            "rest_execution_authority": deepcopy(dict(witness)) if isinstance(witness, Mapping) else None,
+        },
+    }
+
+
+def _materialize_graph_second_after_rest(
+    *, first_actor: Mapping[str, Any], second_actor: Mapping[str, Any],
+    second_target: Mapping[str, Any], second_action: Mapping[str, Any],
+    second_metadata: Mapping[str, Any], first_leaf: Mapping[str, Any],
+    order_plan: Mapping[str, Any], root: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Execute the native graph from Rest's exact atomic post-state."""
+    rest = first_leaf.get("consequences", {}).get("rest_application")
+    snapshot = first_leaf.get("consequences", {}).get("rest_runtime_snapshot")
+    if not isinstance(rest, Mapping) or not isinstance(snapshot, Mapping):
+        return _result("rejected", "graph_second_rest_state_missing", {})
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=second_actor)
+    if d0.get("status") != "resolved":
+        return _result(_status(d0), d0.get("reason", "graph_second_rest_predictive_d0_unavailable"), {})
+    graph = _execute_graph_in_context(
+        strategy_d0=d0, runtime_snapshot=snapshot, actor=second_actor,
+        target=second_target, action=second_action,
+        metadata_authority=second_metadata,
+    )
+    if graph.get("status") != "evaluable":
+        return _result(_status(graph), graph.get("reason", "graph_second_after_rest_unavailable"), {})
+    transition = {
+        "first_terminal_source_id": f"leaf:{first_leaf['leaf_id']}",
+        "incoming_path_probability": deepcopy(first_leaf["probability"]),
+        "first_terminal_consequences": deepcopy(dict(first_leaf["consequences"])),
+        "first_terminal_leaf": deepcopy(dict(first_leaf)),
+        "intermediate_state_id": None,
+        "ordered_terminal_hit": None,
+        "second_action": _executed_graph_second(second_actor, graph, None),
+    }
+    return _order_payload(
+        order_plan=order_plan, first_actor=first_actor, second_actor=second_actor,
+        first_action_leaf_set=(deepcopy(dict(first_leaf)),),
+        terminal_transitions=[transition], root=root,
+    )
+
+
 def _materialize_graph_second_after_direct_heal(
     *, runtime_snapshot: Mapping[str, Any], first_actor: Mapping[str, Any],
     second_actor: Mapping[str, Any], second_target: Mapping[str, Any],
@@ -1307,6 +1440,15 @@ def _flat_first_action_ledger(
 ) -> dict[str, Any]:
     metadata = metadata_authority.get("metadata", {})
     move_id = metadata.get("move_id")
+    if _is_rest_metadata(metadata):
+        authorities = extension_authorities.get("rest_execution_authorities")
+        witness = authorities.get(action.get("action_id")) if isinstance(authorities, Mapping) else None
+        leaf = _rest_leaf(
+            witness, execution_d0, execution_snapshot, action, actor, target,
+        )
+        if isinstance(leaf, str):
+            return _result("incomplete", leaf, {})
+        return {"status": "evaluable", "terminal_leaves": (leaf,), "terminal_probability_mass": _fd(Fraction(1, 1))}
     if _is_direct_heal_metadata(metadata):
         authorities = extension_authorities.get("direct_heal_execution_authorities")
         authority = authorities.get(action.get("action_id")) if isinstance(authorities, Mapping) else None
@@ -1722,6 +1864,38 @@ def _attach_second_actions(
             mass += source["path_probability"]
             continue
 
+        if _is_rest_metadata(second_metadata.get("metadata")):
+            rested = _rest_second_from_intermediate(
+                strategy_d0=strategy_d0,
+                runtime_snapshot=runtime_snapshot,
+                intermediate=intermediate,
+                actor=second_actor,
+                target=second_target,
+                action=second_action,
+                authorities=extension_authorities.get("rest_execution_authorities"),
+            )
+            if rested.get("status") != "evaluable":
+                return _result(
+                    _status(rested),
+                    rested.get("reason", "variable_graph_rest_second_unavailable"),
+                    {},
+                    first_terminal_source=source["source_id"],
+                ), None
+            transition["second_action"] = {
+                "state": "outcome_graph",
+                "actor": deepcopy(dict(second_actor)),
+                "conditional_probability": _fd(Fraction(1, 1)),
+                "outcomes": ({
+                    "state": "executed",
+                    "conditional_probability": _fd(Fraction(1, 1)),
+                    "second_action_terminal_leaves": deepcopy(rested["terminal_leaves"]),
+                    "second_action_terminal_probability_mass": _fd(Fraction(1, 1)),
+                },),
+            }
+            transitions.append(transition)
+            mass += source["path_probability"]
+            continue
+
         if _is_protection_family(second_metadata.get("metadata")) or canonical_quick_guard_protection_metadata(
             second_metadata.get("metadata", {}).get("move_id"),
         ) is not None or second_metadata.get("metadata", {}).get("move_id") == "mat-block":
@@ -1914,6 +2088,73 @@ def _direct_heal_second_from_intermediate(
         "terminal_probability_mass": _fd(Fraction(1, 1)),
     }
 
+
+def _rest_second_from_intermediate(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    intermediate: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any],
+    action: Mapping[str, Any], authorities: Any,
+) -> dict[str, Any]:
+    """Run atomic Rest against an exact graph-terminal branch.
+
+    The generic detached-intermediate predictive owner deliberately exposes
+    only damage-move metadata.  Rest instead needs its full branch snapshot:
+    overlay exactly proven HP/faint values for both actives, while refusing a
+    graph path that changed a condition because its status-aware state cannot
+    be reconstructed by this narrow handoff.
+    """
+    active = intermediate.get("active", {})
+    actor_state = active.get(actor.get("side")) if isinstance(active, Mapping) else None
+    target_state = active.get(target.get("side")) if isinstance(active, Mapping) else None
+    actor_hp = actor_state.get("hypothetical_hp", {}).get("value") if isinstance(actor_state, Mapping) else None
+    target_hp = target_state.get("hypothetical_hp", {}).get("value") if isinstance(target_state, Mapping) else None
+    actor_fainted = actor_state.get("hypothetical_fainted", {}).get("value") if isinstance(actor_state, Mapping) else None
+    target_fainted = target_state.get("hypothetical_fainted", {}).get("value") if isinstance(target_state, Mapping) else None
+    if (
+        not _hp_value(actor_hp) or not _hp_value(target_hp)
+        or actor_fainted is not (actor_hp == 0)
+        or target_fainted is not (target_hp == 0)
+    ):
+        return _result("incomplete", "rest_path_local_hp_authority_missing", {})
+    for state in (actor_state, target_state):
+        condition = state.get("hypothetical_condition") if isinstance(state, Mapping) else None
+        if not isinstance(condition, Mapping) or condition.get("status") in {"unknown", "invalid"}:
+            return _result("incomplete", "rest_path_local_condition_authority_missing", {})
+        if condition.get("source") in {
+            "exact_terminal_leaf_condition_effect", "exact_terminal_leaf_condition_removal",
+        }:
+            return _result("incomplete", "rest_changed_condition_requires_status_aware_intermediate_adapter", {})
+
+    state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, Mapping) else None
+    if not isinstance(state, Mapping):
+        return _result("rejected", "rest_path_local_runtime_state_missing", {})
+    synthetic = deepcopy(dict(state))
+    for owner, hp, fainted in ((actor, actor_hp, actor_fainted), (target, target_hp, target_fainted)):
+        side = synthetic.get(f"{owner.get('side')}_side")
+        roster = side.get("pokemon") if isinstance(side, Mapping) else None
+        row = roster.get(owner.get("slot_index")) if isinstance(roster, Mapping) else None
+        if not isinstance(row, Mapping) or row.get("pokemon_id") != owner.get("pokemon_id"):
+            return _result("rejected", "rest_path_local_active_identity_mismatch", {})
+        row["current_hp"] = hp
+        row["fainted"] = fainted
+    snapshot = {
+        "status": "runtime_snapshot_ready",
+        "session_id": synthetic.get("session_id"),
+        "state": synthetic,
+        "state_fingerprint": state_fingerprint(synthetic),
+    }
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=actor)
+    if d0.get("status") != "resolved":
+        return _result(_status(d0), d0.get("reason", "rest_path_local_predictive_d0_unavailable"), {})
+    authority = authorities.get(action.get("action_id")) if isinstance(authorities, Mapping) else None
+    leaf = _rest_leaf(authority, d0, snapshot, action, actor, target)
+    if isinstance(leaf, str):
+        return _result("incomplete", leaf, {})
+    return {
+        "status": "evaluable",
+        "terminal_leaves": (leaf,),
+        "terminal_probability_mass": _fd(Fraction(1, 1)),
+    }
+
 def _execute_second_from_intermediate(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     intermediate: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any],
@@ -2061,6 +2302,13 @@ def _execute_action_in_context(
             metadata_authority=metadata_authority,
         )
         return {"status": "evaluable", "native_graph": graph} if graph.get("status") == "evaluable" else graph
+    if _is_rest_metadata(metadata):
+        authorities = extension_authorities.get("rest_execution_authorities")
+        witness = authorities.get(action.get("action_id")) if isinstance(authorities, Mapping) else None
+        leaf = _rest_leaf(witness, strategy_d0, runtime_snapshot, action, actor, target)
+        if isinstance(leaf, str):
+            return _result("incomplete", leaf, {})
+        return {"status": "evaluable", "terminal_leaves": (leaf,), "terminal_probability_mass": _fd(Fraction(1, 1))}
     if _is_direct_heal_metadata(metadata):
         authorities = extension_authorities.get("direct_heal_execution_authorities")
         frozen = authorities.get(action.get("action_id")) if isinstance(authorities, Mapping) else None
