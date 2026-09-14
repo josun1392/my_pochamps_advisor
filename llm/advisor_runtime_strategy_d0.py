@@ -56,6 +56,7 @@ from llm.advisor_reducer_state_model import (
 )
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_substitute import substitute_state
+from llm.advisor_identity_groundedness import project_identity_groundedness
 
 
 SCHEMA = "deterministic-runtime-strategy-d0-v1"
@@ -1355,6 +1356,21 @@ def _runtime_probabilistic_target_status_source_authority(
     source["target_types"] = (
         {"status": "known", "values": deepcopy(current_types)}
         if current_types is not None else {"status": "unknown"}
+    )
+    field = state.get("field") if isinstance(state.get("field"), Mapping) else {}
+    source["terrain"] = (
+        {"status": "known", "value": field.get("terrain")}
+        if _runtime_terrain_exact(field) else {"status": "unknown"}
+    )
+    groundedness = project_identity_groundedness(state, side=target["side"])
+    source["target_groundedness"] = (
+        {"status": "known", "value": groundedness["status"]}
+        if groundedness.get("session_id") == target["session_id"]
+        and groundedness.get("side") == target["side"]
+        and groundedness.get("slot_index") == target["slot_index"]
+        and groundedness.get("pokemon_id") == target["pokemon_id"]
+        and groundedness.get("status") in {"grounded", "ungrounded"}
+        else {"status": "unknown"}
     )
     return source
 

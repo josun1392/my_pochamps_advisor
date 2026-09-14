@@ -14,6 +14,7 @@ _APPLICABILITY = frozenset({"applicable", "not_applicable", "unknown"})
 _INTERACTION = frozenset({"affecting", "not_affecting", "unknown"})
 _CONDITIONS = frozenset({"burn", "freeze", "none", "paralysis", "poison", "sleep", "toxic"})
 _TYPES = frozenset({"bug", "dark", "dragon", "electric", "fairy", "fighting", "fire", "flying", "ghost", "grass", "ground", "ice", "normal", "poison", "psychic", "rock", "steel", "water"})
+_TERRAINS = frozenset({"none", "electric", "grassy", "misty", "psychic"})
 
 
 def resolve_probabilistic_target_status_effect_capability(*, move: Mapping[str, Any] | Any, source_authority: Mapping[str, Any] | Any) -> dict[str, Any]:
@@ -26,7 +27,7 @@ def resolve_probabilistic_target_status_effect_capability(*, move: Mapping[str, 
         "schema_version": SCHEMA_VERSION,
         "catalog_version": CATALOG_VERSION,
         "move_id": move_id,
-        "required_source_slots": ("target_condition", "target_types", "attacker_ability", "target_ability", "target_item"),
+        "required_source_slots": ("target_condition", "target_types", "attacker_ability", "target_ability", "target_item", "terrain", "target_groundedness"),
     }
     if rule is None:
         return {**base, "status": "unsupported", "reason": "move_not_in_supported_probabilistic_target_status_catalog", "ledger": (_row("move_rule", "unsupported", source_value=move_id),)}
@@ -37,12 +38,15 @@ def resolve_probabilistic_target_status_effect_capability(*, move: Mapping[str, 
     if source is None:
         return _result("rejected", "invalid_probabilistic_target_status_source_authority")
     resolved_base = {**base, "rule_id": rule["rule_id"], "required_runtime_slots": tuple(rule["required_runtime_slots"])}
+    terrain = _terrain_entry(source["terrain"])
     entries = (
         _condition_entry(source["target_condition"]),
         _types_entry(source["target_types"], rule),
         _attacker_entry(source["attacker_ability"], rule),
         _target_ability_entry(source["target_ability"], rule),
         _target_item_entry(source["target_item"], rule),
+        terrain,
+        _groundedness_entry(source["target_groundedness"], terrain),
     )
     malformed = next((entry for entry in entries if entry["state"] == "rejected"), None)
     if malformed is not None:
@@ -96,9 +100,11 @@ def _source(value: Any) -> dict[str, dict[str, Any]] | None:
     attacker = _ability(value.get("attacker_ability"), applicability=True)
     target = _ability(value.get("target_ability"), interaction=True)
     item = _item(value.get("target_item"))
-    if None in (condition, types, attacker, target, item):
+    terrain = _terrain(value.get("terrain"))
+    groundedness = _groundedness(value.get("target_groundedness"))
+    if None in (condition, types, attacker, target, item, terrain, groundedness):
         return None
-    return {"target_condition": condition, "target_types": types, "attacker_ability": attacker, "target_ability": target, "target_item": item}
+    return {"target_condition": condition, "target_types": types, "attacker_ability": attacker, "target_ability": target, "target_item": item, "terrain": terrain, "target_groundedness": groundedness}
 
 
 def _condition(value: Any) -> dict[str, Any] | None:
@@ -159,6 +165,28 @@ def _item(value: Any) -> dict[str, Any] | None:
     return {"status": status, "value": item} if isinstance(item, str) and item and set(value) == {"status", "value"} else None
 
 
+def _terrain(value: Any) -> dict[str, Any] | None:
+    if value is None:
+        return {"status": "unknown"}
+    if not isinstance(value, Mapping) or value.get("status") not in {"known", "unknown"}:
+        return None
+    if value["status"] == "unknown":
+        return {"status": "unknown"} if set(value) == {"status"} else None
+    terrain = value.get("value")
+    return {"status": "known", "value": terrain} if isinstance(terrain, str) and terrain in _TERRAINS and set(value) == {"status", "value"} else None
+
+
+def _groundedness(value: Any) -> dict[str, Any] | None:
+    if value is None:
+        return {"status": "unknown"}
+    if not isinstance(value, Mapping) or value.get("status") not in {"known", "unknown"}:
+        return None
+    if value["status"] == "unknown":
+        return {"status": "unknown"} if set(value) == {"status"} else None
+    groundedness = value.get("value")
+    return {"status": "known", "value": groundedness} if groundedness in {"grounded", "ungrounded"} and set(value) == {"status", "value"} else None
+
+
 def _condition_entry(value: Mapping[str, Any]) -> dict[str, Any]:
     if value["status"] == "unknown":
         return _row("target_condition", "unknown", reason="target_current_condition_unknown")
@@ -214,6 +242,25 @@ def _target_item_entry(value: Mapping[str, Any], rule: Mapping[str, Any]) -> dic
     return _row("target_item", "unsupported", source_value=item, reason="target_item_not_supported_for_probabilistic_target_status_effect")
 
 
+def _terrain_entry(value: Mapping[str, Any]) -> dict[str, Any]:
+    if value["status"] == "unknown":
+        return _row("terrain", "unknown", reason="current_terrain_unknown")
+    terrain = value["value"]
+    return _row("terrain", "applicable" if terrain == "misty" else "known_neutral", source_value=terrain,
+                reason="misty_terrain_active" if terrain == "misty" else "terrain_proven_not_misty")
+
+
+def _groundedness_entry(value: Mapping[str, Any], terrain: Mapping[str, Any]) -> dict[str, Any]:
+    if terrain["state"] != "applicable":
+        return _row("target_groundedness", "known_neutral", reason="groundedness_not_material_without_misty_terrain")
+    if value["status"] == "unknown":
+        return _row("target_groundedness", "unknown", reason="misty_terrain_groundedness_unknown")
+    groundedness = value["value"]
+    return _row("target_groundedness", "ineligible" if groundedness == "grounded" else "known_neutral",
+                source_value=groundedness,
+                reason="blocked_by_misty_terrain" if groundedness == "grounded" else "misty_terrain_target_ungrounded")
+
+
 def _resolved(rule: Mapping[str, Any], base: Mapping[str, Any], *, ledger: tuple[dict[str, Any], ...], zero_by: tuple[str, ...]) -> dict[str, Any]:
     suppressed_by = tuple(entry["slot"] for entry in ledger if entry["state"] == "suppressed")
     ineligible_by = tuple(entry["slot"] for entry in ledger if entry["state"] == "ineligible")
@@ -249,7 +296,7 @@ def _valid_rule(value: Any) -> bool:
     effect, conditions = value.get("effect"), value.get("conditions")
     policies = (value.get("attacker_ability_policy"), value.get("target_ability_policy"), value.get("target_item_policy"), value.get("target_type_policy"))
     ability_policy = lambda policy: isinstance(policy, Mapping) and all(isinstance(policy.get(key), list) and all(isinstance(item, str) and item for item in policy[key]) for key in ("known_neutral", "suppresses", "unsupported"))
-    return isinstance(value.get("rule_id"), str) and bool(value["rule_id"]) and isinstance(value.get("move_id"), str) and bool(value["move_id"]) and value.get("category") in {"physical", "special"} and isinstance(value.get("target_scope"), str) and bool(value["target_scope"]) and isinstance(value.get("effect_chance"), int) and not isinstance(value["effect_chance"], bool) and 1 <= value["effect_chance"] <= 99 and isinstance(effect, Mapping) and effect == {"owner": "target", "condition": "paralysis"} and isinstance(conditions, Mapping) and conditions == {"requires_successful_damaging_hit": True, "blocked_by_substitute": True, "target_must_survive": True} and value.get("required_runtime_slots") == ["target.current_condition", "target.current_types", "attacker_ability", "target_ability", "target_item"] and value.get("suppressor_slots") == ["attacker_ability", "target_ability", "target_item"] and ability_policy(policies[0]) and ability_policy(policies[1]) and isinstance(policies[2], Mapping) and isinstance(policies[2].get("suppresses"), list) and all(isinstance(item, str) and item for item in policies[2]["suppresses"]) and isinstance(policies[3], Mapping) and policies[3].get("ineligible") == ["electric"]
+    return isinstance(value.get("rule_id"), str) and bool(value["rule_id"]) and isinstance(value.get("move_id"), str) and bool(value["move_id"]) and value.get("category") in {"physical", "special"} and isinstance(value.get("target_scope"), str) and bool(value["target_scope"]) and isinstance(value.get("effect_chance"), int) and not isinstance(value["effect_chance"], bool) and 1 <= value["effect_chance"] <= 99 and isinstance(effect, Mapping) and effect == {"owner": "target", "condition": "paralysis"} and isinstance(conditions, Mapping) and conditions == {"requires_successful_damaging_hit": True, "blocked_by_substitute": True, "target_must_survive": True} and value.get("required_runtime_slots") == ["target.current_condition", "target.current_types", "attacker_ability", "target_ability", "target_item", "field.terrain", "target.groundedness"] and value.get("suppressor_slots") == ["attacker_ability", "target_ability", "target_item"] and ability_policy(policies[0]) and ability_policy(policies[1]) and isinstance(policies[2], Mapping) and isinstance(policies[2].get("suppresses"), list) and all(isinstance(item, str) and item for item in policies[2]["suppresses"]) and isinstance(policies[3], Mapping) and policies[3].get("ineligible") == ["electric"]
 
 
 def _row(slot: str, state: str, *, source_value: str | None = None, reason: str | None = None) -> dict[str, Any]:

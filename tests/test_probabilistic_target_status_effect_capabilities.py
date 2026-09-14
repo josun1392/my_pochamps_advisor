@@ -11,7 +11,7 @@ def _move(**overrides):
     return value
 
 
-def _source(*, condition=None, types=None, attacker="pressure", attacker_applicability=None, target="pressure", target_interaction=None, item=None):
+def _source(*, condition=None, types=None, attacker="pressure", attacker_applicability=None, target="pressure", target_interaction=None, item=None, terrain=None, groundedness=None):
     attacker_row = {"status": "known", "value": attacker}
     target_row = {"status": "known", "value": target}
     if attacker_applicability is not None:
@@ -24,6 +24,8 @@ def _source(*, condition=None, types=None, attacker="pressure", attacker_applica
         "attacker_ability": attacker_row,
         "target_ability": target_row,
         "target_item": {"status": "known_absent"} if item is None else item,
+        "terrain": {"status": "known", "value": "none"} if terrain is None else terrain,
+        "target_groundedness": {"status": "unknown"} if groundedness is None else groundedness,
     }
 
 
@@ -36,7 +38,34 @@ def test_catalogued_thunderbolt_resolves_exact_target_paralysis_with_leaf_requir
     assert result["effect"] == {"owner": "target", "condition": "paralysis"}
     assert result["conditions"] == {"requires_successful_damaging_hit": True, "blocked_by_substitute": True, "target_must_survive": True}
     assert result["eligible"] is True and result["suppressed"] is False
-    assert [row["state"] for row in result["ledger"]] == ["known_neutral"] * 5
+    assert [row["state"] for row in result["ledger"]] == ["known_neutral"] * 7
+
+
+def test_misty_terrain_requires_exact_target_groundedness_for_thunderbolt_paralysis():
+    grounded = resolve_probabilistic_target_status_effect_capability(
+        move=_move(), source_authority=_source(
+            terrain={"status": "known", "value": "misty"},
+            groundedness={"status": "known", "value": "grounded"},
+        ),
+    )
+    ungrounded = resolve_probabilistic_target_status_effect_capability(
+        move=_move(), source_authority=_source(
+            terrain={"status": "known", "value": "misty"},
+            groundedness={"status": "known", "value": "ungrounded"},
+        ),
+    )
+    unknown = resolve_probabilistic_target_status_effect_capability(
+        move=_move(), source_authority=_source(terrain={"status": "known", "value": "misty"}),
+    )
+    unknown_terrain = resolve_probabilistic_target_status_effect_capability(
+        move=_move(), source_authority=_source(terrain={"status": "unknown"}),
+    )
+
+    assert grounded["status"] == "resolved" and grounded["probability"] == {"numerator": 0, "denominator": 100}
+    assert grounded["ineligible_by"] == ("target_groundedness",)
+    assert ungrounded["status"] == "resolved" and ungrounded["probability"] == {"numerator": 10, "denominator": 100}
+    assert unknown["status"] == "incomplete" and unknown["reason"] == "misty_terrain_groundedness_unknown"
+    assert unknown_terrain["status"] == "incomplete" and unknown_terrain["reason"] == "current_terrain_unknown"
 
 
 def test_condition_and_electric_type_are_explicit_eligibility_facts_not_neutral_defaults():

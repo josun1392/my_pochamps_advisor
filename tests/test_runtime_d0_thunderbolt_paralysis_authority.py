@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 from llm.advisor_reducer_state_model import state_fingerprint
+from llm.advisor_identity_groundedness import build_groundedness
 from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_d0_probabilistic_target_stage_effect_authority,
     freeze_runtime_d0_thunderbolt_paralysis_authority,
@@ -27,6 +28,8 @@ def _state(session="runtime-thunderbolt-paralysis"):
     target["known_item"] = None
     target["known_item_provenance"] = {"event_kind": "current_item_observed", "trust": "user_confirmed_observation", "turn_number": 1, "status": "known_absent"}
     state["substitute_state_context"] = {"schema_version": "detached-substitute-state-v1", "session_id": state["session_id"], "provenance": "trusted_current_substitute_authority_v1", "states": [{"owner": _owner(state), "state": "known_inactive", "substitute_hp": None}, {"owner": _owner(state, "opponent"), "state": "known_inactive", "substitute_hp": None}]}
+    state["field"]["terrain"] = "none"
+    state["field"]["terrain_provenance"] = {"event_kind": "current_terrain_observed", "trust": "user_confirmed_observation", "turn_number": 1}
     return state
 
 
@@ -73,6 +76,29 @@ def test_explicit_canonical_none_condition_is_equivalent_to_observed_none():
     state = _state()
     state["opponent_side"]["pokemon"][0]["condition"] = "none"
     assert _resolve(state)["status"] == "resolved"
+
+
+def test_misty_terrain_binds_target_groundedness_without_weakening_other_status_sources():
+    grounded = _state()
+    grounded["field"]["terrain"] = "misty"
+    grounded["identity_groundedness_context"] = build_groundedness(**_owner(grounded, "opponent"), status="grounded")
+    ungrounded = _state()
+    ungrounded["field"]["terrain"] = "misty"
+    ungrounded["identity_groundedness_context"] = build_groundedness(**_owner(ungrounded, "opponent"), status="ungrounded")
+    unknown = _state(); unknown["field"]["terrain"] = "misty"
+    unknown_terrain = _state(); unknown_terrain["field"].pop("terrain_provenance")
+
+    blocked = _resolve(grounded)
+    allowed = _resolve(ungrounded)
+    assert blocked["status"] == "resolved"
+    assert blocked["capability_resolution"]["probability"] == {"numerator": 0, "denominator": 100}
+    assert blocked["capability_resolution"]["ineligible_by"] == ("target_groundedness",)
+    assert blocked["source_authority"]["target_groundedness"] == {"status": "known", "value": "grounded"}
+    assert allowed["status"] == "resolved"
+    assert allowed["capability_resolution"]["probability"] == {"numerator": 10, "denominator": 100}
+    assert allowed["source_authority"]["target_groundedness"] == {"status": "known", "value": "ungrounded"}
+    assert _resolve(unknown)["status"] == "incomplete" and _resolve(unknown)["reason"] == "misty_terrain_groundedness_unknown"
+    assert _resolve(unknown_terrain)["status"] == "incomplete" and _resolve(unknown_terrain)["reason"] == "current_terrain_unknown"
 
 
 def test_condition_type_and_suppressors_preserve_resolved_zero_probability():

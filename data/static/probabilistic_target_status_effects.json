@@ -22,7 +22,9 @@
         "target.current_types",
         "attacker_ability",
         "target_ability",
-        "target_item"
+        "target_item",
+        "field.terrain",
+        "target.groundedness"
       ],
       "suppressor_slots": ["attacker_ability", "target_ability", "target_item"],
       "attacker_ability_policy": {
