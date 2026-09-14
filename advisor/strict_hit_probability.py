@@ -93,12 +93,14 @@ def assess_strict_deterministic_hit_probability(
         modifier_q12 = chain_accuracy_modifier_q12(modifier_q12, factor)
     attacker_stage, target_stage = _stage_values(stage)
     net_stage = max(-6, min(6, attacker_stage - target_stage))
-    modified_base = apply_accuracy_modifier_q12(normalized_move["accuracy"], modifier_q12)
+    base_accuracy = factor_result["base_accuracy_override"] or normalized_move["accuracy"]
+    modified_base = apply_accuracy_modifier_q12(base_accuracy, modifier_q12)
     threshold = apply_accuracy_evasion_stages(modified_base, net_stage)
     return {
         **bindings, "status": "resolved", "schema_version": SCHEMA_VERSION,
         "result": "exact_regular_accuracy", "move_id": normalized_move["move_id"],
         "move_category": normalized_move["category"], "base_accuracy": normalized_move["accuracy"],
+        "effective_base_accuracy": base_accuracy,
         "modifier_chain_q12": modifier_q12, "applicable_modifier_factors_q12": tuple(factor_result["factors"]),
         "modified_base_accuracy": modified_base, "attacker_accuracy_stage": attacker_stage,
         "target_evasion_stage": target_stage, "net_stage": net_stage,
@@ -170,16 +172,23 @@ def _factors(capability: Mapping[str, Any]) -> dict[str, Any]:
     if capability.get("status") != "resolved" or not isinstance(capability.get("ledger"), tuple):
         return {"status": "rejected", "reason": "invalid_resolved_hit_modifier_capability"}
     factors: list[int] = []
+    base_override: int | None = None
     for row in capability["ledger"]:
         if not isinstance(row, Mapping) or row.get("state") != "applicable":
             continue
         effect = row.get("effect")
-        if not isinstance(effect, Mapping) or effect.get("kind") != "accuracy_multiplier_q12":
-            return {"status": "unsupported", "reason": "unsupported_resolved_hit_modifier_effect"}
-        if effect.get("ordering") != "before_accuracy_evasion_stages" or effect.get("denominator") != Q12_ONE or not _positive_int(effect.get("numerator")):
-            return {"status": "rejected", "reason": "invalid_accuracy_modifier_effect"}
-        factors.append(effect["numerator"])
-    return {"status": "resolved", "factors": factors}
+        if not isinstance(effect, Mapping): return {"status": "unsupported", "reason": "unsupported_resolved_hit_modifier_effect"}
+        if effect.get("kind") == "accuracy_multiplier_q12":
+            if effect.get("ordering") != "before_accuracy_evasion_stages" or effect.get("denominator") != Q12_ONE or not _positive_int(effect.get("numerator")):
+                return {"status": "rejected", "reason": "invalid_accuracy_modifier_effect"}
+            factors.append(effect["numerator"]); continue
+        if effect.get("kind") == "base_accuracy_override":
+            value = effect.get("value")
+            if effect.get("ordering") != "before_accuracy_multipliers" or not _accuracy(value) or base_override is not None:
+                return {"status": "rejected", "reason": "invalid_base_accuracy_override_effect"}
+            base_override = value; continue
+        return {"status": "unsupported", "reason": "unsupported_resolved_hit_modifier_effect"}
+    return {"status": "resolved", "factors": factors, "base_accuracy_override": base_override}
 
 
 def _stage_values(stage: Mapping[str, Any]) -> tuple[int, int]:

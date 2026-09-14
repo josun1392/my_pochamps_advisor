@@ -12,6 +12,16 @@ def _state(session="runtime-hit-modifier"):
     state=_native_state(session)
     for side in ("self","opponent"):
         state[f"{side}_side"]["pokemon"][0]["stat_stages"]={"accuracy":0,"evasion":0}
+    target=state["opponent_side"]["pokemon"][0]
+    # These old Hustle fixtures are intended to be fully observed neutral
+    # controls.  The runtime hit authority now correctly needs the target
+    # facts before it may claim an exact base probability.
+    target.update(
+        current_ability="pressure",
+        current_ability_provenance={"event_kind":"current_ability_observed","trust":"user_confirmed_observation","turn_number":1},
+        known_item=None,
+        known_item_provenance={"event_kind":"current_item_observed","trust":"user_confirmed_observation","turn_number":1,"status":"known_absent"},
+    )
     return state
 def _owner(state,side="self"): return {"session_id":state["session_id"],"side":side,"slot_index":0,"pokemon_id":state[f"{side}_side"]["pokemon"][0]["pokemon_id"]}
 def _snapshot(state): return {"status":"runtime_snapshot_ready","session_id":state["session_id"],"state":deepcopy(state),"state_fingerprint":state_fingerprint(state)}
@@ -27,7 +37,7 @@ def _hustle(state,status="applicable"):
 def test_runtime_hustle_authority_projects_exact_applicable_resolver_and_stages():
     state=_state(); _hustle(state); snapshot,d0=_d0(state)
     result=freeze_runtime_d0_hit_modifier_authority(strategy_d0=d0,runtime_snapshot=snapshot,attacker=_owner(state),target=_owner(state,"opponent"),move_metadata=_move())
-    assert result["status"]=="resolved" and result["capability_resolution"]["ledger"][0]["state"]=="applicable"
+    assert result["status"]=="resolved" and next(row for row in result["capability_resolution"]["ledger"] if row["slot"] == "attacker_ability")["state"]=="applicable"
     assert result["strict_stage_authority"]["status"]=="resolved"
     assert result["move"]==_move() and result["source_authority"]["attacker_ability"]["applicability"]=={"status":"applicable"}
 
@@ -57,9 +67,9 @@ def test_runtime_pressure_is_catalogued_as_known_accuracy_neutral() -> None:
         target=_owner(state, "opponent"), move_metadata=_move(),
     )
     assert result["status"] == "resolved"
-    assert result["capability_resolution"]["ledger"] == (
-        {"slot": "attacker_ability", "state": "known_neutral", "reason": "catalog_known_no_accuracy_effect", "source_value": "pressure"},
-    )
+    assert next(row for row in result["capability_resolution"]["ledger"] if row["slot"] == "attacker_ability") == {
+        "slot": "attacker_ability", "state": "known_neutral", "reason": "catalog_known_no_accuracy_effect", "source_value": "pressure"}
+    assert next(row for row in result["capability_resolution"]["ledger"] if row["slot"] == "target_item")["state"] == "known_neutral"
 
 
 def test_runtime_move_flag_damage_abilities_are_catalogued_as_known_accuracy_neutral() -> None:
@@ -76,15 +86,14 @@ def test_runtime_move_flag_damage_abilities_are_catalogued_as_known_accuracy_neu
             target=_owner(state, "opponent"), move_metadata=_move(),
         )
         assert result["status"] == "resolved"
-        assert result["capability_resolution"]["ledger"] == (
-            {"slot": "attacker_ability", "state": "known_neutral", "reason": "catalog_known_no_accuracy_effect", "source_value": ability},
-        )
+        assert next(row for row in result["capability_resolution"]["ledger"] if row["slot"] == "attacker_ability") == {
+            "slot": "attacker_ability", "state": "known_neutral", "reason": "catalog_known_no_accuracy_effect", "source_value": ability}
 
 
 def test_neutral_category_stale_identity_move_and_detachment_contracts():
     state=_state(); _hustle(state); snapshot,d0=_d0(state)
     neutral=freeze_runtime_d0_hit_modifier_authority(strategy_d0=d0,runtime_snapshot=snapshot,attacker=_owner(state),target=_owner(state,"opponent"),move_metadata=_move("special"))
-    assert neutral["status"]=="resolved" and neutral["capability_resolution"]["ledger"][0]["state"]=="known_neutral"
+    assert neutral["status"]=="resolved" and next(row for row in neutral["capability_resolution"]["ledger"] if row["slot"] == "attacker_ability")["state"]=="known_neutral"
     state["self_side"]["pokemon"][0]["current_ability"]="mutated"
     assert neutral["source_authority"]["attacker_ability"]["value"]=="hustle"
     stale=freeze_runtime_d0_hit_modifier_authority(strategy_d0=d0,runtime_snapshot=_snapshot(state),attacker=_owner(state),target=_owner(state,"opponent"),move_metadata=_move())

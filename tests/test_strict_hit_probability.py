@@ -118,3 +118,69 @@ def test_stale_identity_and_detachment_are_rejected_without_runtime_mutation():
         strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "opponent"),
         target=_owner(state), selected_move=_move(),
     )["status"] == "rejected"
+
+
+def _weather(state, value):
+    state["field"]["weather"] = value
+    state["field"]["weather_provenance"] = {"event_kind":"current_weather_observed","trust":"user_confirmed_observation","turn_number":1}
+
+
+def _magic_room(state, value):
+    state["field"]["magic_room_status"] = value
+    state["field"]["magic_room_status_provenance"] = {"event_kind":"magic_room_field_observed","trust":"user_confirmed_observation","turn_number":1,"source_observation_id":"magic-room-1","source_sequence":1}
+
+
+@pytest.mark.parametrize("move_id,weather,expected", (
+    ("thunder", "rain", 100), ("hurricane", "rain", 100), ("blizzard", "snow", 100),
+    ("thunder", "sun", 50), ("hurricane", "sun", 50),
+))
+def test_weather_accuracy_overrides_are_exact(move_id, weather, expected):
+    state=_state(); _hustle(state); _weather(state, weather)
+    result=_assessment(state, _move(accuracy=70, category="special", move_id=move_id))
+    assert result["status"]=="resolved" and result["effective_base_accuracy"]==result["probability_percent"]==expected
+
+
+def test_weather_accuracy_nontrigger_is_exact_neutral():
+    state=_state(); _hustle(state); _weather(state, "none")
+    result=_assessment(state, _move(accuracy=70, category="special", move_id="thunder"))
+    assert result["status"] == "resolved" and result["probability_percent"] == 70
+
+
+def test_target_bright_powder_and_ability_accuracy_modifiers_are_exact():
+    state=_state(); _hustle(state)
+    target=state["opponent_side"]["pokemon"][0]; target["known_item"]="bright-powder"; target["known_item_provenance"]={"event_kind":"current_item_observed","trust":"user_confirmed_observation","turn_number":1,"status":"known"}; _magic_room(state,"inactive")
+    bright=_assessment(state, _move(accuracy=100, category="special"))
+    assert bright["status"]=="resolved" and bright["probability_percent"]==90
+    _magic_room(state,"active")
+    assert _assessment(state, _move(accuracy=100, category="special"))["probability_percent"] == 100
+    for ability, weather, confusion, expected in (("sand-veil","sandstorm","none",80),("snow-cloak","snow","none",80),("tangled-feet","none","confused",50)):
+        state=_state(); _hustle(state); _weather(state,weather); target=state["opponent_side"]["pokemon"][0]
+        target.update(
+            current_ability=ability,
+            current_ability_provenance={"event_kind":"current_ability_observed","trust":"user_confirmed_observation","turn_number":1},
+            current_confusion=confusion,
+            confusion_provenance={"event_kind":"current_confusion_observed","trust":"user_confirmed_observation","turn_number":1,"state":confusion},
+        )
+        state["ability_applicability_context"]={"schema_version":"ability-applicability-context-v1","session_id":state["session_id"],"source":{"side":"opponent","slot_index":0,"pokemon_id":target["pokemon_id"]},"ability_id":ability,"status":"applicable"}
+        result=_assessment(state,_move(accuracy=100,category="special"))
+        assert result["status"]=="resolved" and result["probability_percent"]==expected
+    for ability, weather, confusion in (("sand-veil", "none", "none"), ("snow-cloak", "none", "none"), ("tangled-feet", "none", "none")):
+        state=_state(); _hustle(state); _weather(state, weather); target=state["opponent_side"]["pokemon"][0]
+        target.update(current_ability=ability, current_ability_provenance={"event_kind":"current_ability_observed","trust":"user_confirmed_observation","turn_number":1}, current_confusion=confusion, confusion_provenance={"event_kind":"current_confusion_observed","trust":"user_confirmed_observation","turn_number":1,"state":confusion})
+        state["ability_applicability_context"]={"schema_version":"ability-applicability-context-v1","session_id":state["session_id"],"source":{"side":"opponent","slot_index":0,"pokemon_id":target["pokemon_id"]},"ability_id":ability,"status":"applicable"}
+        assert _assessment(state,_move(accuracy=100,category="special"))["probability_percent"] == 100
+
+
+def test_material_unknowns_and_known_unsupported_modifiers_fail_closed():
+    state=_state(); _hustle(state); del state["field"]["weather_provenance"]
+    assert _assessment(state,_move(accuracy=70,category="special",move_id="thunder"))["status"]=="incomplete"
+    state=_state(); _hustle(state); target=state["opponent_side"]["pokemon"][0]; target["known_item"]="leftovers"; target["known_item_provenance"]={"event_kind":"current_item_observed","trust":"user_confirmed_observation","turn_number":1,"status":"known"}
+    assert _assessment(state,_move(accuracy=100,category="special"))["status"]=="unsupported"
+    state=_state(); _hustle(state); target=state["opponent_side"]["pokemon"][0]; target["known_item"]={"knowledge":"unknown"}; target["known_item_provenance"]=None
+    assert _assessment(state,_move(accuracy=100,category="special"))["status"]=="incomplete"
+    state=_state(); _hustle(state); state["opponent_side"]["pokemon"][0]["known_item_provenance"]={}
+    assert _assessment(state,_move(accuracy=100,category="special"))["status"]=="rejected"
+    state=_state(); _hustle(state); target=state["opponent_side"]["pokemon"][0]
+    target.update(current_ability="tangled-feet", current_ability_provenance={"event_kind":"current_ability_observed","trust":"user_confirmed_observation","turn_number":1})
+    state["ability_applicability_context"]={"schema_version":"ability-applicability-context-v1","session_id":state["session_id"],"source":{"side":"opponent","slot_index":0,"pokemon_id":target["pokemon_id"]},"ability_id":"tangled-feet","status":"applicable"}
+    assert _assessment(state,_move(accuracy=100,category="special"))["status"]=="incomplete"

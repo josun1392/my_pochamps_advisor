@@ -27,7 +27,7 @@ from llm.advisor_ability_interaction_authority import (
     normalize_ability_applicability_context,
     normalize_ability_interaction_context,
 )
-from advisor.hit_modifier_capabilities import resolve_hit_modifier_capabilities
+from advisor.hit_modifier_capabilities import resolve_runtime_hit_modifier_capabilities
 from advisor.probabilistic_self_stage_effect_capabilities import (
     resolve_probabilistic_self_stage_effect_capability,
 )
@@ -348,8 +348,11 @@ def freeze_runtime_d0_hit_modifier_authority(
     raw_target = _roster(state, target["side"]).get(target["slot_index"])
     if not isinstance(raw_attacker, Mapping) or not isinstance(raw_target, Mapping) or not _same_runtime_owner(raw_attacker, attacker) or not _same_runtime_owner(raw_target, target):
         return _result("rejected", "runtime_hit_modifier_identity_mismatch")
-    ability_authority = _runtime_hustle_ability_authority(state=state, raw_attacker=raw_attacker, attacker=attacker)
-    capability = resolve_hit_modifier_capabilities(move=move, source_authority={"attacker_ability": ability_authority})
+    source_authority = _runtime_hit_modifier_source_authority(
+        state=state, runtime_snapshot=runtime_snapshot, raw_attacker=raw_attacker, raw_target=raw_target,
+        attacker=attacker, target=target, strategy_d0=strategy_d0,
+    )
+    capability = resolve_runtime_hit_modifier_capabilities(move=move, source_authority=source_authority)
     attacker_stages = freeze_runtime_current_stage_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=attacker)
     target_stages = freeze_runtime_current_stage_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
     stage_authority = strict_hit_stage_authority(attacker_authority=attacker_stages, target_authority=target_stages)
@@ -359,7 +362,7 @@ def freeze_runtime_d0_hit_modifier_authority(
         "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
         "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
         "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)),
-        "move": deepcopy(move), "source_authority": {"attacker_ability": deepcopy(ability_authority)},
+        "move": deepcopy(move), "source_authority": deepcopy(source_authority),
         "capability_resolution": deepcopy(capability), "strict_stage_authority": deepcopy(stage_authority),
         "provenance": "runtime_battle_state_v1_hit_modifier_authority_v1",
     }
@@ -1227,6 +1230,58 @@ def _runtime_hustle_ability_authority(*, state: Mapping[str, Any], raw_attacker:
         )
         result["applicability"] = {"status": normalized["status"]}
     return result
+
+
+def _runtime_hit_modifier_source_authority(
+    *, state: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], raw_attacker: Mapping[str, Any], raw_target: Mapping[str, Any],
+    attacker: Mapping[str, Any], target: Mapping[str, Any], strategy_d0: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze every runtime fact that can materially alter regular accuracy."""
+    attacker_ability = _runtime_hustle_ability_authority(
+        state=state, raw_attacker=raw_attacker, attacker=attacker,
+    )
+    target_ability_value = _runtime_known_string(raw_target.get("current_ability"))
+    target_ability: dict[str, Any] = (
+        {"status": "known", "value": target_ability_value}
+        if target_ability_value is not None else {"status": "unknown"}
+    )
+    if target_ability_value in {"sand-veil", "snow-cloak", "tangled-feet"}:
+        applicability = normalize_ability_applicability_context(
+            state.get("ability_applicability_context"), session_id=target["session_id"],
+            source=target, ability_id=target_ability_value,
+        )
+        target_ability["applicability"] = {"status": applicability["status"]}
+    item = _native_item_authority(raw_target.get("known_item"), raw_target.get("known_item_provenance"))
+    target_item = (
+        {"status": "known", "value": item["value"]} if item["status"] == "known" else
+        {"status": "known_absent"} if item["status"] == "known_absent" else {"status": "unknown"}
+    )
+    if target_item.get("value") == "bright-powder":
+        # Import lazily: this existing strict owner depends on this module for
+        # freshness validation.  Its result is a field fact, never a guessed
+        # neutral item-effect state.
+        from llm.advisor_runtime_d0_item_suppression_field_authority import resolve_runtime_d0_item_suppression_field_authority
+        suppression = resolve_runtime_d0_item_suppression_field_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+        )
+        target_item["applicability"] = {
+            "status": "not_applicable" if suppression.get("status") == "resolved" and suppression.get("item_effects_suppressed") is True else
+            "applicable" if suppression.get("status") == "resolved" and suppression.get("item_effects_suppressed") is False else "unknown"
+        }
+    field = state.get("field") if isinstance(state.get("field"), Mapping) else {}
+    weather = {"status": "known", "value": field.get("weather")} if _runtime_weather_exact(field) else {"status": "unknown"}
+    condition = raw_target.get("current_confusion")
+    provenance = raw_target.get("confusion_provenance")
+    target_confusion = (
+        {"status": "known", "value": condition}
+        if condition in {"none", "confused"} and isinstance(provenance, Mapping)
+        and provenance.get("event_kind") == "current_confusion_observed"
+        and provenance.get("trust") == "user_confirmed_observation"
+        and provenance.get("state") == condition else {"status": "unknown"}
+    )
+    return {"attacker_ability": attacker_ability, "target_ability": target_ability,
+            "target_item": target_item, "weather": weather, "target_confusion": target_confusion}
 
 
 def _runtime_probabilistic_self_stage_ability_authority(*, state: Mapping[str, Any], raw_attacker: Mapping[str, Any], attacker: Mapping[str, Any]) -> dict[str, Any]:
