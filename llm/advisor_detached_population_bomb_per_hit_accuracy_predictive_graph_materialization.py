@@ -61,8 +61,11 @@ def materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
         "status": "evaluable", "schema_version": SCHEMA_VERSION, "horizon": HORIZON,
         **base,
         "terminal_leaf_representation": "exact_root_to_terminal_per_attempt_accuracy_path_graph_no_final_state_aggregation",
+        # ``roots``, ``nodes`` and ``edges`` are newly built inside this call
+        # and are not used after this output boundary.  Serialize them in
+        # place rather than recursively copying every completed graph edge.
         "terminal_leaf_roots": tuple(_serialize_root(row) for row in roots),
-        "terminal_leaf_nodes": tuple(deepcopy(row) for row in nodes),
+        "terminal_leaf_nodes": tuple(nodes),
         "terminal_leaf_edges": tuple(_serialize_edge(row) for row in edges),
         "terminal_probability_mass": _fd(mass),
         "aggregation": "none_preserve_ordered_attempt_hit_miss_critical_roll_damage_and_sturdy_identity_as_graph_paths",
@@ -266,15 +269,19 @@ def _consequences(base: Mapping[str, Any], target_hp: int, sturdy_authority: Map
 
 
 def _serialize_root(value: Mapping[str, Any]) -> dict[str, Any]:
-    result = deepcopy(dict(value)); result["probability"] = _fd(result["probability"]); return result
+    result = dict(value); result["probability"] = _fd(result["probability"]); return result
 
 
 def _serialize_edge(value: Mapping[str, Any]) -> dict[str, Any]:
-    result = deepcopy(dict(value)); result["conditional_probability"] = _fd(result["conditional_probability"])
-    hit = _mapping(_mapping(result.get("attempt_outcome")).get("ordered_hit"))
+    result = dict(value); result["conditional_probability"] = _fd(result["conditional_probability"])
+    attempt_outcome = _mapping(result.get("attempt_outcome"))
+    hit = _mapping(attempt_outcome.get("ordered_hit"))
     if hit:
+        attempt_outcome = dict(attempt_outcome)
+        hit = dict(hit)
         hit["probability"] = _fd(hit["probability"])
-        result["attempt_outcome"]["ordered_hit"] = hit
+        attempt_outcome["ordered_hit"] = hit
+        result["attempt_outcome"] = attempt_outcome
     return result
 
 
