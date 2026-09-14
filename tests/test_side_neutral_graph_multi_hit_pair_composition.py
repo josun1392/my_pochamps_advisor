@@ -457,10 +457,19 @@ def test_graph_ko_cancels_later_direct_heal():
     )
 
 
-def _itemized_inputs(*, own_item, opponent_item, own_hp=100, opponent_hp=100):
+def _itemized_inputs(*, own_item, opponent_item, own_hp=100, opponent_hp=100, magic_room="inactive"):
     state, snapshot, d0, _own, response_set, _orders = _inputs(
         own_hp=own_hp, opponent_hp=opponent_hp,
     )
+    if magic_room == "unknown":
+        state["field"]["magic_room_status"] = {"knowledge": "unknown"}
+        state["field"].pop("magic_room_status_provenance", None)
+    else:
+        state["field"]["magic_room_status"] = magic_room
+        state["field"]["magic_room_status_provenance"] = {
+            "event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation",
+            "source_observation_id": "test-magic-room", "source_sequence": 1,
+        }
     state["self_side"]["pokemon"][0]["known_item"] = own_item
     state["opponent_side"]["pokemon"][0]["known_item"] = opponent_item
     state["self_side"]["pokemon"][0]["known_item_provenance"]["status"] = "known" if own_item is not None else "known_absent"
@@ -560,6 +569,29 @@ def test_trick_first_graph_consumes_exact_swapped_life_orb_state():
     ]
     assert first_hit_edges
     assert all(edge["ordered_hit"].get("focus_sash_applied") is True for edge in first_hit_edges)
+
+
+def test_trick_transferred_focus_sash_respects_active_or_unknown_magic_room():
+    for magic_room, expected_status, expected_sash in (
+        ("active", "evaluable", False),
+        ("unknown", "incomplete", None),
+    ):
+        _state, snapshot, d0 = _itemized_inputs(
+            own_item="focus-sash", opponent_item=None, magic_room=magic_room,
+        )
+        own = _protectable_graph(d0, power=500)
+        trick = _opponent_swap(d0, "trick")
+        authority = _swap_authority(d0, snapshot, trick)
+        pair = materialize_detached_variable_two_to_five_hit_graph_immediate_move_pair(
+            strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=trick,
+            action_order_authority=_order(d0, own, trick, "opponent_first"),
+            atomic_item_swap_status_execution_authorities={trick["action_id"]: authority},
+        )
+        assert pair["status"] == expected_status
+        if expected_sash is not None:
+            graph = pair["order_graphs"][0]["terminal_transitions"][0]["second_action"]["outcomes"][0]["second_action_graph"]
+            first_hit_edges = [edge for edge in graph["terminal_leaf_edges"] if edge.get("ordered_hit", {}).get("hit_index") == 1]
+            assert first_hit_edges and all(edge["ordered_hit"].get("focus_sash_applied") is expected_sash for edge in first_hit_edges)
 
 
 def test_graph_first_then_switcheroo_does_not_retroactively_change_graph():

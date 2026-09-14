@@ -272,12 +272,21 @@ def test_live_unwired_canonical_secondary_prevents_exact_ledger_and_metrics_cert
     assert result["descriptive_metrics"]["attack:iron-head"]["status"] == "incomplete"
 
 
-def _live_survival_state(*, ability: str, item: dict, sturdy_applicability: str | None = None) -> dict:
+def _live_survival_state(*, ability: str, item: dict, sturdy_applicability: str | None = None, magic_room="inactive") -> dict:
     base = _direct_base()
     state = _apply_direct_state(base, _direct_confirmations(
         base, attacker_item={"status": "known_absent"}, target_item=item,
         attacker_ability="pressure", target_ability=ability,
     ))
+    if magic_room == "unknown":
+        state["field"]["magic_room_status"] = {"knowledge": "unknown"}
+        state["field"].pop("magic_room_status_provenance", None)
+    else:
+        state["field"]["magic_room_status"] = magic_room
+        state["field"]["magic_room_status_provenance"] = {
+            "event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation",
+            "source_observation_id": "test-magic-room", "source_sequence": 1,
+        }
     target = state["opponent_side"]["pokemon"][0]
     target.update(current_hp=10, max_hp=10, fainted=False)
     for side in ("self", "opponent"):
@@ -318,6 +327,32 @@ def test_live_own_attack_candidate_binds_focus_sash_and_sturdy_survival_to_exact
         leaves = ledger["terminal_leaves"]
         assert leaves and all(row["consequences"]["target_final_hp"] == 1 for row in leaves)
         assert all(row["consequences"][survival_key]["outcome"] == "applied" for row in leaves)
+
+
+def test_live_focus_sash_consumes_exact_magic_room_state_without_affecting_sturdy():
+    active = _live_survival_state(ability="pressure", item={"status": "known", "item": "focus-sash"}, magic_room="active")
+    result = run_current_ui_detached_strategy(
+        runtime_session_manager=_RuntimeManager([_snapshot(active), _snapshot(active)]),
+        captured_session_id=active["session_id"], selection_cycle_builder=_single_live_damage_builder,
+    )
+    ledger = result["exact_outcome_ledgers"]["attack:water-gun"]
+    assert ledger["status"] == "evaluable"
+    assert all(row["consequences"]["target_final_hp"] == 0 for row in ledger["terminal_leaves"])
+
+    unknown = _live_survival_state(ability="pressure", item={"status": "known", "item": "focus-sash"}, magic_room="unknown")
+    result = run_current_ui_detached_strategy(
+        runtime_session_manager=_RuntimeManager([_snapshot(unknown), _snapshot(unknown)]),
+        captured_session_id=unknown["session_id"], selection_cycle_builder=_single_live_damage_builder,
+    )
+    candidate = result["orchestration"]["candidates"][0]
+    assert (candidate["evidence_class"], candidate["reason"]) == ("incomplete", "focus_sash_survival_authority_unavailable")
+
+    sturdy = _live_survival_state(ability="sturdy", item={"status": "known_absent"}, sturdy_applicability="applicable", magic_room="active")
+    result = run_current_ui_detached_strategy(
+        runtime_session_manager=_RuntimeManager([_snapshot(sturdy), _snapshot(sturdy)]),
+        captured_session_id=sturdy["session_id"], selection_cycle_builder=_single_live_damage_builder,
+    )
+    assert result["exact_outcome_ledgers"]["attack:water-gun"]["status"] == "evaluable"
 
 
 def test_live_own_attack_survival_authority_unknown_or_inapplicable_fails_closed() -> None:
