@@ -564,14 +564,19 @@ def _apply_reactive_status(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
 
 
 def _event_with_reactive_status(event: Mapping[str, Any], status: Mapping[str, Any]) -> dict[str, Any]:
-    result = deepcopy(dict(event))
+    # Callers provide a newly materialized per-hit event.  The status authority
+    # and its overlay are already authenticated immutable result records; a
+    # further recursive copy for each Effect Spore branch dominated graph
+    # materialization without adding isolation.  Keep a fresh outer event row
+    # so each branch still owns its selected status/provenance wrapper.
+    result = dict(event)
     authority, overlay = status.get("authority"), status.get("overlay")
     if isinstance(authority, Mapping):
         result["contact_reactive_status"] = {
             "outcome": authority.get("outcome"), "branch": status.get("branch"),
             "post_condition": status.get("post_condition"),
-            "authority": deepcopy(dict(authority)),
-            "overlay": deepcopy(dict(overlay)) if isinstance(overlay, Mapping) else None,
+            "authority": authority,
+            "overlay": overlay if isinstance(overlay, Mapping) else None,
         }
         result["attacker_post_reactive_condition"] = status.get("post_condition")
     return result
