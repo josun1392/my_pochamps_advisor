@@ -9,6 +9,7 @@ from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority
 from llm.advisor_battle_state_context import normalize_current_type_authority, normalize_user_confirmed_current_ability
+from llm.advisor_ability_interaction_authority import normalize_ability_applicability_context
 from llm.advisor_ice_body_recovery_core import evaluate_ice_body_recovery, evaluate_weather_recovery
 from llm.advisor_sandstorm_residual_core import evaluate_sandstorm_residual
 from llm.advisor_solar_power_residual_core import evaluate_solar_power_residual
@@ -1537,6 +1538,49 @@ def _retire_outgoing_active_transient_state(pokemon):
         pokemon.pop(f"{field}_provenance", None)
 
 
+def _apply_outgoing_switch_ability_lifecycle(state, event, outgoing, out_slot, out_id):
+    """Apply exact source-owned switch-out abilities before current ability retires."""
+    ability = outgoing.get("current_ability") if isinstance(outgoing, dict) else None
+    if not isinstance(ability, str) or ability not in {"regenerator", "natural-cure"}:
+        return None
+    if not _valid_current_ability_state(ability, outgoing.get("current_ability_provenance")):
+        return _conflict(event, "outgoing_switch_ability_authority_invalid")
+    source = {"side": _value(event, "side"), "slot_index": out_slot, "pokemon_id": out_id}
+    applicability = normalize_ability_applicability_context(
+        state.get("ability_applicability_context"),
+        session_id=state["session_id"], source=source, ability_id=ability,
+    )
+    if applicability["status"] == "unknown":
+        return _conflict(event, "outgoing_switch_ability_applicability_unknown")
+    if applicability["status"] == "not_applicable" or outgoing.get("fainted") is True:
+        return None
+    if ability == "regenerator":
+        hp, maximum = outgoing.get("current_hp"), outgoing.get("max_hp")
+        if (
+            not isinstance(hp, int) or isinstance(hp, bool)
+            or not isinstance(maximum, int) or isinstance(maximum, bool)
+            or maximum < 1 or not 0 <= hp <= maximum
+        ):
+            return _conflict(event, "regenerator_switch_out_hp_authority_unknown")
+        outgoing["current_hp"] = min(maximum, hp + maximum // 3)
+        _mark(outgoing, "current_hp", event)
+        return None
+    condition = outgoing.get("condition")
+    if is_unknown_battle_fact(condition):
+        return _conflict(event, "natural_cure_switch_out_condition_unknown")
+    if condition is not None and (not isinstance(condition, str) or condition not in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}):
+        return _conflict(event, "natural_cure_switch_out_condition_invalid")
+    if condition not in {None, "none"}:
+        outgoing["condition"] = None
+        outgoing["condition_provenance"] = _provenance(event) | {
+            "event_kind": "condition_removed_observed",
+            "trust": _value(event, "trust"),
+            "source": "natural_cure_switch_out",
+        }
+        outgoing["toxic_progression"] = make_unknown_battle_fact()
+    return None
+
+
 def _apply_leftovers_end_of_turn_recovery(state, event):
     """Apply only exact held Leftovers for the living active owner at this phase."""
     results = state.setdefault("leftovers_end_of_turn_context", [])
@@ -2354,8 +2398,11 @@ def _switch(state, event):
     roster = side.get("pokemon", {}); incoming = roster.get(in_slot, roster.get(str(in_slot))) if isinstance(roster, dict) else None
     if not isinstance(incoming, dict) or incoming.get("pokemon_id", incoming.get("name_en")) != in_id: return _conflict(event, "missing_switch_in_target")
     if incoming.get("fainted") is True: return _conflict(event, "switch_in_fainted")
-    side["active_slot_index"] = in_slot; _mark(side, "active_slot_index", event)
     outgoing = roster.get(out_slot, roster.get(str(out_slot))) if isinstance(roster, dict) else None
+    lifecycle_conflict = _apply_outgoing_switch_ability_lifecycle(state, event, outgoing, out_slot, out_id)
+    if lifecycle_conflict:
+        return lifecycle_conflict
+    side["active_slot_index"] = in_slot; _mark(side, "active_slot_index", event)
     if isinstance(outgoing, dict):
         _retire_outgoing_active_transient_state(outgoing)
         outgoing["toxic_progression"] = make_unknown_battle_fact()
