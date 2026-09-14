@@ -106,17 +106,18 @@ def _switch_actions(evidence: Mapping[str, Any], snapshot: Any) -> list[dict[str
 
 
 def _finalized_switch_candidates(candidates: Any, snapshot: Any) -> list[dict[str, Any]]:
-    """Apply frozen-only Shadow Tag veto before any cross-action projection."""
+    """Apply all frozen manual-switch vetoes before cross-action projection."""
     rows = candidates if isinstance(candidates, Sequence) and not isinstance(candidates, (str, bytes)) else []
     data = snapshot if isinstance(snapshot, Mapping) else snapshot.to_dict() if hasattr(snapshot, "to_dict") else {}
     current = data.get("current_state") if isinstance(data, Mapping) else {}
     battle = data.get("battle_state") if isinstance(data, Mapping) else {}
     authority = current.get("ability_interaction_authority") if isinstance(current, Mapping) else None
-    # Legacy/foundation-free frozen requests retain their existing conservative
-    # candidate result; only a carried authority activates post-freeze finalization.
-    if not isinstance(authority, Mapping):
-        return [deepcopy(dict(row)) for row in rows if isinstance(row, Mapping)]
     manual = current.get("switch_candidate_context", {}).get("switch_permission_context", {}) if isinstance(current, Mapping) else {}
+    restriction_blockers, restriction_unknown = _manual_switch_restriction_blockers(current, manual)
+    # Legacy/foundation-free frozen requests retain their existing conservative
+    # candidate result; carried restriction evidence is always finalized.
+    if not isinstance(authority, Mapping) and not restriction_blockers and not restriction_unknown:
+        return [deepcopy(dict(row)) for row in rows if isinstance(row, Mapping)]
     player = battle.get("active_player", {}) if isinstance(battle, Mapping) else {}
     item = {"status": "known" if player.get("item_status") == "user_confirmed" else "known_absent" if player.get("item_status") == "absent" else "unknown", "value": player.get("known_item_id")}
     types = _current_types(current, "self")
@@ -124,8 +125,37 @@ def _finalized_switch_candidates(candidates: Any, snapshot: Any) -> list[dict[st
     shadow = derive_shadow_tag_block(authority=authority or {}, self_type=types, self_item=item, self_ability=ability)
     magnet = derive_magnet_pull_block(authority=authority or {}, self_type=types, self_item=item)
     arena = derive_arena_trap_block(authority=authority or {}, groundedness=current.get("identity_groundedness_context", {}) if isinstance(current, Mapping) else {}, self_type=types, self_item=item)
-    blocker = aggregate_hard_blockers(shadow, magnet, arena)
+    if restriction_unknown:
+        manual = {"status": "unknown"}
+    blocker = aggregate_hard_blockers(shadow, magnet, arena, *restriction_blockers)
     return finalize_switch_candidates(rows, manual_permission=manual, blocker=blocker)
+
+
+def _manual_switch_restriction_blockers(current: Mapping[str, Any], manual: Mapping[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    runtime = current.get("runtime_advice_state") if isinstance(current, Mapping) else None
+    restrictions = runtime.get("manual_switch_restrictions") if isinstance(runtime, Mapping) else None
+    if restrictions is None:
+        return [], False
+    if not isinstance(restrictions, Mapping) or set(restrictions) != {"bind", "ingrain"}:
+        return [], True
+    expected = {
+        "session_id": manual.get("session_id"), "side": "self",
+        "slot_index": manual.get("active_slot_index"), "pokemon_id": manual.get("active_pokemon_id"),
+    }
+    if not isinstance(expected["session_id"], str) or not isinstance(expected["slot_index"], int) or isinstance(expected["slot_index"], bool) or not isinstance(expected["pokemon_id"], str) or not expected["pokemon_id"]:
+        return [], True
+    blockers = []
+    for family in ("bind", "ingrain"):
+        authority = restrictions[family]
+        if not isinstance(authority, Mapping) or authority.get("status") != "resolved":
+            return [], True
+        if authority.get("session_id") != expected["session_id"] or authority.get("owner") != expected:
+            return [], True
+        state = authority.get("block_state")
+        if state not in {"not_established", "exception_applies", "confirmed_blocked"}:
+            return [], True
+        blockers.append({"mechanic": family, "state": state, "authority": deepcopy(dict(authority))})
+    return blockers, False
 
 
 def _current_types(current: Mapping[str, Any], side: str) -> dict[str, Any]:

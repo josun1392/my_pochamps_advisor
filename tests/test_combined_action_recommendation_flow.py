@@ -12,6 +12,29 @@ class _AuthoritySnapshot:
     def to_dict(self): return self.value
 
 
+class _RestrictionSnapshot:
+    def __init__(self, *, bind="not_established", ingrain="not_established", bind_owner=None, bind_status="resolved"):
+        owner = {"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "me"}
+        authority = lambda state, status, bound_owner: (
+            {"status": status, "reason": "stale_or_foreign_manual_switch_authority"}
+            if status != "resolved" else
+            {"status": "resolved", "session_id": "s", "source_branch_fingerprint": "branch", "owner": bound_owner, "block_state": state}
+        )
+        self.value = {
+            "current_state": {
+                "switch_candidate_context": {"switch_permission_context": {
+                    "session_id": "s", "active_slot_index": 0, "active_pokemon_id": "me", "status": "permitted",
+                }},
+                "runtime_advice_state": {"manual_switch_restrictions": {
+                    "bind": authority(bind, bind_status, owner if bind_owner is None else bind_owner),
+                    "ingrain": authority(ingrain, "resolved", owner),
+                }},
+            },
+            "battle_state": {"active_player": {"item_status": "absent"}},
+        }
+    def to_dict(self): return self.value
+
+
 def _prepared(*, moves, switches):
     return {"candidates": moves, "evidence_bundle": {"turn_snapshot": _Snapshot(), "switch_candidates": switches, "known_opponent_threat_summaries": {"threat_summaries": []}, "opponent_action_candidates": []}}
 
@@ -56,3 +79,21 @@ def test_frozen_unknown_preserves_manual_but_never_authorizes_unknown_manual_per
     assert build_combined_action_envelope(prepared_cycle=permitted)["action_kind"] == "switch"
     unknown = _prepared(moves=[], switches=[switch]); unknown["evidence_bundle"]["turn_snapshot"] = _AuthoritySnapshot(applicability="unknown", manual="unknown")
     assert build_combined_action_envelope(prepared_cycle=unknown)["selection_status"] == "no_selectable_action"
+
+
+def test_frozen_bind_and_ingrain_finalizers_veto_only_the_exact_manual_switch_owner():
+    switch = {"candidate_id": "self-switch:s:1:b", "action_kind": "switch", "target_pokemon_id": "b", "target_slot_index": 1, "selectable": True, "availability_supportability": "complete", "reason_code": "switch_available"}
+    bind = _prepared(moves=[], switches=[switch]); bind["evidence_bundle"]["turn_snapshot"] = _RestrictionSnapshot(bind="confirmed_blocked")
+    ingrain = _prepared(moves=[], switches=[switch]); ingrain["evidence_bundle"]["turn_snapshot"] = _RestrictionSnapshot(ingrain="confirmed_blocked")
+    clear = _prepared(moves=[], switches=[switch]); clear["evidence_bundle"]["turn_snapshot"] = _RestrictionSnapshot()
+    assert build_combined_action_envelope(prepared_cycle=bind)["selection_status"] == "no_selectable_action"
+    assert build_combined_action_envelope(prepared_cycle=ingrain)["selection_status"] == "no_selectable_action"
+    assert build_combined_action_envelope(prepared_cycle=clear)["action_kind"] == "switch"
+
+
+def test_foreign_or_stale_manual_switch_restriction_never_becomes_unrestricted_or_wrongly_bound():
+    switch = {"candidate_id": "self-switch:s:1:b", "action_kind": "switch", "target_pokemon_id": "b", "target_slot_index": 1, "selectable": True, "availability_supportability": "complete", "reason_code": "switch_available"}
+    foreign = _prepared(moves=[], switches=[switch]); foreign["evidence_bundle"]["turn_snapshot"] = _RestrictionSnapshot(bind="confirmed_blocked", bind_owner={"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "other"})
+    stale = _prepared(moves=[], switches=[switch]); stale["evidence_bundle"]["turn_snapshot"] = _RestrictionSnapshot(bind_status="rejected")
+    assert build_combined_action_envelope(prepared_cycle=foreign)["selection_status"] == "no_selectable_action"
+    assert build_combined_action_envelope(prepared_cycle=stale)["selection_status"] == "no_selectable_action"
