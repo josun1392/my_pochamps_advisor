@@ -7,6 +7,9 @@ from typing import Any, Mapping
 from core.champions_item_repository import normalize_item_id
 from llm.advisor_reducer_state_model import is_unknown_battle_fact
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
+from llm.advisor_runtime_d0_held_item_effect_applicability_authority import (
+    resolve_runtime_d0_held_item_effect_applicability_authority,
+)
 
 
 SCHEMA_VERSION = "runtime-d0-focus-sash-survival-authority-v1"
@@ -79,6 +82,16 @@ def freeze_runtime_d0_focus_sash_survival_authority(
         return _result("resolved", "focus_sash_known_absent", payload, outcome="known_no_effect", focus_sash_available=False, eligible=False)
     if item.get("value") != "focus-sash":
         return _result("resolved", "known_non_focus_sash_item", payload, outcome="known_no_effect", focus_sash_available=False, eligible=False)
+    item_effect = resolve_runtime_d0_held_item_effect_applicability_authority(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, holder=holder,
+    )
+    payload["held_item_effect_applicability_authority"] = item_effect
+    if item_effect.get("status") != "resolved":
+        return _result(item_effect.get("status", "rejected"), item_effect.get("reason", "focus_sash_item_effect_applicability_unavailable"), payload)
+    if item_effect.get("current_item_authority", {}).get("item_id") != "focus-sash":
+        return _result("rejected", "focus_sash_item_effect_authority_item_mismatch", payload)
+    if item_effect.get("item_effects_active") is not True:
+        return _result("resolved", "focus_sash_item_effects_suppressed", payload, outcome="known_no_effect", focus_sash_available=False, eligible=False, item_before="focus-sash")
     if hp["current_hp"] != hp["max_hp"]:
         return _result("resolved", "hp_not_full", payload, outcome="known_no_effect", focus_sash_available=True, eligible=False, item_before="focus-sash")
     if hp["current_hp"] < 1:

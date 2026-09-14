@@ -29,6 +29,8 @@ def _state() -> dict:
     state["field"]["weather_provenance"] = {"event_kind": "current_weather_observed", "trust": "user_confirmed_observation", "turn_number": 1}
     state["field"]["terrain"] = "none"
     state["field"]["terrain_provenance"] = {"event_kind": "current_terrain_observed", "trust": "user_confirmed_observation", "turn_number": 1}
+    state["field"]["magic_room_status"] = "inactive"
+    state["field"]["magic_room_status_provenance"] = {"event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation", "source_observation_id": "test-magic-room", "source_sequence": 1}
     return state
 
 
@@ -99,3 +101,30 @@ def test_stale_and_action_binding_mismatches_reject() -> None:
     assert freeze_runtime_d0_action_order_authority(strategy_d0=d0, runtime_snapshot=_snapshot(stale), own_action=own, opponent_action=opponent)["status"] == "rejected"
     opponent["target_owner"] = {"wrong": "owner"}
     assert freeze_runtime_d0_action_order_authority(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent)["status"] == "rejected"
+
+
+def test_choice_scarf_consumes_exact_item_suppression_before_action_order():
+    magic = _state()
+    magic["self_side"]["pokemon"][0]["current_final_stats"]["speed"]["value"] = 80
+    magic["self_side"]["pokemon"][0]["known_item"] = "choice-scarf"
+    magic["self_side"]["pokemon"][0]["known_item_provenance"]["status"] = "known"
+    magic["field"]["magic_room_status"] = "active"
+    magic_result = _authority(magic)
+    assert magic_result["order"] == "opponent_first"
+    assert magic_result["order_input_authority"]["self_speed_item"] == "none"
+
+    klutz = _state()
+    klutz["self_side"]["pokemon"][0]["current_final_stats"]["speed"]["value"] = 80
+    klutz["self_side"]["pokemon"][0]["known_item"] = "choice-scarf"
+    klutz["self_side"]["pokemon"][0]["known_item_provenance"]["status"] = "known"
+    klutz["self_side"]["pokemon"][0]["current_ability"] = "klutz"
+    klutz_result = _authority(klutz)
+    assert klutz_result["order"] == "opponent_first"
+    assert klutz_result["order_input_authority"]["self_speed_item"] == "none"
+
+    unknown = _state()
+    unknown["self_side"]["pokemon"][0]["known_item"] = "choice-scarf"
+    unknown["self_side"]["pokemon"][0]["known_item_provenance"]["status"] = "known"
+    unknown["field"]["magic_room_status"] = {"knowledge": "unknown"}
+    unknown["field"].pop("magic_room_status_provenance")
+    assert _authority(unknown)["status"] == "incomplete"

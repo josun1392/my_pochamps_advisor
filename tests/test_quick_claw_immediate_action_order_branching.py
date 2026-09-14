@@ -12,8 +12,16 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import MOVES, _complete_state, _metadata, _owner, _snapshot, _state
 
 
-def _inputs(*, own_speed=80, opponent_speed=100, own_priority=0, opponent_priority=0, item="quick-claw", opponent_item=None, item_provenance_valid=True, own_hp=100, opponent_hp=100):
+def _inputs(*, own_speed=80, opponent_speed=100, own_priority=0, opponent_priority=0, item="quick-claw", opponent_item=None, item_provenance_valid=True, own_hp=100, opponent_hp=100, magic_room="inactive", own_ability=None):
     state = _complete_state(_state())
+    if magic_room == "unknown":
+        state["field"]["magic_room_status"] = {"knowledge": "unknown"}
+        state["field"].pop("magic_room_status_provenance", None)
+    else:
+        state["field"]["magic_room_status"] = magic_room
+        state["field"]["magic_room_status_provenance"] = {"event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation", "source_observation_id": "test-magic-room", "source_sequence": 1}
+    if own_ability is not None:
+        state["self_side"]["pokemon"][0]["current_ability"] = own_ability
     for side in ("self", "opponent"):
         state[f"{side}_side"]["tailwind_status"] = "inactive"
         state[f"{side}_side"]["tailwind_status_provenance"] = {"event_kind": "set_observed_tailwind", "trust": "user_confirmed_observation"}
@@ -98,3 +106,11 @@ def test_same_positive_and_negative_priority_brackets_are_applicable_and_both_ho
     assert _inputs(own_priority=1, opponent_priority=1)[-1]["outcome"] == "applicable"
     assert _inputs(own_priority=-1, opponent_priority=-1)[-1]["outcome"] == "applicable"
     assert _inputs(opponent_item="quick-claw")[-1]["status"] == "unsupported"
+
+
+def test_quick_claw_item_suppression_is_exact_and_fail_closed():
+    magic = _inputs(magic_room="active")[-1]
+    assert (magic["status"], magic["outcome"], magic["reason"]) == ("resolved", "known_no_effect", "quick_claw_item_effects_suppressed")
+    klutz = _inputs(own_ability="klutz")[-1]
+    assert (klutz["status"], klutz["outcome"], klutz["reason"]) == ("resolved", "known_no_effect", "quick_claw_item_effects_suppressed")
+    assert _inputs(magic_room="unknown")[-1]["status"] == "incomplete"

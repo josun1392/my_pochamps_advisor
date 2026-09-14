@@ -5,6 +5,9 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
+from llm.advisor_runtime_d0_held_item_effect_applicability_authority import (
+    resolve_runtime_d0_held_item_effect_applicability_authority,
+)
 
 
 SCHEMA_VERSION = "runtime-d0-quick-claw-action-order-authority-v1"
@@ -37,10 +40,31 @@ def freeze_runtime_d0_quick_claw_action_order_authority(
     if own_item["status"] != "known" or opponent_item["status"] != "known":
         return _result("incomplete", "quick_claw_current_held_item_authority_missing", common)
     own_quick, opponent_quick = own_item["item_id"] == "quick-claw", opponent_item["item_id"] == "quick-claw"
+    if not own_quick and not opponent_quick:
+        return {"status": "resolved", "schema_version": SCHEMA_VERSION, **common, "outcome": "known_no_effect", "reason": "current_known_items_are_not_quick_claw", "provenance": "runtime_d0_current_held_item_quick_claw_plan_v1"}
+    applicability = {}
+    if own_quick:
+        applicability["own"] = resolve_runtime_d0_held_item_effect_applicability_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, holder=base["own_actor"],
+        )
+    if opponent_quick:
+        applicability["opponent"] = resolve_runtime_d0_held_item_effect_applicability_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, holder=base["opponent_actor"],
+        )
+    common["held_item_effect_applicability_authorities"] = deepcopy(applicability)
+    unavailable = next((row for row in applicability.values() if row.get("status") != "resolved"), None)
+    if unavailable is not None:
+        return _result(unavailable.get("status", "rejected"), unavailable.get("reason", "quick_claw_item_effect_applicability_unavailable"), common)
+    if own_quick and applicability["own"].get("current_item_authority", {}).get("item_id") != "quick-claw":
+        return _result("rejected", "quick_claw_own_item_effect_authority_item_mismatch", common)
+    if opponent_quick and applicability["opponent"].get("current_item_authority", {}).get("item_id") != "quick-claw":
+        return _result("rejected", "quick_claw_opponent_item_effect_authority_item_mismatch", common)
+    own_quick = own_quick and applicability["own"].get("item_effects_active") is True
+    opponent_quick = opponent_quick and applicability["opponent"].get("item_effects_active") is True
     if own_quick and opponent_quick:
         return _result("unsupported", "simultaneous_quick_claw_trigger_precedence_unowned", common)
     if not own_quick and not opponent_quick:
-        return {"status": "resolved", "schema_version": SCHEMA_VERSION, **common, "outcome": "known_no_effect", "reason": "current_known_items_are_not_quick_claw", "provenance": "runtime_d0_current_held_item_quick_claw_plan_v1"}
+        return {"status": "resolved", "schema_version": SCHEMA_VERSION, **common, "outcome": "known_no_effect", "reason": "quick_claw_item_effects_suppressed", "provenance": "runtime_d0_current_held_item_quick_claw_plan_v1"}
     holder_side = "self" if own_quick else "opponent"
     holder = base["own_actor"] if own_quick else base["opponent_actor"]
     holder_action = own_action if own_quick else opponent_action

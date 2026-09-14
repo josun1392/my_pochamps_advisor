@@ -17,6 +17,8 @@ def _state(session="runtime-critical-hit"):
         pokemon["current_type_provenance"] = {"event_kind": "current_type_observed", "trust": "user_confirmed_observation", "turn_number": 1}
         pokemon["current_crit_volatiles_provenance"] = {"event_kind": "current_crit_volatiles_observed", "trust": "user_confirmed_observation", "turn_number": 1}
         state[f"{side}_side"].update(side_conditions=[], side_conditions_provenance={"event_kind": "current_side_conditions_observed", "trust": "user_confirmed_observation", "turn_number": 1})
+    state["field"]["magic_room_status"] = "inactive"
+    state["field"]["magic_room_status_provenance"] = {"event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation", "source_observation_id": "test-magic-room", "source_sequence": 1}
     return state
 
 
@@ -83,3 +85,27 @@ def test_runtime_rejects_stale_identity_target_and_move_mismatches_without_mutat
     assert freeze_runtime_d0_critical_hit_authority(strategy_d0=d0, runtime_snapshot=_snapshot(state), attacker=_owner(state), target=_owner(state, "opponent"), move_metadata={"move_id": "tackle"})["status"] == "rejected"
     assert freeze_runtime_d0_critical_hit_authority(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state, "opponent"), target=_owner(state), move_metadata={"move_id": "tackle"})["status"] == "rejected"
     assert freeze_runtime_d0_critical_hit_authority(strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state), target=_owner(state, "opponent"), move_metadata={"move_id": ""})["status"] == "rejected"
+
+
+def test_scope_lens_consumes_magic_room_suppression_but_klutz_stays_fail_closed():
+    magic = _state()
+    magic["self_side"]["pokemon"][0].update(known_item="scope-lens", known_item_provenance={"event_kind": "current_item_observed", "trust": "user_confirmed_observation", "turn_number": 1, "status": "known"})
+    magic["field"]["magic_room_status"] = "active"
+    result = _resolve(magic)
+    assert (result["status"], result["capability_resolution"]["crit_stage"]) == ("resolved", 0)
+    assert result["source_authority"]["attacker_item"] == {"status": "known_absent"}
+
+    razor = _state()
+    razor["self_side"]["pokemon"][0].update(known_item="razor-claw", known_item_provenance={"event_kind": "current_item_observed", "trust": "user_confirmed_observation", "turn_number": 1, "status": "known"})
+    razor["field"]["magic_room_status"] = "active"
+    assert _resolve(razor)["capability_resolution"]["crit_stage"] == 0
+
+    klutz = _state()
+    klutz["self_side"]["pokemon"][0].update(current_ability="klutz", known_item="scope-lens", known_item_provenance={"event_kind": "current_item_observed", "trust": "user_confirmed_observation", "turn_number": 1, "status": "known"})
+    assert _resolve(klutz)["status"] == "unsupported"
+
+    unknown = _state()
+    unknown["self_side"]["pokemon"][0].update(known_item="scope-lens", known_item_provenance={"event_kind": "current_item_observed", "trust": "user_confirmed_observation", "turn_number": 1, "status": "known"})
+    unknown["field"]["magic_room_status"] = {"knowledge": "unknown"}
+    unknown["field"].pop("magic_room_status_provenance")
+    assert _resolve(unknown)["status"] == "incomplete"

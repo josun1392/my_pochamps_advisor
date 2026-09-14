@@ -17,6 +17,9 @@ from llm.advisor_runtime_strategy_d0 import (
     runtime_strategy_d0_freshness,
 )
 from llm.narrow_action_order import evaluate_action_order
+from llm.advisor_runtime_d0_held_item_effect_applicability_authority import (
+    resolve_runtime_d0_held_item_effect_applicability_authority,
+)
 
 
 SCHEMA_VERSION = "runtime-d0-action-order-authority-v1"
@@ -94,11 +97,17 @@ def _facts(d0: Mapping[str, Any], snapshot: Mapping[str, Any], state: Mapping[st
     condition_opp = freeze_runtime_current_condition_authority(strategy_d0=d0, runtime_snapshot=snapshot, owner=opp_owner)
     authorities = (speed_self, speed_opp, stage_self, stage_opp, condition_self, condition_opp)
     if any(row.get("status") == "rejected" for row in authorities): return {"status": "rejected", "reason": "runtime_action_order_current_authority_rejected"}
+    self_item_effect = _speed_item_effect(d0, snapshot, self_owner, raw_self)
+    opponent_item_effect = _speed_item_effect(d0, snapshot, opp_owner, raw_opp)
+    if self_item_effect["status"] != "resolved" or opponent_item_effect["status"] != "resolved":
+        unavailable = self_item_effect if self_item_effect["status"] != "resolved" else opponent_item_effect
+        return {"status": unavailable["status"], "reason": unavailable.get("reason", "speed_item_effect_applicability_unavailable"),
+                "speed_item_effect_applicability_authorities": {"self": self_item_effect, "opponent": opponent_item_effect}}
     values = {
         "self_final_speed": _known(speed_self.get("final_stat_authority")), "opponent_final_speed": _known(speed_opp.get("final_stat_authority")),
         "self_speed_stage": _known(stage_self.get("stages", {}).get("speed")), "opponent_speed_stage": _known(stage_opp.get("stages", {}).get("speed")),
         "self_paralysis": _paralysis(condition_self), "opponent_paralysis": _paralysis(condition_opp),
-        "self_speed_item": _item(raw_self), "opponent_speed_item": _item(raw_opp),
+        "self_speed_item": self_item_effect["effective_speed_item"], "opponent_speed_item": opponent_item_effect["effective_speed_item"],
         "self_speed_ability": _ability(raw_self), "opponent_speed_ability": _ability(raw_opp),
         "self_priority_ability": _ability(raw_self), "opponent_priority_ability": _ability(raw_opp),
         "self_full_hp": _full_hp(d0, self_owner), "opponent_full_hp": _full_hp(d0, opp_owner),
@@ -107,7 +116,7 @@ def _facts(d0: Mapping[str, Any], snapshot: Mapping[str, Any], state: Mapping[st
         "self_grounded": "unknown", "opponent_grounded": "unknown",
     }
     # Groundedness is material only to Grassy Glide; the narrow engine requests it then.
-    return {"status": "resolved", **values, "speed_authorities": {"self": speed_self, "opponent": speed_opp}, "stage_authorities": {"self": stage_self, "opponent": stage_opp}, "condition_authorities": {"self": condition_self, "opponent": condition_opp}}
+    return {"status": "resolved", **values, "speed_authorities": {"self": speed_self, "opponent": speed_opp}, "stage_authorities": {"self": stage_self, "opponent": stage_opp}, "condition_authorities": {"self": condition_self, "opponent": condition_opp}, "speed_item_effect_applicability_authorities": {"self": self_item_effect, "opponent": opponent_item_effect}}
 
 
 def _opponent_metadata(d0: Mapping[str, Any], action: Mapping[str, Any], own: Mapping[str, Any], opponent: Mapping[str, Any]) -> dict[str, Any]:
@@ -129,6 +138,21 @@ def _move(authority: Mapping[str, Any], expected_id: Any) -> dict[str, Any] | No
     if category not in {"physical", "special", "status"} or not isinstance(move_type, str) or not move_type: return None
     return {"move_id": expected_id, "priority": priority, "category": category, "type": move_type, "triage_healing": metadata.get("triage_healing", "omitted")}
 
+
+
+def _speed_item_effect(d0: Mapping[str, Any], snapshot: Mapping[str, Any], owner: Mapping[str, Any], raw: Mapping[str, Any]) -> dict[str, Any]:
+    item_id = _item(raw)
+    if item_id != "choice-scarf":
+        return {"status": "resolved", "effective_speed_item": item_id, "reason": "choice_scarf_not_held"}
+    applicability = resolve_runtime_d0_held_item_effect_applicability_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, holder=owner,
+    )
+    if applicability.get("status") != "resolved":
+        return {"status": applicability.get("status", "rejected"), "reason": applicability.get("reason", "choice_scarf_item_effect_applicability_unavailable"), "authority": applicability}
+    if applicability.get("current_item_authority", {}).get("item_id") != "choice-scarf":
+        return {"status": "rejected", "reason": "choice_scarf_item_effect_authority_item_mismatch", "authority": applicability}
+    return {"status": "resolved", "effective_speed_item": "choice-scarf" if applicability.get("item_effects_active") is True else "none", "authority": applicability,
+            "reason": "choice_scarf_active" if applicability.get("item_effects_active") is True else "choice_scarf_item_effects_suppressed"}
 
 def _known(value: Any) -> Any: return value.get("value") if isinstance(value, Mapping) and value.get("status") == "known" else None
 def _paralysis(authority: Mapping[str, Any]) -> str:

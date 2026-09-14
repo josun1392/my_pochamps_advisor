@@ -20,6 +20,8 @@ from tests.test_detached_opponent_response_profile import MOVES, _complete_state
 
 def _inputs(*, sash_side: str, own_first: bool, item_status: str = "known", holder_hp: int = 1, holder_max_hp: int = 1, holder_ability: str = "pressure", sturdy_applicability: str | None = None):
     state = _complete_state(_state())
+    state["field"]["magic_room_status"] = "inactive"
+    state["field"]["magic_room_status_provenance"] = {"event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation", "source_observation_id": "test-magic-room", "source_sequence": 1}
     holder = state[f"{sash_side}_side"]["pokemon"][0]
     holder.update(current_hp=holder_hp, max_hp=holder_max_hp, known_item="focus-sash", current_ability=holder_ability)
     holder["known_item_provenance"] = {

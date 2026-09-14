@@ -15,6 +15,8 @@ from tests.test_predictive_normal_formula_post_hit import _interval
 
 def _d0_inputs(*, item="focus-sash", hp=100, max_hp=100):
     state = _state()
+    state["field"]["magic_room_status"] = "inactive"
+    state["field"]["magic_room_status_provenance"] = {"event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation", "source_observation_id": "test-magic-room", "source_sequence": 1}
     target = state["opponent_side"]["pokemon"][0]
     target["current_hp"] = hp
     target["max_hp"] = max_hp
@@ -234,3 +236,25 @@ def test_fixed_damage_focus_sash_survival_caps_seismic_toss_leaf():
     assert terminal["consequences"]["target_final_hp"] == 1
     assert terminal["consequences"]["target_ko"] is False
     assert terminal["consequences"]["focus_sash_survival"]["outcome"] == "applied"
+
+
+def test_focus_sash_suppression_prevents_ready_survival_without_consumption():
+    d0, snapshot, own, foe, action, move = _d0_inputs()
+    state = snapshot["state"]
+    state["field"]["magic_room_status"] = "active"
+    snapshot["state_fingerprint"] = state_fingerprint(state)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=own)
+    magic = freeze_runtime_d0_focus_sash_survival_authority(strategy_d0=d0, runtime_snapshot=snapshot, holder=foe, attacker=own, action=action, move_metadata=move)
+    assert (magic["status"], magic["outcome"], magic["eligible"]) == ("resolved", "known_no_effect", False)
+    assert magic["reason"] == "focus_sash_item_effects_suppressed"
+    projected = apply_focus_sash_to_hit(authority=magic, consumed=False, hp_before=100, raw_damage=150, actual_damage=100, source_hit={"hit_index": 1})
+    assert (projected["post_hp"], projected["activated"], projected["consumed"]) == (0, False, False)
+
+    d0, snapshot, own, foe, action, move = _d0_inputs()
+    state = snapshot["state"]
+    state["opponent_side"]["pokemon"][0]["current_ability"] = "klutz"
+    state["opponent_side"]["pokemon"][0]["current_ability_provenance"] = {"event_kind": "current_ability_observed", "trust": "user_confirmed_observation", "turn_number": 1}
+    snapshot["state_fingerprint"] = state_fingerprint(state)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=own)
+    klutz = freeze_runtime_d0_focus_sash_survival_authority(strategy_d0=d0, runtime_snapshot=snapshot, holder=foe, attacker=own, action=action, move_metadata=move)
+    assert (klutz["status"], klutz["outcome"], klutz["eligible"]) == ("resolved", "known_no_effect", False)

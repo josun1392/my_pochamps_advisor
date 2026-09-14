@@ -248,6 +248,34 @@ def freeze_runtime_d0_critical_hit_authority(
     attacker_critical = freeze_runtime_current_critical_state_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=attacker)
     target_critical = freeze_runtime_current_critical_state_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
     sources = _runtime_critical_hit_sources(raw_attacker=raw_attacker, raw_target=raw_target)
+    held_item_effect_applicability = None
+    attacker_item = sources.get("attacker_item")
+    if isinstance(attacker_item, Mapping) and attacker_item.get("status") == "known" and attacker_item.get("value") in {"scope-lens", "razor-claw"}:
+        # Keep the critical resolver's compact source schema while binding the
+        # item effect through the current D0 suppression authority first.
+        from llm.advisor_runtime_d0_held_item_effect_applicability_authority import (
+            resolve_runtime_d0_held_item_effect_applicability_authority,
+        )
+        held_item_effect_applicability = resolve_runtime_d0_held_item_effect_applicability_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, holder=attacker,
+        )
+        if held_item_effect_applicability.get("status") != "resolved":
+            return {
+                "status": held_item_effect_applicability.get("status", "rejected"),
+                "schema_version": "runtime-d0-critical-hit-authority-v1",
+                "session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"],
+                "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"],
+                "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
+                "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move": {"move_id": move_id},
+                "source_authority": deepcopy(sources),
+                "held_item_effect_applicability_authority": deepcopy(held_item_effect_applicability),
+                "provenance": "runtime_battle_state_v1_to_detached_critical_hit_authority_v1",
+                "reason": held_item_effect_applicability.get("reason", "critical_item_effect_applicability_unavailable"),
+            }
+        if held_item_effect_applicability.get("current_item_authority", {}).get("item_id") != attacker_item.get("value"):
+            return _result("rejected", "critical_item_effect_authority_item_mismatch")
+        if held_item_effect_applicability.get("item_effects_active") is not True:
+            sources["attacker_item"] = {"status": "known_absent"}
     fling_post_throw_item = _fling_post_throw_critical_item_source(
         move_metadata=move_metadata, strategy_d0=strategy_d0, attacker=attacker,
         target=target,
@@ -269,6 +297,7 @@ def freeze_runtime_d0_critical_hit_authority(
         "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])),
         "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move": {"move_id": move_id},
         "source_authority": deepcopy(sources),
+        **({"held_item_effect_applicability_authority": deepcopy(held_item_effect_applicability)} if held_item_effect_applicability is not None else {}),
         **({"fling_post_throw_item_projection": deepcopy(fling_post_throw_item)} if fling_post_throw_item is not None else {}),
         "current_critical_state_authority": {"attacker": deepcopy(attacker_critical), "target": deepcopy(target_critical)},
         "capability_resolution": deepcopy(capability),
