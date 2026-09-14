@@ -1514,6 +1514,29 @@ def _invalidate_current_crit_volatiles(pokemon):
         pokemon.pop("current_crit_volatiles_provenance", None)
 
 
+def _retire_outgoing_active_transient_state(pokemon):
+    """Retire facts which only describe a Pokemon while it is active.
+
+    A switch does not establish fresh combat observations for the returning
+    Pokemon.  Stages have a reducer-owned neutral reset; the other current
+    observations must become unknown rather than retaining their old active
+    provenance or guessing a restored base value.
+    """
+    if not isinstance(pokemon, dict):
+        return
+    pokemon["stat_stages"] = {
+        stat: 0
+        for stat in (
+            "attack", "defense", "special-attack", "special-defense",
+            "speed", "accuracy", "evasion",
+        )
+    }
+    pokemon.pop("stat_stages_provenance", None)
+    for field in ("current_type", "current_ability", "healing_prevented_status"):
+        pokemon[field] = make_unknown_battle_fact()
+        pokemon.pop(f"{field}_provenance", None)
+
+
 def _apply_leftovers_end_of_turn_recovery(state, event):
     """Apply only exact held Leftovers for the living active owner at this phase."""
     results = state.setdefault("leftovers_end_of_turn_context", [])
@@ -2334,6 +2357,7 @@ def _switch(state, event):
     side["active_slot_index"] = in_slot; _mark(side, "active_slot_index", event)
     outgoing = roster.get(out_slot, roster.get(str(out_slot))) if isinstance(roster, dict) else None
     if isinstance(outgoing, dict):
+        _retire_outgoing_active_transient_state(outgoing)
         outgoing["toxic_progression"] = make_unknown_battle_fact()
         outgoing.pop("champions_yawn_drowsiness", None)
         _invalidate_current_crit_volatiles(outgoing)
