@@ -120,18 +120,25 @@ def normalize_champions_status_gated_pair(pair):
     from llm.advisor_reducer_state_model import state_fingerprint
     from llm.advisor_ability_item_steal_ledger_validation import validate_ability_item_steal_leaf
     try:
-        paths = pair["terminal_paths"]
-        if pair.get("status") != "evaluable" or pair.get("schema_version") != SCHEMA or not paths: raise ValueError()
+        if pair.get("status") != "evaluable" or pair.get("schema_version") != SCHEMA or not pair.get("terminal_paths"): raise ValueError()
+        # Replay remains the authentication boundary: a forged or inconsistent
+        # pair must compare unequal to the one canonical result produced from
+        # its frozen request.  Reuse that freshly detached canonical result
+        # below instead of deep-copying every large terminal branch again.
+        from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
+        canonical_pair = materialize_immediate_move_vs_move_action_pair(**pair["validation_request"])
+        if canonical_pair != pair: raise ValueError()
+        paths = canonical_pair["terminal_paths"]
         ids = set()
         for path in paths:
             if path["path_id"] in ids or len(path["actions"]) != 2: raise ValueError()
             ids.add(path["path_id"])
             weight = fraction(path["order_probability"])
-            expected_actors = (pair["own_actor"], pair["opponent_actor"]) if path["order"] == "own_first" else (pair["opponent_actor"], pair["own_actor"])
+            expected_actors = (canonical_pair["own_actor"], canonical_pair["opponent_actor"]) if path["order"] == "own_first" else (canonical_pair["opponent_actor"], canonical_pair["own_actor"])
             history = []
             for index, event in enumerate(path["actions"]):
                 if event["actor"] != expected_actors[index]: raise ValueError()
-                expected_action = pair["own_action_id"] if event["actor"] == pair["own_actor"] else pair["opponent_action_id"]
+                expected_action = canonical_pair["own_action_id"] if event["actor"] == canonical_pair["own_actor"] else canonical_pair["opponent_action_id"]
                 if event["action_id"] != expected_action: raise ValueError()
                 if event["state"] == "cancelled_due_to_faint":
                     if "gate" in event or "attack_leaf" in event or index != 1 or 0 not in path["final_hp"].values(): raise ValueError()
@@ -145,19 +152,11 @@ def normalize_champions_status_gated_pair(pair):
                     continue
                 gate, branch = event["gate"], event["branch"]
                 if not validate_status_gate(gate) or branch not in gate["branches"] or gate["actor"] != event["actor"] or gate["action_id"] != event["action_id"] or gate["path"] != tuple(history): raise ValueError()
-                if gate["session_id"] != pair["session_id"] or gate["action_order"] != {"order": path["order"], "authority": pair["action_order"]}: raise ValueError()
+                if gate["session_id"] != canonical_pair["session_id"] or gate["action_order"] != {"order": path["order"], "authority": canonical_pair["action_order"]}: raise ValueError()
                 if state_fingerprint(event["detached_before_state"]) != gate["source_runtime_fingerprint"]: raise ValueError()
-                if index == 0 and gate["source_runtime_fingerprint"] != pair["source_runtime_fingerprint"]: raise ValueError()
-                before = deepcopy(event["detached_before_state"])
+                if index == 0 and gate["source_runtime_fingerprint"] != canonical_pair["source_runtime_fingerprint"]: raise ValueError()
                 actor = gate["actor"]
-                raw = before[f"{actor['side']}_side"]["pokemon"][actor["slot_index"]]
-                if gate["condition"] in {"sleep", "freeze"}:
-                    if raw.get("champions_status_progression") != gate["progression"]: raise ValueError()
-                    raw["condition"] = branch["condition_after"]
-                    raw["champions_status_progression"] = deepcopy(branch["progression_after"])
-                    if branch["condition_after"] == "none": raw["condition_provenance"] = {**raw["condition_provenance"], "condition": "none", "hypothetical_provenance": "champions_status_gate_clear_v1"}
-                for owner in expected_actors: before[f"{owner['side']}_side"]["pokemon"][owner["slot_index"]]["detached_champions_status_gate_view"] = True
-                if before != event["detached_after_state"] or event["condition_after"] != branch["condition_after"] or event["condition_before"] != gate["condition"] or event["state"] != branch["kind"]: raise ValueError()
+                if event["condition_after"] != branch["condition_after"] or event["condition_before"] != gate["condition"] or event["state"] != branch["kind"]: raise ValueError()
                 weight *= fraction(branch["probability"]) * fraction(event["execution_probability"])
                 leaf = event.get("attack_leaf")
                 selected = event.get("selected_action_execution")
@@ -166,19 +165,14 @@ def normalize_champions_status_gated_pair(pair):
                     selected_path = event.get("selected_action_path")
                     if not isinstance(selected_path, Mapping) or selected_path.get("probability") is None: raise ValueError()
                     if isinstance(leaf, Mapping):
-                        if leaf["provenance"]["attacker"] != actor or leaf["provenance"]["move_id"] != gate["move_id"] or leaf["provenance"]["source_runtime_fingerprint"] != state_fingerprint(before) or validate_ability_item_steal_leaf(leaf) is not None: raise ValueError()
+                        if leaf["provenance"]["attacker"] != actor or leaf["provenance"]["move_id"] != gate["move_id"] or validate_ability_item_steal_leaf(leaf) is not None: raise ValueError()
                     weight *= fraction(selected_path["probability"])
                 elif leaf is not None or selected is not None: raise ValueError()
                 history.append(branch["branch_id"])
             if weight != fraction(path["probability"]): raise ValueError()
-        if sum((fraction(row["probability"]) for row in paths), Fraction()) != 1 or pair["terminal_probability_mass"] != fd(Fraction(1)): raise ValueError()
-        # Canonical replay binds order weights, both detached states, HP/items,
-        # ability evidence, attack leaves and subsequent opportunity to one
-        # frozen request. Internal agreement alone cannot authenticate a path.
-        from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
-        if materialize_immediate_move_vs_move_action_pair(**pair["validation_request"]) != pair: raise ValueError()
+        if sum((fraction(row["probability"]) for row in paths), Fraction()) != 1 or canonical_pair["terminal_probability_mass"] != fd(Fraction(1)): raise ValueError()
         from llm.advisor_exact_immediate_action_pair_outcome_ledger import _base, _final
-        base = _base(pair)
+        base = _base(canonical_pair)
         if base is None: raise ValueError()
         leaves = []
         for path in paths:
@@ -187,11 +181,11 @@ def normalize_champions_status_gated_pair(pair):
             if isinstance(final, str): raise ValueError()
             final.update(own_final_hp=path["final_hp"]["self"], opponent_final_hp=path["final_hp"]["opponent"],
                          own_fainted=path["final_hp"]["self"] == 0, opponent_fainted=path["final_hp"]["opponent"] == 0)
-            leaves.append({"pair_leaf_id": path["path_id"], "action_order": path["order"], "probability": deepcopy(path["probability"]),
-                "first_action": deepcopy(path["actions"][0]), "second_action": deepcopy(path["actions"][1]),
-                "final_consequences": final, "source_pair_branch": deepcopy(path)})
+            leaves.append({"pair_leaf_id": path["path_id"], "action_order": path["order"], "probability": path["probability"],
+                "first_action": path["actions"][0], "second_action": path["actions"][1],
+                "final_consequences": final, "source_pair_branch": path})
         return {"status": "evaluable", "schema_version": "exact-immediate-action-pair-outcome-ledger-v1", "horizon": "immediate_action_pair",
                 **base, "terminal_leaves": tuple(leaves), "aggregation": "none_preserve_pair_branch_and_roll_identity",
-                "champions_status_gated_pair": deepcopy(pair), "terminal_probability_mass": fd(Fraction(1)), "provenance": "validated_champions_status_gated_pair_v1"}
+                "champions_status_gated_pair": canonical_pair, "terminal_probability_mass": fd(Fraction(1)), "provenance": "validated_champions_status_gated_pair_v1"}
     except (KeyError, TypeError, ValueError, ZeroDivisionError, AttributeError, IndexError):
         return {"status": "rejected", "reason": "champions_status_pair_provenance_invalid"}

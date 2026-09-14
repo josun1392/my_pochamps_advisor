@@ -94,14 +94,15 @@ def normalize_champions_status_confusion_gated_pair(pair):
     try:
         if pair.get("status")!="evaluable" or pair.get("schema_version")!=SCHEMA or sum((fraction(x["probability"]) for x in pair["terminal_paths"]),Fraction())!=1: raise ValueError()
         from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
-        if materialize_immediate_move_vs_move_action_pair(**pair["validation_request"]) != pair: raise ValueError()
+        canonical_pair=materialize_immediate_move_vs_move_action_pair(**pair["validation_request"])
+        if canonical_pair != pair: raise ValueError()
         from llm.advisor_exact_immediate_action_pair_outcome_ledger import _base
-        base=_base(pair)
+        base=_base(canonical_pair)
         if base is None: raise ValueError()
         leaves=[]
-        for path in pair["terminal_paths"]:
+        for path in canonical_pair["terminal_paths"]:
             self_hits=[event for event in path["actions"] if event.get("state")=="confusion_self_hit"]
             if any("attack_leaf" in event or event["self_hit"]["critical"] or event["self_hit"]["stab"] or event["self_hit"]["contact"] for event in self_hits): raise ValueError()
-            leaves.append({"pair_leaf_id":path["path_id"],"action_order":path["order"],"probability":deepcopy(path["probability"]),"first_action":deepcopy(path["actions"][0]),"second_action":deepcopy(path["actions"][-1]),"final_consequences":{"own_final_hp":path["final_hp"]["self"],"opponent_final_hp":path["final_hp"]["opponent"],"own_fainted":path["final_hp"]["self"]==0,"opponent_fainted":path["final_hp"]["opponent"]==0},"source_pair_branch":deepcopy(path)})
-        return {"status":"evaluable","schema_version":"exact-immediate-action-pair-outcome-ledger-v1","horizon":"immediate_action_pair",**base,"terminal_leaves":tuple(leaves),"terminal_probability_mass":fd(Fraction(1)),"champions_status_confusion_gated_pair":deepcopy(pair),"provenance":"validated_champions_status_confusion_pair_v1"}
+            leaves.append({"pair_leaf_id":path["path_id"],"action_order":path["order"],"probability":path["probability"],"first_action":path["actions"][0],"second_action":path["actions"][-1],"final_consequences":{"own_final_hp":path["final_hp"]["self"],"opponent_final_hp":path["final_hp"]["opponent"],"own_fainted":path["final_hp"]["self"]==0,"opponent_fainted":path["final_hp"]["opponent"]==0},"source_pair_branch":path})
+        return {"status":"evaluable","schema_version":"exact-immediate-action-pair-outcome-ledger-v1","horizon":"immediate_action_pair",**base,"terminal_leaves":tuple(leaves),"terminal_probability_mass":fd(Fraction(1)),"champions_status_confusion_gated_pair":canonical_pair,"provenance":"validated_champions_status_confusion_pair_v1"}
     except (KeyError,TypeError,ValueError): return {"status":"rejected","reason":"champions_status_confusion_pair_provenance_invalid"}
