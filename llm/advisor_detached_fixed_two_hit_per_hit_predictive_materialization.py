@@ -10,6 +10,10 @@ from llm.advisor_predictive_damage_roll_uncertainty import project_predictive_da
 from llm.advisor_predictive_normal_formula_post_hit import compose_predictive_normal_formula_post_hit
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import SCHEMA_VERSION as EXECUTION_SCHEMA
+from llm.advisor_authenticated_predictive_runtime_view import (
+    fixed_two_hit_second_hit_view_inputs,
+    freeze_fixed_two_hit_second_hit_runtime_view,
+)
 from llm.advisor_runtime_d0_contact_reactive_damage_authority import (
     freeze_runtime_d0_contact_reactive_damage_authority,
     materialize_detached_contact_reactive_damage,
@@ -87,10 +91,12 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
             attacker_condition_authority=_guts_path_condition_authority(strategy_d0, base, base["attacker_condition"]),
             analytic_action_order_authority=_rebind_analytic(analytic_action_order_authority, strategy_d0, base),
             stakeout_switch_authority=_rebind_stakeout(stakeout_switch_authority, strategy_d0, base),
+            capture_context=True,
         )
         if isinstance(first, Mapping):
             return _result(first["status"], first["reason"], base)
-        for first_event in first:
+        first_events, first_context = first
+        for first_event in first_events:
             first_event = deepcopy(dict(first_event)); first_event["hit_index"] = 1
             first_probability = hit_probability * first_event["probability"]
             first_reactive = _apply_reactive(
@@ -122,29 +128,50 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
                             return _result(leaf.get("status", "rejected"), leaf.get("reason", "fixed_two_hit_life_orb_recoil_unavailable"), base)
                     leaves.append(leaf)
                     continue
-                second_d0, second_snapshot = _detached_target_hp_view(
-                    runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"],
-                    target=base["target"], target_hp=first_event["post_hp"],
+                view = freeze_fixed_two_hit_second_hit_runtime_view(
+                    strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+                    attacker=base["attacker"], target=base["target"], first_hit=first_event,
+                    normal_formula_input=first_context["normal"], native_damage_context=first_context["native"],
+                    attacker_hp_before=base["own_current_hp"], attacker_hp_after=first_attacker_hp,
+                    condition_before=base["attacker_condition"], condition_after=first_condition,
                     focus_sash_consumed=first_event["focus_sash_applied"],
                 )
-                if second_d0 is None:
-                    return _result("rejected", "fixed_two_hit_intermediate_target_state_invalid", base)
                 second_sturdy = sturdy_survival_authority if (
                     first_event["post_hp"] == first_event["target_max_hp"] and not first_event["sturdy_applied"]
                 ) else None
                 second_focus_sash = focus_sash_survival_authority if (
                     first_event["post_hp"] == first_event["target_max_hp"] and not first_event["focus_sash_applied"]
                 ) else None
-                second = _hit_events(
-                    strategy_d0=second_d0, runtime_snapshot=second_snapshot, base=base,
-                    single_metadata=single, sturdy_survival_authority=second_sturdy,
-                    focus_sash_survival_authority=second_focus_sash, endure_turn_context=endure_turn_context,
-                    attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], first_attacker_hp),
-                    low_hp_source_hit={"hit_index": 2, "path_id": "fixed-two-hit:hit:2"},
-                    attacker_condition_authority=_guts_path_condition_authority(second_d0, base, first_condition),
-                    analytic_action_order_authority=_rebind_analytic(analytic_action_order_authority, second_d0, base),
-                    stakeout_switch_authority=_rebind_stakeout(stakeout_switch_authority, second_d0, base),
-                )
+                if view.get("status") == "resolved" and first_event["post_hp"] < first_event["target_max_hp"]:
+                    second = _hit_events(
+                        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
+                        single_metadata=single, sturdy_survival_authority=second_sturdy,
+                        focus_sash_survival_authority=second_focus_sash, endure_turn_context=endure_turn_context,
+                        attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], first_attacker_hp),
+                        low_hp_source_hit={"hit_index": 2, "path_id": "fixed-two-hit:hit:2"},
+                        attacker_condition_authority=_guts_path_condition_authority(strategy_d0, base, first_condition),
+                        analytic_action_order_authority=_rebind_analytic(analytic_action_order_authority, strategy_d0, base),
+                        stakeout_switch_authority=_rebind_stakeout(stakeout_switch_authority, strategy_d0, base),
+                        runtime_view=view,
+                    )
+                else:
+                    second_d0, second_snapshot = _detached_target_hp_view(
+                        runtime_snapshot=runtime_snapshot, decision_owner=base["attacker"],
+                        target=base["target"], target_hp=first_event["post_hp"],
+                        focus_sash_consumed=first_event["focus_sash_applied"],
+                    )
+                    if second_d0 is None:
+                        return _result("rejected", "fixed_two_hit_intermediate_target_state_invalid", base)
+                    second = _hit_events(
+                        strategy_d0=second_d0, runtime_snapshot=second_snapshot, base=base,
+                        single_metadata=single, sturdy_survival_authority=second_sturdy,
+                        focus_sash_survival_authority=second_focus_sash, endure_turn_context=endure_turn_context,
+                        attacker_hp_authority=_path_attacker_hp_authority(runtime_snapshot, base["attacker"], first_attacker_hp),
+                        low_hp_source_hit={"hit_index": 2, "path_id": "fixed-two-hit:hit:2"},
+                        attacker_condition_authority=_guts_path_condition_authority(second_d0, base, first_condition),
+                        analytic_action_order_authority=_rebind_analytic(analytic_action_order_authority, second_d0, base),
+                        stakeout_switch_authority=_rebind_stakeout(stakeout_switch_authority, second_d0, base),
+                    )
                 if isinstance(second, Mapping):
                     return _result(second["status"], second["reason"], base)
                 for second_event in second:
@@ -195,29 +222,51 @@ def materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
     }
 
 
-def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None, attacker_condition_authority: Mapping[str, Any] | None = None, endure_turn_context: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | dict[str, str]:
+def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], single_metadata: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None, focus_sash_survival_authority: Mapping[str, Any] | None = None, attacker_hp_authority: Mapping[str, Any] | None = None, low_hp_source_hit: Mapping[str, Any] | None = None, attacker_condition_authority: Mapping[str, Any] | None = None, endure_turn_context: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, runtime_view: Mapping[str, Any] | None = None, capture_context: bool = False) -> list[dict[str, Any]] | tuple[list[dict[str, Any]], dict[str, Any]] | dict[str, str]:
     if attacker_hp_authority is None:
         attacker_hp_authority = _path_attacker_hp_authority(runtime_snapshot, base["attacker"], base["own_current_hp"])
     if attacker_hp_authority is None:
         return {"status": "incomplete", "reason": "per_hit_attacker_hp_authority_unavailable"}
-    native = build_runtime_d0_native_damage_context(
-        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
-        attacker=base["attacker"], target=base["target"], move_metadata=single_metadata,
-        attacker_hp_authority=attacker_hp_authority, low_hp_source_hit=low_hp_source_hit,
-        attacker_condition_authority=attacker_condition_authority,
-        analytic_action_order_authority=analytic_action_order_authority,
-        stakeout_switch_authority=stakeout_switch_authority,
-    )
-    normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"], move_metadata=single_metadata, native_damage_context=native)
+    branch_state = strategy_d0["strategy_state"]
+    if runtime_view is None:
+        native = build_runtime_d0_native_damage_context(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+            attacker=base["attacker"], target=base["target"], move_metadata=single_metadata,
+            attacker_hp_authority=attacker_hp_authority, low_hp_source_hit=low_hp_source_hit,
+            attacker_condition_authority=attacker_condition_authority,
+            analytic_action_order_authority=analytic_action_order_authority,
+            stakeout_switch_authority=stakeout_switch_authority,
+        )
+        normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=base["attacker"], target=base["target"], move_metadata=single_metadata, native_damage_context=native)
+    else:
+        view_inputs = fixed_two_hit_second_hit_view_inputs(
+            view=runtime_view, strategy_d0=strategy_d0,
+            action={"action_id": base["action_id"], "identity": base["move_id"]},
+            attacker=base["attacker"], target=base["target"],
+        )
+        if view_inputs.get("status") != "resolved":
+            return {"status": view_inputs.get("status", "rejected"), "reason": view_inputs.get("reason", "fixed_two_hit_runtime_view_unavailable")}
+        branch_state = view_inputs["branch_state"]
+        native = view_inputs["native_damage_context"]
+        normal = {
+            "status": "resolved", "snapshot_damage_input": view_inputs["snapshot_damage_input"],
+            "stat_provenance": view_inputs["stat_provenance"], "trusted_level": view_inputs["trusted_level"],
+            "post_hit_authority": view_inputs["post_hit_authority"],
+        }
     if normal.get("status") != "resolved":
         return {"status": normal.get("status", "rejected"), "reason": normal.get("reason", "fixed_two_hit_normal_formula_input_unavailable")}
     paired = materialize_predictive_critical_damage_contexts(
-        branch_state=strategy_d0["strategy_state"], decision_owner=base["attacker"], target_owner=base["target"],
+        branch_state=branch_state, decision_owner=base["attacker"], target_owner=base["target"],
         snapshot_damage_input=normal["snapshot_damage_input"], stat_provenance=normal["stat_provenance"],
         trusted_level=normal["trusted_level"], source_runtime_fingerprint=strategy_d0["source_runtime_fingerprint"],
     )
     if paired.get("status") != "resolved":
         return {"status": paired.get("status", "rejected"), "reason": paired.get("reason", "fixed_two_hit_critical_damage_context_unavailable")}
+    if runtime_view is not None:
+        rebound_native = paired.get("non_critical_context", {}).get("native_evaluator_result")
+        if not isinstance(rebound_native, Mapping):
+            return {"status": "rejected", "reason": "fixed_two_hit_runtime_view_native_evidence_missing"}
+        native = {"native_evaluation": rebound_native}
     low_hp = native.get("native_evaluation", {}).get("low_hp_type_ability_evidence") if isinstance(native.get("native_evaluation"), Mapping) else None
     critical = base["per_hit_critical_execution"]["per_hit_critical_probability"]
     try:
@@ -250,7 +299,7 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             actual = post_row["actual_damage"]
             if not isinstance(before, int) or isinstance(before, bool) or before < 0 or actual < 0 or actual > before:
                 return {"status": "rejected", "reason": "fixed_two_hit_target_hp_transition_invalid"}
-            target_max_hp = strategy_d0.get("strategy_state", {}).get("active", {}).get(base["target"]["side"], {}).get("max_hp")
+            target_max_hp = branch_state.get("active", {}).get(base["target"]["side"], {}).get("max_hp")
             if not isinstance(target_max_hp, int) or isinstance(target_max_hp, bool) or target_max_hp <= 0 or before > target_max_hp:
                 return {"status": "rejected", "reason": "fixed_two_hit_target_max_hp_authority_invalid"}
             sturdy = post_row.get("sturdy_survival")
@@ -272,6 +321,8 @@ def _hit_events(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str
             })
     if not events or sum((row["probability"] for row in events), Fraction()) != Fraction(1, 1):
         return {"status": "rejected", "reason": "fixed_two_hit_per_hit_probability_mass_invalid"}
+    if capture_context:
+        return events, {"normal": normal, "native": native}
     return events
 
 
