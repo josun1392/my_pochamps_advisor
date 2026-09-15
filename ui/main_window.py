@@ -54,6 +54,7 @@ from llm.advisor_client import format_recommendation_presentation_text, run_stru
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
+from llm.advisor_action_restriction_observation import admit_action_restriction_observation
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_runtime_state_projection import build_runtime_advice_state_projection
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
@@ -944,6 +945,9 @@ class MainWindow(QMainWindow):
         self._confirm_previous_action_action = QAction("Confirm Previous Action", self)
         self._confirm_previous_action_action.triggered.connect(self._open_previous_action_confirmation)
         battle_menu.addAction(self._confirm_previous_action_action)
+        self._confirm_action_restriction_action = QAction("Confirm Action Restriction", self)
+        self._confirm_action_restriction_action.triggered.connect(self._open_action_restriction_confirmation)
+        battle_menu.addAction(self._confirm_action_restriction_action)
         self._confirm_opponent_response_set_action = QAction("Confirm Current Opponent Response Set", self)
         self._confirm_opponent_response_set_action.triggered.connect(self._open_current_opponent_response_set_confirmation)
         battle_menu.addAction(self._confirm_opponent_response_set_action)
@@ -962,7 +966,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_confirm_pokemon_switch_action", "_confirm_previous_action_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_confirm_pokemon_switch_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -1020,6 +1024,20 @@ class MainWindow(QMainWindow):
         if not accepted: return
         confirmed = self._confirm_previous_action_history(side=side, execution_move_id=executed.strip(), selected_move_id=(selected.strip() or executed.strip()), result_class=None if result == "unknown / not confirmed" else result)
         self.statusBar().showMessage("Previous action applied" if confirmed.get("status") == "resolved" else "Previous action confirmation failed")
+
+    @Slot()
+    def _open_action_restriction_confirmation(self) -> None:
+        side, ok = QInputDialog.getItem(self, "Confirm Action Restriction", "Target side", ["self", "opponent"], 0, False)
+        if not ok: return
+        restriction, ok = QInputDialog.getItem(self, "Confirm Action Restriction", "Restriction", ["taunt", "encore", "disable"], 0, False)
+        if not ok: return
+        operation, ok = QInputDialog.getItem(self, "Confirm Action Restriction", "Operation", ["applied", "completed"], 0, False)
+        if not ok: return
+        action_id = None
+        if operation == "applied":
+            action_id = f"{MainWindow._active_session_id(self)}:restriction-{restriction}-{getattr(getattr(self, '_observation_runtime_session_manager', None), 'last_allocated_sequence', 0) + 1}"
+        result = self._confirm_action_restriction(side=side, restriction=restriction, operation=operation, source_action_id=action_id)
+        self.statusBar().showMessage("Action restriction applied" if result.get("status") == "resolved" else "Action restriction confirmation failed")
 
     @Slot()
     def _open_current_combined_opponent_response_universe_confirmation(self) -> None:
@@ -1365,6 +1383,9 @@ class MainWindow(QMainWindow):
             result_class=result_class,
             turn_number=getattr(self, "_current_trusted_turn_number", None),
         )
+
+    def _confirm_action_restriction(self, *, side: str, restriction: str, operation: str, source_action_id: str | None) -> dict:
+        return admit_action_restriction_observation(runtime_session_manager=getattr(self, "_observation_runtime_session_manager", None), captured_session_id=MainWindow._active_session_id(self), side=side, restriction=restriction, operation=operation, source_action_id=source_action_id, turn_number=getattr(self, "_current_trusted_turn_number", None))
 
     def _begin_new_battle_session(self) -> str | None:
         """Publish a validated core bundle before clearing battle-local UI state."""
