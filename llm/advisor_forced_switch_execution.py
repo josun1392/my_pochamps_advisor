@@ -23,7 +23,7 @@ _CONTEXTS = {
 def execute_allowed_forced_switch(
     *, source_branch: Mapping[str, Any], source_branch_fingerprint: str,
     forced_switch_request: Mapping[str, Any], cancellation_decision: Mapping[str, Any],
-    replacement_authority: Mapping[str, Any],
+    replacement_authority: Mapping[str, Any], defer_abilities: bool = False,
 ) -> dict[str, Any]:
     """Execute one allowed F0 replacement through the shared entry lifecycle."""
     prepared = materialize_allowed_forced_replacement(
@@ -34,6 +34,7 @@ def execute_allowed_forced_switch(
     if prepared.get("status") != "resolved": return prepared
     entry = execute_materialized_switch_entry(
         materialized_switch=prepared, entry_authority=replacement_authority["entry_authority"],
+        defer_abilities=defer_abilities,
     )
     if entry.get("status") == "unsupported" and entry.get("reason") == "replacement_required_after_entry_hazard_ko":
         return {**entry, "source_branch_fingerprint": source_branch_fingerprint, "forced_switch_request": deepcopy(dict(forced_switch_request)), "replacement_authority": deepcopy(dict(replacement_authority)), "atomic_execution": True, "boundary": {"phase": "forced_switch_terminal_entry"}}

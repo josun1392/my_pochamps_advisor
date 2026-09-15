@@ -53,6 +53,7 @@ from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYL
 from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
+from llm.advisor_production_forced_switch_integration import admit_forced_switch_phazing
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
@@ -942,6 +943,9 @@ class MainWindow(QMainWindow):
         self._confirm_pokemon_switch_action = QAction("Confirm Pokémon Switch", self)
         self._confirm_pokemon_switch_action.triggered.connect(self._open_pokemon_switch_confirmation)
         battle_menu.addAction(self._confirm_pokemon_switch_action)
+        self._confirm_forced_switch_action = QAction("Confirm Forced Switch / Phazing", self)
+        self._confirm_forced_switch_action.triggered.connect(self._open_forced_switch_confirmation)
+        battle_menu.addAction(self._confirm_forced_switch_action)
         self._confirm_previous_action_action = QAction("Confirm Previous Action", self)
         self._confirm_previous_action_action.triggered.connect(self._open_previous_action_confirmation)
         battle_menu.addAction(self._confirm_previous_action_action)
@@ -966,7 +970,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_confirm_pokemon_switch_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -1010,6 +1014,31 @@ class MainWindow(QMainWindow):
             return
         result = self._confirm_pokemon_switch(side=side, switch_in_slot_index=slot_index, switch_in_pokemon_id=pokemon_id)
         self.statusBar().showMessage("Pokémon switch applied" if result.get("status") == "resolved" else "Switch confirmation failed: exact runtime confirmation was rejected")
+
+    @Slot()
+    def _open_forced_switch_confirmation(self) -> None:
+        """Explicit-only phazing admission; ordinary UI selection never reaches it."""
+        manager = getattr(self, "_observation_runtime_session_manager", None); session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            self.statusBar().showMessage("Forced switch confirmation failed: active session unavailable"); return
+        side, ok = QInputDialog.getItem(self, "Confirm Forced Switch / Phazing", "Target side", ["self", "opponent"], 0, False)
+        if not ok: return
+        move_id, ok = QInputDialog.getItem(self, "Confirm Forced Switch / Phazing", "Observed move", ["roar", "whirlwind", "dragon-tail", "circle-throw"], 0, False)
+        if not ok: return
+        snapshot = manager.capture_runtime_state_snapshot(session_id); roster = snapshot.get("state", {}).get(f"{side}_side", {}).get("pokemon", {}) if snapshot.get("status") == "runtime_snapshot_ready" else {}
+        active = snapshot.get("state", {}).get(f"{side}_side", {}).get("active_slot_index") if snapshot.get("status") == "runtime_snapshot_ready" else None
+        choices = [(slot, row.get("pokemon_id")) for slot, row in roster.items() if isinstance(slot, int) and slot != active and isinstance(row, dict) and isinstance(row.get("pokemon_id"), str) and row.get("fainted") is not True]
+        if not choices: self.statusBar().showMessage("Forced switch confirmation failed: no exact incoming roster identity"); return
+        labels = [f"{slot}: {pokemon}" for slot, pokemon in choices]; label, ok = QInputDialog.getItem(self, "Confirm Forced Switch / Phazing", "Actual incoming Pokémon", labels, 0, False)
+        if not ok: return
+        hp_after = None
+        if move_id in {"dragon-tail", "circle-throw"}:
+            hp_after, ok = QInputDialog.getInt(self, "Confirm Forced Switch / Phazing", "Observed target HP after damage", 0, 0)
+            if not ok: return
+        incoming = choices[labels.index(label)][1]
+        if QMessageBox.question(self, "Confirm Forced Switch / Phazing", f"Confirm {move_id} forcing {side} to {incoming}?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes: return
+        result = admit_forced_switch_phazing(runtime_session_manager=manager, captured_session_id=session_id, target_side=side, move_id=move_id, incoming_pokemon_id=incoming, turn_number=getattr(self, "_current_trusted_turn_number", None), hp_after=hp_after)
+        self.statusBar().showMessage("Forced switch applied" if result.get("status") == "resolved" else "Forced switch confirmation failed or is incomplete")
 
     @Slot()
     def _open_previous_action_confirmation(self) -> None:

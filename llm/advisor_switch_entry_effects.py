@@ -88,16 +88,16 @@ def evaluate_toxic_spikes_entry(*, hazards: Mapping[str, Any], target: Mapping[s
 
 def evaluate_sticky_web_entry(*, hazards: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
     """Resolve only the exact Sticky Web Speed-stage consequence."""
-    item = _authority(target, "item_authority")
-    if _known_value(item) == "heavy-duty-boots":
-        return _complete("prevented_by_heavy_duty_boots")
-    if not _known_authority(item):
-        return _incomplete("item_unknown")
     present = _hazard_value(hazards, target.get("side"), "sticky_web", {"present", "absent"})
     if present is None:
         return _incomplete("sticky_web_unknown")
     if present == "absent":
         return _complete("absent")
+    item = _authority(target, "item_authority")
+    if _known_value(item) == "heavy-duty-boots":
+        return _complete("prevented_by_heavy_duty_boots")
+    if not _known_authority(item):
+        return _incomplete("item_unknown")
     grounded = _grounded(target)
     if grounded is None:
         return _incomplete("prospective_groundedness_unknown")

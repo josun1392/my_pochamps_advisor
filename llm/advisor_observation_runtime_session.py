@@ -14,7 +14,7 @@ class BattleObservationRuntimeSession:
         self._collection = collection
         self._runtime = runtime
         self._commands = commands
-        self._last_allocated_sequence = 0
+        self._last_allocated_sequence = initial_sequence if isinstance(initial_sequence := runtime.read_state().get("state", {}).get("last_applied_observation_sequence"), int) and not isinstance(initial_sequence, bool) else 0
 
     @classmethod
     def create(cls, session_id, initial_state):

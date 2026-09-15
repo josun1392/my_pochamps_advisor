@@ -21,14 +21,15 @@ def evaluate_entry_hazards(*, hazards: Mapping[str, Any], target: Mapping[str, A
     ability = target.get("ability_authority") if isinstance(target, Mapping) else None
     if _known_value(item) == "heavy-duty-boots" or _known_value(ability) == "magic-guard":
         return _complete(damage=0, hp=hp, reason="entry_damage_exception")
+    rock, spikes = _hazard_values(hazards, target_side=target.get("side", "self") if isinstance(target, Mapping) else None)
+    if rock is None or spikes is None:
+        return _incomplete("hazard_unknown")
+    if rock == "absent" and spikes == 0:
+        return _complete(damage=0, hp=hp, reason="hazards_absent")
     if not _known_authority(item) or not _known_authority(ability):
         return _incomplete("entry_modifier_unknown")
     if not _valid_hp(hp):
         return _incomplete("hp_unknown")
-
-    rock, spikes = _hazard_values(hazards, target_side=target.get("side", "self") if isinstance(target, Mapping) else None)
-    if rock is None or spikes is None:
-        return _incomplete("hazard_unknown")
 
     damage = 0
     if rock == "present":
