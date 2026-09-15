@@ -53,6 +53,7 @@ from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYL
 from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
+from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_runtime_state_projection import build_runtime_advice_state_projection
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
@@ -940,6 +941,9 @@ class MainWindow(QMainWindow):
         self._confirm_pokemon_switch_action = QAction("Confirm Pokémon Switch", self)
         self._confirm_pokemon_switch_action.triggered.connect(self._open_pokemon_switch_confirmation)
         battle_menu.addAction(self._confirm_pokemon_switch_action)
+        self._confirm_previous_action_action = QAction("Confirm Previous Action", self)
+        self._confirm_previous_action_action.triggered.connect(self._open_previous_action_confirmation)
+        battle_menu.addAction(self._confirm_previous_action_action)
         self._confirm_opponent_response_set_action = QAction("Confirm Current Opponent Response Set", self)
         self._confirm_opponent_response_set_action.triggered.connect(self._open_current_opponent_response_set_confirmation)
         battle_menu.addAction(self._confirm_opponent_response_set_action)
@@ -958,7 +962,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_confirm_pokemon_switch_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_confirm_pokemon_switch_action", "_confirm_previous_action_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -1002,6 +1006,20 @@ class MainWindow(QMainWindow):
             return
         result = self._confirm_pokemon_switch(side=side, switch_in_slot_index=slot_index, switch_in_pokemon_id=pokemon_id)
         self.statusBar().showMessage("Pokémon switch applied" if result.get("status") == "resolved" else "Switch confirmation failed: exact runtime confirmation was rejected")
+
+    @Slot()
+    def _open_previous_action_confirmation(self) -> None:
+        """Collect a real action only by explicit confirmation; slot selection is ignored."""
+        side, accepted = QInputDialog.getItem(self, "Confirm Previous Action", "Acting side", ["self", "opponent"], 0, False)
+        if not accepted: return
+        executed, accepted = QInputDialog.getText(self, "Confirm Previous Action", "Actual executed move id")
+        if not accepted: return
+        selected, accepted = QInputDialog.getText(self, "Confirm Previous Action", "Selected move id (blank = actual)", text=executed)
+        if not accepted: return
+        result, accepted = QInputDialog.getItem(self, "Confirm Previous Action", "Result", ["unknown / not confirmed", "accuracy_miss", "type_or_ability_immunity", "move_specific_failure", "full_paralysis", "flinch", "sleep", "freeze", "success", "protection_block", "recharge", "sky_drop"], 0, False)
+        if not accepted: return
+        confirmed = self._confirm_previous_action_history(side=side, execution_move_id=executed.strip(), selected_move_id=(selected.strip() or executed.strip()), result_class=None if result == "unknown / not confirmed" else result)
+        self.statusBar().showMessage("Previous action applied" if confirmed.get("status") == "resolved" else "Previous action confirmation failed")
 
     @Slot()
     def _open_current_combined_opponent_response_universe_confirmation(self) -> None:
@@ -1330,6 +1348,23 @@ class MainWindow(QMainWindow):
         except (AttributeError, RuntimeError):
             pass
         return result
+
+    def _confirm_previous_action_history(self, *, side: str, execution_move_id: str, selected_move_id: str, result_class: str | None) -> dict:
+        """Submit only an explicit real-action confirmation through the core runtime."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            return {"status": "rejected", "reason": "active_session_unavailable"}
+        return admit_previous_action_history_observation(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            side=side,
+            execution_move_id=execution_move_id,
+            selected_move_id=selected_move_id,
+            source_action_id=f"{session_id}:action-{manager.last_allocated_sequence + 1}",
+            result_class=result_class,
+            turn_number=getattr(self, "_current_trusted_turn_number", None),
+        )
 
     def _begin_new_battle_session(self) -> str | None:
         """Publish a validated core bundle before clearing battle-local UI state."""

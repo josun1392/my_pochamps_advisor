@@ -5,6 +5,8 @@ _EFFECTS = {"exact_hp_transition_observed":"apply_exact_hp_transition","exact_hp
 _EFFECTS["mat_block_active_entry_eligibility_observed"] = "set_mat_block_active_entry_eligibility"
 _EFFECTS["fake_out_active_entry_eligibility_observed"] = "set_fake_out_active_entry_eligibility"
 _EFFECTS["supreme_overlord_initial_active_observed"] = "initialize_supreme_overlord_active_entry"
+_EFFECTS["executed_move_observed"] = "record_executed_move"
+_EFFECTS["previous_action_result_observed"] = "record_previous_action_result"
 
 def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolver=None):
     """Pure, non-mutating future-reducer planning only."""
@@ -33,9 +35,28 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
         elif eligibility=="evidence_only": evidence.append(event)
         else: unsupported.append(event)
     accepted.sort(key=lambda e:(e["observation_sequence"],e["observation_id"]))
+    exact_executions = {}
+    verified = []
+    for event in accepted:
+        if event.get("event_kind") == "executed_move_observed":
+            key = (event.get("side"), event.get("slot_index"), event.get("pokemon_id"), event.get("payload", {}).get("source_action_id"), event.get("payload", {}).get("move_id"))
+            exact_executions[key] = event
+        elif event.get("event_kind") == "previous_action_result_observed":
+            payload = event.get("payload", {})
+            key = (event.get("side"), event.get("slot_index"), event.get("pokemon_id"), payload.get("previous_action_id"), payload.get("execution_move_id"))
+            prior = exact_executions.get(key)
+            if prior is None or prior.get("observation_sequence") >= event.get("observation_sequence"):
+                unsupported.append(event)
+                continue
+        verified.append(event)
+    accepted = verified
     steps=[{"observation_id":e["observation_id"],"observation_sequence":e["observation_sequence"],"event_kind":e.get("event_kind"),"turn_number":e.get("turn_number"),"source":e.get("source"),"trust":e.get("trust"),"scope":e.get("scope"),"eligibility":"candidate","planned_effect":_EFFECTS[e["event_kind"]], **({"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"canonical_move_id":canonical_moves.get(e["observation_id"])} if e.get("event_kind")=="used_move_observed" else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"hp_before":e.get("payload",{}).get("hp_before"),"hp_after":e.get("payload",{}).get("hp_after")} if e.get("event_kind") in {"exact_hp_transition_observed","exact_hp_recovery_observed"} else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"types":deepcopy(e.get("payload",{}).get("types"))} if e.get("event_kind")=="current_type_observed" else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"), **deepcopy(e.get("payload",{}))} if e.get("event_kind") in {"current_condition_observed","current_healing_prevented_observed","current_level_observed","current_final_combat_stat_observed","substitute_state_observed","same_turn_event_observed"} else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"condition":e.get("payload",{}).get("condition")} if e.get("event_kind")=="condition_applied_observed" else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"stat":e.get("payload",{}).get("stat"),"stage":e.get("payload",{}).get("stage")} if e.get("event_kind")=="stat_stage_observed" else {"side":e.get("side"), **deepcopy(e.get("payload",{}))} if e.get("event_kind")=="switch_hazards_observed" else {"side":e.get("side"),"tailwind_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="tailwind_side_condition_observed" else {"trick_room_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="trick_room_field_observed" else {"magic_room_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="magic_room_field_observed" else {})} for e in accepted]
     for step, event in zip(steps, accepted):
-        if event.get("event_kind") == "current_weather_observed":
+        if event.get("event_kind") == "executed_move_observed":
+            step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), move_id=event.get("payload", {}).get("move_id"), source_action_id=event.get("payload", {}).get("source_action_id"))
+        elif event.get("event_kind") == "previous_action_result_observed":
+            step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
+        elif event.get("event_kind") == "current_weather_observed":
             step["weather"] = deepcopy(event.get("payload", {}).get("weather"))
         elif event.get("event_kind") == "current_ability_observed":
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), ability=deepcopy(event.get("payload", {}).get("ability")))
