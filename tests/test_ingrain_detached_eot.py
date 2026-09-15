@@ -58,4 +58,7 @@ def test_cross_owner_ingrain_requires_trusted_order_and_manual_switch_does_not_t
     source = pre["next_state"]
     incoming = {"provenance": "identity_bound_incoming_current_state_v1", "owner": {"session_id": "leftovers-eot", "side": "self", "slot_index": 1, "pokemon_id": "incoming"}, "hp_authority": {"status": "known", "current_hp": 50, "maximum_hp": 100}, "fainted_authority": {"status": "known", "value": False}, "current_state": deepcopy(source["current_state"])}
     switched = materialize_incoming_active_branch(source_branch=source, source_branch_fingerprint=fingerprint_transition_preview_state(source), incoming_authority=incoming)
-    assert switched["status"] == "resolved" and "ingrain_persistent_effect_context" not in switched["next_state"]
+    assert switched["status"] == "resolved"
+    rows = switched["next_state"]["ingrain_persistent_effect_context"]["states"]
+    assert rows[0]["owner"] == incoming["owner"] and rows[0]["state"] == "known_inactive"
+    assert rows[1]["owner"] == _owner_id(source, "opponent") and rows[1]["state"] == "known_active"

@@ -122,4 +122,6 @@ def test_invalid_or_unproven_leech_seed_never_seeds_target_and_switch_clears_mov
         "current_state": deepcopy(source["current_state"]),
     }
     switched = materialize_incoming_active_branch(source_branch=resolved["next_state"], source_branch_fingerprint=resolved["resulting_branch_fingerprint"], incoming_authority=incoming)
-    assert switched["status"] == "resolved" and "leech_seed_persistent_effect_context" not in switched["next_state"]
+    assert switched["status"] == "resolved"
+    row = next(item for item in switched["next_state"]["leech_seed_persistent_effect_context"]["states"] if item["owner"] == incoming["owner"])
+    assert row["state"] == "known_inactive" and "source_slot" not in row

@@ -8,9 +8,15 @@ from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_substitute import rebind_substitute_after_switch
 from llm.advisor_bind_residual import rebind_bind_after_switch
 from llm.advisor_perish_song import rebind_perish_song_after_switch
+from llm.advisor_persistent_effect_authority import materialize_persistent_effect_authority
 
 
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
+_PERSISTENT_CONTEXTS = (
+    ("aqua_ring", "aqua_ring_persistent_effect_context", "detached-aqua-ring-persistent-effect-v1", "trusted_aqua_ring_persistent_effect_state"),
+    ("ingrain", "ingrain_persistent_effect_context", "detached-ingrain-persistent-effect-v1", "trusted_ingrain_persistent_effect_state"),
+    ("leech_seed", "leech_seed_persistent_effect_context", "detached-leech-seed-persistent-effect-v1", "trusted_leech_seed_persistent_effect_state"),
+)
 
 
 def materialize_incoming_active_branch(
@@ -66,6 +72,13 @@ def materialize_incoming_active_branch(
     rebind_substitute_after_switch(source_branch=source_branch, state=state, outgoing_owner=_owner_dict(outgoing), incoming_owner=owner, source_branch_fingerprint=source_branch_fingerprint)
     rebind_bind_after_switch(source_branch=source_branch, state=state, outgoing_owner=_owner_dict(outgoing), incoming_owner=owner, source_branch_fingerprint=source_branch_fingerprint)
     rebind_perish_song_after_switch(source_branch=source_branch, state=state, outgoing_owner=_owner_dict(outgoing), incoming_owner=owner, source_branch_fingerprint=source_branch_fingerprint)
+    persistent_error = _rebind_persistent_effects_after_switch(
+        source_branch=source_branch, state=state, outgoing_owner=_owner_dict(outgoing),
+        incoming_owner=owner, retained_owner=_owner_dict(retained),
+        source_branch_fingerprint=source_branch_fingerprint,
+    )
+    if persistent_error is not None:
+        return _result("rejected", persistent_error)
     result_fp = fingerprint_transition_preview_state(state)
     if result_fp is None:
         return _result("rejected", "unserializable_materialized_branch")
@@ -100,6 +113,105 @@ def _owner_dict(value: Mapping[str, Any]) -> dict[str, Any]:
 
 def _known_hp(value: Any) -> bool:
     return isinstance(value, Mapping) and value.get("status") == "known" and isinstance(value.get("current_hp"), int) and not isinstance(value.get("current_hp"), bool) and isinstance(value.get("maximum_hp"), int) and not isinstance(value.get("maximum_hp"), bool) and value["maximum_hp"] > 0 and 0 <= value["current_hp"] <= value["maximum_hp"]
+
+
+def _rebind_persistent_effects_after_switch(
+    *, source_branch: Mapping[str, Any], state: dict[str, Any], outgoing_owner: Mapping[str, Any],
+    incoming_owner: Mapping[str, Any], retained_owner: Mapping[str, Any], source_branch_fingerprint: str,
+) -> str | None:
+    """Retire only the switching target's persistent rows.
+
+    Aqua Ring and Ingrain are owned by their affected Pokemon.  Leech Seed is
+    owned by its seeded target, while ``source_slot`` describes the opposite
+    field position and therefore survives a source-side switch.
+    """
+    incoming_side = incoming_owner["side"]
+    retained_side = retained_owner["side"]
+    owners = {incoming_side: dict(incoming_owner), retained_side: dict(retained_owner)}
+    bundle = source_branch.get("branch_persistent_effect_authority")
+    if bundle is not None:
+        rows = _persistent_rows(bundle=bundle, outgoing_owner=outgoing_owner, retained_owner=retained_owner)
+        if rows is None:
+            return "invalid_persistent_effect_authority_on_switch"
+        states = {incoming_side: {}, retained_side: {}}
+        for family, _, _, _ in _PERSISTENT_CONTEXTS:
+            states[incoming_side][family] = {"state": "known_inactive"}
+            states[retained_side][family] = _row_payload(rows[(family, "retained")], family=family)
+        state["branch_persistent_effect_authority"] = materialize_persistent_effect_authority(
+            owners=owners, source_branch_fingerprint=source_branch_fingerprint, states=states,
+        )
+    for family, key, schema, provenance in _PERSISTENT_CONTEXTS:
+        context = source_branch.get(key)
+        if context is None:
+            continue
+        retained_row = _context_row(
+            context=context, schema=schema, provenance=provenance,
+            owner=retained_owner, family=family,
+        )
+        outgoing_row = _context_row(
+            context=context, schema=schema, provenance=provenance,
+            owner=outgoing_owner, family=family,
+        )
+        if retained_row is None or outgoing_row is None:
+            return f"invalid_{family}_persistent_effect_context_on_switch"
+        rows = [
+            {"owner": deepcopy(dict(incoming_owner)), "state": "known_inactive"},
+            _context_payload(retained_row, owner=retained_owner, family=family),
+        ]
+        state[key] = {
+            "schema_version": schema, "session_id": incoming_owner["session_id"],
+            "source_branch_fingerprint": source_branch_fingerprint, "provenance": provenance,
+            "states": rows,
+        }
+    return None
+
+
+def _persistent_rows(*, bundle: Any, outgoing_owner: Mapping[str, Any], retained_owner: Mapping[str, Any]) -> dict[tuple[str, str], Mapping[str, Any]] | None:
+    if not isinstance(bundle, Mapping) or bundle.get("schema_version") != "branch-persistent-effect-authority-v1" or bundle.get("session_id") != outgoing_owner.get("session_id") or bundle.get("provenance") != "trusted_branch_persistent_effect_materialization" or not isinstance(bundle.get("source_branch_fingerprint"), str):
+        return None
+    rows = bundle.get("states")
+    if not isinstance(rows, list) or len(rows) != len(_PERSISTENT_CONTEXTS) * 2:
+        return None
+    result: dict[tuple[str, str], Mapping[str, Any]] = {}
+    for family, _, _, _ in _PERSISTENT_CONTEXTS:
+        for label, owner in (("outgoing", outgoing_owner), ("retained", retained_owner)):
+            matches = [row for row in rows if isinstance(row, Mapping) and row.get("family") == family and row.get("owner") == dict(owner)]
+            if len(matches) != 1 or not _valid_persistent_row(matches[0], family=family):
+                return None
+            result[(family, label)] = matches[0]
+    return result
+
+
+def _context_row(*, context: Any, schema: str, provenance: str, owner: Mapping[str, Any], family: str) -> Mapping[str, Any] | None:
+    if not isinstance(context, Mapping) or context.get("schema_version") != schema or context.get("session_id") != owner.get("session_id") or context.get("provenance") != provenance or not isinstance(context.get("source_branch_fingerprint"), str) or not isinstance(context.get("states"), list) or len(context["states"]) != 2:
+        return None
+    matches = [row for row in context["states"] if isinstance(row, Mapping) and row.get("owner") == dict(owner)]
+    return matches[0] if len(matches) == 1 and _valid_persistent_row(matches[0], family=family) else None
+
+
+def _valid_persistent_row(row: Mapping[str, Any], *, family: str) -> bool:
+    if row.get("state") not in {"known_active", "known_inactive", "unknown"}:
+        return False
+    if family != "leech_seed" or row["state"] != "known_active":
+        return "source_slot" not in row
+    source, owner = row.get("source_slot"), row.get("owner")
+    return isinstance(source, Mapping) and isinstance(owner, Mapping) and set(source) == {"session_id", "side", "slot_index"} and source.get("session_id") == owner.get("session_id") and source.get("side") in {"self", "opponent"} and source.get("side") != owner.get("side") and isinstance(source.get("slot_index"), int) and not isinstance(source.get("slot_index"), bool) and source["slot_index"] >= 0
+
+
+def _row_payload(row: Mapping[str, Any], *, family: str) -> dict[str, Any]:
+    payload = {"state": row["state"]}
+    if "provenance" in row:
+        payload["provenance"] = deepcopy(row["provenance"])
+    if family == "leech_seed" and row["state"] == "known_active":
+        payload["source_slot"] = deepcopy(dict(row["source_slot"]))
+    return payload
+
+
+def _context_payload(row: Mapping[str, Any], *, owner: Mapping[str, Any], family: str) -> dict[str, Any]:
+    payload = {"owner": deepcopy(dict(owner)), "state": row["state"]}
+    if family == "leech_seed" and row["state"] == "known_active":
+        payload["source_slot"] = deepcopy(dict(row["source_slot"]))
+    return payload
 
 
 def _result(status: str, reason: str) -> dict[str, Any]:

@@ -50,7 +50,9 @@ def test_leech_seed_unknown_skip_and_ordinary_switch_isolation():
     assert result["status"]=="resolved" and result["eot_consequence_trace"][0]["reason"]=="source_slot_recipient_absent"
     source=unknown["next_state"]; incoming={"provenance":"identity_bound_incoming_current_state_v1","owner":{"session_id":"leftovers-eot","side":"self","slot_index":1,"pokemon_id":"incoming"},"hp_authority":{"status":"known","current_hp":50,"maximum_hp":100},"fainted_authority":{"status":"known","value":False},"current_state":deepcopy(source["current_state"])}
     switched=materialize_incoming_active_branch(source_branch=source,source_branch_fingerprint=fingerprint_transition_preview_state(source),incoming_authority=incoming)
-    assert switched["status"]=="resolved" and "leech_seed_persistent_effect_context" not in switched["next_state"]
+    assert switched["status"] == "resolved"
+    rows = switched["next_state"]["leech_seed_persistent_effect_context"]["states"]
+    assert rows[0]["owner"] == incoming["owner"] and rows[0]["state"] == "known_inactive" and "source_slot" not in rows[0]
 
 def test_source_slot_tracks_current_slot_occupant_and_cross_owner_plan_is_frozen():
     switched_source=_pre(self_hp=50,opponent_hp=40,self_item=None,opponent_item=None,self_condition="none",opponent_condition="none"); _seed(switched_source["next_state"])
