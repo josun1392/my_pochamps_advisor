@@ -5,6 +5,7 @@ _KINDS={"direct_move_damage_observed","used_move_observed","exact_hp_transition_
 _KINDS.update({"executed_move_observed", "previous_action_result_observed"})
 _KINDS.update({"taunt_restriction_applied_observed", "encore_restriction_applied_observed", "disable_restriction_applied_observed", "taunt_restricted_turn_completed_observed", "encore_restricted_turn_completed_observed", "disable_restricted_turn_completed_observed"})
 _KINDS.update({"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"})
+_KINDS.add("current_condition_observed")
 _KINDS.update({"current_confusion_state_observed", "champions_confusion_progression_observed"})
 class ObservationCollection:
  def __init__(self,session_id): self._session_id=session_id; self._items={}

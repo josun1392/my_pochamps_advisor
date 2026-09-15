@@ -12,6 +12,7 @@ SWITCH_SOURCE = "ui_switch_confirmation"
 FAINT_SOURCE = "ui_faint_confirmation"
 CONDITION_APPLICATION_SOURCE = "ui_condition_application_confirmation"
 CURRENT_CONDITION_SOURCE = "ui_current_condition_confirmation"
+PARALYSIS_APPLICATION_SOURCE = "runtime_champions_paralysis_application"
 CURRENT_HEALING_PREVENTED_SOURCE = "ui_current_healing_prevented_confirmation"
 STAT_STAGE_SOURCE = "ui_stat_stage_confirmation"
 HAZARD_STATE_SOURCE = "ui_switch_hazard_state_confirmation"
@@ -113,6 +114,7 @@ def _owner_matches(owners, side, slot, pokemon):
     targets = owners.get(f"{side}_targets") if isinstance(owners, dict) else None
     return isinstance(targets, (tuple, list)) and any(isinstance(row, dict) and row.get("slot_index") == slot and row.get("pokemon_id") == pokemon for row in targets)
 def _production_source_matches(kind, source):
+    if kind == "current_condition_observed" and source == PARALYSIS_APPLICATION_SOURCE: return True
     if kind == "mat_block_active_entry_eligibility_observed": return source == MAT_BLOCK_ACTIVE_ENTRY_ELIGIBILITY_SOURCE
     if kind == "fake_out_active_entry_eligibility_observed": return source == FAKE_OUT_ACTIVE_ENTRY_ELIGIBILITY_SOURCE
     if kind == "supreme_overlord_initial_active_observed": return source == SUPREME_OVERLORD_INITIAL_ACTIVE_SOURCE
