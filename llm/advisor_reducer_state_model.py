@@ -34,6 +34,8 @@ _TARGETS["apply_encore_restriction"] = "state.current_encore_restrictions"
 _TARGETS["complete_encore_restricted_active_turn"] = "state.current_encore_restrictions"
 _TARGETS["apply_disable_restriction"] = "state.current_disable_restrictions"
 _TARGETS["complete_disable_restricted_active_turn"] = "state.current_disable_restrictions"
+for _persistent_effect in ("aqua_ring", "ingrain", "leech_seed"):
+    _TARGETS[f"set_current_{_persistent_effect}_state"] = "state.current_persistent_effect_context"
 
 
 def make_unknown_battle_fact():
@@ -144,7 +146,54 @@ def validate_battle_state_unknown_markers(state):
     targeting = state.get("selected_action_targeting_context")
     if topology is not None and not _valid_doubles_active_topology_context(state, topology): return False
     if targeting is not None and not _valid_selected_action_targeting_context(state, targeting): return False
-    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "substitute_state_context", "pending_status_action_execution_context", "mat_block_active_entry_eligibility_context", "fake_out_active_entry_eligibility_context", "doubles_active_topology_context", "selected_action_targeting_context", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "rain_dish_end_of_turn_context", "ice_body_end_of_turn_context", "solar_power_end_of_turn_context", "dry_skin_end_of_turn_context", "life_orb_recoil_context", "supreme_overlord_faint_history_context", "supreme_overlord_entry_snapshots", "current_taunt_restrictions", "current_encore_restrictions", "current_disable_restrictions"})
+    persistent_effects = state.get("current_persistent_effect_context")
+    if persistent_effects is not None and not _valid_current_persistent_effect_context(state, persistent_effects): return False
+    return not any(_contains_marker(value) for key, value in state.items() if key not in {"self_side", "opponent_side", "field", "substitute_state_context", "pending_status_action_execution_context", "mat_block_active_entry_eligibility_context", "fake_out_active_entry_eligibility_context", "doubles_active_topology_context", "selected_action_targeting_context", "current_persistent_effect_context", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "rain_dish_end_of_turn_context", "ice_body_end_of_turn_context", "solar_power_end_of_turn_context", "dry_skin_end_of_turn_context", "life_orb_recoil_context", "supreme_overlord_faint_history_context", "supreme_overlord_entry_snapshots", "current_taunt_restrictions", "current_encore_restrictions", "current_disable_restrictions"})
+
+
+def _valid_current_persistent_effect_context(state, value):
+    if not isinstance(value, dict) or set(value) != {"schema_version", "session_id", "rows"}:
+        return False
+    if value.get("schema_version") != "current-persistent-effect-context-v1" or value.get("session_id") != state.get("session_id") or not isinstance(value.get("rows"), list):
+        return False
+    seen = set()
+    for row in value["rows"]:
+        if not isinstance(row, dict) or set(row) - {"family", "owner", "state", "lifecycle_provenance", "retired_reason", "source_slot"}:
+            return False
+        family, owner, row_state = row.get("family"), row.get("owner"), row.get("state")
+        if family not in {"aqua_ring", "ingrain", "leech_seed"} or row_state not in {"active", "inactive"} or not _valid_current_persistent_effect_owner(state, owner) or not _valid_current_persistent_effect_provenance(row.get("lifecycle_provenance")):
+            return False
+        key = (family, owner["side"], owner["slot_index"], owner["pokemon_id"])
+        if key in seen: return False
+        seen.add(key)
+        source = row.get("source_slot")
+        if family != "leech_seed" and source is not None: return False
+        if row_state == "active" and "retired_reason" in row: return False
+        if family == "leech_seed" and row_state == "active":
+            if not _valid_current_persistent_effect_source(state, owner, source): return False
+        elif source is not None: return False
+    return True
+
+
+def _valid_current_persistent_effect_owner(state, owner):
+    if not isinstance(owner, dict) or set(owner) != {"session_id", "side", "slot_index", "pokemon_id"} or owner.get("session_id") != state.get("session_id") or owner.get("side") not in {"self", "opponent"} or not isinstance(owner.get("slot_index"), int) or isinstance(owner.get("slot_index"), bool) or not isinstance(owner.get("pokemon_id"), str) or not owner["pokemon_id"]:
+        return False
+    side = _side(state, owner["side"])
+    roster = side.get("pokemon") if isinstance(side, dict) else None
+    pokemon = roster.get(owner["slot_index"], roster.get(str(owner["slot_index"]))) if isinstance(roster, dict) else None
+    return isinstance(pokemon, dict) and pokemon.get("pokemon_id", pokemon.get("name_en")) == owner["pokemon_id"]
+
+
+def _valid_current_persistent_effect_source(state, owner, source):
+    if not isinstance(source, dict) or set(source) != {"session_id", "side", "slot_index"} or source.get("session_id") != state.get("session_id") or source.get("side") not in {"self", "opponent"} or source["side"] == owner["side"] or not isinstance(source.get("slot_index"), int) or isinstance(source.get("slot_index"), bool):
+        return False
+    side = _side(state, source["side"])
+    roster = side.get("pokemon") if isinstance(side, dict) else None
+    return isinstance(roster, dict) and isinstance(roster.get(source["slot_index"], roster.get(str(source["slot_index"]))), dict)
+
+
+def _valid_current_persistent_effect_provenance(value):
+    return isinstance(value, dict) and isinstance(value.get("source_observation_id"), str) and bool(value["source_observation_id"]) and isinstance(value.get("source_sequence"), int) and not isinstance(value["source_sequence"], bool) and value["source_sequence"] >= 1 and value.get("trust") == "user_confirmed_observation" and not _contains_marker(value)
 
 
 def _valid_fact_marker(value):
@@ -687,6 +736,8 @@ def _has_target_identity(event):
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
+    if effect in {"set_current_aqua_ring_state", "set_current_ingrain_state", "set_current_leech_seed_state"}:
+        return _identity_values(event, "side", "slot_index", "pokemon_id") and _value(event, "persistent_state") in {"active", "inactive"} and _value(event, "trust") == "user_confirmed_observation" and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_leech_seed_state" or _value(event, "persistent_state") != "active" or (_value(event, "source_side") in {"self", "opponent"} and isinstance(_value(event, "source_slot_index"), int) and not isinstance(_value(event, "source_slot_index"), bool)))
     if effect == "switch_active":
         return isinstance(_value(event, "side"), str) and all(_value(event, key) is not None for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id"))
     if effect in {"set_switch_permission", "clear_switch_permission"}:
@@ -804,6 +855,8 @@ def _apply(state, event):
         return _set_current_final_combat_stat(state, event)
     if effect == "set_current_substitute":
         return _set_current_substitute(state, event)
+    if effect in {"set_current_aqua_ring_state", "set_current_ingrain_state", "set_current_leech_seed_state"}:
+        return _set_current_persistent_effect_state(state, event)
     if effect == "initialize_supreme_overlord_active_entry":
         return _initialize_supreme_overlord_active_entry(state, event)
     if effect == "set_current_weather":
@@ -1267,6 +1320,36 @@ def _set_current_opponent_switch_target_combat(state, event):
     pokemon["condition_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "condition": payload["condition"]}
     pokemon["known_item_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "status": item.get("status")}
     pokemon["current_ability_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn}
+    return None
+
+
+def _set_current_persistent_effect_state(state, event):
+    family = event["planned_effect"].removeprefix("set_current_").removesuffix("_state")
+    side, slot, pokemon_id = _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")
+    row_state = _value(event, "persistent_state")
+    if not _active_identity_matches(state, side, slot, pokemon_id) or row_state not in {"active", "inactive"} or _value(event, "trust") != "user_confirmed_observation" or not isinstance(_value(event, "turn_number"), int) or isinstance(_value(event, "turn_number"), bool) or _value(event, "turn_number") < 1:
+        return _conflict(event, "invalid_current_persistent_effect_authority")
+    owner = {"session_id": state["session_id"], "side": side, "slot_index": slot, "pokemon_id": pokemon_id}
+    row = {"family": family, "owner": owner, "state": row_state, "lifecycle_provenance": _provenance(event) | {"trust": "user_confirmed_observation", "turn_number": _value(event, "turn_number")}}
+    if family == "leech_seed" and row_state == "active":
+        source_side, source_slot = _value(event, "source_side"), _value(event, "source_slot_index")
+        source = {"session_id": state["session_id"], "side": source_side, "slot_index": source_slot}
+        if not _valid_current_persistent_effect_source(state, owner, source):
+            return _conflict(event, "invalid_current_leech_seed_source")
+        row["source_slot"] = source
+    context = state.get("current_persistent_effect_context")
+    if context is None:
+        context = {"schema_version": "current-persistent-effect-context-v1", "session_id": state["session_id"], "rows": []}
+    if not _valid_current_persistent_effect_context(state, context):
+        return _conflict(event, "invalid_current_persistent_effect_context")
+    rows = deepcopy(context["rows"])
+    for index, existing in enumerate(rows):
+        if existing["family"] == family and existing["owner"] == owner:
+            rows[index] = row
+            break
+    else:
+        rows.append(row)
+    state["current_persistent_effect_context"] = {"schema_version": "current-persistent-effect-context-v1", "session_id": state["session_id"], "rows": rows}
     return None
 
 
@@ -2425,6 +2508,7 @@ def _switch(state, event):
     disable_rows=state.get("current_disable_restrictions"); disable=disable_rows.get(_value(event,"side")) if isinstance(disable_rows,dict) else None
     if isinstance(disable,dict) and disable.get("state")=="active" and disable.get("owner",{}).get("slot_index")==out_slot and disable.get("owner",{}).get("pokemon_id")==out_id:
         disable_rows=deepcopy(disable_rows); disable_rows[_value(event,"side")]={**disable,"state":"not_active","remaining_target_turns":None,"retired_reason":"switch_out","lifecycle_provenance":_provenance(event)}; state["current_disable_restrictions"]=disable_rows
+    _retire_current_persistent_effects_on_switch(state, event, out_slot, out_id)
     context = state.get("substitute_state_context")
     if isinstance(context, dict):
         outgoing_owner = {"session_id": state["session_id"], "side": _value(event, "side"), "slot_index": out_slot, "pokemon_id": out_id}
@@ -2443,6 +2527,23 @@ def _switch(state, event):
     if isinstance(context, dict) and context.get("actor", {}).get("side") == _value(event, "side"):
         state.pop("fake_out_active_entry_eligibility_context", None)
     return None
+
+
+def _retire_current_persistent_effects_on_switch(state, event, out_slot, out_id):
+    context = state.get("current_persistent_effect_context")
+    if context is None:
+        return
+    if not _valid_current_persistent_effect_context(state, context):
+        return
+    owner = {"session_id": state["session_id"], "side": _value(event, "side"), "slot_index": out_slot, "pokemon_id": out_id}
+    rows = deepcopy(context["rows"])
+    for row in rows:
+        if row.get("owner") == owner and row.get("state") == "active":
+            row["state"] = "inactive"
+            row["retired_reason"] = "switch_out"
+            row.pop("source_slot", None)
+            row["lifecycle_provenance"] = _provenance(event)
+    state["current_persistent_effect_context"] = {"schema_version": "current-persistent-effect-context-v1", "session_id": state["session_id"], "rows": rows}
 
 
 def _initialize_supreme_overlord_active_entry(state, event):
