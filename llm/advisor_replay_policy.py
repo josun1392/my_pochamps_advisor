@@ -8,6 +8,7 @@ _EFFECTS["supreme_overlord_initial_active_observed"] = "initialize_supreme_overl
 _EFFECTS["executed_move_observed"] = "record_executed_move"
 _EFFECTS["previous_action_result_observed"] = "record_previous_action_result"
 _EFFECTS.update({"current_aqua_ring_state_observed":"set_current_aqua_ring_state", "current_ingrain_state_observed":"set_current_ingrain_state", "current_leech_seed_state_observed":"set_current_leech_seed_state"})
+_EFFECTS.update({"current_confusion_state_observed":"set_current_confusion_state", "champions_confusion_progression_observed":"record_champions_confusion_progression"})
 _EFFECTS.update({"taunt_restriction_applied_observed":"apply_taunt_restriction", "encore_restriction_applied_observed":"apply_encore_restriction", "disable_restriction_applied_observed":"apply_disable_restriction", "taunt_restricted_turn_completed_observed":"complete_restricted_active_turn", "encore_restricted_turn_completed_observed":"complete_encore_restricted_active_turn", "disable_restricted_turn_completed_observed":"complete_disable_restricted_active_turn"})
 
 def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolver=None):
@@ -79,6 +80,10 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
         elif event.get("event_kind") == "supreme_overlord_initial_active_observed":
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
         elif event.get("event_kind") == "selected_action_targeting_observed":
+            step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
+        elif event.get("event_kind") == "current_confusion_state_observed":
+            step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), confusion_state=event.get("payload", {}).get("state"))
+        elif event.get("event_kind") == "champions_confusion_progression_observed":
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
         elif event.get("event_kind") in {"current_item_observed", "current_terrain_observed", "current_side_conditions_observed", "current_battle_format_observed"}:
             step.update(**deepcopy(event.get("payload", {})))

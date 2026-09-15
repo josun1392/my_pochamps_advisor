@@ -27,6 +27,7 @@ _TARGETS["complete_restricted_active_turn"] = "state.current_taunt_restrictions"
 _TARGETS["record_executed_move"] = "pokemon.last_executed_move"
 _TARGETS["record_champions_status_progression"] = "pokemon.champions_status_progression"
 _TARGETS["record_champions_confusion_progression"] = "pokemon.champions_confusion_progression"
+_TARGETS["set_current_confusion_state"] = "pokemon.current_confusion"
 _TARGETS["record_previous_action_result"] = "pokemon.previous_action_result"
 _TARGETS["initialize_rage_fist_hit_count"] = "pokemon.rage_fist_hit_count"
 _TARGETS["record_rage_fist_qualifying_hit"] = "pokemon.rage_fist_hit_count"
@@ -732,8 +733,8 @@ def _value(event, name):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"record_champions_status_progression", "record_champions_confusion_progression", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
-        return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
+    if effect in {"record_champions_status_progression", "record_champions_confusion_progression", "set_current_confusion_state", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
+        return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_confusion_state" or (_value(event, "confusion_state") in {"confused", "none"} and _value(event, "trust") == "user_confirmed_observation"))
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect in {"set_current_aqua_ring_state", "set_current_ingrain_state", "set_current_leech_seed_state"}:
@@ -835,6 +836,8 @@ def _apply(state, event):
         data = {k: _value(event, k) for k in ("side", "slot_index", "pokemon_id", "state", "origin_id", "established_turn", "prior_opportunities", "duration", "turn_number", "trust")}; data["session_id"] = state["session_id"]
         error = observe_confusion_progression(state=state, pokemon=pokemon, event=data)
         return _conflict(event, error) if error else None
+    if effect == "set_current_confusion_state":
+        return _set_current_confusion_state(state, event)
     if effect == "set_current_condition":
         return _set_current_condition(state, event)
     if effect == "set_current_healing_prevented":
@@ -1320,6 +1323,25 @@ def _set_current_opponent_switch_target_combat(state, event):
     pokemon["condition_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "condition": payload["condition"]}
     pokemon["known_item_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "status": item.get("status")}
     pokemon["current_ability_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn}
+    return None
+
+
+def _set_current_confusion_state(state, event):
+    side, slot, pokemon_id = _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")
+    confusion = _value(event, "confusion_state")
+    pokemon = _pokemon(state, event)
+    if (confusion not in {"confused", "none"} or _value(event, "trust") != "user_confirmed_observation"
+            or not isinstance(_value(event, "turn_number"), int) or isinstance(_value(event, "turn_number"), bool)
+            or _value(event, "turn_number") < 1 or pokemon is None or pokemon.get("fainted") is True
+            or not _active_identity_matches(state, side, slot, pokemon_id)):
+        return _conflict(event, "invalid_current_confusion_authority")
+    pokemon["current_confusion"] = confusion
+    pokemon["confusion_provenance"] = {
+        "event_kind": "current_confusion_observed", "trust": "user_confirmed_observation",
+        "state": confusion, "turn_number": _value(event, "turn_number"), **_provenance(event),
+    }
+    if confusion == "none":
+        pokemon["champions_confusion_progression"] = None
     return None
 
 

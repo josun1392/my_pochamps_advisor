@@ -54,6 +54,7 @@ from llm.advisor_client import format_recommendation_presentation_text, run_stru
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
 from llm.advisor_production_forced_switch_integration import admit_forced_switch_phazing
+from llm.advisor_production_confusion_integration import admit_current_confusion_state
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
@@ -946,6 +947,9 @@ class MainWindow(QMainWindow):
         self._confirm_forced_switch_action = QAction("Confirm Forced Switch / Phazing", self)
         self._confirm_forced_switch_action.triggered.connect(self._open_forced_switch_confirmation)
         battle_menu.addAction(self._confirm_forced_switch_action)
+        self._confirm_confusion_state_action = QAction("Confirm Confusion State", self)
+        self._confirm_confusion_state_action.triggered.connect(self._open_confusion_state_confirmation)
+        battle_menu.addAction(self._confirm_confusion_state_action)
         self._confirm_previous_action_action = QAction("Confirm Previous Action", self)
         self._confirm_previous_action_action.triggered.connect(self._open_previous_action_confirmation)
         battle_menu.addAction(self._confirm_previous_action_action)
@@ -970,7 +974,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_confusion_state_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -1039,6 +1043,21 @@ class MainWindow(QMainWindow):
         if QMessageBox.question(self, "Confirm Forced Switch / Phazing", f"Confirm {move_id} forcing {side} to {incoming}?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes: return
         result = admit_forced_switch_phazing(runtime_session_manager=manager, captured_session_id=session_id, target_side=side, move_id=move_id, incoming_pokemon_id=incoming, turn_number=getattr(self, "_current_trusted_turn_number", None), hp_after=hp_after)
         self.statusBar().showMessage("Forced switch applied" if result.get("status") == "resolved" else "Forced switch confirmation failed or is incomplete")
+
+    @Slot()
+    def _open_confusion_state_confirmation(self) -> None:
+        """Explicit-only current confusion observation; no move or slot inference."""
+        manager = getattr(self, "_observation_runtime_session_manager", None); session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            self.statusBar().showMessage("Confusion confirmation failed: active session unavailable"); return
+        side, ok = QInputDialog.getItem(self, "Confirm Confusion State", "Active Pokémon side", ["self", "opponent"], 0, False)
+        if not ok: return
+        choice, ok = QInputDialog.getItem(self, "Confirm Confusion State", "Observed state", ["Confused — newly became confused this turn", "Confused — episode history unknown", "Not Confused / Cleared"], 0, False)
+        if not ok: return
+        confused = choice.startswith("Confused")
+        if QMessageBox.question(self, "Confirm Confusion State", f"Confirm {choice} for {side} active Pokémon?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes: return
+        result = admit_current_confusion_state(runtime_session_manager=manager, captured_session_id=session_id, side=side, state="confused" if confused else "none", newly_established=choice.startswith("Confused — newly"), turn_number=getattr(self, "_current_trusted_turn_number", None))
+        self.statusBar().showMessage("Confusion state applied" if result.get("status") == "resolved" else "Confusion confirmation failed or is incomplete")
 
     @Slot()
     def _open_previous_action_confirmation(self) -> None:

@@ -38,10 +38,8 @@ def freeze_champions_confusion_action_gate(*, strategy_d0, runtime_snapshot, act
     if actor not in strategy_d0.get("active_owners", {}).values() or not isinstance(action_id,str) or not action_id: return {"status":"rejected","reason":"champions_confusion_gate_actor_action_invalid"}
     raw=runtime_snapshot["state"][f"{actor['side']}_side"]["pokemon"][actor["slot_index"]]
     state=raw.get("current_confusion")
-    # Older runtime snapshots predate this volatile field; absence denotes the
-    # canonical inactive default, while an explicit unknown remains fail-closed.
-    if state == "unknown": return {"status":"incomplete","reason":"champions_confusion_current_state_unknown"}
-    if state is None: state = "none"
+    # Production runtime absence is unknown, not an inferred inactive state.
+    if state in {"unknown", None}: return {"status":"incomplete","reason":"champions_confusion_current_state_unknown"}
     if state == "none": return {"status":"resolved","schema_version":SCHEMA,"session_id":strategy_d0["session_id"],"source_runtime_fingerprint":strategy_d0["source_runtime_fingerprint"],"source_branch_fingerprint":strategy_d0["strategy_preview_fingerprint"],"actor":deepcopy(actor),"action_id":action_id,"move_id":move_id,"confusion":"none","progression":None,"ability_authority":None,"action_order":deepcopy(action_order),"path":tuple(path),"branches":(_branch("executes",Fraction(1),"none",None),),"root_probability_mass":fd(Fraction(1)),"provenance":"champions_confusion_gate_v1"}
     progression=raw.get("champions_confusion_progression")
     if state != "confused" or not valid_confusion_progression(progression,actor) or progression.get("confusion_observation") != raw.get("confusion_provenance"): return {"status":"incomplete","reason":"champions_confusion_progression_missing_or_stale"}
