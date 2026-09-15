@@ -11,6 +11,8 @@ from PySide6.QtWidgets import QApplication, QDialog
 import llm.advisor_client as advisor_client
 import ui.main_window as main_window_module
 from llm.advisor_battle_state_context import build_current_condition_context_from_confirmations
+from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from tests.test_advisor_payload_contract import _move, _panel, _window
 from ui.main_window import MainWindow
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
@@ -49,6 +51,11 @@ def _window_with_panel() -> tuple[MainWindow, LLMAdvicePanel]:
     window = MainWindow.__new__(MainWindow)
     panel = LLMAdvicePanel()
     window._current_condition_confirmations = {}
+    state = create_unknown_bootstrap_battle_state("condition-ui", "self-a", "opponent-a")["state"]
+    for side in ("self", "opponent"):
+        state[f"{side}_side"]["pokemon"][0].update(current_hp=100, max_hp=100, fainted=False)
+    window._observation_runtime_session_manager = BattleObservationRuntimeSessionManager.create("condition-ui", state)["manager"]
+    window._current_trusted_turn_number = 1
     window.center_column = SimpleNamespace(llm_advice_panel=panel)
     return window, panel
 
@@ -109,6 +116,18 @@ def test_cancel_and_invalid_apply_preserve_existing_current_condition_state(monk
     monkeypatch.setattr(main_window_module, "CurrentConditionDialog", lambda *, current_conditions, parent: queued.pop(0))
 
     window._open_current_condition_dialog()
+    window._open_current_condition_dialog()
+
+    assert window._current_condition_confirmations == previous
+
+
+def test_runtime_rejection_does_not_update_local_condition_mirror(monkeypatch: pytest.MonkeyPatch) -> None:
+    previous = {"self": _condition()}
+    window, _ = _window_with_panel()
+    window._current_condition_confirmations = deepcopy(previous)
+    dialog = _FakeConditionDialog(current_conditions=previous, result=QDialog.DialogCode.Accepted, condition=_condition(condition_type="unknown"))
+    monkeypatch.setattr(main_window_module, "CurrentConditionDialog", lambda *, current_conditions, parent: dialog)
+
     window._open_current_condition_dialog()
 
     assert window._current_condition_confirmations == previous

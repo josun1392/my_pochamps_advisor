@@ -55,6 +55,8 @@ from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_sta
 from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
 from llm.advisor_production_forced_switch_integration import admit_forced_switch_phazing
 from llm.advisor_production_confusion_integration import admit_current_confusion_state
+from llm.advisor_current_condition_observation import admit_current_condition_observation
+from llm.advisor_production_paralysis_application import admit_observed_champions_paralysis_result
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
@@ -654,11 +656,36 @@ class MainWindow(QMainWindow):
             except (AttributeError, RuntimeError):
                 pass
             return
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            try:
+                self.statusBar().showMessage("Condition confirmation failed: active session unavailable")
+            except (AttributeError, RuntimeError):
+                pass
+            return
+        result = admit_current_condition_observation(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            side=normalized["side"],
+            condition=normalized["condition_type"],
+            turn_number=getattr(self, "_current_trusted_turn_number", None),
+        )
+        if result.get("status") != "resolved":
+            try:
+                self.statusBar().showMessage("Condition confirmation failed: exact runtime confirmation was rejected")
+            except (AttributeError, RuntimeError):
+                pass
+            return
         self._current_condition_confirmations = {
             **_normalize_current_condition_session(current_conditions),
             normalized["side"]: normalized,
         }
         self._update_current_condition_summary()
+        try:
+            self.statusBar().showMessage("Current condition applied")
+        except (AttributeError, RuntimeError):
+            pass
 
     @Slot()
     def _clear_current_condition_confirmations(self) -> None:
@@ -950,6 +977,9 @@ class MainWindow(QMainWindow):
         self._confirm_confusion_state_action = QAction("Confirm Confusion State", self)
         self._confirm_confusion_state_action.triggered.connect(self._open_confusion_state_confirmation)
         battle_menu.addAction(self._confirm_confusion_state_action)
+        self._confirm_paralysis_result_action = QAction("Confirm Thunder Wave / Nuzzle Result", self)
+        self._confirm_paralysis_result_action.triggered.connect(self._open_paralysis_result_confirmation)
+        battle_menu.addAction(self._confirm_paralysis_result_action)
         self._confirm_previous_action_action = QAction("Confirm Previous Action", self)
         self._confirm_previous_action_action.triggered.connect(self._open_previous_action_confirmation)
         battle_menu.addAction(self._confirm_previous_action_action)
@@ -1058,6 +1088,26 @@ class MainWindow(QMainWindow):
         if QMessageBox.question(self, "Confirm Confusion State", f"Confirm {choice} for {side} active Pokémon?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes: return
         result = admit_current_confusion_state(runtime_session_manager=manager, captured_session_id=session_id, side=side, state="confused" if confused else "none", newly_established=choice.startswith("Confused — newly"), turn_number=getattr(self, "_current_trusted_turn_number", None))
         self.statusBar().showMessage("Confusion state applied" if result.get("status") == "resolved" else "Confusion confirmation failed or is incomplete")
+
+    @Slot()
+    def _open_paralysis_result_confirmation(self) -> None:
+        """Explicit observed-result path; normal selection never invokes it."""
+        manager = getattr(self, "_observation_runtime_session_manager", None); session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            self.statusBar().showMessage("Paralysis result confirmation failed: active session unavailable"); return
+        target_side, ok = QInputDialog.getItem(self, "Confirm Thunder Wave / Nuzzle Result", "Target side", ["self", "opponent"], 0, False)
+        if not ok: return
+        move_id, ok = QInputDialog.getItem(self, "Confirm Thunder Wave / Nuzzle Result", "Observed move", ["thunder-wave", "nuzzle"], 0, False)
+        if not ok: return
+        outcome, ok = QInputDialog.getItem(self, "Confirm Thunder Wave / Nuzzle Result", "Observed result", ["hit", "missed", "blocked_by_protection"], 0, False)
+        if not ok: return
+        hp_after = None
+        if move_id == "nuzzle" and outcome == "hit":
+            hp_after, ok = QInputDialog.getInt(self, "Confirm Thunder Wave / Nuzzle Result", "Observed target HP after damage", 0, 0)
+            if not ok: return
+        if QMessageBox.question(self, "Confirm Thunder Wave / Nuzzle Result", f"Confirm {move_id} {outcome} against {target_side}?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes: return
+        result = admit_observed_champions_paralysis_result(runtime_session_manager=manager, captured_session_id=session_id, target_side=target_side, move_id=move_id, outcome=outcome, turn_number=getattr(self, "_current_trusted_turn_number", None), hp_after=hp_after)
+        self.statusBar().showMessage("Paralysis result applied" if result.get("status") == "resolved" else "Paralysis result confirmation failed or is incomplete")
 
     @Slot()
     def _open_previous_action_confirmation(self) -> None:

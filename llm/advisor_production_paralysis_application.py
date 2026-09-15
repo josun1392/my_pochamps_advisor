@@ -10,6 +10,7 @@ from llm.advisor_lifecycle_confirmation import (
     LifecycleConfirmationBoundary,
 )
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 
 
 def admit_champions_paralysis_application(*, runtime_session_manager, captured_session_id, target_side, move_id, action_id, move_success_authority, turn_number, hp_after=None, reflection_authority=None):
@@ -44,6 +45,57 @@ def admit_champions_paralysis_application(*, runtime_session_manager, captured_s
     if not applies and hp_transition is None:
         return {"status": "resolved", "outcome": materialized.get("outcome"), "observation_transaction": []}
     return _commit(runtime_session_manager, captured_session_id, snapshot, target_owner, hp_transition, applies, turn_number, materialized.get("outcome"))
+
+
+def admit_observed_champions_paralysis_result(*, runtime_session_manager, captured_session_id, target_side, move_id, outcome, turn_number, hp_after=None):
+    """Turn explicit observed Thunder Wave/Nuzzle result facts into exact evidence.
+
+    This is the production caller for the existing paralysis producer.  It
+    binds user-observed outcome facts to the current runtime owners and D0; it
+    neither infers success from move selection nor reimplements eligibility.
+    """
+    if not isinstance(runtime_session_manager, BattleObservationRuntimeSessionManager):
+        return _result("rejected", "invalid_runtime_manager")
+    if not isinstance(captured_session_id, str) or not captured_session_id:
+        return _result("rejected", "invalid_session")
+    if target_side not in {"self", "opponent"} or move_id not in {"thunder-wave", "nuzzle"} or outcome not in {"hit", "missed", "blocked_by_protection"}:
+        return _result("rejected", "invalid_observed_paralysis_result")
+    if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1:
+        return _result("rejected", "invalid_turn_number")
+    if move_id != "nuzzle" and hp_after is not None:
+        return _result("rejected", "unexpected_post_hit_hp")
+    snapshot = runtime_session_manager.capture_runtime_state_snapshot(captured_session_id)
+    if snapshot.get("status") != "runtime_snapshot_ready":
+        return _result("rejected", "runtime_snapshot_unavailable")
+    target = _active_owner(snapshot["state"], target_side)
+    actor = _active_owner(snapshot["state"], _opposite(target_side))
+    if target is None or actor is None or target.get("fainted") is True:
+        return _result("rejected", "invalid_paralysis_application_owner")
+    target_owner = _owner(captured_session_id, target_side, target)
+    actor_owner = _owner(captured_session_id, _opposite(target_side), actor)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=actor_owner)
+    if d0.get("status") != "resolved":
+        return _result("rejected", "runtime_d0_unavailable")
+    action_id = f"{captured_session_id}:observed-{move_id}-result:{getattr(runtime_session_manager, 'last_allocated_sequence', 0) + 1}"
+    evidence = {
+        "status": "resolved", "session_id": d0["session_id"],
+        "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"],
+        "actor": actor_owner, "target": target_owner, "action_id": action_id,
+        "move_id": move_id, "outcome": outcome,
+    }
+    if move_id == "nuzzle" and outcome == "hit":
+        evidence["damage_resolved"] = True
+    return admit_champions_paralysis_application(
+        runtime_session_manager=runtime_session_manager,
+        captured_session_id=captured_session_id,
+        target_side=target_side,
+        move_id=move_id,
+        action_id=action_id,
+        move_success_authority=evidence,
+        turn_number=turn_number,
+        hp_after=hp_after,
+    )
 
 
 def _commit(manager, session, snapshot, target, hp_transition, applies, turn_number, outcome):
