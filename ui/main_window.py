@@ -52,6 +52,7 @@ from llm.opponent_assumptions import build_opponent_assumptions_payload
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
 from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_runtime_state_projection import build_runtime_advice_state_projection
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
@@ -936,6 +937,9 @@ class MainWindow(QMainWindow):
         file_menu.addAction(self._save_battle_state_action)
         file_menu.addAction(self._load_battle_state_action)
         battle_menu = self.menuBar().addMenu("Battle")
+        self._confirm_pokemon_switch_action = QAction("Confirm Pokémon Switch", self)
+        self._confirm_pokemon_switch_action.triggered.connect(self._open_pokemon_switch_confirmation)
+        battle_menu.addAction(self._confirm_pokemon_switch_action)
         self._confirm_opponent_response_set_action = QAction("Confirm Current Opponent Response Set", self)
         self._confirm_opponent_response_set_action.triggered.connect(self._open_current_opponent_response_set_confirmation)
         battle_menu.addAction(self._confirm_opponent_response_set_action)
@@ -954,10 +958,50 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_confirm_pokemon_switch_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
+
+    @Slot()
+    def _open_pokemon_switch_confirmation(self) -> None:
+        """Collect an explicit side and incoming roster identity before switching."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            self.statusBar().showMessage("Switch confirmation failed: active session unavailable")
+            return
+        side, accepted = QInputDialog.getItem(self, "Confirm Pokémon Switch", "Switching side", ["self", "opponent"], 0, False)
+        if not accepted:
+            return
+        snapshot = manager.capture_runtime_state_snapshot(session_id)
+        state = snapshot.get("state") if snapshot.get("status") == "runtime_snapshot_ready" else None
+        side_state = state.get(f"{side}_side") if isinstance(state, dict) else None
+        roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+        active_slot = side_state.get("active_slot_index") if isinstance(side_state, dict) else None
+        column = "team_my" if side == "self" else "team_enemy"
+        options: list[tuple[int, str]] = []
+        if isinstance(roster, dict) and isinstance(active_slot, int):
+            for slot_index, pokemon in roster.items():
+                pokemon_id = pokemon.get("pokemon_id") if isinstance(pokemon, dict) else None
+                try:
+                    panel_id = getattr(getattr(self._slot_panel(column, slot_index), "pokemon_view", None), "en", None)
+                except (ValueError, TypeError):
+                    panel_id = None
+                if slot_index != active_slot and isinstance(pokemon_id, str) and pokemon_id and pokemon_id == panel_id and pokemon.get("fainted") is not True:
+                    options.append((slot_index, pokemon_id))
+        if not options:
+            self.statusBar().showMessage("Switch confirmation failed: exact incoming roster identity unavailable")
+            return
+        labels = [f"{slot}: {pokemon_id}" for slot, pokemon_id in options]
+        selected, accepted = QInputDialog.getItem(self, "Confirm Pokémon Switch", "Incoming Pokémon", labels, 0, False)
+        if not accepted:
+            return
+        slot_index, pokemon_id = options[labels.index(selected)]
+        if QMessageBox.question(self, "Confirm Pokémon Switch", f"Confirm {side} switch to slot {slot_index} / {pokemon_id}?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
+            return
+        result = self._confirm_pokemon_switch(side=side, switch_in_slot_index=slot_index, switch_in_pokemon_id=pokemon_id)
+        self.statusBar().showMessage("Pokémon switch applied" if result.get("status") == "resolved" else "Switch confirmation failed: exact runtime confirmation was rejected")
 
     @Slot()
     def _open_current_combined_opponent_response_universe_confirmation(self) -> None:
@@ -1248,6 +1292,45 @@ class MainWindow(QMainWindow):
         pokemon_id = getattr(getattr(panel, "pokemon_view", None), "en", None)
         return {"pokemon_id": pokemon_id} if isinstance(pokemon_id, str) and pokemon_id else None
 
+    def _loaded_roster_identities(self, column_name: str) -> dict[int, str] | None:
+        """Use only loaded UI identities to seed detached, otherwise unknown slots."""
+        team_column = self._team_column(column_name) if hasattr(self, "_team_column") else None
+        panels = getattr(team_column, "panels", None)
+        if not isinstance(panels, (list, tuple)):
+            raw_panels = getattr(self, "_panels", None)
+            if not isinstance(raw_panels, dict):
+                return None
+            panels = [panel for (_column, _slot), panel in sorted(raw_panels.items()) if _column == column_name and isinstance(_slot, int)]
+        rows: dict[int, str] = {}
+        for slot_index, panel in enumerate(panels):
+            pokemon_id = getattr(getattr(panel, "pokemon_view", None), "en", None)
+            if isinstance(pokemon_id, str) and pokemon_id:
+                rows[slot_index] = pokemon_id
+        return rows or None
+
+    def _confirm_pokemon_switch(self, *, side: str, switch_in_slot_index: int, switch_in_pokemon_id: str) -> dict:
+        """Apply one explicit UI-confirmed switch; slot navigation never calls this."""
+        result = admit_pokemon_switch_observation(
+            runtime_session_manager=getattr(self, "_observation_runtime_session_manager", None),
+            captured_session_id=MainWindow._active_session_id(self),
+            side=side,
+            switch_in_slot_index=switch_in_slot_index,
+            switch_in_pokemon_id=switch_in_pokemon_id,
+            turn_number=getattr(self, "_current_trusted_turn_number", None),
+        )
+        if result.get("status") != "resolved":
+            return result
+        # This only synchronizes presentation after reducer application.  It is
+        # ordinary navigation and deliberately emits no observation itself.
+        self.select_slot("team_my" if side == "self" else "team_enemy", switch_in_slot_index)
+        self._retire_advice_presentation_authority()
+        self._recommendation_readiness_owner = None
+        try:
+            self.center_column.llm_advice_panel.clear_recommendation_readiness()
+        except (AttributeError, RuntimeError):
+            pass
+        return result
+
     def _begin_new_battle_session(self) -> str | None:
         """Publish a validated core bundle before clearing battle-local UI state."""
         candidate_sequence = getattr(self, "_battle_session_sequence", 0) + 1
@@ -1256,6 +1339,8 @@ class MainWindow(QMainWindow):
             candidate_session_id,
             MainWindow._selected_identity(self, "team_my"),
             MainWindow._selected_identity(self, "team_enemy"),
+            self_roster=MainWindow._loaded_roster_identities(self, "team_my"),
+            opponent_roster=MainWindow._loaded_roster_identities(self, "team_enemy"),
         )
         if initial.get("status") != "initial_state_ready":
             return None
