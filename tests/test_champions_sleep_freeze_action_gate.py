@@ -185,6 +185,26 @@ def test_switch_out_and_reentry_preserve_pokemon_progression(condition):
     snapshot = _snapshot(state)
     d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=owner)
     result = freeze(strategy_d0=d0, runtime_snapshot=snapshot, actor=owner, action_id="a", move_id="tackle", action_order={})
+    if condition == "sleep":
+        returned = state["self_side"]["pokemon"][0]
+        assert returned["current_ability"] == {"knowledge": "unknown"}
+        assert "current_ability_provenance" not in returned
+        assert result == {"status": "incomplete", "reason": "early_bird_applicability_unknown"}
+        observation = {
+            "observation_id": "returned-pressure", "observation_sequence": 5,
+            "planned_effect": "set_current_ability", "trust": "user_confirmed_observation",
+            **owner, "ability": "pressure", "turn_number": 3,
+        }
+        refreshed = project_atomic_transition(
+            state,
+            {"session_id": state["session_id"], "status": "planned", "conflicts": [], "ordered_steps": [observation]},
+            state["session_id"],
+        )
+        assert refreshed["status"] == "ready_with_projected_state", refreshed
+        state = refreshed["projected_state"]
+        snapshot = _snapshot(state)
+        d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=owner)
+        result = freeze(strategy_d0=d0, runtime_snapshot=snapshot, actor=owner, action_id="a", move_id="tackle", action_order={})
     assert result["status"] == "resolved", result
     assert all(b["attempt"] == 2 for b in result["branches"])
 
