@@ -2310,6 +2310,9 @@ def _record_executed_move(state, event):
         return _conflict(event, "invalid_executed_move_history_observation")
     owner = {"session_id": state["session_id"], "side": side, "slot_index": _value(event, "slot_index"), "pokemon_id": _value(event, "pokemon_id")}
     pokemon["last_executed_move"] = {"schema_version": "reducer-last-executed-move-v1", "owner": owner, "move_id": _value(event, "move_id"), "source_action_id": _value(event, "source_action_id"), "execution_id": event["observation_id"], "provenance": _provenance(event)}
+    previous = pokemon.get("previous_action_result")
+    if isinstance(previous, dict) and (previous.get("owner") != owner or previous.get("previous_action_id") != _value(event, "source_action_id") or previous.get("execution_move_id") != _value(event, "move_id")):
+        pokemon["previous_action_result"] = None
     return None
 
 def _record_previous_action_result(state, event):
