@@ -83,6 +83,74 @@ function Assert-OutsideWorktrees([string]$Candidate, [string[]]$Worktrees) {
     return $resolved
 }
 
+function ConvertTo-WindowsCommandLineArgument([AllowEmptyString()][string]$Argument) {
+    # ProcessStartInfo.Arguments takes one Windows command-line string on .NET Framework.
+    # Quote according to CommandLineToArgvW rules so untrusted prompt/path content remains
+    # one argv entry rather than becoming additional options.
+    if ($null -eq $Argument -or $Argument.Length -eq 0) { return '""' }
+    if ($Argument -notmatch '[\s"]') { return $Argument }
+
+    $builder = New-Object System.Text.StringBuilder
+    [void]$builder.Append([char]34)
+    $backslashCount = 0
+    foreach ($character in $Argument.ToCharArray()) {
+        if ($character -eq [char]92) {
+            $backslashCount++
+            continue
+        }
+        if ($character -eq [char]34) {
+            for ($index = 0; $index -lt (($backslashCount * 2) + 1); $index++) { [void]$builder.Append([char]92) }
+            [void]$builder.Append([char]34)
+            $backslashCount = 0
+            continue
+        }
+        for ($index = 0; $index -lt $backslashCount; $index++) { [void]$builder.Append([char]92) }
+        [void]$builder.Append($character)
+        $backslashCount = 0
+    }
+    for ($index = 0; $index -lt ($backslashCount * 2); $index++) { [void]$builder.Append([char]92) }
+    [void]$builder.Append([char]34)
+    return $builder.ToString()
+}
+
+function Join-WindowsCommandLine([string[]]$Arguments) {
+    $encodedArguments = @()
+    foreach ($argument in $Arguments) { $encodedArguments += ConvertTo-WindowsCommandLineArgument $argument }
+    return [string]::Join(' ', [string[]]$encodedArguments)
+}
+
+function Stop-ProcessTree([System.Diagnostics.Process]$TargetProcess) {
+    # .NET Framework does not provide Process.Kill(Boolean). taskkill limits the forced
+    # termination to this harness-owned PID and its descendants.
+    try { if ($TargetProcess.HasExited) { return } } catch { return }
+    $taskkillPath = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+    if (Test-Path -LiteralPath $taskkillPath -PathType Leaf) {
+        $taskkillInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $taskkillInfo.FileName = $taskkillPath
+        $taskkillInfo.Arguments = "/PID $($TargetProcess.Id) /T /F"
+        $taskkillInfo.UseShellExecute = $false
+        $taskkillInfo.CreateNoWindow = $true
+        $taskkillProcess = [System.Diagnostics.Process]::Start($taskkillInfo)
+        if ($null -ne $taskkillProcess) {
+            $taskkillProcess.WaitForExit()
+            $taskkillProcess.Dispose()
+        }
+    }
+    try {
+        if (-not $TargetProcess.HasExited) {
+            $TargetProcess.Kill()
+            $TargetProcess.WaitForExit()
+        }
+    } catch { }
+}
+
+function Get-JsonPropertyValue($Object, [string]$Name) {
+    if ($null -eq $Object) { return $null }
+    $properties = @($Object.PSObject.Properties | Where-Object { $_.Name -ceq $Name })
+    if ($properties.Count -eq 1) { return $properties[0].Value }
+    return $null
+}
+
 $audit = Resolve-FullPath $AuditWorktree
 $production = Resolve-FullPath $ProductionWorktree
 if (-not (Test-Path -LiteralPath $audit -PathType Container)) { throw 'Audit worktree does not exist.' }
@@ -132,18 +200,10 @@ $psi.UseShellExecute = $false
 $psi.RedirectStandardOutput = $true
 $psi.RedirectStandardError = $true
 $psi.CreateNoWindow = $true
-[void]$psi.ArgumentList.Add("--project=$projectId")
-[void]$psi.ArgumentList.Add('--add-dir')
-[void]$psi.ArgumentList.Add($audit)
-[void]$psi.ArgumentList.Add('--mode')
-[void]$psi.ArgumentList.Add('plan')
-[void]$psi.ArgumentList.Add('--sandbox')
-[void]$psi.ArgumentList.Add('--print')
-[void]$psi.ArgumentList.Add($prompt)
-[void]$psi.ArgumentList.Add('--output-format')
-[void]$psi.ArgumentList.Add('json')
-[void]$psi.ArgumentList.Add('--print-timeout')
-[void]$psi.ArgumentList.Add("${TimeoutSeconds}s")
+$psi.Arguments = Join-WindowsCommandLine -Arguments @(
+    "--project=$projectId", '--add-dir', $audit, '--mode', 'plan', '--sandbox',
+    '--print', $prompt, '--output-format', 'json', '--print-timeout', "${TimeoutSeconds}s"
+)
 
 $process = [System.Diagnostics.Process]::new()
 $process.StartInfo = $psi
@@ -151,7 +211,7 @@ if (-not $process.Start()) { throw 'Antigravity process did not start.' }
 $stdoutTask = $process.StandardOutput.ReadToEndAsync()
 $stderrTask = $process.StandardError.ReadToEndAsync()
 if (-not $process.WaitForExit(($TimeoutSeconds + 60) * 1000)) {
-    $process.Kill($true)
+    Stop-ProcessTree $process
     $process.WaitForExit()
     $timedOut = $true
 } else { $timedOut = $false }
@@ -163,16 +223,20 @@ $end = [DateTime]::UtcNow
 
 $parsed = $null
 $parseError = $null
-try { $parsed = $stdout | ConvertFrom-Json -AsHashtable } catch { $parseError = $_.Exception.Message }
-$response = if ($null -ne $parsed -and $parsed.ContainsKey('response')) { [string]$parsed.response } else { '' }
-$terminalStatus = if ($null -ne $parsed -and $parsed.ContainsKey('status')) { [string]$parsed.status } else { $null }
-$conversationId = if ($null -ne $parsed -and $parsed.ContainsKey('conversation_id')) { [string]$parsed.conversation_id } else { $null }
-$usage = if ($null -ne $parsed -and $parsed.ContainsKey('usage')) { $parsed.usage } else { $null }
+try { $parsed = $stdout | ConvertFrom-Json } catch { $parseError = $_.Exception.Message }
+$responseValue = Get-JsonPropertyValue $parsed 'response'
+$terminalStatusValue = Get-JsonPropertyValue $parsed 'status'
+$conversationIdValue = Get-JsonPropertyValue $parsed 'conversation_id'
+$response = if ($null -ne $responseValue) { [string]$responseValue } else { '' }
+$terminalStatus = if ($null -ne $terminalStatusValue) { [string]$terminalStatusValue } else { $null }
+$conversationId = if ($null -ne $conversationIdValue) { [string]$conversationIdValue } else { $null }
+$usage = Get-JsonPropertyValue $parsed 'usage'
 $stderrSafetyEvents = @($stderr -split "`r?`n" | Where-Object { $_ -match '(?i)(denied|permission|not permitted|blocked)' })
 $reportedDeniedActions = @()
-if ($null -ne $parsed -and $parsed.ContainsKey('denied_actions') -and $parsed.denied_actions -is [System.Collections.IEnumerable]) {
-    $reportedDeniedActions = @($parsed.denied_actions | ForEach-Object {
-        if ($_ -is [hashtable]) { [ordered]@{ action = $_.action; display_name = $_.display_name } }
+$deniedActionsValue = Get-JsonPropertyValue $parsed 'denied_actions'
+if ($null -ne $deniedActionsValue -and $deniedActionsValue -is [System.Collections.IEnumerable] -and $deniedActionsValue -isnot [string]) {
+    $reportedDeniedActions = @($deniedActionsValue | ForEach-Object {
+        if ($_ -is [System.Management.Automation.PSCustomObject]) { [ordered]@{ action = Get-JsonPropertyValue $_ 'action'; display_name = Get-JsonPropertyValue $_ 'display_name' } }
         else { [string]$_ }
     })
 }
