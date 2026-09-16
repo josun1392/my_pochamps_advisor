@@ -7,7 +7,8 @@ param(
     [string]$OutputRoot = (Join-Path $env:USERPROFILE 'agy-audits'),
     [ValidateRange(60, 7200)]
     [int]$TimeoutSeconds = 1200,
-    [string]$AgyPath
+    [string]$AgyPath,
+    [string]$AntigravityProjectId
 )
 
 Set-StrictMode -Version Latest
@@ -32,20 +33,31 @@ function Get-GitState([string]$WorkingTree) {
 }
 
 function Get-AntigravityProjectId([string]$WorkingTree) {
-    $cachePath = Join-Path $env:USERPROFILE '.gemini\projects.json'
+    $cachePath = Join-Path $env:USERPROFILE '.gemini\antigravity-cli\cache\projects.json'
     if (-not (Test-Path -LiteralPath $cachePath -PathType Leaf)) {
-        throw "Antigravity project cache is unavailable: $cachePath"
+        throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=NO; json_parse=NOT_ATTEMPTED; workspace_match=NOT_ATTEMPTED"
     }
     try { $cache = Get-Content -LiteralPath $cachePath -Raw | ConvertFrom-Json -AsHashtable }
-    catch { throw 'Antigravity project cache is malformed; refusing to guess a Project ID.' }
-    if ($null -eq $cache.projects -or -not ($cache.projects -is [hashtable])) {
-        throw 'Antigravity project cache has no projects mapping; refusing to guess a Project ID.'
+    catch { throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=NO; workspace_match=NOT_ATTEMPTED" }
+    if (-not ($cache -is [System.Collections.IDictionary])) {
+        throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; workspace_match=NO; reason=root_is_not_a_workspace_to_project_map"
     }
-    $key = (Resolve-FullPath $WorkingTree).Replace('/', '\').ToLowerInvariant()
-    $projectId = $cache.projects[$key]
-    if (-not ($projectId -is [string]) -or [string]::IsNullOrWhiteSpace($projectId)) {
-        throw 'No Antigravity Project ID is mapped to this audit worktree.'
+    $workspaceKey = (Resolve-FullPath $WorkingTree).Replace('/', '\').ToLowerInvariant()
+    $matches = @(
+        foreach ($entry in $cache.GetEnumerator()) {
+            if (-not ($entry.Key -is [string]) -or -not ($entry.Value -is [string])) { continue }
+            if (-not [System.IO.Path]::IsPathRooted($entry.Key)) { continue }
+            $candidate = (Resolve-FullPath $entry.Key).Replace('/', '\').ToLowerInvariant()
+            if ($candidate -eq $workspaceKey) { $entry.Value }
+        }
+    )
+    if ($matches.Count -eq 0) {
+        throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; workspace_match=NO"
     }
+    if ($matches.Count -ne 1 -or [string]::IsNullOrWhiteSpace($matches[0])) {
+        throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; workspace_match=AMBIGUOUS"
+    }
+    $projectId = $matches[0]
     if ($projectId -notmatch '^[A-Za-z0-9._-]{1,200}$') {
         throw 'Antigravity Project ID has an unsafe format.'
     }
@@ -87,7 +99,12 @@ if ([string]::IsNullOrWhiteSpace($AgyPath)) {
     $AgyPath = $command.Source
 }
 if (-not (Test-Path -LiteralPath $AgyPath -PathType Leaf)) { throw 'Antigravity CLI executable is unavailable.' }
-$projectId = Get-AntigravityProjectId $audit
+if (-not [string]::IsNullOrWhiteSpace($AntigravityProjectId)) {
+    if ($AntigravityProjectId -notmatch '^[A-Za-z0-9._-]{1,200}$') { throw 'AntigravityProjectId override has an unsafe format.' }
+    $projectId = $AntigravityProjectId
+} else {
+    $projectId = Get-AntigravityProjectId $audit
+}
 $output = Assert-OutsideWorktrees $OutputRoot @($audit, $production)
 
 $runId = '{0:yyyyMMddTHHmmssZ}-{1}' -f [DateTime]::UtcNow, ([guid]::NewGuid().ToString('N').Substring(0, 8))
