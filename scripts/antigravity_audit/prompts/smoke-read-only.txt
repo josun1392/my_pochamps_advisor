@@ -1,0 +1,5 @@
+REPORT ONLY. Read the repository's pyproject.toml and reply exactly:
+STATUS: AUDIT_COMPLETE
+SMOKE: READ_OK
+Do not run shell commands. Do not modify, create, delete, rename, stage, or
+otherwise mutate any repository file or Git state.
