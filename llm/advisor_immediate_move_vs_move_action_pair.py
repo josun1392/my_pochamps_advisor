@@ -566,25 +566,27 @@ def _materialize_direct_heal_pair(*, base: Mapping[str, Any], strategy_d0: Mappi
             hp = {"current_hp": first["consequences"]["target_final_hp"], "max_hp": _max_hp(strategy_d0, second_actor), "fainted": first["consequences"]["target_final_hp"] == 0}
             if hp["fainted"]:
                 branches.append(_branch(base, plan["order"], first, {}, None, second_actor, plan)); continue
+            intermediate = materialize_detached_predictive_intermediate_state(
+                strategy_d0=strategy_d0, terminal_leaf=first,
+                root_predictive_authority=root,
+            )
+            if intermediate.get("status") != "resolved":
+                return _result(_status(intermediate), intermediate.get("reason", "recovery_second_intermediate_state_unavailable"), base)
+            healing = _path_local_healing_prevented(intermediate, second_actor, strategy_d0)
+            if isinstance(healing, str): return _result("incomplete", healing, base)
             if _is_rest_metadata(second_meta.get("metadata")):
                 # Rest reads condition and sleep-prevention facts.  An exact
                 # first-action condition transition cannot be replaced with
                 # request-start state while the generic detached builder has
                 # no status-aware snapshot adapter, so retain strict
                 # incompleteness instead of healing from stale authority.
-                intermediate = materialize_detached_predictive_intermediate_state(
-                    strategy_d0=strategy_d0, terminal_leaf=first,
-                    root_predictive_authority=root,
-                )
-                if intermediate.get("status") != "resolved":
-                    return _result(_status(intermediate), intermediate.get("reason", "rest_second_intermediate_state_unavailable"), base)
                 condition = intermediate.get("active", {}).get(second_actor.get("side"), {}).get("hypothetical_condition")
                 if isinstance(condition, Mapping) and condition.get("source") in {
                     "exact_terminal_leaf_condition_effect",
                     "exact_terminal_leaf_condition_removal",
                 }:
                     return _result("incomplete", "rest_second_action_changed_condition_requires_status_aware_intermediate_adapter", base)
-            second = _recovery_leaf(second_meta.get("metadata"), authorities.get(second_action.get("action_id")), rest_authorities.get(second_action.get("action_id")), strategy_d0, runtime_snapshot, second_action, second_actor, second_target, hp)
+            second = _recovery_leaf(second_meta.get("metadata"), authorities.get(second_action.get("action_id")), rest_authorities.get(second_action.get("action_id")), strategy_d0, runtime_snapshot, second_action, second_actor, second_target, hp, healing)
             if isinstance(second, str): return _result("incomplete", second, base)
             branches.append(_branch(base, plan["order"], first, {}, second, second_actor, plan))
     mass = sum((_fraction(row["probability"]) for row in branches), Fraction())
@@ -592,7 +594,7 @@ def _materialize_direct_heal_pair(*, base: Mapping[str, Any], strategy_d0: Mappi
     return {"status":"evaluable", "schema_version":SCHEMA_VERSION, "horizon":HORIZON, **deepcopy(dict(base)), "action_order":{"direct_heal":"external_exact_order_authority"}, "terminal_branches":tuple(branches), "terminal_probability_mass":_fd(mass), "aggregation":"none_preserve_direct_heal_leaf_identity", "provenance":"strict_direct_heal_immediate_pair_materialization_v1"}
 
 
-def _direct_heal_leaf(authority: Any, d0: Mapping[str, Any], snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], path_hp: Mapping[str, Any] | None) -> dict[str, Any] | str:
+def _direct_heal_leaf(authority: Any, d0: Mapping[str, Any], snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], path_hp: Mapping[str, Any] | None, path_healing_prevented: Mapping[str, Any] | None = None) -> dict[str, Any] | str:
     if not isinstance(authority, Mapping): return "direct_heal_execution_authority_missing"
     frozen = freeze_runtime_d0_direct_heal_execution_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action, actor=actor, path_hp_authority=path_hp)
     if frozen.get("status") != "resolved": return frozen.get("reason", "direct_heal_execution_authority_unavailable")
@@ -603,14 +605,17 @@ def _direct_heal_leaf(authority: Any, d0: Mapping[str, Any], snapshot: Mapping[s
     materialized = materialize_detached_direct_heal(execution_authority=frozen)
     if materialized.get("status") != "resolved": return materialized.get("reason", "direct_heal_materialization_unavailable")
     heal = materialized["heal"]
+    if isinstance(path_healing_prevented, Mapping) and path_healing_prevented.get("state") == "known_present":
+        heal = {**deepcopy(dict(heal)), "actual_heal": 0, "post_hp": heal["pre_hp"], "healing_prevented": True}
+        materialized = {**deepcopy(dict(materialized)), "outcome": "healing_prevented", "heal": heal}
     target_hp = _current_hp(d0, target)
     if target_hp is None: return "direct_heal_target_hp_authority_missing"
     return {"leaf_id":f"{materialized['action_id']}:{materialized['outcome']}","candidate_id":materialized["action_id"],"branch_path":(materialized["outcome"],),"probability":deepcopy(materialized["probability"]),"hit_state":"not_applicable","critical_state":"not_applicable","damage_roll":"not_applicable","consequences":{"damage":0,"own_final_hp":heal["post_hp"],"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":False,"secondary":None,"contact":"not_applicable","direct_heal":deepcopy(heal)},"provenance":{"session_id":materialized["session_id"],"source_runtime_fingerprint":materialized["source_runtime_fingerprint"],"source_branch_fingerprint":materialized["source_branch_fingerprint"],"decision_owner":deepcopy(materialized["decision_owner"]),"attacker":deepcopy(materialized["actor"]),"target":deepcopy(target),"move_id":materialized["move_id"],"direct_heal_execution_authority":deepcopy(authority)}}
 
 
-def _recovery_leaf(metadata: Any, authority: Any, rest_authority: Any, d0: Mapping[str, Any], snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], path_hp: Mapping[str, Any] | None) -> dict[str, Any] | str:
+def _recovery_leaf(metadata: Any, authority: Any, rest_authority: Any, d0: Mapping[str, Any], snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], path_hp: Mapping[str, Any] | None, path_healing_prevented: Mapping[str, Any] | None = None) -> dict[str, Any] | str:
     if _is_direct_heal_metadata(metadata):
-        return _direct_heal_leaf(authority, d0, snapshot, action, actor, target, path_hp)
+        return _direct_heal_leaf(authority, d0, snapshot, action, actor, target, path_hp, path_healing_prevented)
     if not _is_rest_metadata(metadata):
         return "recovery_move_metadata_invalid"
     if isinstance(rest_authority, Mapping):
@@ -630,7 +635,10 @@ def _recovery_leaf(metadata: Any, authority: Any, rest_authority: Any, d0: Mappi
     branch_snapshot = {"status":"runtime_snapshot_ready", "session_id":state.get("session_id"), "state":state, "state_fingerprint":state_fingerprint(state)}
     branch_d0 = freeze_runtime_strategy_d0(runtime_snapshot=branch_snapshot, decision_owner=actor)
     if branch_d0.get("status") != "resolved": return branch_d0.get("reason", "rest_branch_d0_unavailable")
-    materialized = materialize_champions_rest(strategy_d0=branch_d0, runtime_snapshot=branch_snapshot, actor=actor, action=action)
+    if isinstance(path_healing_prevented, Mapping) and path_healing_prevented.get("state") == "known_present":
+        materialized = {"status":"resolved", "rest_applied":False, "outcome":"healing_prevented", "session_id":branch_d0["session_id"], "source_runtime_fingerprint":branch_d0["source_runtime_fingerprint"], "source_branch_fingerprint":branch_d0["strategy_preview_fingerprint"], "decision_owner":deepcopy(dict(branch_d0["decision_owner"])), "actor":deepcopy(dict(actor)), "action_id":action["action_id"], "move_id":"rest", "provenance":"detached_path_local_healing_prevention_v1"}
+    else:
+        materialized = materialize_champions_rest(strategy_d0=branch_d0, runtime_snapshot=branch_snapshot, actor=actor, action=action)
     if materialized.get("status") != "resolved": return materialized.get("reason", "rest_materialization_unavailable")
     if materialized.get("rest_applied") is True and validate_champions_rest(materialized).get("status") != "resolved": return "rest_materialization_provenance_invalid"
     actor_hp = materialized.get("hp_after") if materialized.get("rest_applied") is True else row.get("current_hp")
@@ -645,6 +653,17 @@ def _current_hp(d0: Mapping[str, Any], owner: Mapping[str, Any]) -> int | None:
 def _max_hp(d0: Mapping[str, Any], owner: Mapping[str, Any]) -> int | None:
     value = d0.get("strategy_state", {}).get("active", {}).get(owner.get("side"), {}).get("max_hp")
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
+def _path_local_healing_prevented(intermediate: Mapping[str, Any], actor: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any] | str:
+    value = intermediate.get("active", {}).get(actor.get("side"), {}).get("hypothetical_healing_prevented") if isinstance(intermediate, Mapping) else None
+    if not isinstance(value, Mapping): return "second_action_healing_prevented_authority_missing"
+    if value.get("status") == "known_present" and value.get("value") == "active" and value.get("source") == "exact_terminal_leaf_psychic_noise_healing_prevented_transition": return {"state":"known_present"}
+    if value.get("status") == "unchanged":
+        current = strategy_d0.get("current_healing_prevented_authority", {}).get(actor.get("side")) if isinstance(strategy_d0, Mapping) else None
+        if isinstance(current, Mapping) and current.get("status") == "resolved":
+            if current.get("state") == "known_present": return {"state":"known_present"}
+            if current.get("state") == "known_absent": return {"state":"known_absent"}
+        return {"state":"unchanged"}
+    return value.get("reason", "second_action_healing_prevented_authority_unknown")
 def _rebase_attack_target_hp(leaf: Mapping[str, Any], *, healed_hp: int, target: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any]:
     result = deepcopy(dict(leaf)); consequences = result["consequences"]; original = _current_hp(strategy_d0, target)
     if original is None: return result

@@ -20,12 +20,20 @@ def apply_detached_drain_consequence(*, runtime_snapshot: Mapping[str, Any], att
     own = consequences.get("own_final_hp")
     maximum = _max_hp(runtime_snapshot, attacker)
     if not isinstance(own, int) or isinstance(own, bool) or maximum is None or not 0 <= own <= maximum: return {"status":"incomplete", "reason":"drain_path_local_attacker_hp_unknown"}
+    prevention = _healing_prevented(runtime_snapshot, attacker)
+    if prevention == "invalid": return {"status":"incomplete", "reason":"drain_healing_prevented_authority_invalid"}
     item, ability = _current_item(runtime_snapshot, attacker), _current_ability(runtime_snapshot, target)
     if item is None or ability is None: return {"status":"incomplete", "reason":"drain_item_or_ability_authority_unknown"}
     num, den = canonical["effect"]["drain_numerator"], canonical["effect"]["drain_denominator"]
     nominal = (actual * num + den // 2) // den
     would_be = (nominal * 5324) // 4096 if item == "big-root" else nominal
     liquid = ability == "liquid-ooze"
+    if prevention == "active":
+        row = deepcopy(dict(leaf)); updated = deepcopy(dict(consequences))
+        updated["drain"] = {"schema_version":SCHEMA_VERSION, "move_id":move_metadata["move_id"], "drain_family":canonical["effect"]["drain_family"], "source_hit":deepcopy(dict(source)), "actual_target_hp_loss":actual, "attacker_pre_hp":own, "attacker_post_hp":own, "healing_prevented":True, "effective_heal":0, "reversed_damage":0}
+        row["consequences"] = updated
+        row["provenance"] = {**deepcopy(dict(row.get("provenance", {}))), "drain_catalog":deepcopy(canonical)}
+        return {"status":"resolved", "leaf":row}
     post_own = max(0, own - would_be) if liquid else min(maximum, own + would_be)
     row = deepcopy(dict(leaf)); updated = deepcopy(dict(consequences)); updated["own_final_hp"] = post_own; updated["self_fainted"] = post_own == 0
     updated["drain"] = {"schema_version":SCHEMA_VERSION, "move_id":move_metadata["move_id"], "drain_family":canonical["effect"]["drain_family"], "fraction":{"numerator":num,"denominator":den}, "source_hit":deepcopy(dict(source)), "actual_target_hp_loss":actual, "attacker_pre_hp":own, "attacker_max_hp":maximum, "nominal_recovery":nominal, "big_root":{"applies":item == "big-root", "modifier":{"numerator":5324,"denominator":4096}, "would_be_recovery":would_be}, "liquid_ooze":liquid, "effective_heal":0 if liquid else post_own-own, "reversed_damage":would_be if liquid else 0, "attacker_post_hp":post_own, "attacker_fainted":post_own == 0}
@@ -51,3 +59,9 @@ def _current_item(snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> str 
 def _current_ability(snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> str | None:
     row=_pokemon(snapshot,owner); ability=row.get("current_ability") if isinstance(row,Mapping) else None
     return ability if isinstance(ability,str) and ability and _trusted(row.get("current_ability_provenance"),"current_ability_observed") else None
+def _healing_prevented(snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> str:
+    row = _pokemon(snapshot, owner); value = row.get("healing_prevented_status") if isinstance(row, Mapping) else None
+    if not isinstance(value, str): return "unchanged"
+    provenance = row.get("healing_prevented_status_provenance") if isinstance(row, Mapping) else None
+    if value not in {"active", "inactive"} or not _trusted(provenance, "current_healing_prevented_observed") or provenance.get("status") != value: return "invalid"
+    return value
