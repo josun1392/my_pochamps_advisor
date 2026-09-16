@@ -33,33 +33,40 @@ function Get-GitState([string]$WorkingTree) {
 }
 
 function Get-AntigravityProjectId([string]$WorkingTree) {
-    $cachePath = Join-Path $env:USERPROFILE '.gemini\antigravity-cli\cache\projects.json'
+    $cachePath = Join-Path $env:USERPROFILE '.gemini\projects.json'
     if (-not (Test-Path -LiteralPath $cachePath -PathType Leaf)) {
         throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=NO; json_parse=NOT_ATTEMPTED; workspace_match=NOT_ATTEMPTED"
     }
-    try { $cache = Get-Content -LiteralPath $cachePath -Raw | ConvertFrom-Json -AsHashtable }
+    try { $cache = Get-Content -LiteralPath $cachePath -Raw | ConvertFrom-Json }
     catch { throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=NO; workspace_match=NOT_ATTEMPTED" }
-    if (-not ($cache -is [System.Collections.IDictionary])) {
-        throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; workspace_match=NO; reason=root_is_not_a_workspace_to_project_map"
+    $projectsProperty = @($cache.PSObject.Properties | Where-Object { $_.Name -ceq 'projects' })
+    if ($projectsProperty.Count -eq 0) {
+        throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; projects_property=NO; workspace_match=NOT_ATTEMPTED"
+    }
+    if ($projectsProperty.Count -ne 1 -or $null -eq $projectsProperty[0].Value -or $projectsProperty[0].Value -is [string] -or $projectsProperty[0].Value -is [System.Collections.IEnumerable]) {
+        throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; projects_property=INVALID; workspace_match=NOT_ATTEMPTED"
+    }
+    $projectProperties = @($projectsProperty[0].Value.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' })
+    if ($projectProperties.Count -eq 0) {
+        throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; projects_property=INVALID; workspace_match=NOT_ATTEMPTED"
     }
     $workspaceKey = (Resolve-FullPath $WorkingTree).Replace('/', '\').ToLowerInvariant()
     $matches = @(
-        foreach ($entry in $cache.GetEnumerator()) {
-            if (-not ($entry.Key -is [string]) -or -not ($entry.Value -is [string])) { continue }
-            if (-not [System.IO.Path]::IsPathRooted($entry.Key)) { continue }
-            $candidate = (Resolve-FullPath $entry.Key).Replace('/', '\').ToLowerInvariant()
-            if ($candidate -eq $workspaceKey) { $entry.Value }
+        foreach ($property in $projectProperties) {
+            if (-not [System.IO.Path]::IsPathRooted($property.Name)) { continue }
+            $candidate = (Resolve-FullPath $property.Name).Replace('/', '\').ToLowerInvariant()
+            if ($candidate -eq $workspaceKey) { $property.Value }
         }
     )
     if ($matches.Count -eq 0) {
         throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; workspace_match=NO"
     }
-    if ($matches.Count -ne 1 -or [string]::IsNullOrWhiteSpace($matches[0])) {
+    if ($matches.Count -ne 1) {
         throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; workspace_match=AMBIGUOUS"
     }
     $projectId = $matches[0]
-    if ($projectId -notmatch '^[A-Za-z0-9._-]{1,200}$') {
-        throw 'Antigravity Project ID has an unsafe format.'
+    if (-not ($projectId -is [string]) -or [string]::IsNullOrWhiteSpace($projectId) -or $projectId -notmatch '^[A-Za-z0-9._-]{1,200}$') {
+        throw "Antigravity project discovery failed: cache_path=$cachePath; cache_exists=YES; json_parse=YES; workspace_match=YES; project_id=INVALID"
     }
     return $projectId
 }
