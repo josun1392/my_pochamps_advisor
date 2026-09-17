@@ -5,6 +5,8 @@ from types import SimpleNamespace
 from PySide6.QtWidgets import QApplication, QDialog
 
 import ui.main_window as main_window_module
+from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from ui.main_window import MainWindow
 from ui.widgets.current_stat_stage_dialog import CurrentStatStageDialog
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
@@ -27,6 +29,9 @@ def _window() -> tuple[MainWindow, LLMAdvicePanel]:
     panel = LLMAdvicePanel()
     window.center_column = SimpleNamespace(llm_advice_panel=panel)
     window._current_stat_stage_confirmations = {}
+    state = create_unknown_bootstrap_battle_state("stage-ui", "self-a", "opponent-a")["state"]
+    window._observation_runtime_session_manager = BattleObservationRuntimeSessionManager.create("stage-ui", state)["manager"]
+    window._current_trusted_turn_number = 1
     return window, panel
 
 

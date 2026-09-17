@@ -56,6 +56,10 @@ from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observat
 from llm.advisor_production_forced_switch_integration import admit_forced_switch_phazing
 from llm.advisor_production_confusion_integration import admit_current_confusion_state
 from llm.advisor_current_condition_observation import admit_current_condition_observation
+from llm.advisor_current_state_runtime_admission import (
+    admit_current_state_observation,
+    admit_current_state_observations,
+)
 from llm.advisor_production_paralysis_application import admit_observed_champions_paralysis_result
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
@@ -691,6 +695,43 @@ class MainWindow(QMainWindow):
         self._current_condition_confirmations = {}
         self._update_current_condition_summary()
 
+    def _admit_current_state_fact(self, event_kind: str, payload: dict, side: str | None = None) -> bool:
+        """Commit a dialog fact before allowing its local presentation mirror."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = self._active_session_id()
+        result = admit_current_state_observation(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            event_kind=event_kind,
+            payload=payload,
+            side=side,
+            turn_number=getattr(self, "_current_trusted_turn_number", None),
+        )
+        if result.get("status") == "resolved":
+            return True
+        try:
+            self.statusBar().showMessage("Current-state confirmation failed: authoritative runtime rejected it")
+        except (AttributeError, RuntimeError):
+            pass
+        return False
+
+    def _admit_current_state_facts(self, facts: list[dict]) -> bool:
+        """Atomically commit a coherent current-state dialog snapshot."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        result = admit_current_state_observations(
+            runtime_session_manager=manager,
+            captured_session_id=self._active_session_id(),
+            observations=facts,
+            turn_number=getattr(self, "_current_trusted_turn_number", None),
+        )
+        if result.get("status") == "resolved":
+            return True
+        try:
+            self.statusBar().showMessage("Current-state confirmation failed: authoritative runtime rejected it")
+        except (AttributeError, RuntimeError):
+            pass
+        return False
+
     @Slot()
     def _open_switch_permission_dialog(self) -> None:
         """Capture only an explicit dialog Apply for the current reducer owner."""
@@ -732,6 +773,8 @@ class MainWindow(QMainWindow):
             except (AttributeError, RuntimeError):
                 pass
             return
+        if not self._admit_current_state_fact("current_ability_observed", {"ability": normalized["ability"]}, normalized["side"]):
+            return
         self._current_ability_confirmations = {
             **_normalize_current_ability_session(current_abilities),
             normalized["side"]: normalized,
@@ -761,6 +804,8 @@ class MainWindow(QMainWindow):
         try:
             normalized = normalize_current_type_authority(entry)
         except ValueError:
+            return
+        if normalized["state"] == "known" and not self._admit_current_state_fact("current_type_observed", {"types": normalized["types"]}, normalized["side"]):
             return
         self._current_type_confirmations = {**_normalize_current_type_session(current_types), normalized["side"]: normalized}
         structured = dict(getattr(self, "_structured_type_confirmations", {}))
@@ -821,6 +866,8 @@ class MainWindow(QMainWindow):
             normalized = normalize_user_confirmed_current_stat_stage(stage)
         except ValueError:
             return
+        if not self._admit_current_state_fact("stat_stage_observed", {"stat": normalized["stat"], "stage": normalized["stage"]}, normalized["side"]):
+            return
         self._current_stat_stage_confirmations = {
             **_normalize_current_stat_stage_session(current_stages),
             (normalized["side"], normalized["stat"]): normalized,
@@ -842,7 +889,22 @@ class MainWindow(QMainWindow):
         if snapshot is None:
             return
         try:
-            self._current_field_state_confirmation = normalize_user_confirmed_current_field_state(snapshot)
+            normalized = normalize_user_confirmed_current_field_state(snapshot)
+            if "gravity" in normalized["global_effects"]:
+                self.statusBar().showMessage("Field confirmation failed: Gravity has no current-state runtime authority")
+                return
+            facts = [
+                {"event_kind": "current_weather_observed", "payload": {"weather": normalized["weather"]}},
+                {"event_kind": "current_terrain_observed", "payload": {"terrain": normalized["terrain"]}},
+                {"event_kind": "trick_room_field_observed", "payload": {"status": "active" if "trick-room" in normalized["global_effects"] else "inactive"}},
+            ]
+            for side in ("self", "opponent"):
+                effects = [row["effect"] for row in normalized["side_effects"] if row["side"] == side]
+                facts.append({"event_kind": "current_side_conditions_observed", "payload": {"side_conditions": effects}, "side": side})
+                facts.append({"event_kind": "tailwind_side_condition_observed", "payload": {"status": "active" if "tailwind" in effects else "inactive"}, "side": side})
+            if not self._admit_current_state_facts(facts):
+                return
+            self._current_field_state_confirmation = normalized
             self._grounded_context_confirmation = getattr(dialog, "grounded_context_confirmation", None) or getattr(
                 self,
                 "_grounded_context_confirmation",
@@ -869,6 +931,8 @@ class MainWindow(QMainWindow):
         try:
             entry = normalize_user_confirmed_final_battle_stat(dialog.current_final_stat_confirmation)
         except ValueError:
+            return
+        if not self._admit_current_state_fact("current_final_combat_stat_observed", {"stat": entry["stat"], "value": entry["value"]}, entry["side"]):
             return
         self._current_final_stat_confirmations[(entry["side"], entry["stat"])] = entry
         structured_entry = self._capture_structured_final_stat_confirmation(entry)
@@ -923,6 +987,18 @@ class MainWindow(QMainWindow):
                 continue
             owner = owners.get(entry["side"])
             if owner is None or owner != self._current_hp_owner_for_side(entry["side"]):
+                continue
+            manager = getattr(self, "_observation_runtime_session_manager", None)
+            state = manager.read_state().get("state") if isinstance(manager, BattleObservationRuntimeSessionManager) else None
+            side_state = state.get(f"{entry['side']}_side") if isinstance(state, dict) else None
+            roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+            current = roster.get(owner[1], roster.get(str(owner[1]))) if isinstance(roster, dict) else None
+            before = current.get("current_hp") if isinstance(current, dict) else None
+            maximum = current.get("max_hp") if isinstance(current, dict) else None
+            if not isinstance(before, int) or isinstance(before, bool) or maximum != entry["maximum_hp"]:
+                continue
+            event_kind = "exact_hp_recovery_observed" if entry["current_hp"] >= before else "exact_hp_transition_observed"
+            if not self._admit_current_state_fact(event_kind, {"hp_before": before, "hp_after": entry["current_hp"]}, entry["side"]):
                 continue
             self._current_hp_confirmations[entry["side"]] = entry
             self._current_hp_confirmation_owners[entry["side"]] = owner
@@ -1583,7 +1659,10 @@ class MainWindow(QMainWindow):
     def _open_current_battle_format_dialog(self) -> None:
         dialog = CurrentBattleFormatDialog(battle_format=self._current_battle_format_confirmation, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted and dialog.battle_format_confirmation is not None:
-            self._current_battle_format_confirmation = normalize_user_confirmed_battle_format(dialog.battle_format_confirmation)
+            normalized = normalize_user_confirmed_battle_format(dialog.battle_format_confirmation)
+            if not self._admit_current_state_fact("current_battle_format_observed", {"battle_format": normalized["battle_format"]}):
+                return
+            self._current_battle_format_confirmation = normalized
             self._update_current_battle_format_summary()
 
     def _clear_current_battle_format_confirmation(self) -> None:
@@ -2606,9 +2685,19 @@ class MainWindow(QMainWindow):
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
+        profile = dialog.item_profile
+        if not self._is_current_runtime_active_panel(column_name, slot_index, view):
+            self.statusBar().showMessage("Item confirmation failed: select the current active Pokémon")
+            return
+        if profile.get("status") == "user_confirmed":
+            if not self._admit_current_state_fact("current_item_observed", {"status": "known", "item": profile.get("item_id")}, "opponent" if column_name == "team_enemy" else "self"):
+                return
+        elif profile.get("status") == "none":
+            if not self._admit_current_state_fact("current_item_observed", {"status": "known_absent"}, "opponent" if column_name == "team_enemy" else "self"):
+                return
         panel.set_item_profile(
-            dialog.item_profile,
-            item_button_text(dialog.item_profile, role_key=role_key),
+            profile,
+            item_button_text(profile, role_key=role_key),
         )
         profile = _item_profile_payload(panel, role_key=role_key)
         item_id = profile.get("item_id")
@@ -2620,6 +2709,21 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Item set | {view.ko or view.en}: unknown")
         else:
             self.statusBar().showMessage(f"Item reset | {view.ko or view.en}")
+
+    def _is_current_runtime_active_panel(self, column_name: str, slot_index: int, view: Any) -> bool:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        state = manager.read_state().get("state") if isinstance(manager, BattleObservationRuntimeSessionManager) else None
+        side_name = "opponent" if column_name == "team_enemy" else "self"
+        side = state.get(f"{side_name}_side") if isinstance(state, dict) else None
+        roster = side.get("pokemon") if isinstance(side, dict) else None
+        active_slot = side.get("active_slot_index") if isinstance(side, dict) else None
+        active = roster.get(active_slot, roster.get(str(active_slot))) if isinstance(roster, dict) and isinstance(active_slot, int) else None
+        return (
+            active_slot == slot_index
+            and isinstance(active, dict)
+            and active.get("pokemon_id") == getattr(view, "en", None)
+            and active.get("fainted") is not True
+        )
 
     def _refresh_move_selection_styles(self) -> None:
         for column_name, team_column in (
