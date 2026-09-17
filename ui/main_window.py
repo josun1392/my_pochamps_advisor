@@ -943,7 +943,6 @@ class MainWindow(QMainWindow):
     @Slot()
     def _clear_current_field_state_confirmation(self) -> None:
         self._current_field_state_confirmation = None
-        self._update_current_persistent_effect_summary()
         self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
         self._update_current_field_state_summary()
 
@@ -1649,6 +1648,7 @@ class MainWindow(QMainWindow):
         self._structured_observed_damage_confirmations = []
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
+        self._update_current_persistent_effect_summary()
         self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
         self._battle_counter_confirmation = None
         self._consecutive_use_confirmation = None
