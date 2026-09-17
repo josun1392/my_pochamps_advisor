@@ -1,5 +1,8 @@
 """Private session-scoped canonical observation buffer."""
 from copy import deepcopy
+from llm.advisor_switch_entry_mechanics_derived_observation import (
+    DERIVED_KINDS, MECHANICS_DERIVED_TRUST, SWITCH_ENTRY_MECHANICS_SOURCE,
+)
 
 _KINDS={"direct_move_damage_observed","used_move_observed","exact_hp_transition_observed","exact_hp_recovery_observed","current_type_observed","current_weather_observed","current_ability_observed","current_item_observed","current_terrain_observed","current_side_conditions_observed","current_battle_format_observed","current_level_observed","current_final_combat_stat_observed","current_opponent_response_set_observed","current_opponent_switch_response_set_observed","current_opponent_switch_target_combat_observed","substitute_state_observed","pokemon_switch_observed","pokemon_faint_observed","condition_applied_observed","stat_stage_observed","switch_hazards_observed","tailwind_side_condition_observed","trick_room_field_observed","magic_room_field_observed","same_turn_event_observed","first_end_of_turn_reached_observed"}
 _KINDS.update({"executed_move_observed", "previous_action_result_observed"})
@@ -18,6 +21,11 @@ _KINDS.update({
  "mat_block_active_entry_eligibility_observed",
  "fake_out_active_entry_eligibility_observed",
  "supreme_overlord_initial_active_observed",
+})
+_KINDS.update({
+ "switch_entry_hp_transition_derived", "switch_entry_condition_applied_derived",
+ "switch_entry_stat_stage_transition_derived", "switch_entry_weather_transition_derived",
+ "switch_entry_hazard_transition_derived", "switch_entry_faint_derived",
 })
 class ObservationCollection:
  def __init__(self,session_id): self._session_id=session_id; self._items={}
@@ -48,6 +56,7 @@ def _confirmation_item(result,session_id):
  if item.get("session_id")!=session_id:return "stale_session"
  turn=item.get("turn_number")
  if not isinstance(oid,str) or not oid or not isinstance(seq,int) or isinstance(seq,bool) or seq<1 or not _valid_turn_number(turn) or item.get("event_kind") not in _KINDS:return "invalid_observation"
+ if item.get("event_kind") in DERIVED_KINDS and (item.get("trust")!=MECHANICS_DERIVED_TRUST or item.get("source")!=SWITCH_ENTRY_MECHANICS_SOURCE or item.get("scope")!="switch_entry" or not isinstance(item.get("payload",{}).get("source_switch_observation_id"),str)):return "invalid_observation"
  return oid,item
 
 def _valid_turn_number(value): return value is None or (isinstance(value,int) and not isinstance(value,bool) and value>0)

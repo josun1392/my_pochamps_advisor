@@ -1,4 +1,7 @@
 from copy import deepcopy
+from llm.advisor_switch_entry_mechanics_derived_observation import (
+    DERIVED_KINDS, MECHANICS_DERIVED_TRUST, SWITCH_ENTRY_MECHANICS_SOURCE,
+)
 
 REPLAY_POLICY_VERSION = "v1"
 _EFFECTS = {"exact_hp_transition_observed":"apply_exact_hp_transition","exact_hp_recovery_observed":"apply_exact_hp_recovery","current_type_observed":"set_current_type","current_condition_observed":"set_current_condition","current_healing_prevented_observed":"set_current_healing_prevented","pending_status_action_execution_observed":"set_pending_status_action_execution","doubles_active_topology_observed":"set_doubles_active_topology","selected_action_targeting_observed":"set_selected_action_targeting","current_weather_observed":"set_current_weather","current_ability_observed":"set_current_ability","current_item_observed":"set_current_item","current_terrain_observed":"set_current_terrain","current_side_conditions_observed":"set_current_side_conditions","current_battle_format_observed":"set_current_battle_format","current_level_observed":"set_current_level","current_final_combat_stat_observed":"set_current_final_combat_stat","current_opponent_response_set_observed":"set_current_opponent_response_set","current_opponent_switch_response_set_observed":"set_current_opponent_switch_response_set","current_opponent_switch_target_combat_observed":"set_current_opponent_switch_target_combat","substitute_state_observed":"set_current_substitute","used_move_observed":"record_known_move","condition_applied_observed":"set_condition","stat_stage_observed":"set_current_stat_stage","switch_hazards_observed":"set_switch_hazards","tailwind_side_condition_observed":"set_observed_tailwind","trick_room_field_observed":"set_observed_trick_room","magic_room_field_observed":"set_observed_magic_room","same_turn_event_observed":"set_same_turn_event","first_end_of_turn_reached_observed":"mark_first_end_of_turn_reached","condition_removed_observed":"clear_condition","item_consumption_observed":"consume_item","item_removed_observed":"remove_item","weather_started_observed":"start_weather","weather_ended_observed":"end_weather","terrain_started_observed":"start_terrain","terrain_ended_observed":"end_terrain","side_condition_started_observed":"start_side_condition","side_condition_ended_observed":"end_side_condition","pokemon_switch_observed":"switch_active","pokemon_faint_observed":"mark_fainted"}
@@ -10,6 +13,7 @@ _EFFECTS["previous_action_result_observed"] = "record_previous_action_result"
 _EFFECTS.update({"current_aqua_ring_state_observed":"set_current_aqua_ring_state", "current_ingrain_state_observed":"set_current_ingrain_state", "current_leech_seed_state_observed":"set_current_leech_seed_state"})
 _EFFECTS.update({"current_confusion_state_observed":"set_current_confusion_state", "champions_confusion_progression_observed":"record_champions_confusion_progression"})
 _EFFECTS.update({"taunt_restriction_applied_observed":"apply_taunt_restriction", "encore_restriction_applied_observed":"apply_encore_restriction", "disable_restriction_applied_observed":"apply_disable_restriction", "taunt_restricted_turn_completed_observed":"complete_restricted_active_turn", "encore_restricted_turn_completed_observed":"complete_encore_restricted_active_turn", "disable_restricted_turn_completed_observed":"complete_disable_restricted_active_turn"})
+_EFFECTS.update({"switch_entry_hp_transition_derived":"apply_exact_hp_transition", "switch_entry_condition_applied_derived":"set_condition", "switch_entry_stat_stage_transition_derived":"set_current_stat_stage", "switch_entry_weather_transition_derived":"set_current_weather", "switch_entry_hazard_transition_derived":"set_switch_hazards", "switch_entry_faint_derived":"mark_fainted"})
 
 def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolver=None):
     """Pure, non-mutating future-reducer planning only."""
@@ -38,6 +42,22 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
         elif eligibility=="evidence_only": evidence.append(event)
         else: unsupported.append(event)
     accepted.sort(key=lambda e:(e["observation_sequence"],e["observation_id"]))
+    switches = {e.get("observation_id"): e for e in accepted if e.get("event_kind") == "pokemon_switch_observed"}
+    dependency_verified = []
+    for event in accepted:
+        if event.get("event_kind") in DERIVED_KINDS:
+            source = switches.get(event.get("payload", {}).get("source_switch_observation_id"))
+            payload = event.get("payload", {})
+            incoming = source.get("payload", {}) if isinstance(source, dict) else {}
+            if (source is None or source.get("session_id") != event.get("session_id")
+                    or source.get("turn_number") != event.get("turn_number")
+                    or source.get("observation_sequence", 0) >= event.get("observation_sequence", 0)
+                    or event.get("trust") != MECHANICS_DERIVED_TRUST or event.get("source") != SWITCH_ENTRY_MECHANICS_SOURCE
+                    or event.get("scope") != "switch_entry"
+                    or not _derived_owner_matches(event, source, incoming)):
+                unsupported.append(event); conflicts.append({"observation_id": event.get("observation_id"), "reason": "invalid_switch_entry_derived_binding"}); continue
+        dependency_verified.append(event)
+    accepted = dependency_verified
     exact_executions = {}
     verified = []
     for event in accepted:
@@ -55,7 +75,14 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
     accepted = verified
     steps=[{"observation_id":e["observation_id"],"observation_sequence":e["observation_sequence"],"event_kind":e.get("event_kind"),"turn_number":e.get("turn_number"),"source":e.get("source"),"trust":e.get("trust"),"scope":e.get("scope"),"eligibility":"candidate","planned_effect":_EFFECTS[e["event_kind"]], **({"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"canonical_move_id":canonical_moves.get(e["observation_id"])} if e.get("event_kind")=="used_move_observed" else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"hp_before":e.get("payload",{}).get("hp_before"),"hp_after":e.get("payload",{}).get("hp_after")} if e.get("event_kind") in {"exact_hp_transition_observed","exact_hp_recovery_observed"} else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"types":deepcopy(e.get("payload",{}).get("types"))} if e.get("event_kind")=="current_type_observed" else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"), **deepcopy(e.get("payload",{}))} if e.get("event_kind") in {"current_condition_observed","current_healing_prevented_observed","current_level_observed","current_final_combat_stat_observed","substitute_state_observed","same_turn_event_observed","current_aqua_ring_state_observed","current_ingrain_state_observed","current_leech_seed_state_observed"} else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"condition":e.get("payload",{}).get("condition")} if e.get("event_kind")=="condition_applied_observed" else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"stat":e.get("payload",{}).get("stat"),"stage":e.get("payload",{}).get("stage")} if e.get("event_kind")=="stat_stage_observed" else {"side":e.get("side"), **deepcopy(e.get("payload",{}))} if e.get("event_kind")=="switch_hazards_observed" else {"side":e.get("side"),"tailwind_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="tailwind_side_condition_observed" else {"trick_room_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="trick_room_field_observed" else {"magic_room_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="magic_room_field_observed" else {})} for e in accepted]
     for step, event in zip(steps, accepted):
-        if event.get("event_kind").endswith("restriction_applied_observed") or event.get("event_kind").endswith("restricted_turn_completed_observed"):
+        if event.get("event_kind") in DERIVED_KINDS:
+            step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
+            if event.get("event_kind") == "switch_entry_weather_transition_derived": step["weather"] = event.get("payload", {}).get("weather_after")
+            if event.get("event_kind") == "switch_entry_hazard_transition_derived": step.update(**deepcopy(event.get("payload", {}).get("hazards_after", {})))
+            if event.get("event_kind") == "switch_entry_stat_stage_transition_derived": step["stage"] = event.get("payload", {}).get("stage_after")
+        if event.get("event_kind") == "pokemon_switch_observed":
+            step.update(side=event.get("side"), **deepcopy(event.get("payload", {})))
+        elif event.get("event_kind").endswith("restriction_applied_observed") or event.get("event_kind").endswith("restricted_turn_completed_observed"):
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
         elif event.get("event_kind") == "executed_move_observed":
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), move_id=event.get("payload", {}).get("move_id"), source_action_id=event.get("payload", {}).get("source_action_id"))
@@ -90,6 +117,17 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
         elif event.get("event_kind") in {"current_item_observed", "current_terrain_observed", "current_side_conditions_observed", "current_battle_format_observed"}:
             step.update(**deepcopy(event.get("payload", {})))
     return {"status":"blocked_by_conflict" if conflicts else "planned","session_id":session,"accepted_events":accepted,"evidence_only_events":evidence,"unsupported_events":unsupported,"excluded_events":excluded,"conflicts":conflicts,"ordered_steps":steps,"limitations":["full_atomic_validation_before_mutation","no_state_mutation","no_q12_or_modifier_application"],"replay_policy_version":REPLAY_POLICY_VERSION}
+
+
+def _derived_owner_matches(event, source, incoming):
+    owner = (event.get("side"), event.get("slot_index"), event.get("pokemon_id"))
+    incoming_owner = (source.get("side"), incoming.get("switch_in_slot_index"), incoming.get("switch_in_pokemon_id"))
+    kind = event.get("event_kind")
+    if kind == "switch_entry_hazard_transition_derived":
+        return owner == (incoming_owner[0], None, None)
+    if kind == "switch_entry_stat_stage_transition_derived" and event.get("payload", {}).get("mechanic") in {"intimidate", "intimidate_reversed"}:
+        return owner[0] in {"self", "opponent"} and owner[0] != incoming_owner[0]
+    return owner == incoming_owner
 
 
 def _resolve_canonical_move(move_id, resolver):

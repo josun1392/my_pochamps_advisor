@@ -1,5 +1,8 @@
 """Private trusted-lifecycle confirmation boundary; no reducer/store integration."""
 from copy import deepcopy
+from llm.advisor_switch_entry_mechanics_derived_observation import (
+    DERIVED_KINDS, MECHANICS_DERIVED_TRUST, SWITCH_ENTRY_MECHANICS_SOURCE,
+)
 
 PRODUCTION_SOURCE = "ui_observed_damage_confirmation"
 USED_MOVE_SOURCE = "ui_used_move_confirmation"
@@ -105,6 +108,37 @@ class LifecycleConfirmationBoundary:
             return _result("duplicate" if same else "conflicting_confirmation", "duplicate" if same else "conflicting_observation_id", readiness, duplicate=oid, conflicts=[] if same else [{"observation_id": oid, "reason": "conflicting_confirmation"}])
         record["observation_sequence"] = self._next_sequence; self._next_sequence += 1; self._records[oid] = deepcopy(record)
         return {"status": "confirmed", "observation": deepcopy(record), "duplicate_observation_id": None, "conflicts": [], "excluded_reason": None, "production_readiness": readiness, "limitations": ["structured_only", "no_store_or_reducer_application", "no_ui_mutation", "provider_budget_0"]}
+
+    def accept_switch_entry_derived(self, result):
+        """Admit only the explicit mechanics-derived family after its source switch.
+
+        This is intentionally separate from ``confirm`` so USER_TRUST production
+        confirmation rules remain unchanged.
+        """
+        observation = result.get("observation") if isinstance(result, dict) and result.get("status") == "confirmed" else None
+        if not isinstance(observation, dict) or observation.get("event_kind") not in DERIVED_KINDS:
+            return _result("invalid_provenance", "unsupported_switch_entry_derived_event")
+        payload = observation.get("payload")
+        source_id = payload.get("source_switch_observation_id") if isinstance(payload, dict) else None
+        source = self._records.get(source_id)
+        if (observation.get("session_id") != self._session_id
+                or observation.get("trust") != MECHANICS_DERIVED_TRUST
+                or observation.get("source") != SWITCH_ENTRY_MECHANICS_SOURCE
+                or not isinstance(source, dict)
+                or source.get("event_kind") != "pokemon_switch_observed"
+                or source.get("turn_number") != observation.get("turn_number")
+                or source.get("observation_sequence", 0) >= observation.get("observation_sequence", 0)
+                or observation.get("observation_sequence") != self._next_sequence):
+            return _result("invalid_provenance", "invalid_switch_entry_derived_binding")
+        oid = observation.get("observation_id")
+        if not isinstance(oid, str) or not oid:
+            return _result("invalid_provenance", "invalid_switch_entry_derived_id")
+        prior = self._records.get(oid)
+        if prior is not None:
+            return _result("duplicate" if prior == observation else "conflicting_confirmation", "duplicate" if prior == observation else "conflicting_observation_id")
+        self._records[oid] = deepcopy(observation)
+        self._next_sequence += 1
+        return {"status": "confirmed", "observation": deepcopy(observation), "duplicate_observation_id": None, "conflicts": [], "excluded_reason": None, "production_readiness": "mechanics_derived", "limitations": ["structured_only", "no_store_or_reducer_application", "no_ui_mutation", "provider_budget_0"]}
 
 
 def _owner_matches(owners, side, slot, pokemon):

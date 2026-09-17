@@ -14,6 +14,9 @@ from llm.advisor_ice_body_recovery_core import evaluate_ice_body_recovery, evalu
 from llm.advisor_sandstorm_residual_core import evaluate_sandstorm_residual
 from llm.advisor_solar_power_residual_core import evaluate_solar_power_residual
 from llm.advisor_substitute import update_substitute_state_context
+from llm.advisor_switch_entry_mechanics_derived_observation import (
+    DERIVED_KINDS, MECHANICS_DERIVED_TRUST, SWITCH_ENTRY_MECHANICS_SOURCE,
+)
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
@@ -710,6 +713,7 @@ def execute_atomic_transition(base_state, replay_plan, *, expected_session_id=No
 
 def _normalize_steps(steps, plan):
     events = {e.get("observation_id"): e for e in plan.get("accepted_events", []) if isinstance(e, dict) and isinstance(e.get("observation_id"), str)}
+    batch_ids = {raw.get("observation_id") for raw in steps if isinstance(raw, dict)}
     result, seen, previous = [], set(), None
     for raw in steps:
         if not isinstance(raw, dict): return [], "invalid_step"
@@ -720,7 +724,15 @@ def _normalize_steps(steps, plan):
         previous, seen = (seq, oid), seen | {oid}
         event = deepcopy(events.get(oid, {})); event.update(deepcopy(raw))
         event["observation_id"], event["observation_sequence"], event["planned_effect"] = oid, seq, effect
+        if event.get("trust") == MECHANICS_DERIVED_TRUST and event.get("event_kind") not in DERIVED_KINDS:
+            return [], "mechanics_derived_trust_on_non_derived_event"
         if not _has_target_identity(event): return [], "missing_required_target_identity"
+        if event.get("event_kind") in DERIVED_KINDS:
+            source_id = _value(event, "source_switch_observation_id")
+            source = events.get(source_id)
+            if not _valid_switch_entry_derived_binding(event, source, batch_ids, plan.get("session_id")):
+                return [], "invalid_switch_entry_derived_binding"
+            event["_switch_entry_source_switch"] = deepcopy(source)
         result.append(event)
     return result, None
 
@@ -729,6 +741,81 @@ def _value(event, name):
     if name in event: return event[name]
     payload = event.get("payload")
     return payload.get(name) if isinstance(payload, dict) else None
+
+
+def _valid_switch_entry_derived_binding(event, source, batch_ids, session):
+    """Require the actual switch record from this replay batch, never history."""
+    if (event.get("trust") != MECHANICS_DERIVED_TRUST or event.get("source") != SWITCH_ENTRY_MECHANICS_SOURCE
+            or event.get("scope") != "switch_entry" or not isinstance(source, dict)
+            or source.get("observation_id") not in batch_ids or source.get("event_kind") != "pokemon_switch_observed"
+            or source.get("session_id") != session or source.get("turn_number") != event.get("turn_number")
+            or source.get("observation_sequence", 0) >= event.get("observation_sequence", 0)):
+        return False
+    switch = source.get("payload")
+    if not isinstance(switch, dict):
+        return False
+    incoming = (source.get("side"), switch.get("switch_in_slot_index"), switch.get("switch_in_pokemon_id"))
+    owner = (_value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id"))
+    kind, mechanic = event.get("event_kind"), _value(event, "mechanic")
+    if kind == "switch_entry_hazard_transition_derived":
+        return owner == (incoming[0], None, None)
+    if kind == "switch_entry_stat_stage_transition_derived" and mechanic in {"intimidate", "intimidate_reversed"}:
+        return owner[0] in {"self", "opponent"} and owner[0] != incoming[0]
+    return owner == incoming
+
+
+def _valid_switch_entry_derived_transition(state, event):
+    source = event.get("_switch_entry_source_switch")
+    switch = source.get("payload") if isinstance(source, dict) else None
+    if not isinstance(switch, dict):
+        return "invalid_switch_entry_derived_binding"
+    incoming = (source.get("side"), switch.get("switch_in_slot_index"), switch.get("switch_in_pokemon_id"))
+    owner = (_value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id"))
+    kind, mechanic = event.get("event_kind"), _value(event, "mechanic")
+    if not _active_identity_matches(state, *incoming):
+        return "switch_entry_incoming_not_active"
+    pokemon = _pokemon(state, {"side": incoming[0], "slot_index": incoming[1], "pokemon_id": incoming[2]})
+    if pokemon is None:
+        return "switch_entry_incoming_missing"
+    if kind == "switch_entry_hp_transition_derived":
+        before, after = _value(event, "hp_before"), _value(event, "hp_after")
+        if mechanic != "entry_hazards" or not _exact(before) or not _exact(after) or after > before or pokemon.get("current_hp") != before:
+            return "invalid_switch_entry_hp_transition"
+        maximum = pokemon.get("max_hp")
+        return None if _unknown(maximum) or (isinstance(maximum, int) and after <= maximum) else "invalid_switch_entry_hp_transition"
+    if kind == "switch_entry_condition_applied_derived":
+        if mechanic != "toxic_spikes" or _value(event, "condition") not in {"poison", "toxic"} or pokemon.get("condition") != _value(event, "condition_before"):
+            return "invalid_switch_entry_condition_transition"
+        return None
+    if kind == "switch_entry_stat_stage_transition_derived":
+        before, after, stat = _value(event, "stage_before"), _value(event, "stage_after"), _value(event, "stat")
+        target = _pokemon(state, event)
+        stages = target.get("stat_stages") if isinstance(target, dict) else None
+        if not isinstance(stages, dict) or stages.get(stat, 0) != before:
+            return "switch_entry_stage_before_mismatch"
+        if mechanic == "sticky_web":
+            return None if owner == incoming and stat == "speed" and after == max(-6, before - 1) else "invalid_sticky_web_transition"
+        if mechanic == "download":
+            return None if owner == incoming and stat in {"attack", "special-attack"} and after == min(6, before + 1) else "invalid_download_transition"
+        if mechanic in {"intimidate", "intimidate_reversed"}:
+            expected = max(-6, before - 1) if mechanic == "intimidate" else min(6, before + 1)
+            return None if owner[0] != incoming[0] and _active_identity_matches(state, *owner) and stat == "attack" and after == expected else "invalid_intimidate_transition"
+        return "unsupported_switch_entry_stage_mechanic"
+    if kind == "switch_entry_weather_transition_derived":
+        weather = {"drizzle": "rain", "drought": "sun", "sand-stream": "sandstorm", "snow-warning": "snow"}.get(_value(event, "source_ability"))
+        field = state.get("field")
+        return None if weather == _value(event, "weather_after") and isinstance(field, dict) and field.get("weather") == _value(event, "weather_before") else "invalid_switch_entry_weather_transition"
+    if kind == "switch_entry_hazard_transition_derived":
+        before, after, context = _value(event, "hazards_before"), _value(event, "hazards_after"), state.get("switch_hazard_context")
+        if not isinstance(before, dict) or not isinstance(after, dict) or not isinstance(context, dict) or context.get("affected_side") != incoming[0]:
+            return "invalid_switch_entry_hazard_transition"
+        keys = {"stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web"}
+        if set(before) != keys or set(after) != keys or any(context.get(key) != before[key] for key in keys):
+            return "switch_entry_hazard_before_mismatch"
+        return None if before["toxic_spikes_layers"] in {1, 2} and after["toxic_spikes_layers"] == 0 and all(before[key] == after[key] for key in keys - {"toxic_spikes_layers"}) else "invalid_switch_entry_hazard_transition"
+    if kind == "switch_entry_faint_derived":
+        return None if mechanic == "entry_hazards" and owner == incoming and pokemon.get("current_hp") == 0 and pokemon.get("fainted") is not True else "invalid_switch_entry_faint"
+    return "unsupported_switch_entry_derived_event"
 
 
 def _has_target_identity(event):
@@ -813,6 +900,13 @@ def _mark(container, field, event):
 
 def _apply(state, event):
     effect = event["planned_effect"]
+    if event.get("event_kind") in DERIVED_KINDS:
+        reason = _valid_switch_entry_derived_transition(state, event)
+        if reason:
+            return _conflict(event, reason)
+        ordinary = deepcopy(event)
+        ordinary.pop("event_kind", None)
+        return _apply(state, ordinary)
     if effect != "mark_first_end_of_turn_reached" and _phase_already_reached(state, _value(event, "turn_number")):
         return _conflict(event, "post_first_end_of_turn_transition_unsupported")
     if effect == "mark_first_end_of_turn_reached":
