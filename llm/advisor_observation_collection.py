@@ -7,6 +7,18 @@ _KINDS.update({"taunt_restriction_applied_observed", "encore_restriction_applied
 _KINDS.update({"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"})
 _KINDS.add("current_condition_observed")
 _KINDS.update({"current_confusion_state_observed", "champions_confusion_progression_observed"})
+# These lifecycle-confirmed observations have canonical replay/reducer owners and
+# are intended to enter the normal production runtime pipeline.  Keep fixture
+# transitions and special evidence-only observations out of this admission set.
+_KINDS.update({
+ "current_healing_prevented_observed",
+ "pending_status_action_execution_observed",
+ "doubles_active_topology_observed",
+ "selected_action_targeting_observed",
+ "mat_block_active_entry_eligibility_observed",
+ "fake_out_active_entry_eligibility_observed",
+ "supreme_overlord_initial_active_observed",
+})
 class ObservationCollection:
  def __init__(self,session_id): self._session_id=session_id; self._items={}
  def add_confirmation_result(self,result):

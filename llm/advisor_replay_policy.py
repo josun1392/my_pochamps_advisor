@@ -75,6 +75,8 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
         elif event.get("event_kind") == "mat_block_active_entry_eligibility_observed":
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
+        elif event.get("event_kind") == "fake_out_active_entry_eligibility_observed":
+            step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
         elif event.get("event_kind") == "doubles_active_topology_observed":
             step.update(**deepcopy(event.get("payload", {})))
         elif event.get("event_kind") == "supreme_overlord_initial_active_observed":
