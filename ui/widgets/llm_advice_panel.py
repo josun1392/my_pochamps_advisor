@@ -32,6 +32,7 @@ class LLMAdvicePanel(QFrame):
     current_condition_requested = Signal()
     current_condition_session_reset_requested = Signal()
     current_ability_requested = Signal()
+    current_persistent_effect_requested = Signal()
     switch_permission_requested = Signal()
     current_ability_session_reset_requested = Signal()
     current_type_requested = Signal()
@@ -131,6 +132,11 @@ class LLMAdvicePanel(QFrame):
         )
         self.current_ability_button.clicked.connect(self.current_ability_requested.emit)
 
+        self.current_persistent_effect_button = QPushButton("Persistent Effects")
+        self.current_persistent_effect_button.setObjectName("currentPersistentEffectButton")
+        self.current_persistent_effect_button.setToolTip("Record only an explicit current persistent-effect observation.")
+        self.current_persistent_effect_button.clicked.connect(self.current_persistent_effect_requested.emit)
+
         self.switch_permission_button = QPushButton("교체 가능 여부")
         self.switch_permission_button.setObjectName("switchPermissionButton")
         self.switch_permission_button.clicked.connect(self.switch_permission_requested.emit)
@@ -209,6 +215,7 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.current_condition_button)
         layout.addWidget(self.clear_current_conditions_button)
         layout.addWidget(self.current_ability_button)
+        layout.addWidget(self.current_persistent_effect_button)
         layout.addWidget(self.switch_permission_button)
         layout.addWidget(self.clear_current_abilities_button)
         layout.addWidget(self.current_type_button)

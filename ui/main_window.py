@@ -84,6 +84,8 @@ from ui.widgets.field_profile_dialog import FieldProfileDialog
 from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
 from ui.widgets.current_ability_dialog import CurrentAbilityDialog
+from ui.widgets.current_persistent_effect_dialog import CurrentPersistentEffectDialog
+from llm.advisor_persistent_effect_state_runtime_admission import admit_current_persistent_effect_state
 from ui.widgets.switch_permission_dialog import SwitchPermissionDialog
 from ui.widgets.current_type_dialog import CurrentTypeDialog
 from ui.widgets.current_stat_stage_dialog import CurrentStatStageDialog
@@ -431,6 +433,7 @@ class MainWindow(QMainWindow):
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
         self._current_ability_confirmations: dict[str, dict] = {}
+        self._current_persistent_effect_confirmations: dict[str, dict] = {}
         self._structured_ability_confirmations: dict[str, dict] = {}
         self._current_type_confirmations: dict[str, dict] = _unknown_current_type_session()
         self._structured_type_confirmations: dict[str, dict] = {}
@@ -499,6 +502,7 @@ class MainWindow(QMainWindow):
             self._clear_current_condition_confirmations
         )
         self.center_column.llm_advice_panel.current_ability_requested.connect(self._open_current_ability_dialog)
+        self.center_column.llm_advice_panel.current_persistent_effect_requested.connect(self._open_current_persistent_effect_dialog)
         self.center_column.llm_advice_panel.switch_permission_requested.connect(self._open_switch_permission_dialog)
         self.center_column.llm_advice_panel.current_ability_session_reset_requested.connect(
             self._clear_current_ability_confirmations
@@ -786,6 +790,23 @@ class MainWindow(QMainWindow):
             structured[normalized["side"]] = structured_entry
             self._structured_ability_confirmations = structured
         self._update_current_ability_summary()
+
+    @Slot()
+    def _open_current_persistent_effect_dialog(self) -> None:
+        current = getattr(self, "_current_persistent_effect_confirmations", {})
+        dialog = CurrentPersistentEffectDialog(current_effects=current, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.persistent_effect_confirmation is None:
+            return
+        row = dialog.persistent_effect_confirmation; manager = getattr(self, "_observation_runtime_session_manager", None); session_id = self._active_session_id()
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            return
+        state = manager.read_state().get("state", {}); side_state = state.get(f"{row['side']}_side", {}); slot = side_state.get("active_slot_index"); roster = side_state.get("pokemon", {}); pokemon = roster.get(slot) if isinstance(roster, dict) else None
+        if not isinstance(slot, int) or not isinstance(pokemon, dict) or not isinstance(pokemon.get("pokemon_id"), str):
+            return
+        result = admit_current_persistent_effect_state(runtime_session_manager=manager, captured_session_id=session_id, family=row["family"], side=row["side"], slot_index=slot, pokemon_id=pokemon["pokemon_id"], persistent_state=row["persistent_state"], turn_number=getattr(self, "_current_trusted_turn_number", None), source_side=row.get("source_side"), source_slot_index=row.get("source_slot_index"))
+        if result.get("status") != "resolved":
+            return
+        self._current_persistent_effect_confirmations = {**current, f"{row['side']}:{slot}:{pokemon['pokemon_id']}:{row['family']}": row}
 
     @Slot()
     def _clear_current_ability_confirmations(self) -> None:
