@@ -20,6 +20,10 @@ from advisor.damage.modifiers.core import weather_modifier
 from advisor.damage.screens import screen_modifier
 from advisor.damage.field import SideField
 from advisor.damage.types import TYPES, load_type_chart
+from advisor.canonical_direct_heal_move_family import (
+    is_plain_half_max_hp_self_heal_move,
+    plain_half_max_hp_self_heal_amount,
+)
 
 
 BATTLE_STATE_CONTEXT_ALLOWED_SOURCES = frozenset(
@@ -1179,7 +1183,12 @@ def build_direct_healing_assessment(selected_move: Mapping[str, Any] | None, cur
     if current < 0 or maximum <= 0 or current > maximum:
         return {**base,"status":"unavailable","reason":"invalid_attacker_hp_context"}
     if current==0:return {**base,"status":"not_applicable","reason":"user_already_fainted"}
-    raw=maximum*healing//100; actual=min(raw,maximum-current)
+    raw = (
+        plain_half_max_hp_self_heal_amount(maximum)
+        if healing == 50 and is_plain_half_max_hp_self_heal_move(selected_move["move_id"])
+        else maximum * healing // 100
+    )
+    actual=min(raw,maximum-current)
     if actual==0:return {**base,"healing_percent":healing,"raw_healing":raw,"actual_healing":0,"current_hp":current,"maximum_hp":maximum,"resulting_hp":current,"status":"no_effect","reason":"already_at_full_hp"}
     return {**base,"healing_percent":healing,"raw_healing":raw,"actual_healing":actual,"current_hp":current,"maximum_hp":maximum,"resulting_hp":current+actual,"status":"resolved"}
 

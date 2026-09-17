@@ -4,6 +4,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 
+from advisor.canonical_direct_heal_move_family import plain_half_max_hp_self_heal_amount
+
 SCHEMA_VERSION = "detached-direct-heal-materialization-v1"
 
 
@@ -18,7 +20,7 @@ def materialize_detached_direct_heal(*, execution_authority: Mapping[str, Any]) 
     current, maximum = execution_authority["current_hp"], execution_authority["max_hp"]
     if execution_authority["fainted"]:
         return _result("not_applicable", "user_already_fainted", base)
-    nominal = (maximum + 1) // 2
+    nominal = plain_half_max_hp_self_heal_amount(maximum)
     actual = min(nominal, maximum - current)
     outcome = "no_effect_full_hp" if actual == 0 else "healed"
     return {"status": "resolved", "schema_version": SCHEMA_VERSION, **base, "outcome": outcome,
