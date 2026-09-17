@@ -53,6 +53,7 @@ from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYL
 from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
+from llm.advisor_entry_hazard_ko_replacement_runtime_admission import admit_entry_hazard_ko_replacement
 from llm.advisor_production_forced_switch_integration import admit_forced_switch_phazing
 from llm.advisor_production_confusion_integration import admit_current_confusion_state
 from llm.advisor_current_condition_observation import admit_current_condition_observation
@@ -1518,14 +1519,30 @@ class MainWindow(QMainWindow):
 
     def _confirm_pokemon_switch(self, *, side: str, switch_in_slot_index: int, switch_in_pokemon_id: str) -> dict:
         """Apply one explicit UI-confirmed switch; slot navigation never calls this."""
-        result = admit_pokemon_switch_observation(
-            runtime_session_manager=getattr(self, "_observation_runtime_session_manager", None),
-            captured_session_id=MainWindow._active_session_id(self),
-            side=side,
-            switch_in_slot_index=switch_in_slot_index,
-            switch_in_pokemon_id=switch_in_pokemon_id,
-            turn_number=getattr(self, "_current_trusted_turn_number", None),
-        )
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        state = manager.read_state().get("state") if isinstance(manager, BattleObservationRuntimeSessionManager) else None
+        self_side = state.get("self_side") if isinstance(state, dict) else None
+        active_slot = self_side.get("active_slot_index") if isinstance(self_side, dict) else None
+        roster = self_side.get("pokemon") if isinstance(self_side, dict) else None
+        active = roster.get(active_slot, roster.get(str(active_slot))) if isinstance(roster, dict) and isinstance(active_slot, int) else None
+        if side == "self" and isinstance(active, dict) and active.get("current_hp") == 0 and active.get("fainted") is True:
+            result = admit_entry_hazard_ko_replacement(
+                runtime_session_manager=manager,
+                captured_session_id=session_id,
+                switch_in_slot_index=switch_in_slot_index,
+                switch_in_pokemon_id=switch_in_pokemon_id,
+                turn_number=getattr(self, "_current_trusted_turn_number", None),
+            )
+        else:
+            result = admit_pokemon_switch_observation(
+                runtime_session_manager=manager,
+                captured_session_id=session_id,
+                side=side,
+                switch_in_slot_index=switch_in_slot_index,
+                switch_in_pokemon_id=switch_in_pokemon_id,
+                turn_number=getattr(self, "_current_trusted_turn_number", None),
+            )
         if result.get("status") != "resolved":
             return result
         # This only synchronizes presentation after reducer application.  It is
