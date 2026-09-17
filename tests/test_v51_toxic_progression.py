@@ -8,6 +8,7 @@ from llm.advisor_runtime_state_projection import build_runtime_advice_state_proj
 from llm.advisor_roster_mechanics import build_self_roster_mechanics_context_projection
 from llm.advisor_switch_incoming_evaluator import _evaluate_first_status_residual
 from llm.advisor_turn_snapshot import build_turn_snapshot_from_battle_input
+from llm.advisor_reducer_state_model import validate_battle_state_unknown_markers
 
 
 def _manager(*, hp=100):
@@ -79,3 +80,15 @@ def test_toxic_stage_caps_at_fifteen_and_feeds_existing_residual_ko_evidence():
     assert evidence["toxic_stage"] == 3 and evidence["residual_damage"] == 30 and evidence["guaranteed_ko"] is True
     roster = build_self_roster_mechanics_context_projection(manager.read_state()["state"])
     assert roster["entries"][0]["toxic_progression_authority"] == {"status": "known", "value": {"next_stage": 15}}
+
+
+def test_toxic_progression_rejects_forged_and_wrong_mechanics_provenance():
+    state = _manager().read_state()["state"]
+    pokemon = state["self_side"]["pokemon"][0]
+    base = {"next_stage": 1, "initialized_turn": 4, "last_processed_turn": None, "condition_observation_id": "toxic"}
+    for provenance in (
+        {"event_kind": "condition_applied_observed", "trust": "fixture"},
+        {"event_kind": "pokemon_switch_observed", "trust": "mechanics_derived_runtime"},
+    ):
+        candidate = deepcopy(state); candidate["self_side"]["pokemon"][0].update(condition="toxic", toxic_progression={**base, "provenance": provenance})
+        assert not validate_battle_state_unknown_markers(candidate)

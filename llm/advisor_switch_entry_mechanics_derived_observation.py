@@ -73,7 +73,7 @@ def _valid(kind, incoming, side, slot, pokemon_id, payload):
     if kind == "switch_entry_weather_transition_derived":
         return (payload.get("source_ability") in _WEATHER_BY_ABILITY
                 and _WEATHER_BY_ABILITY[payload["source_ability"]] == payload.get("weather_after")
-                and payload.get("weather_before") in {None, "sun", "rain", "sandstorm", "snow", "unknown"})
+                and payload.get("weather_before") in {None, "none", "sun", "rain", "sandstorm", "snow", "unknown"})
     if kind == "switch_entry_hazard_transition_derived":
         before, after = payload.get("hazards_before"), payload.get("hazards_after")
         return (owner == (incoming["side"], None, None) and _hazards(before) and _hazards(after)

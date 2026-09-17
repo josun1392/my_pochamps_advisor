@@ -5,7 +5,10 @@ from copy import deepcopy
 from typing import Mapping
 
 from llm.advisor_lifecycle_confirmation import LifecycleConfirmationBoundary, SWITCH_SOURCE, USER_TRUST
+from llm.advisor_manual_switch_entry_consequences import derive_live_manual_switch_entry_consequences
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
+from llm.advisor_reducer_state_model import state_fingerprint
+from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 
 
 def admit_pokemon_switch_observation(
@@ -75,13 +78,24 @@ def admit_pokemon_switch_observation(
         return _result("rejected", confirmation.get("excluded_reason", "lifecycle_confirmation_rejected"))
     observation = confirmation["observation"]
     observation["observation_sequence"] = sequence
-    preview_snapshot = _preview_snapshot(runtime_session_manager.read_collection_snapshot(), observation)
+    consequences = derive_live_manual_switch_entry_consequences(
+        state=state, switch_observation=observation, turn_number=turn_number,
+        allocate_sequence=runtime_session_manager.allocate_observation_sequence,
+    )
+    if consequences.get("status") != "resolved":
+        return _result("incomplete", consequences.get("reason", "switch_entry_authority_incomplete"))
+    confirmations = [confirmation, *consequences["confirmations"]]
+    observations = [item["observation"] for item in confirmations]
+    preview_snapshot = _preview_snapshot(runtime_session_manager.read_collection_snapshot(), observations)
     if preview_snapshot is None:
         return _result("rejected", "invalid_collection_snapshot")
     preview = runtime_session_manager.preview(captured_session_id, preview_snapshot)
     if preview.get("status") != "preview_ready":
         return _result("rejected", "reducer_preview_rejected")
-    admitted = runtime_session_manager.admit_confirmation(captured_session_id, confirmation)
+    preflight = _preflight_projected_switch(preview, incoming=incoming, side=side, entry_effects=consequences.get("entry_effects"))
+    if preflight.get("status") != "ready":
+        return _result("rejected", preflight.get("reason", "projected_switch_preflight_rejected"))
+    admitted = runtime_session_manager.admit_confirmations_atomically(captured_session_id, confirmations)
     if admitted.get("status") not in {"added", "duplicate"}:
         return _result("rejected", "observation_admission_rejected")
     applied = runtime_session_manager.apply(captured_session_id, runtime_session_manager.read_collection_snapshot())
@@ -89,9 +103,17 @@ def admit_pokemon_switch_observation(
         return _result("rejected", "reducer_application_rejected")
     committed = runtime_session_manager.capture_runtime_state_snapshot(captured_session_id)
     committed_owner = _active_owner(committed.get("state"), side) if committed.get("status") == "runtime_snapshot_ready" else None
-    if committed_owner is None or (committed_owner["slot_index"], committed_owner["pokemon_id"]) != (incoming["slot_index"], incoming["pokemon_id"]):
-        return _result("rejected", "committed_active_identity_mismatch")
-    return {
+    entry_hazard_ko = preflight["entry_hazard_ko"]
+    post_commit_verified = committed_owner is not None and committed_owner == preflight["incoming_owner"]
+    strategy_d0 = None
+    post_commit_reason = None
+    if not entry_hazard_ko and committed.get("status") == "runtime_snapshot_ready" and post_commit_verified:
+        strategy_d0 = freeze_runtime_strategy_d0(runtime_snapshot=committed, decision_owner=committed_owner)
+        if strategy_d0.get("status") != "resolved":
+            strategy_d0, post_commit_reason = None, "committed_runtime_d0_unavailable"
+    elif not entry_hazard_ko:
+        post_commit_reason = "committed_runtime_verification_unavailable"
+    result = {
         "status": "resolved",
         "reason": None,
         "observation": deepcopy(observation),
@@ -99,7 +121,16 @@ def admit_pokemon_switch_observation(
         "outgoing_owner": deepcopy(outgoing),
         "incoming_owner": {key: value for key, value in incoming.items() if key != "fainted"},
         "preview": {"status": preview.get("status"), "applied_step_ids": deepcopy(preview.get("applied_observation_ids", []))},
+        "derived_observations": deepcopy(observations[1:]),
+        "runtime_snapshot": deepcopy(committed if committed.get("status") == "runtime_snapshot_ready" else preflight["runtime_snapshot"]),
+        "strategy_d0": strategy_d0,
+        "runtime_committed": True,
+        "post_commit_verified": post_commit_verified,
+        "post_commit_verification_failure": post_commit_reason,
     }
+    if entry_hazard_ko:
+        result["boundary"] = "replacement_required_after_entry_hazard_ko"
+    return result
 
 
 def _active_owner(state: object, side: str) -> dict | None:
@@ -133,14 +164,35 @@ def _roster_record(roster: object, slot: object) -> Mapping | None:
     return value if isinstance(value, Mapping) else None
 
 
-def _preview_snapshot(snapshot: object, observation: Mapping) -> dict | None:
+def _preview_snapshot(snapshot: object, observations: list[Mapping]) -> dict | None:
     if not isinstance(snapshot, Mapping) or snapshot.get("status") != "ready" or not isinstance(snapshot.get("session_id"), str) or not isinstance(snapshot.get("ordered_observations"), list):
         return None
     rows = deepcopy(snapshot["ordered_observations"])
-    rows.append(deepcopy(dict(observation)))
+    rows.extend(deepcopy(dict(observation)) for observation in observations)
     rows.sort(key=lambda row: (row.get("observation_sequence"), row.get("observation_id")))
     return {**deepcopy(dict(snapshot)), "ordered_observations": rows}
 
 
+def _preflight_projected_switch(preview: Mapping, *, incoming: Mapping, side: str, entry_effects: object) -> dict:
+    """Validate all ordinary post-commit requirements against the dry-run state."""
+    projected = preview.get("projected_state") if isinstance(preview, Mapping) else None
+    session_id = projected.get("session_id") if isinstance(projected, Mapping) else None
+    owner = _active_owner(projected, side)
+    expected = {key: incoming.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id")}
+    if not isinstance(projected, Mapping) or not isinstance(session_id, str) or owner != expected:
+        return {"status": "rejected", "reason": "projected_active_identity_mismatch"}
+    runtime_snapshot = {"status": "runtime_snapshot_ready", "session_id": session_id, "state": deepcopy(projected), "state_fingerprint": state_fingerprint(projected)}
+    entry_hazard_ko = isinstance(entry_effects, Mapping) and entry_effects.get("hazard_ko") is True
+    if entry_hazard_ko:
+        pokemon = _roster_record(projected.get(f"{side}_side", {}).get("pokemon") if isinstance(projected.get(f"{side}_side"), Mapping) else None, owner["slot_index"])
+        if not isinstance(pokemon, Mapping) or pokemon.get("current_hp") != 0 or pokemon.get("fainted") is not True:
+            return {"status": "rejected", "reason": "projected_entry_hazard_ko_mismatch"}
+        return {"status": "ready", "runtime_snapshot": runtime_snapshot, "incoming_owner": owner, "entry_hazard_ko": True, "strategy_d0": None}
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=runtime_snapshot, decision_owner=owner)
+    if d0.get("status") != "resolved":
+        return {"status": "rejected", "reason": "projected_fresh_runtime_d0_unavailable"}
+    return {"status": "ready", "runtime_snapshot": runtime_snapshot, "incoming_owner": owner, "entry_hazard_ko": False, "strategy_d0": d0}
+
+
 def _result(status: str, reason: str) -> dict:
-    return {"status": status, "reason": reason, "observation": None, "runtime_fingerprint": None, "outgoing_owner": None, "incoming_owner": None, "preview": None}
+    return {"status": status, "reason": reason, "observation": None, "runtime_fingerprint": None, "outgoing_owner": None, "incoming_owner": None, "preview": None, "derived_observations": [], "runtime_snapshot": None, "strategy_d0": None}

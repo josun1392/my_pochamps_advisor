@@ -13,6 +13,8 @@ _ALLOWED_STATE_KEYS = {
     "last_applied_batch_fingerprint", "source_replay_policy_version",
     "last_commit_provenance", "same_turn_event_context", "first_end_of_turn_context", "leftovers_end_of_turn_context", "black_sludge_end_of_turn_context", "toxic_end_of_turn_context", "sandstorm_end_of_turn_context", "rain_dish_end_of_turn_context", "ice_body_end_of_turn_context", "solar_power_end_of_turn_context", "dry_skin_end_of_turn_context", "life_orb_recoil_context",
     "switch_hazard_context", "ability_applicability_context",
+    "switch_entry_intimidate_authority", "switch_entry_download_authority",
+    "switch_entry_trace_authority", "switch_entry_sturdy_authority",
     "current_persistent_effect_context",
 }
 _REQUIRED_STATE_KEYS = {

@@ -535,7 +535,7 @@ def _valid_current_crit_volatile_state(value, provenance):
 def _valid_current_weather_state(value, provenance):
     if provenance is None:
         return True
-    return value in {"none", "sun", "rain", "sandstorm", "snow"} and isinstance(provenance, dict) and provenance.get("event_kind") == "current_weather_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
+    return value in {"none", "sun", "rain", "sandstorm", "snow"} and isinstance(provenance, dict) and provenance.get("event_kind") == "current_weather_observed" and provenance.get("trust") in {"user_confirmed_observation", "mechanics_derived_runtime"} and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
 
 
 def _valid_current_terrain_state(value, provenance):
@@ -564,7 +564,7 @@ def _valid_toxic_progression_state(value):
     if value is None or is_unknown_battle_fact(value):
         return True
     provenance = value.get("provenance") if isinstance(value, dict) else None
-    return isinstance(value, dict) and set(value) == {"next_stage", "initialized_turn", "last_processed_turn", "condition_observation_id", "provenance"} and isinstance(value.get("next_stage"), int) and not isinstance(value.get("next_stage"), bool) and 1 <= value["next_stage"] <= 15 and isinstance(value.get("initialized_turn"), int) and not isinstance(value.get("initialized_turn"), bool) and value["initialized_turn"] > 0 and (value.get("last_processed_turn") is None or isinstance(value.get("last_processed_turn"), int) and not isinstance(value.get("last_processed_turn"), bool) and value["last_processed_turn"] >= value["initialized_turn"]) and isinstance(value.get("condition_observation_id"), str) and bool(value["condition_observation_id"]) and isinstance(provenance, dict) and provenance.get("event_kind") == "condition_applied_observed" and provenance.get("trust") == "user_confirmed_observation"
+    return isinstance(value, dict) and set(value) == {"next_stage", "initialized_turn", "last_processed_turn", "condition_observation_id", "provenance"} and isinstance(value.get("next_stage"), int) and not isinstance(value.get("next_stage"), bool) and 1 <= value["next_stage"] <= 15 and isinstance(value.get("initialized_turn"), int) and not isinstance(value.get("initialized_turn"), bool) and value["initialized_turn"] > 0 and (value.get("last_processed_turn") is None or isinstance(value.get("last_processed_turn"), int) and not isinstance(value.get("last_processed_turn"), bool) and value["last_processed_turn"] >= value["initialized_turn"]) and isinstance(value.get("condition_observation_id"), str) and bool(value["condition_observation_id"]) and isinstance(provenance, dict) and provenance.get("event_kind") == "condition_applied_observed" and provenance.get("trust") in {"user_confirmed_observation", "mechanics_derived_runtime"}
 
 
 def _contains_marker(value):
@@ -2258,7 +2258,12 @@ def _active_sandstorm_rows(state):
 
 
 def _trusted_current_weather(value, provenance):
-    return isinstance(value, str) and value in {"none", "sun", "rain", "sandstorm", "snow"} and isinstance(provenance, dict) and provenance.get("event_kind") == "current_weather_observed" and provenance.get("trust") == "user_confirmed_observation"
+    return is_trusted_current_weather(value, provenance)
+
+
+def is_trusted_current_weather(value, provenance):
+    """Canonical current-weather admission shared by runtime consumers."""
+    return isinstance(value, str) and value in {"none", "sun", "rain", "sandstorm", "snow"} and isinstance(provenance, dict) and provenance.get("event_kind") == "current_weather_observed" and provenance.get("trust") in {"user_confirmed_observation", "mechanics_derived_runtime"}
 
 
 def _trusted_current_type(pokemon):
