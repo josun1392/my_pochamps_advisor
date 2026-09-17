@@ -4,6 +4,7 @@ from copy import deepcopy
 from llm.advisor_battle_state_store import BattleStateStore, _valid_state
 from llm.advisor_observation_replay_coordinator import ObservationReplayCoordinator
 from llm.advisor_observation_replay_persistence import ObservationReplayPersistence
+from llm.advisor_switch_permission_capture import capture_switch_permission
 
 
 _ALLOWED_STATE_KEYS = {
@@ -57,6 +58,14 @@ class ObservationReplayRuntime:
 
     def apply(self, observation_snapshot):
         return deepcopy(self._coordinator.apply_confirmed_observations(deepcopy(observation_snapshot)))
+
+    def capture_switch_permission(self, *, session_id, active_slot_index, active_pokemon_id, permission, observation_id, observation_sequence):
+        """Use this runtime's store without exposing that store to UI callers."""
+        return deepcopy(capture_switch_permission(
+            store=self._store, session_id=session_id, active_slot_index=active_slot_index,
+            active_pokemon_id=active_pokemon_id, permission=permission,
+            observation_id=observation_id, observation_sequence=observation_sequence,
+        ))
 
     def export_envelope(self):
         return deepcopy(self._persistence.export_envelope(self._store, self._coordinator, self._session_id))

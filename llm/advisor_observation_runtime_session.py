@@ -43,6 +43,7 @@ class BattleObservationRuntimeSession:
     def last_allocated_sequence(self): return self._last_allocated_sequence
 
     def allocate_observation_sequence(self):
+        self._synchronize_committed_sequence()
         self._last_allocated_sequence += 1
         return {"status": "allocated", "session_id": self._session_id, "observation_sequence": self._last_allocated_sequence}
 
@@ -80,6 +81,21 @@ class BattleObservationRuntimeSession:
         if captured_session_id != self._session_id: return _session_result("stale_session", self._session_id)
         return deepcopy(self._runtime.apply(deepcopy(observation_snapshot)))
 
+    def capture_switch_permission(self, captured_session_id, *, active_slot_index, active_pokemon_id, permission):
+        """Commit switch permission with this session as the sole sequence owner."""
+        if captured_session_id != self._session_id: return _session_result("stale_session", self._session_id)
+        if not self._synchronize_committed_sequence(): return _session_result("invalid_runtime_state", self._session_id)
+        sequence = self._last_allocated_sequence + 1
+        result = self._runtime.capture_switch_permission(
+            session_id=self._session_id, active_slot_index=active_slot_index,
+            active_pokemon_id=active_pokemon_id, permission=permission,
+            observation_id=f"{self._session_id}:switch-permission:{active_slot_index}:{sequence}",
+            observation_sequence=sequence,
+        )
+        if result.get("status") == "captured":
+            if not self._synchronize_committed_sequence(): return _session_result("invalid_runtime_state", self._session_id)
+        return deepcopy(result)
+
     def save(self, captured_session_id, path):
         if captured_session_id != self._session_id: return _session_result("stale_session", self._session_id)
         return deepcopy(self._commands.save(path))
@@ -90,7 +106,22 @@ class BattleObservationRuntimeSession:
 
     def restore(self, captured_session_id, candidate, expected_runtime_fingerprint):
         if captured_session_id != self._session_id: return _session_result("stale_session", self._session_id)
-        return deepcopy(self._commands.restore(deepcopy(candidate), expected_runtime_fingerprint))
+        result = self._commands.restore(deepcopy(candidate), expected_runtime_fingerprint)
+        if result.get("status") == "restore_complete":
+            if not self._synchronize_committed_sequence(): return _session_result("invalid_runtime_state", self._session_id)
+        return deepcopy(result)
+
+    def _synchronize_committed_sequence(self):
+        """Advance reservation state to committed reducer history, never invent it."""
+        read = self._runtime.read_state()
+        if read.get("status") != "ready" or read.get("session_id") != self._session_id:
+            return False
+        sequence = read.get("state", {}).get("last_applied_observation_sequence")
+        if sequence is not None and (not isinstance(sequence, int) or isinstance(sequence, bool) or sequence < 0):
+            return False
+        if isinstance(sequence, int) and sequence > self._last_allocated_sequence:
+            self._last_allocated_sequence = sequence
+        return True
 
 
 class BattleObservationRuntimeSessionManager:
@@ -132,6 +163,7 @@ class BattleObservationRuntimeSessionManager:
     def admit_confirmations_atomically(self, captured_session_id, confirmation_results): return self._active_session.admit_confirmations_atomically(captured_session_id, confirmation_results)
     def preview(self, captured_session_id, observation_snapshot): return self._active_session.preview(captured_session_id, observation_snapshot)
     def apply(self, captured_session_id, observation_snapshot): return self._active_session.apply(captured_session_id, observation_snapshot)
+    def capture_switch_permission(self, captured_session_id, *, active_slot_index, active_pokemon_id, permission): return self._active_session.capture_switch_permission(captured_session_id, active_slot_index=active_slot_index, active_pokemon_id=active_pokemon_id, permission=permission)
     def save(self, captured_session_id, path): return self._active_session.save(captured_session_id, path)
     def load(self, captured_session_id, path): return self._active_session.load(captured_session_id, path)
     def restore(self, captured_session_id, candidate, expected_runtime_fingerprint): return self._active_session.restore(captured_session_id, candidate, expected_runtime_fingerprint)

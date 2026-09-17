@@ -80,7 +80,6 @@ from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
 from ui.widgets.current_ability_dialog import CurrentAbilityDialog
 from ui.widgets.switch_permission_dialog import SwitchPermissionDialog
-from llm.advisor_switch_permission_capture import capture_switch_permission
 from ui.widgets.current_type_dialog import CurrentTypeDialog
 from ui.widgets.current_stat_stage_dialog import CurrentStatStageDialog
 from ui.widgets.current_field_state_dialog import CurrentFieldStateDialog
@@ -709,10 +708,9 @@ class MainWindow(QMainWindow):
             return
         if not isinstance(state, dict) or not isinstance(active, dict) or not isinstance(slot, int):
             return
-        result = capture_switch_permission(
-            store=getattr(manager, "_active_session", manager)._runtime._store if hasattr(getattr(manager, "_active_session", manager), "_runtime") else getattr(manager, "_store", None),
-            session_id=state.get("session_id", ""), active_slot_index=slot, active_pokemon_id=active.get("pokemon_id", ""),
-            permission=dialog.permission, observation_id=f"manual-switch-permission-{slot}", observation_sequence=(state.get("last_applied_observation_sequence") or 0) + 1,
+        result = manager.capture_switch_permission(
+            state.get("session_id", ""), active_slot_index=slot,
+            active_pokemon_id=active.get("pokemon_id", ""), permission=dialog.permission,
         )
         if result.get("status") != "captured":
             self.statusBar().showMessage("교체 가능 여부를 저장하지 못했습니다.")
