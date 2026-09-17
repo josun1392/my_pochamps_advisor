@@ -10,6 +10,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from advisor.damage.item_modifiers import (
+    M_LIFE_ORB,
     attack_stat_item_mod,
     attacker_base_power_item_mod,
     attacker_damage_item_mod,
@@ -29,7 +30,7 @@ def _assert_catalog() -> None:
     assert len(plates) == 18
     assert len(berries) == 18
     assert get_item("life-orb") is not None
-    assert attacker_damage_item_mod(get_item("life-orb"), False) == 5324
+    assert attacker_damage_item_mod(get_item("life-orb"), False) == M_LIFE_ORB
     assert attacker_base_power_item_mod(get_item("charcoal"), "fire", "charizard", False) == 4915
     assert attacker_base_power_item_mod(get_item("muscle-band"), "ground", "garchomp", True) == 4505
     assert attack_stat_item_mod(get_item("choice-band"), True, "garchomp") == 6144

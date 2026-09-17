@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from advisor.damage.item_modifiers import M_LIFE_ORB
 
 OUT_DIR = Path("data/static")
 ITEMS_PATH = OUT_DIR / "items_damage.json"
@@ -11,7 +17,6 @@ MEGA_STONES_PATH = OUT_DIR / "mega_stones.json"
 ROSTER_PATH = OUT_DIR / "champions_roster.json"
 
 Q12_TYPE_BOOST = 4915
-Q12_LIFE_ORB = 5324
 Q12_CHOICE = 6144
 Q12_SMALL_BOOST = 4505
 Q12_DOUBLE = 8192
@@ -162,7 +167,7 @@ def build_items_catalog() -> dict[str, Any]:
             "choice-band": {"stat": "atk", "multiplier_q12": Q12_CHOICE},
             "choice-specs": {"stat": "spa", "multiplier_q12": Q12_CHOICE},
             "choice-scarf": {"stat": "spe", "multiplier_q12": Q12_CHOICE},
-            "life-orb": {"stat": "all_attack", "multiplier_q12": Q12_LIFE_ORB},
+            "life-orb": {"stat": "all_attack", "multiplier_q12": M_LIFE_ORB},
             "expert-belt": {
                 "stat": "super_effective_only",
                 "multiplier_q12": Q12_TYPE_BOOST,

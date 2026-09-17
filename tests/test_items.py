@@ -19,7 +19,7 @@ def test_type_boost_item_lookup() -> None:
 def test_life_orb_lookup() -> None:
     item = get_item("life-orb")
     assert item is not None
-    assert item.multiplier_q12 == 5325
+    assert item.multiplier_q12 == 5324
 
 
 def test_charcoal_boosts_fire_only() -> None:

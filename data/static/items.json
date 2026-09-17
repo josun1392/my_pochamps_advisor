@@ -1,6 +1,6 @@
 {
   "life-orb": {
-    "multiplier_q12": 5325,
+    "multiplier_q12": 5324,
     "category": "final_mods",
     "condition": "damaging_move",
     "implemented": true
