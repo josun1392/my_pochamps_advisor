@@ -47,7 +47,7 @@ def _confirmation(state, kind, *, boundary=None):
     owner = _owner(state)
     payloads = {
         "current_healing_prevented_observed": {"status": "active"},
-        "pending_status_action_execution_observed": {"decision_point": "turn:1", "action_id": "action:sleep", "move_id": "snore", "condition": "sleep", "execution_state": "blocked", "blocker": "sleep"},
+        "pending_status_action_execution_observed": {"decision_point": "turn:1", "action_id": "action:sleep", "move_id": "snore", "condition": "sleep", "execution_state": "blocked", "blocker": "sleep", "outcome_class": "blocked_sleep"},
         "doubles_active_topology_observed": {"active_owners": [
             {"side": side, "active_slot_index": slot, "pokemon_id": f"{side}-{slot}", "active": True}
             for side in ("self", "opponent") for slot in (0, 1)

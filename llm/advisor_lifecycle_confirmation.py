@@ -3,6 +3,7 @@ from copy import deepcopy
 from llm.advisor_switch_entry_mechanics_derived_observation import (
     DERIVED_KINDS, MECHANICS_DERIVED_TRUST, SWITCH_ENTRY_MECHANICS_SOURCE,
 )
+from llm.advisor_champions_sleep_freeze_action_gate import SELF_THAW_MOVES, SLEEP_EXCEPTIONS
 
 PRODUCTION_SOURCE = "ui_observed_damage_confirmation"
 USED_MOVE_SOURCE = "ui_used_move_confirmation"
@@ -183,8 +184,17 @@ def _valid_payload(kind, payload):
                 and isinstance(payload.get("established_turn"), int) and not isinstance(payload.get("established_turn"), bool) and payload["established_turn"] >= 1
                 and payload.get("prior_opportunities") == 0 and payload.get("duration") is None)
     if kind == "pending_status_action_execution_observed":
-        condition, state, blocker = payload.get("condition"), payload.get("execution_state"), payload.get("blocker")
-        return set(payload) == {"decision_point", "action_id", "move_id", "condition", "execution_state", "blocker"} and all(isinstance(payload.get(key), str) and bool(payload[key]) for key in ("decision_point", "action_id", "move_id")) and condition in {"sleep", "freeze"} and state in {"executable", "blocked"} and ((state == "executable" and blocker is None) or (state == "blocked" and blocker == condition))
+        condition, state, blocker, outcome = (payload.get("condition"), payload.get("execution_state"),
+                                               payload.get("blocker"), payload.get("outcome_class"))
+        if set(payload) != {"decision_point", "action_id", "move_id", "condition", "execution_state", "blocker", "outcome_class"} or not all(isinstance(payload.get(key), str) and bool(payload[key]) for key in ("decision_point", "action_id", "move_id", "outcome_class")):
+            return False
+        if outcome == "blocked_sleep": return condition == "sleep" and state == "blocked" and blocker == "sleep"
+        if outcome == "blocked_freeze": return condition == "freeze" and state == "blocked" and blocker == "freeze"
+        if outcome == "wake_and_execute": return condition == "sleep" and state == "executable" and blocker is None
+        if outcome == "sleep_exception_execute": return condition == "sleep" and state == "executable" and blocker is None and payload.get("move_id") in SLEEP_EXCEPTIONS
+        if outcome == "natural_thaw_and_execute": return condition == "freeze" and state == "executable" and blocker is None
+        if outcome == "self_thaw_move_execute": return condition == "freeze" and state == "executable" and blocker is None and payload.get("move_id") in SELF_THAW_MOVES
+        return False
     if kind == "mat_block_active_entry_eligibility_observed": return set(payload) == {"decision_point", "action_id", "move_id", "active_entry_token", "eligibility"} and all(isinstance(payload.get(key), str) and bool(payload[key]) for key in ("decision_point", "action_id", "active_entry_token")) and payload.get("move_id") == "mat-block" and payload.get("eligibility") in {"eligible", "ineligible"}
     if kind == "fake_out_active_entry_eligibility_observed": return set(payload) == {"decision_point", "action_id", "move_id", "active_entry_token", "eligibility"} and all(isinstance(payload.get(key), str) and bool(payload[key]) for key in ("decision_point", "action_id", "active_entry_token")) and payload.get("move_id") == "fake-out" and payload.get("eligibility") in {"eligible", "ineligible"}
     if kind == "supreme_overlord_initial_active_observed": return set(payload) == {"entry_token", "cumulative_allied_faint_count"} and isinstance(payload.get("entry_token"), str) and bool(payload["entry_token"]) and isinstance(payload.get("cumulative_allied_faint_count"), int) and not isinstance(payload.get("cumulative_allied_faint_count"), bool) and payload["cumulative_allied_faint_count"] >= 0

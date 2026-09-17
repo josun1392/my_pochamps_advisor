@@ -62,7 +62,7 @@ def _execution_observation(state, *, side="self", condition="sleep", execution_s
     owner, action = _owner(state, side), action or _action(condition=condition)
     result = (boundary or _boundary(state)).confirm(
         event_kind="pending_status_action_execution_observed",
-        payload={"decision_point": action["decision_point"], "action_id": action["action_id"], "move_id": action["move_id"], "condition": condition, "execution_state": execution_state, "blocker": condition if execution_state == "blocked" else None},
+        payload={"decision_point": action["decision_point"], "action_id": action["action_id"], "move_id": action["move_id"], "condition": condition, "execution_state": execution_state, "blocker": condition if execution_state == "blocked" else None, "outcome_class": ("blocked_sleep" if condition == "sleep" else "blocked_freeze") if execution_state == "blocked" else ("wake_and_execute" if condition == "sleep" else "natural_thaw_and_execute")},
         session_id=state["session_id"], source=PENDING_STATUS_ACTION_EXECUTION_SOURCE, trust=USER_TRUST,
         confirmed=True, side=owner["side"], slot_index=owner["slot_index"], pokemon_id=owner["pokemon_id"], turn_number=turn,
     )

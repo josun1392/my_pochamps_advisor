@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 
 CONDITIONS = frozenset({"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"})
+_STATUS_LIFECYCLE_SOURCE = "runtime_champions_status_action_lifecycle_v1"
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 
 
@@ -40,6 +41,14 @@ def project_current_condition_authority(
 
 
 def _exact_condition(value: Any, provenance: Any) -> str | None:
+    if ((value is None or value == "none") and isinstance(provenance, Mapping)
+            and provenance.get("event_kind") == "champions_status_condition_cleared_derived"
+            and provenance.get("trust") == "mechanics_derived_runtime"
+            and provenance.get("source") == _STATUS_LIFECYCLE_SOURCE
+            and provenance.get("condition") == "none"
+            and isinstance(provenance.get("source_pending_observation_id"), str)
+            and provenance.get("source_pending_observation_id")):
+        return "none"
     if not isinstance(provenance, Mapping) or provenance.get("event_kind") != "current_condition_observed" or provenance.get("trust") != "user_confirmed_observation":
         return None
     turn = provenance.get("turn_number")

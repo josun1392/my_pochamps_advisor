@@ -17,6 +17,10 @@ from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_switch_entry_mechanics_derived_observation import (
     DERIVED_KINDS, MECHANICS_DERIVED_TRUST, SWITCH_ENTRY_MECHANICS_SOURCE,
 )
+from llm.advisor_champions_status_action_lifecycle_derived_observation import (
+    DERIVED_KINDS as STATUS_ACTION_DERIVED_KINDS, MECHANICS_DERIVED_TRUST as STATUS_ACTION_TRUST,
+    CHAMPIONS_STATUS_ACTION_LIFECYCLE_SOURCE, PROGRESSION_DERIVED, CONDITION_CLEARED_DERIVED,
+)
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
@@ -29,6 +33,8 @@ _TARGETS["apply_taunt_restriction"] = "state.current_taunt_restrictions"
 _TARGETS["complete_restricted_active_turn"] = "state.current_taunt_restrictions"
 _TARGETS["record_executed_move"] = "pokemon.last_executed_move"
 _TARGETS["record_champions_status_progression"] = "pokemon.champions_status_progression"
+_TARGETS["advance_champions_status_progression"] = "pokemon.champions_status_progression"
+_TARGETS["clear_champions_status_condition"] = "pokemon.condition"
 _TARGETS["record_champions_confusion_progression"] = "pokemon.champions_confusion_progression"
 _TARGETS["set_current_confusion_state"] = "pokemon.current_confusion"
 _TARGETS["record_previous_action_result"] = "pokemon.previous_action_result"
@@ -270,7 +276,9 @@ def _valid_disable_restrictions(state, value):
 
 
 def _valid_pending_status_action_execution_context(state, value):
-    if not isinstance(value, dict) or set(value) != {"schema_version", "session_id", "decision_point", "actor", "action_id", "move_id", "condition", "execution_state", "blocker", "provenance"}:
+    allowed = {"schema_version", "session_id", "decision_point", "actor", "action_id", "move_id", "condition", "execution_state", "blocker", "outcome_class", "provenance", "lifecycle_batch_terminal_sequence", "lifecycle_batch_source_observation_id"}
+    required = allowed - {"lifecycle_batch_terminal_sequence", "lifecycle_batch_source_observation_id"}
+    if not isinstance(value, dict) or not required <= set(value) or not set(value) <= allowed:
         return False
     actor, provenance = value.get("actor"), value.get("provenance")
     if value.get("schema_version") != "pending-status-action-execution-context-v1" or value.get("session_id") != state.get("session_id") or not isinstance(actor, dict):
@@ -281,7 +289,11 @@ def _valid_pending_status_action_execution_context(state, value):
         return False
     if (value["execution_state"] == "executable" and value.get("blocker") is not None) or (value["execution_state"] == "blocked" and value.get("blocker") != value["condition"]):
         return False
-    return isinstance(provenance, dict) and provenance.get("event_kind") == "pending_status_action_execution_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0 and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool) and provenance["source_sequence"] > 0
+    outcome = value.get("outcome_class")
+    semantic_ok = ((value["condition"], outcome, value["execution_state"]) in {("sleep", "blocked_sleep", "blocked"), ("freeze", "blocked_freeze", "blocked"), ("sleep", "wake_and_execute", "executable"), ("sleep", "sleep_exception_execute", "executable"), ("freeze", "natural_thaw_and_execute", "executable"), ("freeze", "self_thaw_move_execute", "executable")})
+    terminal = value.get("lifecycle_batch_terminal_sequence")
+    terminal_ok = terminal is None or (isinstance(terminal, int) and not isinstance(terminal, bool) and terminal > 0 and value.get("lifecycle_batch_source_observation_id") == provenance.get("source_observation_id"))
+    return semantic_ok and terminal_ok and isinstance(provenance, dict) and provenance.get("event_kind") == "pending_status_action_execution_observed" and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0 and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool) and provenance["source_sequence"] > 0
 
 
 def _valid_mat_block_active_entry_eligibility_context(state, value):
@@ -523,6 +535,12 @@ def _valid_current_condition_state(value, provenance):
         return provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0 and provenance.get("condition") in {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"} and ((provenance["condition"] == "none" and value is None) or value == provenance["condition"])
     if provenance.get("event_kind") == "condition_applied_observed":
         return isinstance(value, str) and value in {"burn", "poison", "toxic", "paralysis", "sleep", "freeze"}
+    if provenance.get("event_kind") == CONDITION_CLEARED_DERIVED:
+        return (value is None and provenance.get("trust") == STATUS_ACTION_TRUST
+                and provenance.get("source") == CHAMPIONS_STATUS_ACTION_LIFECYCLE_SOURCE
+                and provenance.get("condition") == "none"
+                and isinstance(provenance.get("source_pending_observation_id"), str)
+                and bool(provenance["source_pending_observation_id"]))
     return provenance.get("event_kind") == "condition_removed_observed" and value is None
 
 
@@ -724,7 +742,7 @@ def _normalize_steps(steps, plan):
         previous, seen = (seq, oid), seen | {oid}
         event = deepcopy(events.get(oid, {})); event.update(deepcopy(raw))
         event["observation_id"], event["observation_sequence"], event["planned_effect"] = oid, seq, effect
-        if event.get("trust") == MECHANICS_DERIVED_TRUST and event.get("event_kind") not in DERIVED_KINDS:
+        if event.get("trust") == MECHANICS_DERIVED_TRUST and event.get("event_kind") not in DERIVED_KINDS | STATUS_ACTION_DERIVED_KINDS:
             return [], "mechanics_derived_trust_on_non_derived_event"
         if not _has_target_identity(event): return [], "missing_required_target_identity"
         if event.get("event_kind") in DERIVED_KINDS:
@@ -733,6 +751,12 @@ def _normalize_steps(steps, plan):
             if not _valid_switch_entry_derived_binding(event, source, batch_ids, plan.get("session_id")):
                 return [], "invalid_switch_entry_derived_binding"
             event["_switch_entry_source_switch"] = deepcopy(source)
+        if event.get("event_kind") in STATUS_ACTION_DERIVED_KINDS:
+            source_id = _value(event, "source_pending_observation_id")
+            source = events.get(source_id)
+            if not _valid_status_action_derived_binding(event, source, batch_ids, plan.get("session_id")):
+                return [], "invalid_champions_status_action_lifecycle_binding"
+            event["_status_action_source_pending"] = deepcopy(source)
         result.append(event)
     return result, None
 
@@ -762,6 +786,25 @@ def _valid_switch_entry_derived_binding(event, source, batch_ids, session):
     if kind == "switch_entry_stat_stage_transition_derived" and mechanic in {"intimidate", "intimidate_reversed"}:
         return owner[0] in {"self", "opponent"} and owner[0] != incoming[0]
     return owner == incoming
+
+
+def _valid_status_action_derived_binding(event, source, batch_ids, session):
+    """Require a fresh pending-action source in this exact atomic batch."""
+    if (event.get("trust") != STATUS_ACTION_TRUST
+            or event.get("source") != CHAMPIONS_STATUS_ACTION_LIFECYCLE_SOURCE
+            or event.get("scope") != "champions_status_action_lifecycle"
+            or not isinstance(source, dict) or source.get("observation_id") not in batch_ids
+            or source.get("event_kind") != "pending_status_action_execution_observed"
+            or source.get("session_id") != session or source.get("turn_number") != event.get("turn_number")
+            or source.get("observation_sequence", 0) >= event.get("observation_sequence", 0)):
+        return False
+    payload, pending = event.get("payload"), source.get("payload")
+    if not isinstance(payload, dict) or not isinstance(pending, dict):
+        return False
+    keys = ("decision_point", "action_id", "move_id", "condition", "outcome_class")
+    return ((event.get("side"), event.get("slot_index"), event.get("pokemon_id"))
+            == (source.get("side"), source.get("slot_index"), source.get("pokemon_id"))
+            and all(payload.get(key) == pending.get(key) for key in keys))
 
 
 def _valid_switch_entry_derived_transition(state, event):
@@ -818,9 +861,76 @@ def _valid_switch_entry_derived_transition(state, event):
     return "unsupported_switch_entry_derived_event"
 
 
+def _valid_status_action_derived_transition(state, event):
+    source = event.get("_status_action_source_pending")
+    if not isinstance(source, dict):
+        return "invalid_champions_status_action_lifecycle_binding"
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else event
+    owner = (event.get("side"), event.get("slot_index"), event.get("pokemon_id"))
+    if owner != (source.get("side"), source.get("slot_index"), source.get("pokemon_id")):
+        return "invalid_champions_status_action_lifecycle_owner"
+    pokemon = _pokemon(state, event)
+    pending = state.get("pending_status_action_execution_context")
+    if pokemon is None or not _active_identity_matches(state, *owner) or not isinstance(pending, dict):
+        return "champions_status_action_source_not_applied"
+    provenance = pending.get("provenance")
+    if not isinstance(provenance, dict) or provenance.get("source_observation_id") != source.get("observation_id"):
+        return "champions_status_action_source_not_applied"
+    if any(pending.get(key) != payload.get(key) for key in ("decision_point", "action_id", "move_id", "condition", "outcome_class")):
+        return "champions_status_action_source_binding_mismatch"
+    condition, outcome = payload.get("condition"), payload.get("outcome_class")
+    if event.get("event_kind") == PROGRESSION_DERIVED:
+        row = pokemon.get("champions_status_progression")
+        before, after = payload.get("prior_attempts_before"), payload.get("prior_attempts_after")
+        if (pokemon.get("condition") != condition or not isinstance(row, dict) or row.get("condition") != condition
+                or row.get("prior_attempts") != before or after != before + 1 or after > 2
+                or outcome not in {"blocked_sleep", "blocked_freeze"}):
+            return "invalid_champions_status_progression_transition"
+        return None
+    if (pokemon.get("condition") != condition or outcome not in {"wake_and_execute", "natural_thaw_and_execute", "self_thaw_move_execute"}):
+        return "invalid_champions_status_condition_clear"
+    return None
+
+
+def _advance_champions_status_progression(state, event):
+    pokemon = _pokemon(state, event)
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else event
+    row = deepcopy(pokemon.get("champions_status_progression")) if isinstance(pokemon, dict) else None
+    if not isinstance(row, dict):
+        return _conflict(event, "invalid_champions_status_progression_transition")
+    row["prior_attempts"] = payload["prior_attempts_after"]
+    row["observed_turn"] = _value(event, "turn_number")
+    pokemon["champions_status_progression"] = row
+    _mark_pending_lifecycle_terminal(state, event)
+    return None
+
+
+def _clear_champions_status_condition(state, event):
+    pokemon = _pokemon(state, event)
+    if not isinstance(pokemon, dict):
+        return _conflict(event, "invalid_champions_status_condition_clear")
+    source = event.get("_status_action_source_pending")
+    pokemon["condition"] = None
+    pokemon["condition_provenance"] = _provenance(event) | {
+        "event_kind": CONDITION_CLEARED_DERIVED, "trust": STATUS_ACTION_TRUST,
+        "source": CHAMPIONS_STATUS_ACTION_LIFECYCLE_SOURCE,
+        "condition": "none", "source_pending_observation_id": source.get("observation_id") if isinstance(source, dict) else None,
+    }
+    pokemon.pop("champions_status_progression", None)
+    _mark_pending_lifecycle_terminal(state, event)
+    return None
+
+
+def _mark_pending_lifecycle_terminal(state, event):
+    context = state.get("pending_status_action_execution_context")
+    if isinstance(context, dict):
+        context["lifecycle_batch_terminal_sequence"] = event.get("observation_sequence")
+        context["lifecycle_batch_source_observation_id"] = _value(event, "source_pending_observation_id")
+
+
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"record_champions_status_progression", "record_champions_confusion_progression", "set_current_confusion_state", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
+    if effect in {"record_champions_status_progression", "advance_champions_status_progression", "clear_champions_status_condition", "record_champions_confusion_progression", "set_current_confusion_state", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_confusion_state" or (_value(event, "confusion_state") in {"confused", "none"} and _value(event, "trust") == "user_confirmed_observation"))
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_mat_block_active_entry_eligibility", "set_fake_out_active_entry_eligibility", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
@@ -900,6 +1010,13 @@ def _mark(container, field, event):
 
 def _apply(state, event):
     effect = event["planned_effect"]
+    if event.get("event_kind") in STATUS_ACTION_DERIVED_KINDS:
+        reason = _valid_status_action_derived_transition(state, event)
+        if reason:
+            return _conflict(event, reason)
+        if effect == "advance_champions_status_progression":
+            return _advance_champions_status_progression(state, event)
+        return _clear_champions_status_condition(state, event)
     if event.get("event_kind") in DERIVED_KINDS:
         reason = _valid_switch_entry_derived_transition(state, event)
         if reason:
@@ -1246,7 +1363,7 @@ def _set_pending_status_action_execution(state, event):
     pokemon = _pokemon(state, event)
     side, slot, pokemon_id = _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")
     decision_point, action_id, move_id = _value(event, "decision_point"), _value(event, "action_id"), _value(event, "move_id")
-    condition, execution_state, blocker, turn = _value(event, "condition"), _value(event, "execution_state"), _value(event, "blocker"), _value(event, "turn_number")
+    condition, execution_state, blocker, turn, outcome = _value(event, "condition"), _value(event, "execution_state"), _value(event, "blocker"), _value(event, "turn_number"), _value(event, "outcome_class")
     provenance = pokemon.get("condition_provenance") if isinstance(pokemon, dict) else None
     if (
         pokemon is None or not _active_identity_matches(state, side, slot, pokemon_id)
@@ -1256,6 +1373,7 @@ def _set_pending_status_action_execution(state, event):
         or (execution_state == "blocked" and blocker != condition)
         or _value(event, "trust") != "user_confirmed_observation"
         or not isinstance(turn, int) or isinstance(turn, bool) or turn < 1
+        or (condition, outcome, execution_state) not in {("sleep", "blocked_sleep", "blocked"), ("freeze", "blocked_freeze", "blocked"), ("sleep", "wake_and_execute", "executable"), ("sleep", "sleep_exception_execute", "executable"), ("freeze", "natural_thaw_and_execute", "executable"), ("freeze", "self_thaw_move_execute", "executable")}
         or pokemon.get("condition") != condition
         or not isinstance(provenance, dict) or provenance.get("event_kind") != "current_condition_observed"
         or provenance.get("trust") != "user_confirmed_observation" or provenance.get("condition") != condition
@@ -1265,7 +1383,7 @@ def _set_pending_status_action_execution(state, event):
         "schema_version": "pending-status-action-execution-context-v1", "session_id": state["session_id"],
         "decision_point": decision_point, "actor": {"session_id": state["session_id"], "side": side, "slot_index": slot, "pokemon_id": pokemon_id},
         "action_id": action_id, "move_id": move_id, "condition": condition,
-        "execution_state": execution_state, "blocker": blocker,
+        "execution_state": execution_state, "blocker": blocker, "outcome_class": outcome,
         "provenance": _provenance(event) | {"event_kind": "pending_status_action_execution_observed", "trust": "user_confirmed_observation", "turn_number": turn},
     }
     prior = state.get("pending_status_action_execution_context")

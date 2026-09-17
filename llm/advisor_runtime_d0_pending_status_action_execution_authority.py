@@ -47,7 +47,7 @@ def freeze_runtime_d0_pending_status_action_execution_authority(
     return {
         "status": "resolved", "schema_version": SCHEMA_VERSION, **base,
         "condition": context["condition"], "execution_state": context["execution_state"],
-        "blocker": context["blocker"], "observation_sequence": context["provenance"]["source_sequence"],
+        "blocker": context["blocker"], "outcome_class": context["outcome_class"], "observation_sequence": context["provenance"]["source_sequence"],
         "trusted_provenance": deepcopy(dict(context["provenance"])),
         "provenance": "runtime_d0_explicit_pending_status_action_execution_observation_v1",
     }
@@ -79,6 +79,7 @@ def _matches_context(d0: Mapping[str, Any], context: Mapping[str, Any], actor: M
         and context.get("actor") == dict(actor)
         and all(context.get(key) == action.get(key) for key in ("decision_point", "action_id", "move_id"))
         and context.get("condition") in {"sleep", "freeze"}
+        and context.get("outcome_class") in {"blocked_sleep", "blocked_freeze", "wake_and_execute", "sleep_exception_execute", "natural_thaw_and_execute", "self_thaw_move_execute"}
         and context.get("execution_state") in {"executable", "blocked"}
         and ((context.get("execution_state") == "executable" and context.get("blocker") is None) or (context.get("execution_state") == "blocked" and context.get("blocker") == context.get("condition")))
         and isinstance(provenance, Mapping) and provenance.get("event_kind") == "pending_status_action_execution_observed"
@@ -90,7 +91,12 @@ def _matches_context(d0: Mapping[str, Any], context: Mapping[str, Any], actor: M
 def _context_is_current(state: Mapping[str, Any], context: Mapping[str, Any]) -> bool:
     last = state.get("last_applied_observation_sequence")
     sequence = context.get("provenance", {}).get("source_sequence") if isinstance(context.get("provenance"), Mapping) else None
-    return isinstance(last, int) and not isinstance(last, bool) and isinstance(sequence, int) and not isinstance(sequence, bool) and last == sequence
+    if not isinstance(last, int) or isinstance(last, bool) or not isinstance(sequence, int) or isinstance(sequence, bool):
+        return False
+    if last == sequence:
+        return True
+    return (context.get("lifecycle_batch_terminal_sequence") == last
+            and context.get("lifecycle_batch_source_observation_id") == context.get("provenance", {}).get("source_observation_id"))
 
 
 def _current_condition_matches(state: Mapping[str, Any], actor: Mapping[str, Any], condition: Any) -> bool:
@@ -98,6 +104,13 @@ def _current_condition_matches(state: Mapping[str, Any], actor: Mapping[str, Any
     roster = side.get("pokemon") if isinstance(side, Mapping) else None
     pokemon = roster.get(actor.get("slot_index")) if isinstance(roster, Mapping) else None
     provenance = pokemon.get("condition_provenance") if isinstance(pokemon, Mapping) else None
+    if (isinstance(pokemon, Mapping) and pokemon.get("pokemon_id") == actor.get("pokemon_id")
+            and pokemon.get("condition") is None and isinstance(provenance, Mapping)
+            and provenance.get("event_kind") == "champions_status_condition_cleared_derived"
+            and provenance.get("trust") == "mechanics_derived_runtime"
+            and provenance.get("source") == "runtime_champions_status_action_lifecycle_v1"
+            and isinstance(provenance.get("source_pending_observation_id"), str)):
+        return True
     return (
         isinstance(pokemon, Mapping) and pokemon.get("pokemon_id") == actor.get("pokemon_id")
         and pokemon.get("condition") == condition
