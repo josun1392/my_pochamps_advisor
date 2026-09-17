@@ -382,7 +382,8 @@ def test_self_recovery_requires_exact_authority_and_supported_metadata():
     assert project_self_recovery(branch_state=state, action=action, expected_owner=action["owner"])["status"] == "resolved"
     odd = deepcopy(state); odd["current_state"]["current_hp_context"]["current_hp"][0].update(current_hp=1, maximum_hp=301)
     odd_effect = project_self_recovery(branch_state=odd, action=action, expected_owner=action["owner"])
-    assert (odd_effect["recovery"], odd_effect["hp_after"]) == (150, 151)
+    # Recover-family half-max healing rounds half up: ceil(301 / 2) == 151.
+    assert (odd_effect["recovery"], odd_effect["hp_after"]) == (151, 152)
     missing = deepcopy(state); missing["current_state"]["current_hp_context"]["current_hp"] = missing["current_state"]["current_hp_context"]["current_hp"][1:]
     assert project_self_recovery(branch_state=missing, action=action, expected_owner=action["owner"])["reason"] == "self_exact_hp"
     invalid = deepcopy(action); invalid["move"].pop("healing")
