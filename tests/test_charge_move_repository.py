@@ -18,6 +18,7 @@ REQUIRED_FIELDS = {
     "is_charge_move",
     "power_herb_eligible",
     "charge_type",
+    "execution_model",
     "source",
     "confidence",
     "notes",
@@ -101,14 +102,22 @@ def test_move_id_normalization_handles_case_spaces_and_underscores() -> None:
     assert repo.get_charge_move_metadata("solar_beam") is not None
 
 
-def test_charge_move_fixture_has_deferred_candidates_but_not_initial_entries() -> None:
+def test_charge_move_fixture_recognizes_known_two_turn_and_semi_invulnerable_entries() -> None:
     data = load_charge_moves()
 
     assert "deferred_moves" in data
-    assert "fly" in data["deferred_moves"]
-    assert "phantom-force" in data["deferred_moves"]
-    assert "fly" not in data["moves"]
-    assert "phantom-force" not in data["moves"]
+    assert not (set(data["moves"]) & set(data["deferred_moves"]))
+    assert data["moves"]["fly"]["execution_model"] == "semi_invulnerable_then_execute"
+    assert data["moves"]["phantom-force"]["execution_model"] == "semi_invulnerable_then_execute"
+
+
+def test_known_two_turn_moves_are_guarded_without_granting_immediate_execution() -> None:
+    repo = ChargeMoveRepository()
+
+    assert repo.immediate_execution_guard("solar-beam")["reason"] == "two_turn_execution_unrepresented"
+    assert repo.immediate_execution_guard("fly")["execution_model"] == "semi_invulnerable_then_execute"
+    assert repo.immediate_execution_guard("tackle") is None
+    assert repo.immediate_execution_guard("unclassified-move") is None
 
 
 def test_repository_does_not_use_description_parsing() -> None:

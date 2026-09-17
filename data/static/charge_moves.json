@@ -9,6 +9,7 @@
       "is_charge_move": true,
       "power_herb_eligible": true,
       "charge_type": "standard_charge",
+      "execution_model": "charge_then_execute",
       "known_exceptions": [
         "secondary_effect_not_modeled"
       ],
@@ -20,6 +21,7 @@
       "is_charge_move": true,
       "power_herb_eligible": true,
       "charge_type": "standard_charge",
+      "execution_model": "charge_then_execute",
       "known_exceptions": [
         "secondary_effect_not_modeled"
       ],
@@ -31,6 +33,7 @@
       "is_charge_move": true,
       "power_herb_eligible": true,
       "charge_type": "standard_charge",
+      "execution_model": "charge_then_execute",
       "known_exceptions": [
         "weather_interaction_not_modeled"
       ],
@@ -42,47 +45,124 @@
       "is_charge_move": true,
       "power_herb_eligible": true,
       "charge_type": "standard_charge",
+      "execution_model": "charge_then_execute",
       "known_exceptions": [
         "weather_interaction_not_modeled"
       ],
       "source": "manual_repo_fixture",
       "confidence": "estimated",
       "notes": "Weather interaction is not modeled."
-    }
-  },
-  "deferred_moves": {
-    "skull-bash": {
-      "reason": "present_in_some_repo_cache_paths_but_not_confirmed_for_initial_scope"
     },
     "fly": {
-      "reason": "semi_invulnerable_policy_deferred"
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "semi_invulnerable",
+      "execution_model": "semi_invulnerable_then_execute",
+      "known_exceptions": ["semi_invulnerability_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "First-turn semi-invulnerability and turn-two execution are not modeled."
     },
     "dig": {
-      "reason": "semi_invulnerable_policy_deferred"
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "semi_invulnerable",
+      "execution_model": "semi_invulnerable_then_execute",
+      "known_exceptions": ["semi_invulnerability_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "First-turn semi-invulnerability and turn-two execution are not modeled."
     },
     "dive": {
-      "reason": "semi_invulnerable_policy_deferred"
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "semi_invulnerable",
+      "execution_model": "semi_invulnerable_then_execute",
+      "known_exceptions": ["semi_invulnerability_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "First-turn semi-invulnerability and turn-two execution are not modeled."
     },
     "bounce": {
-      "reason": "semi_invulnerable_policy_deferred"
-    },
-    "razor-wind": {
-      "reason": "not_observed_in_inspected_repo_cache_paths"
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "semi_invulnerable",
+      "execution_model": "semi_invulnerable_then_execute",
+      "known_exceptions": ["semi_invulnerability_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "First-turn semi-invulnerability and turn-two execution are not modeled."
     },
     "phantom-force": {
-      "reason": "semi_invulnerable_policy_deferred"
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "semi_invulnerable",
+      "execution_model": "semi_invulnerable_then_execute",
+      "known_exceptions": ["semi_invulnerability_not_modeled", "protection_bypass_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "First-turn semi-invulnerability and turn-two execution are not modeled."
     },
     "shadow-force": {
-      "reason": "not_observed_in_inspected_repo_cache_paths"
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "semi_invulnerable",
+      "execution_model": "semi_invulnerable_then_execute",
+      "known_exceptions": ["semi_invulnerability_not_modeled", "protection_bypass_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "First-turn semi-invulnerability and turn-two execution are not modeled."
+    },
+    "skull-bash": {
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "standard_charge",
+      "execution_model": "charge_then_execute",
+      "known_exceptions": ["defense_boost_timing_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "Charge-turn defense and turn-two execution are not modeled."
+    },
+    "razor-wind": {
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "standard_charge",
+      "execution_model": "charge_then_execute",
+      "known_exceptions": [],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "Charge and turn-two execution are not modeled."
     },
     "freeze-shock": {
-      "reason": "not_observed_in_inspected_repo_cache_paths"
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "standard_charge",
+      "execution_model": "charge_then_execute",
+      "known_exceptions": ["secondary_effect_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "Charge and turn-two execution are not modeled."
     },
     "ice-burn": {
-      "reason": "not_observed_in_inspected_repo_cache_paths"
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "standard_charge",
+      "execution_model": "charge_then_execute",
+      "known_exceptions": ["secondary_effect_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "Charge and turn-two execution are not modeled."
     },
     "geomancy": {
-      "reason": "not_observed_in_inspected_repo_cache_paths"
+      "is_charge_move": true,
+      "power_herb_eligible": true,
+      "charge_type": "other_two_turn",
+      "execution_model": "other_two_turn",
+      "known_exceptions": ["stat_change_timing_not_modeled"],
+      "source": "manual_repo_fixture",
+      "confidence": "estimated",
+      "notes": "Charge and terminal stat changes are not modeled."
     }
-  }
+  },
+  "deferred_moves": {}
 }

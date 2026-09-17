@@ -20,6 +20,19 @@ def test_metadata_gate_is_generic_and_excludes_non_simple_shapes() -> None:
     assert normal_formula_eligibility({"move_id": "drain-punch", "category": "physical", "power": 75, "type": "fighting", "drain": 50})["status"] == "eligible"
 
 
+def test_recognized_two_turn_and_semi_invulnerable_moves_fail_closed_before_rolls():
+    for move in (
+        {"move_id": "solar-beam", "category": "special", "power": 120, "type": "grass"},
+        {"move_id": "fly", "category": "physical", "power": 90, "type": "flying"},
+        {"move_id": "dig", "category": "physical", "power": 80, "type": "ground"},
+        {"move_id": "meteor-beam", "category": "special", "power": 120, "type": "rock"},
+    ):
+        result = _run(move)
+        assert result["status"] == "unsupported"
+        assert result["reason"] == "two_turn_execution_unrepresented"
+        assert "exact_damage_rolls" not in result
+
+
 def test_special_physical_and_secondary_effect_representatives_use_one_interval_path() -> None:
     surf = _run({"move_id": "surf", "category": "special", "power": 90, "type": "water"})
     tackle = _run({"move_id": "tackle", "category": "physical", "power": 40, "type": "normal"})

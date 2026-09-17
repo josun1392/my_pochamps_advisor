@@ -7,6 +7,9 @@ from typing import Any
 
 DEFAULT_CHARGE_MOVES_PATH = Path("data/static/charge_moves.json")
 CHARGE_MOVES_VERSION = "charge_moves_v1"
+GUARDED_EXECUTION_MODELS = frozenset({
+    "charge_then_execute", "semi_invulnerable_then_execute", "other_two_turn",
+})
 
 
 def normalize_move_id(move_id: str) -> str:
@@ -40,6 +43,22 @@ class ChargeMoveRepository:
         metadata = self.get_charge_move_metadata(move_id)
         return bool(metadata and metadata.get("power_herb_eligible") is True)
 
+    def immediate_execution_guard(self, move_id: str | None) -> dict[str, Any] | None:
+        """Return local canonical evidence that terminal execution is deferred.
+
+        Recognition is deliberately not an execution grant: no current A2
+        authority proves a charge was skipped or that turn two is occurring.
+        """
+        metadata = self.get_charge_move_metadata(move_id)
+        if not metadata or metadata.get("execution_model") not in GUARDED_EXECUTION_MODELS:
+            return None
+        return {
+            "move_id": normalize_move_id(str(move_id)),
+            "execution_model": metadata["execution_model"],
+            "reason": "two_turn_execution_unrepresented",
+            "source": metadata["source"],
+        }
+
 
 def _validate_fixture(data: Any) -> None:
     if not isinstance(data, dict):
@@ -67,6 +86,7 @@ def _validate_move_entry(move_id: Any, metadata: Any) -> None:
         "is_charge_move",
         "power_herb_eligible",
         "charge_type",
+        "execution_model",
         "source",
         "confidence",
         "notes",
@@ -78,6 +98,8 @@ def _validate_move_entry(move_id: Any, metadata: Any) -> None:
         raise ValueError(f"Charge move metadata for {move_id} must use boolean is_charge_move.")
     if not isinstance(metadata["power_herb_eligible"], bool):
         raise ValueError(f"Charge move metadata for {move_id} must use boolean power_herb_eligible.")
+    if metadata["execution_model"] not in GUARDED_EXECUTION_MODELS:
+        raise ValueError(f"Charge move metadata for {move_id} has an invalid execution_model.")
     for field in ("charge_type", "source", "confidence", "notes"):
         value = metadata[field]
         if not isinstance(value, str) or not value.strip():

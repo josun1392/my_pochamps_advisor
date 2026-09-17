@@ -19,6 +19,7 @@ from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.move_categories import load_move_flags as load_move_category_flags
 from advisor.damage.mold_breaker import is_defender_ability_bypassed_by_mold_breaker, is_mold_breaker_active
 from advisor.damage.types import type_effectiveness_multiplier
+from core.charge_move_repository import ChargeMoveRepository
 from advisor.probability.single_hit import ko_chance_from_outcomes
 from llm.advisor_battle_state_context import (
     DYNAMIC_MOVE_ASSESSMENT_REGISTRY,
@@ -92,6 +93,7 @@ _CURRENT_HP_BRACKET_DIRECT_MOVES = frozenset({"flail", "reversal"})
 _STATUS_CONDITION_POWER_DIRECT_MOVES = frozenset({"hex", "venoshock"})
 _ENVIRONMENT_TRANSFORMATION_DIRECT_MOVES = frozenset({"weather-ball", "terrain-pulse"})
 _TURN_EVENT_POWER_DIRECT_MOVES = frozenset({"avalanche", "revenge", "payback", "assurance", "stomping-tantrum", "lash-out", "rage-fist", "last-respects"})
+_CHARGE_MOVES = ChargeMoveRepository()
 ITEM_MODIFIER_TAGS = {
     "life-orb": "item_life_orb_boost",
     "choice-band": "item_choice_band_boost",
@@ -148,6 +150,9 @@ def evaluate_direct_damage_mechanics(
     move_id = move.get("move_id")
     if not isinstance(move_id, str) or not move_id:
         missing.append("selected_move")
+    guard = _CHARGE_MOVES.immediate_execution_guard(move_id if isinstance(move_id, str) else None)
+    if guard is not None:
+        return _unsupported(guard["reason"])
     if move_id in LEVEL_BASED_FIXED_DAMAGE_MOVE_TYPES:
         return _evaluate_level_based_fixed_damage(
             direct=direct, stat_provenance=stat_provenance, trusted_level=trusted_level,

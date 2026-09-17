@@ -6,10 +6,12 @@ from typing import Any, Mapping
 from advisor.damage.field import Field
 from advisor.damage.formula import DamageContext, calc_damage_rolls
 from advisor.damage.stats import StatBlock
+from core.charge_move_repository import ChargeMoveRepository
 from llm.advisor_turn_snapshot import build_q12_input_adapter
 
 
 _STAT_KEYS = ("hp", "attack", "defense", "special-attack", "special-defense", "speed")
+_CHARGE_MOVES = ChargeMoveRepository()
 
 
 def invoke_existing_q12_from_snapshot(
@@ -17,6 +19,10 @@ def invoke_existing_q12_from_snapshot(
     trusted_level: int | None,
 ) -> dict[str, Any]:
     """Call the existing Q12 boundary only after snapshot readiness succeeds."""
+    raw_move = snapshot_damage_input.get("move") if isinstance(snapshot_damage_input, Mapping) else None
+    guard = _CHARGE_MOVES.immediate_execution_guard(raw_move.get("move_id") if isinstance(raw_move, Mapping) else None)
+    if guard is not None:
+        return _unsupported(guard["reason"])
     try:
         ready = build_q12_input_adapter(snapshot_damage_input, stat_provenance=stat_provenance)
     except ValueError:

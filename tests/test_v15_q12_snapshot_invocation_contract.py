@@ -54,6 +54,21 @@ def test_status_or_missing_level_never_invokes_q12(monkeypatch):
     assert _invoke("physical", level=None)["limitations"] == ["trusted_level_unavailable"]
 
 
+def test_recognized_two_turn_move_never_invokes_q12_as_an_immediate_attack(monkeypatch):
+    snapshot = _snapshot()
+    damage = build_snapshot_damage_input(
+        snapshot, candidate_slot_index=0, candidate_move_id="solar-beam",
+        selectable_moves=("solar-beam",),
+        move_metadata={"category": "special", "power": 120, "type": "grass"},
+    )
+    monkeypatch.setattr(q12_adapter, "calc_damage_rolls", lambda _context: (_ for _ in ()).throw(AssertionError("must not invoke")))
+    result = invoke_existing_q12_from_snapshot(
+        damage, stat_provenance=build_snapshot_stat_provenance(snapshot, species_repository=Repo()), trusted_level=50,
+    )
+    assert result["status"] == "unsupported_mechanic"
+    assert result["limitations"] == ["two_turn_execution_unrepresented"]
+
+
 def test_tampered_candidate_owner_is_rejected_before_q12(monkeypatch):
     snapshot = _snapshot()
     damage = build_snapshot_damage_input(

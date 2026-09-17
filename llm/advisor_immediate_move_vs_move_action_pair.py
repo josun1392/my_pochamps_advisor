@@ -48,6 +48,7 @@ from llm.advisor_detached_rage_fist_hit_count_power_authority import materialize
 from llm.advisor_runtime_d0_last_respects_faint_history_authority import freeze_runtime_d0_last_respects_faint_history_authority
 from llm.advisor_detached_last_respects_faint_power_authority import materialize_detached_last_respects_faint_power_authority
 from advisor.damage.types import type_effectiveness_multiplier
+from core.charge_move_repository import ChargeMoveRepository
 from llm.advisor_runtime_d0_special_damage_execution_authority import freeze_runtime_d0_fractional_target_hp_damage_execution_authority, freeze_runtime_d0_endeavor_hp_difference_damage_execution_authority, freeze_runtime_d0_final_gambit_self_hp_damage_execution_authority
 from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
     materialize_detached_fixed_two_hit_per_hit_predictive_leaves,
@@ -162,6 +163,7 @@ from llm.advisor_runtime_strategy_d0 import (
 SCHEMA_VERSION = "immediate-move-vs-move-action-pair-v1"
 HORIZON = "immediate_action_pair"
 _STATUSES = {"incomplete", "unsupported", "rejected"}
+_CHARGE_MOVES = ChargeMoveRepository()
 
 
 def materialize_immediate_move_vs_move_action_pair(
@@ -216,6 +218,10 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    for role, metadata in (("own", own_meta.get("metadata")), ("opponent", opponent_meta.get("metadata"))):
+        guard = _CHARGE_MOVES.immediate_execution_guard(metadata.get("move_id") if isinstance(metadata, Mapping) else None)
+        if guard is not None:
+            return _result("unsupported", guard["reason"], base, guarded_action=role, execution_guard=guard)
     status_members = [runtime_snapshot.get("state", {}).get(f"{owner['side']}_side", {}).get("pokemon", {}).get(owner["slot_index"], {}) for owner in (base["own_actor"], base["opponent_actor"])]
     for gated_extension in (first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority):
         if isinstance(gated_extension, Mapping) and gated_extension.get("status") == "resolved" and not isinstance(gated_extension.get("session_id"), str):

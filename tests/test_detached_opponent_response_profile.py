@@ -607,3 +607,37 @@ def test_live_regular_crit_catalog_reaches_existing_secondary_and_stage_pair_lea
     assert project_exact_immediate_action_pair_descriptive_metrics(
         ledger=normalize_exact_immediate_action_pair_outcome_ledger(pair=shadow),
     )["status"] == "resolved"
+
+
+def test_immediate_pair_rejects_own_or_opponent_two_turn_terminal_damage():
+    state, snapshot, d0, own, response_set, orders = _inputs()
+    opponent = response_set["actions"][0]
+    order = orders[opponent["action_id"]]
+
+    guarded_own = deepcopy(own)
+    guarded_own["identity"] = "solar-beam"
+    guarded_own["move_metadata_authority"] = {
+        **_metadata("solar-beam"),
+        "candidate_id": own["action_id"], "active_attacker": _owner(state, "self"),
+        "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+        "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
+    }
+    guarded_own_pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=guarded_own,
+        opponent_action=opponent, action_order_authority=order,
+    )
+    assert guarded_own_pair["status"] == "unsupported"
+    assert guarded_own_pair["reason"] == "two_turn_execution_unrepresented"
+    assert "terminal_branches" not in guarded_own_pair
+
+    guarded_opponent = deepcopy(opponent)
+    guarded_opponent["move_id"] = "fly"
+    guarded_opponent["identity"] = "fly"
+    guarded_opponent["metadata_authority"] = _metadata("fly")
+    guarded_opponent_pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own,
+        opponent_action=guarded_opponent, action_order_authority=order,
+    )
+    assert guarded_opponent_pair["status"] == "unsupported"
+    assert guarded_opponent_pair["reason"] == "two_turn_execution_unrepresented"
+    assert guarded_opponent_pair["guarded_action"] == "opponent"
