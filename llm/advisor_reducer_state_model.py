@@ -8,6 +8,7 @@ from llm.advisor_prospective_entry_authority import build_prospective_entry_inte
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 from llm.advisor_switch_entry_intimidate_authority import build_switch_entry_intimidate_authority
 from llm.advisor_switch_entry_download_authority import build_switch_entry_download_authority
+from llm.advisor_trace_runtime_copy_support import resolve_trace_runtime_copy_support
 from llm.advisor_battle_state_context import normalize_current_type_authority, normalize_user_confirmed_current_ability
 from llm.advisor_ability_interaction_authority import normalize_ability_applicability_context
 from llm.advisor_ice_body_recovery_core import evaluate_ice_body_recovery, evaluate_weather_recovery
@@ -38,6 +39,7 @@ _TARGETS["clear_champions_status_condition"] = "pokemon.condition"
 _TARGETS["record_champions_confusion_progression"] = "pokemon.champions_confusion_progression"
 _TARGETS["set_current_confusion_state"] = "pokemon.current_confusion"
 _TARGETS["record_previous_action_result"] = "pokemon.previous_action_result"
+_TARGETS["set_switch_entry_trace_ability"] = "pokemon.current_ability"
 _TARGETS["initialize_rage_fist_hit_count"] = "pokemon.rage_fist_hit_count"
 _TARGETS["record_rage_fist_qualifying_hit"] = "pokemon.rage_fist_hit_count"
 _TARGETS["apply_encore_restriction"] = "state.current_encore_restrictions"
@@ -500,7 +502,26 @@ def _valid_current_ability_state(value, provenance):
         })
     except ValueError:
         return False
-    return isinstance(provenance, dict) and provenance.get("event_kind") in {"current_ability_observed", "current_opponent_switch_target_combat_observed"} and provenance.get("trust") == "user_confirmed_observation" and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] > 0
+    if not isinstance(provenance, dict) or not isinstance(provenance.get("turn_number"), int) or isinstance(provenance.get("turn_number"), bool) or provenance["turn_number"] <= 0:
+        return False
+    if provenance.get("event_kind") in {"current_ability_observed", "current_opponent_switch_target_combat_observed"}:
+        return provenance.get("trust") == "user_confirmed_observation"
+    copied_from = provenance.get("copied_from")
+    return (provenance.get("event_kind") == "switch_entry_ability_transition_derived"
+            and provenance.get("trust") == MECHANICS_DERIVED_TRUST
+            and provenance.get("source") == SWITCH_ENTRY_MECHANICS_SOURCE
+            and provenance.get("scope") == "switch_entry"
+            and provenance.get("mechanic") == "trace"
+            and provenance.get("ability_before") == "trace"
+            and provenance.get("ability_after") == value
+            and resolve_trace_runtime_copy_support(value).get("status") == "resolved"
+            and isinstance(provenance.get("source_observation_id"), str) and bool(provenance["source_observation_id"])
+            and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool) and provenance["source_sequence"] >= 1
+            and isinstance(provenance.get("source_switch_observation_id"), str) and bool(provenance["source_switch_observation_id"])
+            and isinstance(copied_from, dict) and set(copied_from) == {"side", "slot_index", "pokemon_id"}
+            and copied_from.get("side") in {"self", "opponent"}
+            and isinstance(copied_from.get("slot_index"), int) and not isinstance(copied_from.get("slot_index"), bool) and copied_from["slot_index"] >= 0
+            and isinstance(copied_from.get("pokemon_id"), str) and bool(copied_from["pokemon_id"]))
 
 
 def _valid_current_healing_prevented_state(value, provenance):
@@ -848,6 +869,19 @@ def _valid_switch_entry_derived_transition(state, event):
         weather = {"drizzle": "rain", "drought": "sun", "sand-stream": "sandstorm", "snow-warning": "snow"}.get(_value(event, "source_ability"))
         field = state.get("field")
         return None if weather == _value(event, "weather_after") and isinstance(field, dict) and field.get("weather") == _value(event, "weather_before") else "invalid_switch_entry_weather_transition"
+    if kind == "switch_entry_ability_transition_derived":
+        copied, copied_from = _value(event, "ability_after"), _value(event, "copied_from")
+        if mechanic != "trace" or owner != incoming or pokemon.get("current_ability") != "trace" or _value(event, "ability_before") != "trace":
+            return "invalid_switch_entry_trace_ability_transition"
+        support = resolve_trace_runtime_copy_support(copied)
+        if support.get("status") != "resolved" or not isinstance(copied_from, dict):
+            return "unsupported_switch_entry_trace_ability"
+        source_pokemon = _pokemon(state, copied_from)
+        if (copied_from.get("side") == incoming[0] or source_pokemon is None
+                or not _active_identity_matches(state, copied_from.get("side"), copied_from.get("slot_index"), copied_from.get("pokemon_id"))
+                or source_pokemon.get("current_ability") != copied or not _trusted_current_ability(source_pokemon)):
+            return "switch_entry_trace_source_ability_mismatch"
+        return None
     if kind == "switch_entry_hazard_transition_derived":
         before, after, context = _value(event, "hazards_before"), _value(event, "hazards_after"), state.get("switch_hazard_context")
         if not isinstance(before, dict) or not isinstance(after, dict) or not isinstance(context, dict) or context.get("affected_side") != incoming[0]:
@@ -932,7 +966,7 @@ def _has_target_identity(event):
     effect = event["planned_effect"]
     if effect in {"record_champions_status_progression", "advance_champions_status_progression", "clear_champions_status_condition", "record_champions_confusion_progression", "set_current_confusion_state", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_confusion_state" or (_value(event, "confusion_state") in {"confused", "none"} and _value(event, "trust") == "user_confirmed_observation"))
-    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_mat_block_active_entry_eligibility", "set_fake_out_active_entry_eligibility", "set_current_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
+    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_mat_block_active_entry_eligibility", "set_fake_out_active_entry_eligibility", "set_current_ability", "set_switch_entry_trace_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect in {"set_current_aqua_ring_state", "set_current_ingrain_state", "set_current_leech_seed_state"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and _value(event, "persistent_state") in {"active", "inactive"} and _value(event, "trust") == "user_confirmed_observation" and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_leech_seed_state" or _value(event, "persistent_state") != "active" or (_value(event, "source_side") in {"self", "opponent"} and isinstance(_value(event, "source_slot_index"), int) and not isinstance(_value(event, "source_slot_index"), bool)))
@@ -1077,6 +1111,8 @@ def _apply(state, event):
         return _set_current_weather(state, event)
     if effect == "set_current_ability":
         return _set_current_ability(state, event)
+    if effect == "set_switch_entry_trace_ability":
+        return _set_switch_entry_trace_ability(state, event)
     if effect == "set_current_item":
         return _set_current_item(state, event)
     if effect == "set_current_move_usability":
@@ -1644,6 +1680,33 @@ def _set_current_ability(state, event):
     pokemon["current_ability"] = ability
     pokemon["current_ability_provenance"] = _provenance(event) | {
         "event_kind": "current_ability_observed", "trust": _value(event, "trust"), "turn_number": turn_number,
+    }
+    return None
+
+
+def _set_switch_entry_trace_ability(state, event):
+    """Commit only an already-validated passive Trace copy from the same switch batch."""
+    pokemon = _pokemon(state, event)
+    ability, copied_from, turn_number = _value(event, "ability_after"), _value(event, "copied_from"), _value(event, "turn_number")
+    source_switch = event.get("_switch_entry_source_switch")
+    if (pokemon is None or pokemon.get("fainted") is True or pokemon.get("current_ability") != "trace"
+            or _value(event, "ability_before") != "trace" or _value(event, "mechanic") != "trace"
+            or resolve_trace_runtime_copy_support(ability).get("status") != "resolved"
+            or not isinstance(copied_from, dict) or not isinstance(source_switch, dict)
+            or not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1):
+        return _conflict(event, "invalid_switch_entry_trace_ability")
+    pokemon["current_ability"] = ability
+    pokemon["current_ability_provenance"] = _provenance(event) | {
+        "event_kind": "switch_entry_ability_transition_derived",
+        "trust": MECHANICS_DERIVED_TRUST,
+        "source": SWITCH_ENTRY_MECHANICS_SOURCE,
+        "scope": "switch_entry",
+        "turn_number": turn_number,
+        "mechanic": "trace",
+        "ability_before": "trace",
+        "ability_after": ability,
+        "copied_from": deepcopy(copied_from),
+        "source_switch_observation_id": source_switch.get("observation_id"),
     }
     return None
 

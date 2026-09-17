@@ -31,6 +31,7 @@ _KINDS.update({
  "switch_entry_hp_transition_derived", "switch_entry_condition_applied_derived",
  "switch_entry_stat_stage_transition_derived", "switch_entry_weather_transition_derived",
  "switch_entry_hazard_transition_derived", "switch_entry_faint_derived",
+ "switch_entry_ability_transition_derived",
 })
 class ObservationCollection:
  def __init__(self,session_id): self._session_id=session_id; self._items={}

@@ -14,6 +14,8 @@ from llm.advisor_reducer_state_model import is_trusted_current_weather
 from llm.advisor_switch_entry_effects import evaluate_switch_entry_effects
 from llm.advisor_switch_entry_mechanics_derived_observation import derive_switch_entry_consequence
 from llm.advisor_switch_hazard_authority import project_switch_hazard_context
+from llm.advisor_switch_entry_trace_authority import normalize_switch_entry_trace_authority
+from llm.advisor_trace_runtime_copy_support import resolve_trace_runtime_copy_support
 
 
 def derive_live_manual_switch_entry_consequences(*, state: Mapping[str, Any], switch_observation: Mapping[str, Any], turn_number: int, allocate_sequence) -> dict[str, Any]:
@@ -46,10 +48,11 @@ def derive_live_manual_switch_entry_consequences(*, state: Mapping[str, Any], sw
     )
     if entry.get("entry_effects_supportability") != "complete" or entry.get("status") != "complete":
         return _bad("switch_entry_authority_incomplete")
-    if entry.get("trace_result", {}).get("outcome") == "ability_copied":
-        return _bad("trace_runtime_writeback_unsupported")
 
     incoming = {key: target[key] for key in ("side", "slot_index", "pokemon_id")}
+    trace_writeback = _trace_writeback_authority(state=state, incoming=incoming, trace_result=entry.get("trace_result"))
+    if trace_writeback.get("status") != "resolved":
+        return _bad(trace_writeback.get("reason", "trace_runtime_writeback_unsupported"))
     confirmations: list[dict[str, Any]] = []
 
     def add(kind: str, owner: Mapping[str, Any], data: Mapping[str, Any]) -> bool:
@@ -92,6 +95,10 @@ def derive_live_manual_switch_entry_consequences(*, state: Mapping[str, Any], sw
     if weather_result.get("outcome") == "weather_set" and not add("switch_entry_weather_transition_derived", incoming, {
         "source_ability": target["ability_authority"].get("value"), "weather_before": weather_result.get("weather_before"), "weather_after": weather_result.get("weather_after"),
     }): return _bad("entry_weather_observation_invalid")
+    if trace_writeback.get("ability_after") is not None and not add("switch_entry_ability_transition_derived", incoming, {
+        "mechanic": "trace", "ability_before": "trace", "ability_after": trace_writeback["ability_after"],
+        "copied_from": trace_writeback["copied_from"],
+    }): return _bad("entry_trace_ability_observation_invalid")
     if toxic.get("outcome") == "absorbed":
         before = {key: hazards[key] for key in ("stealth_rock", "spikes_layers", "toxic_spikes_layers", "sticky_web")}
         after = {**before, "toxic_spikes_layers": 0}
@@ -99,6 +106,37 @@ def derive_live_manual_switch_entry_consequences(*, state: Mapping[str, Any], sw
     if damage.get("hazard_ko") is True and not add("switch_entry_faint_derived", incoming, {"mechanic": "entry_hazards"}):
         return _bad("entry_faint_observation_invalid")
     return {"status": "resolved", "confirmations": confirmations, "entry_effects": deepcopy(entry)}
+
+
+def _trace_writeback_authority(*, state: Mapping[str, Any], incoming: Mapping[str, Any], trace_result: Any) -> dict[str, Any]:
+    if not isinstance(trace_result, Mapping) or trace_result.get("status") != "complete":
+        return {"status": "incomplete", "reason": "trace_result_incomplete"}
+    if trace_result.get("outcome") != "ability_copied":
+        return {"status": "resolved", "ability_after": None, "copied_from": None}
+    copied = trace_result.get("copied_ability")
+    copied_from = trace_result.get("opponent_identity")
+    support = resolve_trace_runtime_copy_support(copied)
+    if support.get("status") != "resolved":
+        return {"status": "incomplete", "reason": support.get("reason", "trace_copied_ability_followup_unsupported")}
+    if not isinstance(copied_from, Mapping) or copied_from.get("side") != "opponent":
+        return {"status": "rejected", "reason": "trace_copied_source_identity_invalid"}
+    opponent_side = state.get("opponent_side")
+    roster = opponent_side.get("pokemon") if isinstance(opponent_side, Mapping) else None
+    active_slot = opponent_side.get("active_slot_index") if isinstance(opponent_side, Mapping) else None
+    opponent = roster.get(active_slot, roster.get(str(active_slot))) if isinstance(roster, Mapping) and isinstance(active_slot, int) else None
+    provenance = opponent.get("current_ability_provenance") if isinstance(opponent, Mapping) else None
+    if (active_slot != copied_from.get("slot_index") or not isinstance(opponent, Mapping)
+            or opponent.get("pokemon_id") != copied_from.get("pokemon_id") or opponent.get("current_ability") != copied
+            or not isinstance(provenance, Mapping) or provenance.get("trust") != "user_confirmed_observation"
+            or provenance.get("event_kind") not in {"current_ability_observed", "current_opponent_switch_target_combat_observed"}):
+        return {"status": "rejected", "reason": "trace_target_current_ability_mismatch"}
+    authority = normalize_switch_entry_trace_authority(
+        state.get("switch_entry_trace_authority"), session_id=state.get("session_id"), target=copied_from,
+    )
+    if (not isinstance(authority, Mapping) or authority.get("source") != dict(incoming)
+            or authority.get("target_ability") != copied or authority.get("traceability") != "traceable"):
+        return {"status": "rejected", "reason": "trace_authority_binding_mismatch"}
+    return {"status": "resolved", "ability_after": copied, "copied_from": deepcopy(dict(copied_from))}
 
 
 def _weather_context(state: Mapping[str, Any]) -> dict[str, Any] | None:

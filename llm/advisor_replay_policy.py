@@ -16,7 +16,7 @@ _EFFECTS["previous_action_result_observed"] = "record_previous_action_result"
 _EFFECTS.update({"current_aqua_ring_state_observed":"set_current_aqua_ring_state", "current_ingrain_state_observed":"set_current_ingrain_state", "current_leech_seed_state_observed":"set_current_leech_seed_state"})
 _EFFECTS.update({"current_confusion_state_observed":"set_current_confusion_state", "champions_confusion_progression_observed":"record_champions_confusion_progression"})
 _EFFECTS.update({"taunt_restriction_applied_observed":"apply_taunt_restriction", "encore_restriction_applied_observed":"apply_encore_restriction", "disable_restriction_applied_observed":"apply_disable_restriction", "taunt_restricted_turn_completed_observed":"complete_restricted_active_turn", "encore_restricted_turn_completed_observed":"complete_encore_restricted_active_turn", "disable_restricted_turn_completed_observed":"complete_disable_restricted_active_turn"})
-_EFFECTS.update({"switch_entry_hp_transition_derived":"apply_exact_hp_transition", "switch_entry_condition_applied_derived":"set_condition", "switch_entry_stat_stage_transition_derived":"set_current_stat_stage", "switch_entry_weather_transition_derived":"set_current_weather", "switch_entry_hazard_transition_derived":"set_switch_hazards", "switch_entry_faint_derived":"mark_fainted"})
+_EFFECTS.update({"switch_entry_hp_transition_derived":"apply_exact_hp_transition", "switch_entry_condition_applied_derived":"set_condition", "switch_entry_stat_stage_transition_derived":"set_current_stat_stage", "switch_entry_weather_transition_derived":"set_current_weather", "switch_entry_hazard_transition_derived":"set_switch_hazards", "switch_entry_faint_derived":"mark_fainted", "switch_entry_ability_transition_derived":"set_switch_entry_trace_ability"})
 _EFFECTS.update({"champions_status_progression_derived":"advance_champions_status_progression", "champions_status_condition_cleared_derived":"clear_champions_status_condition"})
 
 def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolver=None):
@@ -86,6 +86,7 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
             if event.get("event_kind") == "switch_entry_weather_transition_derived": step["weather"] = event.get("payload", {}).get("weather_after")
             if event.get("event_kind") == "switch_entry_hazard_transition_derived": step.update(**deepcopy(event.get("payload", {}).get("hazards_after", {})))
             if event.get("event_kind") == "switch_entry_stat_stage_transition_derived": step["stage"] = event.get("payload", {}).get("stage_after")
+            if event.get("event_kind") == "switch_entry_ability_transition_derived": step["ability"] = event.get("payload", {}).get("ability_after")
         if event.get("event_kind") == "pokemon_switch_observed":
             step.update(side=event.get("side"), **deepcopy(event.get("payload", {})))
         elif event.get("event_kind").endswith("restriction_applied_observed") or event.get("event_kind").endswith("restricted_turn_completed_observed"):

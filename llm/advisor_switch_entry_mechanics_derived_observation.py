@@ -10,6 +10,7 @@ DERIVED_KINDS = frozenset({
     "switch_entry_weather_transition_derived",
     "switch_entry_hazard_transition_derived",
     "switch_entry_faint_derived",
+    "switch_entry_ability_transition_derived",
 })
 _WEATHER_BY_ABILITY = {
     "drizzle": "rain", "drought": "sun", "sand-stream": "sandstorm", "snow-warning": "snow",
@@ -60,7 +61,7 @@ def _valid(kind, incoming, side, slot, pokemon_id, payload):
     incoming_owner = (incoming["side"], incoming["slot_index"], incoming["pokemon_id"])
     if not _owner(*incoming_owner) or not isinstance(payload.get("source_switch_observation_id"), str):
         return False
-    if kind in {"switch_entry_hp_transition_derived", "switch_entry_condition_applied_derived", "switch_entry_faint_derived", "switch_entry_weather_transition_derived"} and owner != incoming_owner:
+    if kind in {"switch_entry_hp_transition_derived", "switch_entry_condition_applied_derived", "switch_entry_faint_derived", "switch_entry_weather_transition_derived", "switch_entry_ability_transition_derived"} and owner != incoming_owner:
         return False
     if kind == "switch_entry_hp_transition_derived":
         return (payload.get("mechanic") == "entry_hazards" and _hp(payload.get("hp_before"))
@@ -74,6 +75,15 @@ def _valid(kind, incoming, side, slot, pokemon_id, payload):
         return (payload.get("source_ability") in _WEATHER_BY_ABILITY
                 and _WEATHER_BY_ABILITY[payload["source_ability"]] == payload.get("weather_after")
                 and payload.get("weather_before") in {None, "none", "sun", "rain", "sandstorm", "snow", "unknown"})
+    if kind == "switch_entry_ability_transition_derived":
+        copied_from = payload.get("copied_from")
+        return (payload.get("mechanic") == "trace" and payload.get("ability_before") == "trace"
+                and isinstance(payload.get("ability_after"), str) and bool(payload["ability_after"])
+                and isinstance(copied_from, dict) and copied_from.get("side") in {"self", "opponent"}
+                and copied_from.get("side") != incoming["side"]
+                and isinstance(copied_from.get("slot_index"), int) and not isinstance(copied_from.get("slot_index"), bool)
+                and copied_from["slot_index"] >= 0 and isinstance(copied_from.get("pokemon_id"), str)
+                and bool(copied_from["pokemon_id"]))
     if kind == "switch_entry_hazard_transition_derived":
         before, after = payload.get("hazards_before"), payload.get("hazards_after")
         return (owner == (incoming["side"], None, None) and _hazards(before) and _hazards(after)

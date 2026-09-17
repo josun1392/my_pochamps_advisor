@@ -250,7 +250,7 @@ def test_production_switch_commits_exact_download_attack_boost():
     assert result["strategy_d0"]["current_stage_authority"]["self"]["stages"]["attack"]["value"] == 1
 
 
-def test_download_unknown_and_trace_copy_fail_closed_without_prefix():
+def test_download_unknown_and_trace_copy_requires_exact_runtime_target_ability():
     base = {"stealth_rock": "absent", "spikes_layers": 0, "toxic_spikes_layers": 0, "sticky_web": "absent"}
     manager = _exact_entry_manager(hazards=base, ability="download")
     state = manager.read_state()["state"]
@@ -265,8 +265,90 @@ def test_download_unknown_and_trace_copy_fail_closed_without_prefix():
     state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(session_id="s", source={"side": "self", "slot_index": 1, "pokemon_id": "raichu"}, target={"side": "opponent", "slot_index": 0, "pokemon_id": "eevee"}, target_ability="water-absorb", traceability="traceable")
     manager = BattleObservationRuntimeSessionManager.create("s", state)["manager"]
     result = _switch(manager)
-    assert result["reason"] == "trace_runtime_writeback_unsupported"
+    assert result["status"] == "incomplete" and result["reason"] == "trace_target_current_ability_mismatch"
     assert manager.read_state()["state"]["self_side"]["active_slot_index"] == 0 and not manager.read_collection_snapshot()["ordered_observations"]
+
+
+def test_trace_passive_copy_commits_as_derived_current_ability_and_fresh_d0():
+    base = {"stealth_rock": "absent", "spikes_layers": 0, "toxic_spikes_layers": 0, "sticky_web": "absent"}
+    manager = _exact_entry_manager(hazards=base, ability="trace")
+    state = manager.read_state()["state"]
+    opponent = state["opponent_side"]["pokemon"][0]
+    opponent["current_ability"] = "water-absorb"
+    opponent["current_ability_provenance"] = {"event_kind": "current_ability_observed", "trust": "user_confirmed_observation", "turn_number": 1}
+    state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(
+        session_id="s", source={"side": "self", "slot_index": 1, "pokemon_id": "raichu"},
+        target={"side": "opponent", "slot_index": 0, "pokemon_id": "eevee"},
+        target_ability="water-absorb", traceability="traceable",
+    )
+    manager = BattleObservationRuntimeSessionManager.create("s", state)["manager"]
+    result = _switch(manager)
+    assert result["status"] == "resolved", result
+    assert [row["event_kind"] for row in result["derived_observations"]] == ["switch_entry_ability_transition_derived"]
+    incoming = manager.read_state()["state"]["self_side"]["pokemon"][1]
+    assert incoming["current_ability"] == "water-absorb"
+    provenance = incoming["current_ability_provenance"]
+    assert provenance["event_kind"] == "switch_entry_ability_transition_derived"
+    assert provenance["trust"] == "mechanics_derived_runtime"
+    assert provenance["source"] == "runtime_switch_entry_mechanics_v1"
+    assert provenance["mechanic"] == "trace"
+    assert provenance["ability_before"] == "trace" and provenance["ability_after"] == "water-absorb"
+    assert provenance["copied_from"] == {"side": "opponent", "slot_index": 0, "pokemon_id": "eevee"}
+    assert result["strategy_d0"]["status"] == "resolved"
+    assert result["strategy_d0"]["source_runtime_fingerprint"] == result["runtime_snapshot"]["state_fingerprint"]
+    assert result["strategy_d0"]["strategy_state"]["current_state"]["runtime_strategy_d0_authority"]["active"]["self"]["current_ability"] == "water-absorb"
+
+
+def test_trace_copy_with_immediate_entry_followup_remains_zero_prefix_fail_closed():
+    base = {"stealth_rock": "absent", "spikes_layers": 0, "toxic_spikes_layers": 0, "sticky_web": "absent"}
+    manager = _exact_entry_manager(hazards=base, ability="trace")
+    state = manager.read_state()["state"]
+    opponent = state["opponent_side"]["pokemon"][0]
+    opponent["current_ability"] = "intimidate"
+    opponent["current_ability_provenance"] = {"event_kind": "current_ability_observed", "trust": "user_confirmed_observation", "turn_number": 1}
+    state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(
+        session_id="s", source={"side": "self", "slot_index": 1, "pokemon_id": "raichu"},
+        target={"side": "opponent", "slot_index": 0, "pokemon_id": "eevee"},
+        target_ability="intimidate", traceability="traceable",
+    )
+    manager = BattleObservationRuntimeSessionManager.create("s", state)["manager"]
+    before = deepcopy(manager.read_state()["state"])
+    result = _switch(manager)
+    assert result["status"] == "incomplete"
+    assert result["reason"] == "trace_copied_ability_followup_unsupported"
+    assert manager.read_state()["state"] == before
+    assert manager.read_collection_snapshot()["ordered_observations"] == []
+
+
+def test_forged_trace_derived_binding_is_zero_prefix(monkeypatch):
+    base = {"stealth_rock": "absent", "spikes_layers": 0, "toxic_spikes_layers": 0, "sticky_web": "absent"}
+    manager = _exact_entry_manager(hazards=base, ability="trace")
+    state = manager.read_state()["state"]
+    opponent = state["opponent_side"]["pokemon"][0]
+    opponent["current_ability"] = "water-absorb"
+    opponent["current_ability_provenance"] = {"event_kind": "current_ability_observed", "trust": "user_confirmed_observation", "turn_number": 1}
+    state["switch_entry_trace_authority"] = build_switch_entry_trace_authority(
+        session_id="s", source={"side": "self", "slot_index": 1, "pokemon_id": "raichu"},
+        target={"side": "opponent", "slot_index": 0, "pokemon_id": "eevee"},
+        target_ability="water-absorb", traceability="traceable",
+    )
+    manager = BattleObservationRuntimeSessionManager.create("s", state)["manager"]
+    real = switch_subject.derive_live_manual_switch_entry_consequences
+
+    def forged(**kwargs):
+        result = real(**kwargs)
+        assert result["status"] == "resolved"
+        event = result["confirmations"][0]["observation"]
+        assert event["event_kind"] == "switch_entry_ability_transition_derived"
+        event["payload"]["copied_from"]["pokemon_id"] = "forged"
+        return result
+
+    monkeypatch.setattr(switch_subject, "derive_live_manual_switch_entry_consequences", forged)
+    before = deepcopy(manager.read_state()["state"])
+    result = _switch(manager)
+    assert result["status"] == "rejected" and result["reason"] == "reducer_preview_rejected"
+    assert manager.read_state()["state"] == before
+    assert manager.read_collection_snapshot()["ordered_observations"] == []
 
 
 def test_heavy_duty_boots_preserves_hp_without_derived_damage():
