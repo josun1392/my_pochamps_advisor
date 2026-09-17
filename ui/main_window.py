@@ -773,7 +773,7 @@ class MainWindow(QMainWindow):
             except (AttributeError, RuntimeError):
                 pass
             return
-        if not self._admit_current_state_fact("current_ability_observed", {"ability": normalized["ability"]}, normalized["side"]):
+        if normalized["ability"] != "unknown" and not self._admit_current_state_fact("current_ability_observed", {"ability": normalized["ability"]}, normalized["side"]):
             return
         self._current_ability_confirmations = {
             **_normalize_current_ability_session(current_abilities),

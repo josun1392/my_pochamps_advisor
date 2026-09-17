@@ -74,6 +74,16 @@ def test_invalid_or_stale_current_fact_never_mutates_runtime():
     assert manager.read_state() == before
 
 
+def test_unknown_ability_is_not_a_known_authoritative_ability_value():
+    manager = _manager()
+    result = admit_current_state_observation(
+        runtime_session_manager=manager, captured_session_id="current-state-ui",
+        event_kind="current_ability_observed", payload={"ability": "unknown"}, side="self", turn_number=1,
+    )
+    assert result["status"] == "rejected"
+    assert manager.read_state()["state"]["self_side"]["pokemon"][0]["current_ability"] == {"knowledge": "unknown"}
+
+
 def test_exact_current_hp_admission_uses_the_authoritative_prior_hp():
     manager = _manager()
     result = admit_current_state_observation(

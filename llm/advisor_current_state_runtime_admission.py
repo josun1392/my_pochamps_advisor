@@ -82,6 +82,8 @@ def admit_current_state_observations(*, runtime_session_manager: Any, captured_s
         event_kind, payload, side = row.get("event_kind"), row.get("payload"), row.get("side")
         if event_kind not in _SOURCES or not isinstance(payload, Mapping):
             return _result("invalid_admission_request")
+        if event_kind == "current_ability_observed" and payload.get("ability") == "unknown":
+            return _result("unknown_ability_not_observable")
         owner = None if event_kind in _GLOBAL else owners.get(side)
         if event_kind not in _GLOBAL and owner is None:
             return _result("invalid_current_owner")
