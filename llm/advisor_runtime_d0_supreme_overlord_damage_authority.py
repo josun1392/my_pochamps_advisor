@@ -60,12 +60,14 @@ def valid_runtime_d0_supreme_overlord_damage_authority(value: Any, *, strategy_d
 
 
 def _base(d0: Any, attacker: Any, target: Any, move: Any) -> dict[str, Any] | None:
-    if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or attacker != d0.get("decision_owner") or target != d0.get("active_owners", {}).get("opponent") or not isinstance(move, Mapping) or not isinstance(move.get("move_id"), str): return None
+    attacker_side = attacker.get("side") if isinstance(attacker, Mapping) else None
+    target_side = "opponent" if attacker_side == "self" else "self" if attacker_side == "opponent" else None
+    if not isinstance(d0, Mapping) or d0.get("status") != "resolved" or attacker != d0.get("decision_owner") or target != d0.get("active_owners", {}).get(target_side) or not isinstance(move, Mapping) or not isinstance(move.get("move_id"), str): return None
     return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "attacker": deepcopy(dict(attacker)), "target": deepcopy(dict(target)), "move_id": move["move_id"]}
 
 
 def _ability(snapshot: Any, attacker: Mapping[str, Any]) -> str | None:
-    state = snapshot.get("state") if isinstance(snapshot, Mapping) else None; side = state.get("self_side") if isinstance(state, Mapping) else None; roster = side.get("pokemon") if isinstance(side, Mapping) else None; row = roster.get(attacker.get("slot_index")) if isinstance(roster, Mapping) else None
+    state = snapshot.get("state") if isinstance(snapshot, Mapping) else None; side_name = attacker.get("side") if isinstance(attacker, Mapping) else None; side = state.get(f"{side_name}_side") if isinstance(state, Mapping) and side_name in {"self", "opponent"} else None; roster = side.get("pokemon") if isinstance(side, Mapping) else None; row = roster.get(attacker.get("slot_index")) if isinstance(roster, Mapping) else None
     return row.get("current_ability") if isinstance(row, Mapping) and isinstance(row.get("current_ability"), str) else None
 
 
