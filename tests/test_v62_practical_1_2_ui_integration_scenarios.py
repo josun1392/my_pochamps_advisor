@@ -1,14 +1,50 @@
 """Sanitized Practical 1.2 readiness and explicit-capture integration scenarios."""
 
+from copy import deepcopy
+
 from types import SimpleNamespace
 
 from PySide6.QtWidgets import QApplication, QDialog
 
 import ui.main_window as main_window_module
+from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
+from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
 from llm.advisor_recommendation_readiness import build_recommendation_readiness
 from ui.main_window import MainWindow
 from ui.widgets.current_hp_dialog import CurrentHPDialog
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
+
+
+def _hp_runtime_window(*, readiness_owner=None):
+    state = create_unknown_bootstrap_battle_state("hp-ui", "pikachu", "eevee")["state"]
+    for side in ("self", "opponent"):
+        state[f"{side}_side"]["pokemon"][0].update(current_hp=80, max_hp=100, fainted=False)
+    replacement = deepcopy(state["opponent_side"]["pokemon"][0])
+    replacement.update(pokemon_id="vaporeon", current_hp=80, max_hp=100, fainted=False)
+    state["opponent_side"]["pokemon"][1] = replacement
+    manager = BattleObservationRuntimeSessionManager.create("hp-ui", state)["manager"]
+    updates: list[str] = []
+
+    def owner_for(side):
+        current = manager.read_state()["state"][f"{side}_side"]
+        slot = current["active_slot_index"]
+        pokemon = current["pokemon"][slot]
+        return (manager.session_id, slot, pokemon["pokemon_id"])
+
+    window = SimpleNamespace(
+        _current_hp_confirmations={},
+        _current_hp_confirmation_owners={},
+        _recommendation_readiness_owner=readiness_owner,
+        _current_hp_owner_for_side=owner_for,
+        _update_current_hp_summary=lambda: updates.append("summary"),
+        _check_structured_recommendation_readiness=lambda: updates.append("readiness"),
+        _observation_runtime_session_manager=manager,
+        _current_trusted_turn_number=2,
+        _active_session_id=lambda: manager.session_id,
+    )
+    window._admit_current_state_fact = lambda event_kind, payload, side=None: MainWindow._admit_current_state_fact(window, event_kind, payload, side)
+    return window, manager, updates
 
 
 def _prepared(*candidates):
@@ -79,19 +115,7 @@ def test_readiness_never_reports_ready_when_canonical_preparation_is_unavailable
 
 
 def test_paired_hp_confirmation_applies_only_valid_active_owners_and_cancel_is_read_only(monkeypatch):
-    owners = {
-        "self": ("session", 0, "pikachu"),
-        "opponent": ("session", 1, "eevee"),
-    }
-    updates: list[str] = []
-    window = SimpleNamespace(
-        _current_hp_confirmations={},
-        _current_hp_confirmation_owners={},
-        _recommendation_readiness_owner=("session", 0, "pikachu"),
-        _current_hp_owner_for_side=lambda side: owners[side],
-        _update_current_hp_summary=lambda: updates.append("summary"),
-        _check_structured_recommendation_readiness=lambda: updates.append("readiness"),
-    )
+    window, manager, updates = _hp_runtime_window(readiness_owner=("hp-ui", 0, "pikachu"))
 
     class AcceptedPairDialog:
         def __init__(self, **_kwargs):
@@ -109,10 +133,17 @@ def test_paired_hp_confirmation_applies_only_valid_active_owners_and_cancel_is_r
         "self": {"side": "self", "current_hp": 40, "maximum_hp": 100, "status": "user_confirmed", "source": "user_confirmed_current_hp", "confidence": "known"},
         "opponent": {"side": "opponent", "current_hp": 70, "maximum_hp": 100, "status": "user_confirmed", "source": "user_confirmed_current_hp", "confidence": "known"},
     }
-    assert window._current_hp_confirmation_owners == owners
+    assert window._current_hp_confirmation_owners == {
+        "self": ("hp-ui", 0, "pikachu"),
+        "opponent": ("hp-ui", 0, "eevee"),
+    }
+    state = manager.read_state()["state"]
+    assert state["self_side"]["pokemon"][0]["current_hp"] == 40
+    assert state["opponent_side"]["pokemon"][0]["current_hp"] == 70
     assert updates == ["summary", "readiness"]
 
     before = dict(window._current_hp_confirmations)
+    runtime_before = manager.read_state()
 
     class CancelledDialog:
         def __init__(self, **_kwargs):
@@ -124,37 +155,36 @@ def test_paired_hp_confirmation_applies_only_valid_active_owners_and_cancel_is_r
     monkeypatch.setattr(main_window_module, "CurrentHPDialog", CancelledDialog)
     MainWindow._open_current_hp_dialog(window)
     assert window._current_hp_confirmations == before
+    assert manager.read_state() == runtime_before
 
 
 def test_stale_paired_hp_record_is_rejected_without_blocking_the_other_active_side(monkeypatch):
-    owners = {
-        "self": ("session", 0, "pikachu"),
-        "opponent": ("session", 1, "eevee"),
-    }
-    window = SimpleNamespace(
-        _current_hp_confirmations={},
-        _current_hp_confirmation_owners={},
-        _recommendation_readiness_owner=None,
-        _current_hp_owner_for_side=lambda side: owners[side],
-        _update_current_hp_summary=lambda: None,
-        _check_structured_recommendation_readiness=lambda: None,
-    )
+    window, manager, _updates = _hp_runtime_window()
 
     class PartlyStaleDialog:
         def __init__(self, **_kwargs):
             self.current_hp_confirmations = [
                 {"side": "self", "current_hp": 40, "maximum_hp": 100, "status": "user_confirmed", "source": "user_confirmed_current_hp"},
                 {"side": "opponent", "current_hp": 70, "maximum_hp": 100, "status": "user_confirmed", "source": "user_confirmed_current_hp"},
-            ]
+        ]
 
         def exec(self):
-            owners["opponent"] = ("session", 1, "vaporeon")
+            assert admit_pokemon_switch_observation(
+                runtime_session_manager=manager, captured_session_id="hp-ui", side="opponent",
+                switch_in_slot_index=1, switch_in_pokemon_id="vaporeon", turn_number=1,
+            )["status"] == "resolved"
             return QDialog.DialogCode.Accepted
 
     monkeypatch.setattr(main_window_module, "CurrentHPDialog", PartlyStaleDialog)
     MainWindow._open_current_hp_dialog(window)
     assert set(window._current_hp_confirmations) == {"self"}
-    assert window._current_hp_confirmation_owners["self"] == ("session", 0, "pikachu")
+    assert window._current_hp_confirmation_owners["self"] == ("hp-ui", 0, "pikachu")
+    state = manager.read_state()["state"]
+    assert state["self_side"]["pokemon"][0]["current_hp"] == 40
+    assert state["opponent_side"]["pokemon"][1]["current_hp"] == 80
+    # The rejected stale row does not reserve a committed reducer sequence:
+    # switch is sequence 1 and the surviving self confirmation is sequence 2.
+    assert state["last_applied_observation_sequence"] == 2
 
 
 def test_item_readiness_route_rejects_a_replacement_before_the_existing_item_flow(monkeypatch):
