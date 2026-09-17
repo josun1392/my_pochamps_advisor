@@ -10,6 +10,7 @@ from advisor.damage.q12 import Q12_ONE
 
 
 ITEMS_PATH = Path("data/static/items_damage.json")
+CHAMPIONS_LEGAL_ITEMS_PATH = Path("data/static/champions_legal_items.json")
 MEGA_STONES_PATH = Path("data/static/mega_stones.json")
 
 
@@ -101,6 +102,48 @@ def get_item(item_id: str | None) -> ItemEffect | None:
     if item_id is None:
         return None
     return load_items_catalog().get(item_id)
+
+
+@lru_cache(maxsize=1)
+def load_champions_supported_type_boost_items() -> dict[str, ItemEffect]:
+    """Return only Champions-legal type boosters declared damage-supported.
+
+    Champions legality/support metadata decides which lower-engine type boosts
+    are admissible in live production mechanics; ``items_damage.json`` remains
+    the sole owner of their type and Q12 multiplier.
+    """
+    raw = json.loads(CHAMPIONS_LEGAL_ITEMS_PATH.read_text(encoding="utf-8"))
+    rows = raw.get("items")
+    if not isinstance(rows, list):
+        return {}
+
+    catalog = load_items_catalog()
+    supported: dict[str, ItemEffect] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        effect_support = row.get("effect_support")
+        item_id = row.get("item_id")
+        if not (
+            row.get("legal") is True
+            and row.get("category") == "type_boosting_item"
+            and row.get("effect_support_status") == "legal_and_damage_supported"
+            and isinstance(effect_support, dict)
+            and effect_support.get("damage_modifier") == "supported_by_engine"
+            and isinstance(item_id, str)
+        ):
+            continue
+        effect = catalog.get(item_id)
+        if effect is not None and effect.kind == "type_boost":
+            supported[item_id] = effect
+    return supported
+
+
+def get_champions_supported_type_boost_item(item_id: str | None) -> ItemEffect | None:
+    """Resolve one production-admissible Champions type-boost item."""
+    if item_id is None:
+        return None
+    return load_champions_supported_type_boost_items().get(item_id)
 
 
 @lru_cache(maxsize=1)

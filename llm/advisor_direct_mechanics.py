@@ -11,7 +11,7 @@ from advisor.damage.crit import select_critical_damage_stages
 from advisor.damage.abilities import get_ability
 from advisor.damage.ability_modifiers import get_bp_ability_modifier
 from advisor.damage.field import Field, SideField
-from advisor.damage.items import get_item
+from advisor.damage.items import get_champions_supported_type_boost_item, get_item
 from advisor.damage.q12 import M_HALF, Q12_ONE
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
 from advisor.damage.stats import StatBlock
@@ -1092,6 +1092,18 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
     # supplies that effect separately, so it has no direct single-hit damage
     # modifier to apply here.
     if item_id in {"focus-sash", "loaded-dice", "quick-claw", "safety-goggles"}:
+        return result
+    type_boost_effect = get_champions_supported_type_boost_item(item_id)
+    if type_boost_effect is not None:
+        # The catalog owns both the boosted type and Q12 multiplier.  Passing
+        # this effect into the native formula is the single application point;
+        # a non-matching known type booster is explicitly neutral.
+        if not _nonempty_str(move_type):
+            result["missing_inputs"].append("move.type")
+            return result
+        if move_type in type_boost_effect.boosted_types:
+            result["item_effect"] = type_boost_effect
+            result["applied"].append(f"item_{item_id}_type_boost")
         return result
     if item_id not in STATIC_ATTACKER_DAMAGE_ITEMS:
         result["unsupported_reason"] = "item_modifier"
