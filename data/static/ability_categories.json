@@ -11,11 +11,25 @@
     "ally_immunity": [
       "telepathy"
     ],
+    "bp_modifier": [
+      "iron-fist",
+      "mega-launcher",
+      "reckless",
+      "sheer-force",
+      "strong-jaw",
+      "technician",
+      "tough-claws"
+    ],
     "damage_mod_dual": [
       "water-bubble"
     ],
     "damage_mod_flag": [
-      "fluffy"
+      "fluffy",
+      "punk-rock"
+    ],
+    "damage_mod_hp": [
+      "multiscale",
+      "shadow-shield"
     ],
     "damage_mod_not_very_effective": [
       "tinted-lens"
@@ -35,6 +49,9 @@
       "overcoat",
       "soundproof"
     ],
+    "multihit_modifier": [
+      "skill-link"
+    ],
     "paradox": [
       "protosynthesis",
       "quark-drive"
@@ -42,9 +59,24 @@
     "residual_immunity": [
       "magic-guard"
     ],
-    "stat_mod": [
+    "stat_multiplier": [
+      "blaze",
+      "defeatist",
+      "fur-coat",
       "huge-power",
-      "pure-power"
+      "hustle",
+      "ice-scales",
+      "minus",
+      "overgrow",
+      "plus",
+      "pure-power",
+      "solar-power",
+      "swarm",
+      "torrent",
+      "transistor"
+    ],
+    "stat_multiplier_status": [
+      "guts"
     ],
     "status_reflect": [
       "magic-bounce"
@@ -101,7 +133,6 @@
       "beast-boost",
       "berserk",
       "big-pecks",
-      "blaze",
       "cheek-pouch",
       "chilling-neigh",
       "clear-body",
@@ -123,7 +154,6 @@
       "dark-aura",
       "dauntless-shield",
       "dazzling",
-      "defeatist",
       "defiant",
       "disguise",
       "download",
@@ -144,7 +174,6 @@
       "friend-guard",
       "frisk",
       "full-metal-body",
-      "fur-coat",
       "gale-wings",
       "galvanize",
       "gluttony",
@@ -154,17 +183,14 @@
       "grim-neigh",
       "guard-dog",
       "gulp-missile",
-      "guts",
       "healer",
       "heavy-metal",
       "honey-gather",
       "hospitality",
       "hunger-switch",
-      "hustle",
       "hydration",
       "hyper-cutter",
       "ice-face",
-      "ice-scales",
       "illuminate",
       "illusion",
       "immunity",
@@ -176,7 +202,6 @@
       "intimidate",
       "intrepid-sword",
       "iron-barbs",
-      "iron-fist",
       "justified",
       "keen-eye",
       "klutz",
@@ -191,15 +216,12 @@
       "magma-armor",
       "magnet-pull",
       "marvel-scale",
-      "mega-launcher",
       "merciless",
       "mind-s-eye",
-      "minus",
       "mirror-armor",
       "moody",
       "mountaineer",
       "moxie",
-      "multiscale",
       "multitype",
       "mummy",
       "mycelium-might",
@@ -209,7 +231,6 @@
       "normalize",
       "oblivious",
       "opportunist",
-      "overgrow",
       "own-tempo",
       "parental-bond",
       "pastel-veil",
@@ -218,7 +239,6 @@
       "pickpocket",
       "pickup",
       "pixilate",
-      "plus",
       "poison-heal",
       "poison-point",
       "poison-puppeteer",
@@ -230,14 +250,12 @@
       "pressure",
       "propeller-tail",
       "protean",
-      "punk-rock",
       "queenly-majesty",
       "quick-draw",
       "quick-feet",
       "rattled",
       "rebound",
       "receiver",
-      "reckless",
       "refrigerate",
       "regenerator",
       "ripen",
@@ -253,16 +271,13 @@
       "screen-cleaner",
       "seed-sower",
       "serene-grace",
-      "shadow-shield",
       "shadow-tag",
       "sharpness",
       "shed-skin",
-      "sheer-force",
       "shell-armor",
       "shield-dust",
       "shields-down",
       "simple",
-      "skill-link",
       "slow-start",
       "sniper",
       "soul-heart",
@@ -279,13 +294,11 @@
       "steely-spirit",
       "stench",
       "sticky-hold",
-      "strong-jaw",
       "sturdy",
       "suction-cups",
       "super-luck",
       "supersweet-syrup",
       "supreme-overlord",
-      "swarm",
       "sweet-veil",
       "sword-of-ruin",
       "symbiosis",
@@ -293,18 +306,14 @@
       "tablets-of-ruin",
       "tangled-feet",
       "tangling-hair",
-      "technician",
       "tera-shell",
       "tera-shift",
       "teraform-zero",
       "thermal-exchange",
-      "torrent",
-      "tough-claws",
       "toxic-boost",
       "toxic-chain",
       "toxic-debris",
       "trace",
-      "transistor",
       "triage",
       "truant",
       "unaware",
@@ -339,7 +348,6 @@
       "sand-veil",
       "slush-rush",
       "snow-cloak",
-      "solar-power",
       "swift-swim"
     ],
     "weather_summon": [

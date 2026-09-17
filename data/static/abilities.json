@@ -370,13 +370,13 @@
       "name": "Fairy Aura"
     },
     "filter": {
+      "category": "damage_mod_super_effective",
+      "condition": "super_effective",
       "ignored_by_mold_breaker": true,
       "implemented": true,
       "multiplier_q12": 3072,
       "name": "Filter",
-      "stat": "final_def",
-      "condition": "super_effective",
-      "category": "damage_mod_super_effective"
+      "stat": "final_def"
     },
     "flame-body": {
       "category": "uncategorized",
@@ -1044,13 +1044,13 @@
       "summons": "heavy-rain"
     },
     "prism-armor": {
+      "category": "damage_mod_super_effective",
+      "condition": "super_effective",
       "ignored_by_mold_breaker": false,
       "implemented": true,
       "multiplier_q12": 3072,
       "name": "Prism Armor",
-      "stat": "final_def",
-      "condition": "super_effective",
-      "category": "damage_mod_super_effective"
+      "stat": "final_def"
     },
     "propeller-tail": {
       "category": "uncategorized",
@@ -1081,9 +1081,9 @@
       "summons": "psychic"
     },
     "punk-rock": {
+      "attacker_multiplier_q12": 5325,
       "category": "damage_mod_flag",
       "condition": "sound_move",
-      "attacker_multiplier_q12": 5325,
       "implemented": true,
       "multiplier_q12": 2048,
       "name": "Punk Rock",
@@ -1332,23 +1332,26 @@
       "name": "Simple"
     },
     "skill-link": {
+      "applies_to_tiers": [
+        "A",
+        "C"
+      ],
       "category": "multihit_modifier",
-      "applies_to_tiers": ["A", "C"],
-      "tier_a_behavior": {
-        "forces_max_multihit": true
-      },
-      "tier_c_behavior": {
-        "removes_multiaccuracy": true,
-        "forces_max_multihit": true
-      },
+      "implemented": true,
       "interactions": {
         "tier_a": "Converts multihit array to max int via onModifyMove. Beats Loaded Dice on Tier A.",
         "tier_b": "No effect (multihit is already a fixed int).",
         "tier_c": "Removes multiaccuracy flag. Does NOT block Loaded Dice on Tier C; hit loop's Loaded Dice branch is independent."
       },
-      "implemented": true,
       "name": "Skill Link",
-      "showdown_source": "data/abilities.ts skilllink onModifyMove (master branch)"
+      "showdown_source": "data/abilities.ts skilllink onModifyMove (master branch)",
+      "tier_a_behavior": {
+        "forces_max_multihit": true
+      },
+      "tier_c_behavior": {
+        "forces_max_multihit": true,
+        "removes_multiaccuracy": true
+      }
     },
     "slow-start": {
       "category": "uncategorized",
@@ -1393,13 +1396,13 @@
       "weather": "sun"
     },
     "solid-rock": {
+      "category": "damage_mod_super_effective",
+      "condition": "super_effective",
       "ignored_by_mold_breaker": true,
       "implemented": true,
       "multiplier_q12": 3072,
       "name": "Solid Rock",
-      "stat": "final_def",
-      "condition": "super_effective",
-      "category": "damage_mod_super_effective"
+      "stat": "final_def"
     },
     "soul-heart": {
       "category": "uncategorized",
@@ -1646,8 +1649,8 @@
       "implemented": true,
       "multiplier_q12": 5325,
       "name": "Tough Claws",
-      "stat": "bp",
-      "smogon_ref": "gen789.ts L1195 (groups with Sheer Force/Punk Rock/Technician/Strong Jaw/Mega Launcher at L1198 push 5325)"
+      "smogon_ref": "gen789.ts L1195 (groups with Sheer Force/Punk Rock/Technician/Strong Jaw/Mega Launcher at L1198 push 5325)",
+      "stat": "bp"
     },
     "toxic-boost": {
       "category": "uncategorized",

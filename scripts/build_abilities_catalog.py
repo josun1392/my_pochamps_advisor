@@ -30,9 +30,10 @@ IMPLEMENTED: dict[str, dict[str, Any]] = {
     "sand-rush": {"category": "weather_conditional", "weather": "sand", "stat": "spe", "multiplier_q12": 8192},
     "slush-rush": {"category": "weather_conditional", "weather": "snow", "stat": "spe", "multiplier_q12": 8192},
     "solar-power": {
-        "category": "weather_conditional",
+        "category": "stat_multiplier",
+        "condition": "weather_sun",
         "weather": "sun",
-        "stat": "spa",
+        "stat": "sa",
         "multiplier_q12": 6144,
         "side_effect": "hp_loss_per_turn",
     },
@@ -106,16 +107,22 @@ IMPLEMENTED: dict[str, dict[str, Any]] = {
     "purifying-salt": {"category": "damage_mod_type", "boosted_types": ["ghost"], "multiplier_q12": 2048},
     "solid-rock": {
         "category": "damage_mod_super_effective",
+        "condition": "super_effective",
+        "stat": "final_def",
         "multiplier_q12": 3072,
         "ignored_by_mold_breaker": True,
     },
     "filter": {
         "category": "damage_mod_super_effective",
+        "condition": "super_effective",
+        "stat": "final_def",
         "multiplier_q12": 3072,
         "ignored_by_mold_breaker": True,
     },
     "prism-armor": {
         "category": "damage_mod_super_effective",
+        "condition": "super_effective",
+        "stat": "final_def",
         "multiplier_q12": 3072,
         "ignored_by_mold_breaker": False,
     },
@@ -127,11 +134,57 @@ IMPLEMENTED: dict[str, dict[str, Any]] = {
     "wonder-guard": {"category": "wonder_guard"},
     "magic-guard": {"category": "residual_immunity", "implemented_stub": True},
     "magic-bounce": {"category": "status_reflect", "implemented_stub": True},
+    # Existing checked-in Champions support metadata.  These entries are kept
+    # here (rather than copied from generated JSON) so regeneration remains
+    # non-circular and cannot erase already-supported mechanics.
+    "blaze": {"category": "stat_multiplier", "condition": "type_fire_low_hp", "multiplier_q12": 6144, "stat": "at_or_sa"},
+    "defeatist": {"category": "stat_multiplier", "condition": "hp_le_half", "multiplier_q12": 2048, "stat": "at_or_sa"},
+    "fur-coat": {"category": "stat_multiplier", "condition": "physical_move_received", "multiplier_q12": 2048, "stat": "def_received"},
+    "huge-power": {"category": "stat_multiplier", "condition": "physical_move", "multiplier_q12": 8192, "stat": "atk"},
+    "hustle": {"category": "stat_multiplier", "condition": "physical_move", "multiplier_q12": 6144, "stat": "atk", "accuracy_penalty_q12": 3277},
+    "ice-scales": {"category": "stat_multiplier", "condition": "special_move_received", "multiplier_q12": 2048, "stat": "spd_received", "smogon_ref": "gen789.ts final_mods 2048 for special"},
+    "iron-fist": {"category": "bp_modifier", "condition": "punch", "multiplier_q12": 4915, "stat": "bp"},
+    "mega-launcher": {"category": "bp_modifier", "condition": "pulse", "multiplier_q12": 6144, "stat": "bp", "trigger": "move_flags.pulse"},
+    "minus": {"category": "stat_multiplier", "condition": "ally_plus_minus", "multiplier_q12": 6144, "stat": "sa"},
+    "multiscale": {"category": "damage_mod_hp", "condition": "defender_hp_full", "modifier_layer": "final_mods", "multiplier_q12": 2048},
+    "overgrow": {"category": "stat_multiplier", "condition": "type_grass_low_hp", "multiplier_q12": 6144, "stat": "at_or_sa"},
+    "plus": {"category": "stat_multiplier", "condition": "ally_plus_minus", "multiplier_q12": 6144, "stat": "sa"},
+    "punk-rock": {"category": "damage_mod_flag", "condition": "sound_move", "attacker_multiplier_q12": 5325, "multiplier_q12": 2048, "stat": "final_def", "trigger": "move_flags.sound"},
+    "pure-power": {"category": "stat_multiplier", "condition": "physical_move", "multiplier_q12": 8192, "stat": "atk"},
+    "reckless": {"category": "bp_modifier", "condition": "recoil", "multiplier_q12": 4915, "stat": "bp", "trigger": "move_flags.recoil_and_not_struggle"},
+    "shadow-shield": {"category": "damage_mod_hp", "condition": "defender_hp_full", "modifier_layer": "final_mods", "multiplier_q12": 2048},
+    "sheer-force": {"category": "bp_modifier", "condition": "has_secondary", "multiplier_q12": 5325, "stat": "bp", "trigger": "move_flags.has_secondary"},
+    "skill-link": {
+        "category": "multihit_modifier",
+        "applies_to_tiers": ["A", "C"],
+        "tier_a_behavior": {"forces_max_multihit": True},
+        "tier_c_behavior": {"removes_multiaccuracy": True, "forces_max_multihit": True},
+        "interactions": {
+            "tier_a": "Converts multihit array to max int via onModifyMove. Beats Loaded Dice on Tier A.",
+            "tier_b": "No effect (multihit is already a fixed int).",
+            "tier_c": "Removes multiaccuracy flag. Does NOT block Loaded Dice on Tier C; hit loop's Loaded Dice branch is independent.",
+        },
+        "showdown_source": "data/abilities.ts skilllink onModifyMove (master branch)",
+    },
+    "strong-jaw": {"category": "bp_modifier", "condition": "bite", "multiplier_q12": 6144, "stat": "bp", "trigger": "move_flags.bite"},
+    "swarm": {"category": "stat_multiplier", "condition": "type_bug_low_hp", "multiplier_q12": 6144, "stat": "at_or_sa"},
+    "technician": {"category": "bp_modifier", "condition": "bp_le_60", "multiplier_q12": 6144, "stat": "bp"},
+    "torrent": {"category": "stat_multiplier", "condition": "type_water_low_hp", "multiplier_q12": 6144, "stat": "at_or_sa"},
+    "tough-claws": {"category": "bp_modifier", "condition": "contact", "multiplier_q12": 5325, "stat": "bp", "smogon_ref": "gen789.ts L1195 (groups with Sheer Force/Punk Rock/Technician/Strong Jaw/Mega Launcher at L1198 push 5325)"},
+    "transistor": {"category": "stat_multiplier", "condition": "type_electric", "multiplier_q12": 5325, "stat": "at_or_sa", "trigger": "move.type == electric"},
 }
 
-STUB_CATEGORIES = {
-    "huge-power": "stat_mod",
-    "pure-power": "stat_mod",
+# Rich catalog metadata that remains intentionally unimplemented.  Keeping it
+# in the generator preserves the checked-in catalog shape without promoting
+# the ability to supported runtime mechanics.
+CATALOG_METADATA: dict[str, dict[str, Any]] = {
+    "guts": {
+        "category": "stat_multiplier_status",
+        "ignores_burn_drop": True,
+        "multiplier_q12": 6144,
+        "stat": "atk",
+        "trigger_status": ["burn", "paralysis", "poison", "toxic", "sleep", "freeze", "frostbite"],
+    },
 }
 
 
@@ -165,9 +218,10 @@ def build_catalog() -> dict[str, Any]:
         ability_id = entry["id"]
         data = {
             "name": entry["name"],
-            "category": STUB_CATEGORIES.get(ability_id, "uncategorized"),
+            "category": "uncategorized",
             "implemented": False,
         }
+        data.update(CATALOG_METADATA.get(ability_id, {}))
         if ability_id in IMPLEMENTED:
             data.update(IMPLEMENTED[ability_id])
             data["implemented"] = True
