@@ -261,6 +261,10 @@ class LLMAdvicePanel(QFrame):
         label = "Ability" if normalized_count == 0 else f"Ability ({normalized_count})"
         self.current_ability_button.setText(label)
 
+    def set_current_persistent_effect_count(self, count: int) -> None:
+        count = max(0, int(count))
+        self.current_persistent_effect_button.setText("Persistent Effects" if count == 0 else f"Persistent Effects ({count})")
+
     def set_current_type_count(self, count: int) -> None:
         normalized_count = max(0, int(count))
         self.current_type_button.setText("Current type" if normalized_count == 0 else f"Current type ({normalized_count})")
@@ -295,6 +299,7 @@ class LLMAdvicePanel(QFrame):
         self.current_condition_button.setDisabled(is_running)
         self.clear_current_conditions_button.setDisabled(is_running)
         self.current_ability_button.setDisabled(is_running)
+        self.current_persistent_effect_button.setDisabled(is_running)
         self.switch_permission_button.setDisabled(is_running)
         self.clear_current_abilities_button.setDisabled(is_running)
         self.current_type_button.setDisabled(is_running)

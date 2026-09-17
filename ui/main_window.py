@@ -807,6 +807,7 @@ class MainWindow(QMainWindow):
         if result.get("status") != "resolved":
             return
         self._current_persistent_effect_confirmations = {**current, f"{row['side']}:{slot}:{pokemon['pokemon_id']}:{row['family']}": row}
+        self._update_current_persistent_effect_summary()
 
     @Slot()
     def _clear_current_ability_confirmations(self) -> None:
@@ -942,6 +943,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def _clear_current_field_state_confirmation(self) -> None:
         self._current_field_state_confirmation = None
+        self._update_current_persistent_effect_summary()
         self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
         self._update_current_field_state_summary()
 
@@ -1634,6 +1636,7 @@ class MainWindow(QMainWindow):
         self._current_trusted_turn_number = None
         self._current_condition_confirmations = {}
         self._current_ability_confirmations = {}
+        self._current_persistent_effect_confirmations = {}
         self._structured_ability_confirmations = {}
         self._current_type_confirmations = _unknown_current_type_session()
         self._structured_type_confirmations = {}
@@ -1783,6 +1786,12 @@ class MainWindow(QMainWindow):
         try:
             panel = self.center_column.llm_advice_panel
             panel.set_current_ability_count(len(self._current_ability_confirmations))
+        except (AttributeError, RuntimeError):
+            pass
+
+    def _update_current_persistent_effect_summary(self) -> None:
+        try:
+            self.center_column.llm_advice_panel.set_current_persistent_effect_count(len(self._current_persistent_effect_confirmations))
         except (AttributeError, RuntimeError):
             pass
 
