@@ -212,6 +212,32 @@ def test_mainwindow_routes_fainted_self_active_through_hazard_ko_replacement_own
     assert window._recommendation_readiness_owner is None
 
 
+def test_mainwindow_preserves_existing_generic_fainted_switch_path():
+    manager = _manager()
+    state = manager.read_state()["state"]
+    active = state["self_side"]["pokemon"][0]
+    active["current_hp"] = 0
+    active["fainted"] = True
+    active.pop("fainted_provenance", None)
+    created = BattleObservationRuntimeSessionManager.create("s", state)
+    assert created["status"] == "session_ready"
+    selections = []
+    window = SimpleNamespace(
+        _observation_runtime_session_manager=created["manager"],
+        _current_trusted_turn_number=4,
+        _recommendation_readiness_owner=None,
+        center_column=SimpleNamespace(llm_advice_panel=SimpleNamespace(clear_recommendation_readiness=lambda: None)),
+        select_slot=lambda column, slot: selections.append((column, slot)),
+        _retire_advice_presentation_authority=lambda: None,
+    )
+    result = MainWindow._confirm_pokemon_switch(
+        window, side="self", switch_in_slot_index=2, switch_in_pokemon_id="pichu",
+    )
+    assert result["status"] == "resolved", result
+    assert "replacement_provenance" not in result
+    assert selections == [("team_my", 2)]
+
+
 def test_boundary_validator_rejects_forged_source_binding():
     manager = _manager()
     first = _first_hazard_ko(manager)

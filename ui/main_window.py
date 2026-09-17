@@ -1526,7 +1526,13 @@ class MainWindow(QMainWindow):
         active_slot = self_side.get("active_slot_index") if isinstance(self_side, dict) else None
         roster = self_side.get("pokemon") if isinstance(self_side, dict) else None
         active = roster.get(active_slot, roster.get(str(active_slot))) if isinstance(roster, dict) and isinstance(active_slot, int) else None
-        if side == "self" and isinstance(active, dict) and active.get("current_hp") == 0 and active.get("fainted") is True:
+        faint_provenance = active.get("fainted_provenance") if isinstance(active, dict) else None
+        if (
+            side == "self" and isinstance(active, dict)
+            and active.get("current_hp") == 0 and active.get("fainted") is True
+            and isinstance(faint_provenance, dict)
+            and faint_provenance.get("trust") == "mechanics_derived_runtime"
+        ):
             result = admit_entry_hazard_ko_replacement(
                 runtime_session_manager=manager,
                 captured_session_id=session_id,
