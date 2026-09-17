@@ -807,7 +807,9 @@ class MainWindow(QMainWindow):
         if result.get("status") != "resolved":
             return
         self._current_persistent_effect_confirmations = {**current, f"{row['side']}:{slot}:{pokemon['pokemon_id']}:{row['family']}": row}
-        self._update_current_persistent_effect_summary()
+        update_persistent_effect_summary = getattr(self, "_update_current_persistent_effect_summary", None)
+        if callable(update_persistent_effect_summary):
+            update_persistent_effect_summary()
 
     @Slot()
     def _clear_current_ability_confirmations(self) -> None:
@@ -1648,7 +1650,9 @@ class MainWindow(QMainWindow):
         self._structured_observed_damage_confirmations = []
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
-        self._update_current_persistent_effect_summary()
+        update_persistent_effect_summary = getattr(self, "_update_current_persistent_effect_summary", None)
+        if callable(update_persistent_effect_summary):
+            update_persistent_effect_summary()
         self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
         self._battle_counter_confirmation = None
         self._consecutive_use_confirmation = None
