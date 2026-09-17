@@ -4,9 +4,17 @@ from llm.advisor_observation_runtime_session import BattleObservationRuntimeSess
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
 from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
+from llm.advisor_switch_hazard_authority import build_switch_hazard_context
 
 def _manager():
     state=create_unknown_bootstrap_battle_state("s","pikachu","eevee",self_roster={0:"pikachu",1:"raichu"},opponent_roster={0:"eevee",1:"vaporeon"})["state"]
+    for side in ("self_side", "opponent_side"):
+        for pokemon in state[side]["pokemon"].values():
+            pokemon.update(current_hp=90,max_hp=100,fainted=False,current_ability="static")
+            pokemon["current_ability_provenance"]={"event_kind":"current_ability_observed","trust":"user_confirmed_observation","turn_number":1}
+            pokemon["stat_stages"]={key:0 for key in ("attack","defense","special-attack","special-defense","speed","accuracy","evasion")}
+    state["switch_hazard_context"]=build_switch_hazard_context(session_id="s",affected_side="self",stealth_rock="absent",spikes_layers=0,toxic_spikes_layers=0,sticky_web="absent")
+    state["field"]["weather"]="none"; state["field"]["weather_provenance"]={"event_kind":"current_weather_observed","trust":"user_confirmed_observation","turn_number":1}
     return BattleObservationRuntimeSessionManager.create("s",state)["manager"]
 def _admit(m, restriction, operation, turn, side="self", action="action:restriction"):
     return admit_action_restriction_observation(runtime_session_manager=m,captured_session_id="s",side=side,restriction=restriction,operation=operation,source_action_id=action if operation=="applied" else None,turn_number=turn)
