@@ -10,15 +10,15 @@ from llm.advisor_runtime_d0_taunt_restriction_authority import freeze_runtime_d0
 from llm.advisor_runtime_d0_encore_restriction_authority import freeze_runtime_d0_encore_restriction_authority
 from llm.advisor_runtime_d0_disable_restriction_authority import freeze_runtime_d0_disable_restriction_authority
 from llm.advisor_runtime_d0_encore_locked_move_pp_authority import freeze_runtime_d0_encore_locked_move_pp_authority
-from llm.advisor_detached_taunt_action_restriction import materialize_detached_taunt_application
-from llm.advisor_detached_encore_action_restriction import materialize_detached_encore_application
-from llm.advisor_detached_disable_action_restriction import materialize_detached_disable_application
 
 SCHEMA_VERSION = "runtime-d0-status-special-application-authority-v1"
 _FAMILIES = frozenset({"taunt", "encore", "disable"})
 
 
 def freeze_runtime_d0_status_special_application_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], target_selected_action: Mapping[str, Any], canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    from llm.advisor_detached_taunt_action_restriction import materialize_detached_taunt_application
+    from llm.advisor_detached_encore_action_restriction import materialize_detached_encore_application
+    from llm.advisor_detached_disable_action_restriction import materialize_detached_disable_application
     base = _base(strategy_d0, action, actor, target)
     if base is None: return _result("rejected", "status_special_application_binding_invalid", {})
     if runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current": return _result("rejected", "stale_runtime_d0", base)
@@ -26,18 +26,21 @@ def freeze_runtime_d0_status_special_application_authority(*, strategy_d0: Mappi
     accuracy = _accuracy(base, action)
     protection = _protection(base, target_selected_action)
     abilities = _target_abilities(base, runtime_snapshot, actor, target)
-    reflection = _reflection(base, abilities)
+    reflection = freeze_runtime_d0_status_special_reflection_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action, actor=actor, target=target)
     if move == "taunt":
-        return materialize_detached_taunt_application(strategy_d0=strategy_d0, action=action, actor=actor, target=target, accuracy_authority=accuracy, target_ability_authority=abilities, target_side_ability_authority=abilities, protection_authority=protection, reflection_authority=reflection)
+        result = materialize_detached_taunt_application(strategy_d0=strategy_d0, action=action, actor=actor, target=target, accuracy_authority=accuracy, target_ability_authority=abilities, target_side_ability_authority=abilities, protection_authority=protection, reflection_authority=reflection)
+        return _preserve_reflection_evidence(result, reflection)
     history = freeze_runtime_d0_last_executed_move_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
     if move == "encore":
         current = freeze_runtime_d0_encore_restriction_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
         meta = _last_move_metadata(base, history, target, canonical_move_metadata_authorities)
         pp = freeze_runtime_d0_encore_locked_move_pp_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target, move_id=history.get("move_id") if isinstance(history, Mapping) else "")
-        return materialize_detached_encore_application(strategy_d0=strategy_d0, action=action, actor=actor, target=target, accuracy_authority=accuracy, last_used_move_authority=history, last_used_move_metadata_authority=meta, last_move_pp_authority=pp, current_encore_authority=current, target_side_ability_authority=abilities, protection_authority=protection, reflection_authority=reflection)
+        result = materialize_detached_encore_application(strategy_d0=strategy_d0, action=action, actor=actor, target=target, accuracy_authority=accuracy, last_used_move_authority=history, last_used_move_metadata_authority=meta, last_move_pp_authority=pp, current_encore_authority=current, target_side_ability_authority=abilities, protection_authority=protection, reflection_authority=reflection)
+        return _preserve_reflection_evidence(result, reflection)
     current = freeze_runtime_d0_disable_restriction_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
     known = _known_moves(base, runtime_snapshot, target)
-    return materialize_detached_disable_application(strategy_d0=strategy_d0, action=action, actor=actor, target=target, accuracy_authority=accuracy, last_used_move_authority=history, current_known_moves_authority=known, current_disable_authority=current, target_side_ability_authority=abilities, protection_authority=protection, reflection_authority=reflection)
+    result = materialize_detached_disable_application(strategy_d0=strategy_d0, action=action, actor=actor, target=target, accuracy_authority=accuracy, last_used_move_authority=history, current_known_moves_authority=known, current_disable_authority=current, target_side_ability_authority=abilities, protection_authority=protection, reflection_authority=reflection)
+    return _preserve_reflection_evidence(result, reflection)
 
 
 def _base(d0: Any, action: Any, actor: Any, target: Any) -> dict[str, Any] | None:
@@ -72,21 +75,74 @@ def _protection(base: Mapping[str, Any], target_action: Any) -> dict[str, Any]:
     return _authority(base, outcome="not_applicable")
 
 
-def _target_abilities(base: Mapping[str, Any], snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+def freeze_runtime_d0_status_special_current_ability_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], action_id: str, move_id: str) -> dict[str, Any]:
+    if not isinstance(strategy_d0, Mapping) or strategy_d0.get("status") != "resolved" or not isinstance(actor, Mapping) or not isinstance(target, Mapping):
+        return _result("rejected", "status_special_ability_binding_invalid", {})
+    active = strategy_d0.get("active_owners")
+    if not isinstance(active, Mapping) or active.get(actor.get("side")) != dict(actor) or active.get(target.get("side")) != dict(target) or actor.get("side") == target.get("side") or not isinstance(action_id, str) or not action_id or not isinstance(move_id, str) or not move_id:
+        return _result("rejected", "status_special_ability_binding_invalid", {})
+    base = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "actor": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "action_id": action_id, "move_id": move_id}
+    if runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current":
+        return _result("rejected", "stale_runtime_d0", base)
+    return _current_ability_authority(base, runtime_snapshot, actor, target)
+
+
+def _current_ability_authority(base: Mapping[str, Any], snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
     state = snapshot.get("state") if isinstance(snapshot, Mapping) else None
-    def one(owner: Mapping[str, Any]) -> tuple[str | None, bool]:
+    def one(owner: Mapping[str, Any]) -> tuple[str | None, Mapping[str, Any] | None, bool]:
         side = state.get(f"{owner['side']}_side") if isinstance(state, Mapping) else None; roster = side.get("pokemon") if isinstance(side, Mapping) else None; row = roster.get(owner["slot_index"]) if isinstance(roster, Mapping) else None
         provenance = row.get("current_ability_provenance") if isinstance(row, Mapping) else None; ability = row.get("current_ability") if isinstance(row, Mapping) else None
-        return (ability, isinstance(ability, str) and bool(ability) and isinstance(provenance, Mapping) and provenance.get("event_kind") == "current_ability_observed" and provenance.get("trust") == "user_confirmed_observation")
-    target_ability, target_known = one(target); actor_ability, actor_known = one(actor)
+        known = isinstance(ability, str) and bool(ability) and isinstance(provenance, Mapping) and provenance.get("event_kind") == "current_ability_observed" and provenance.get("trust") == "user_confirmed_observation"
+        return ability, provenance if isinstance(provenance, Mapping) else None, known
+    target_ability, target_provenance, target_known = one(target); actor_ability, actor_provenance, actor_known = one(actor)
     if not target_known or not actor_known: return _result("incomplete", "status_special_current_ability_authority_missing", base)
     if "neutralizing-gas" in {target_ability, actor_ability}: return _result("incomplete", "status_special_ability_suppression_unresolved", base)
-    return _authority(base, ability=target_ability)
+    return _authority(base, ability=target_ability, ability_provenance=deepcopy(dict(target_provenance)), actor_ability=actor_ability, actor_ability_provenance=deepcopy(dict(actor_provenance)))
+
+
+def _target_abilities(base: Mapping[str, Any], snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+    return _current_ability_authority(base, snapshot, actor, target)
+
+
+def freeze_runtime_d0_status_special_reflection_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
+    base = _base(strategy_d0, action, actor, target)
+    if base is None: return _result("rejected", "status_special_reflection_binding_invalid", {})
+    if runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current":
+        return _result("rejected", "stale_runtime_d0", base)
+    abilities = _target_abilities(base, runtime_snapshot, actor, target)
+    reflection = _reflection(base, abilities)
+    if reflection.get("status") == "resolved":
+        reflection["validation_request"] = {"strategy_d0": deepcopy(strategy_d0), "runtime_snapshot": deepcopy(runtime_snapshot), "action": deepcopy(action), "actor": deepcopy(actor), "target": deepcopy(target)}
+    return reflection
+
+
+def validate_runtime_d0_status_special_reflection_authority(authority: Any) -> dict[str, Any]:
+    try:
+        if not isinstance(authority, Mapping) or authority.get("status") != "resolved" or authority.get("schema_version") != SCHEMA_VERSION:
+            raise ValueError()
+        request = authority.get("validation_request")
+        if not isinstance(request, Mapping):
+            raise ValueError()
+        expected = freeze_runtime_d0_status_special_reflection_authority(**request)
+        if expected != authority:
+            raise ValueError()
+        return {"status": "resolved", "authority": deepcopy(dict(authority))}
+    except (KeyError, TypeError, ValueError):
+        return {"status": "rejected", "reason": "status_special_reflection_provenance_invalid"}
 
 
 def _reflection(base: Mapping[str, Any], abilities: Mapping[str, Any]) -> dict[str, Any]:
     if abilities.get("status") != "resolved": return _result(abilities.get("status", "incomplete"), abilities.get("reason", "status_special_ability_authority_missing"), base)
-    return _authority(base, outcome="reflected" if abilities.get("ability") == "magic-bounce" else "not_applicable")
+    if abilities.get("ability") == "magic-bounce":
+        return _authority(base, outcome="reflected", reflection_kind="ability", reflection_ability_id="magic-bounce", reflector=deepcopy(dict(base["target"])), reflector_ability_authority=deepcopy(dict(abilities)))
+    return _authority(base, outcome="not_applicable", reflection_kind="none", reflection_ability_id=None, reflector=None, reflector_ability_authority=deepcopy(dict(abilities)))
+
+
+def _preserve_reflection_evidence(result: Mapping[str, Any], reflection: Mapping[str, Any]) -> dict[str, Any]:
+    frozen = deepcopy(dict(result))
+    if reflection.get("status") == "resolved" and reflection.get("outcome") == "reflected":
+        frozen["reflection_authority"] = deepcopy(dict(reflection))
+    return frozen
 
 
 def _last_move_metadata(base: Mapping[str, Any], history: Mapping[str, Any], target: Mapping[str, Any], catalog: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:

@@ -25,11 +25,60 @@ def materialize_detached_taunt_application(*, strategy_d0: Mapping[str, Any], ac
     if bad: return _result(bad[0], bad[1], base)
     if reflection_authority.get("outcome") == "reflected": return _result("incomplete", "taunt_reflection_execution_unsupported", base)
     if reflection_authority.get("outcome") != "not_applicable": return _result("rejected", "taunt_reflection_outcome_invalid", base)
-    if target_ability_authority.get("ability") == "oblivious": return _outcome(base, "no_effect", "taunt_target_oblivious", target_ability_authority)
-    if target_side_ability_authority.get("ability") == "aroma-veil": return _outcome(base, "no_effect", "taunt_target_protected_by_aroma_veil", target_side_ability_authority)
-    if accuracy_authority.get("outcome") == "missed": return _outcome(base, "missed", "taunt_missed", accuracy_authority)
-    if accuracy_authority.get("outcome") != "hit": return _result("rejected", "taunt_accuracy_outcome_invalid", base)
-    return _outcome(base, "applied", "taunt_applied", accuracy_authority, remaining_target_turns=3)
+    return _materialize_bound_taunt_outcome(base=base, target_ability_authority=target_ability_authority, target_side_ability_authority=target_side_ability_authority, accuracy_outcome=accuracy_authority.get("outcome"), evidence=accuracy_authority)
+
+
+def materialize_detached_reflected_taunt_application(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], routing_authority: Mapping[str, Any]) -> dict[str, Any]:
+    """Apply Taunt only after an authenticated one-hop reflected route."""
+    from llm.advisor_detached_reflected_status_routing_authority import validate_detached_reflected_status_routing_authority
+    from llm.advisor_runtime_d0_status_special_application_authority import freeze_runtime_d0_status_special_current_ability_authority
+    validation = validate_detached_reflected_status_routing_authority(routing_authority)
+    if validation.get("status") != "resolved":
+        return _result("rejected", "reflected_taunt_routing_authority_invalid", {})
+    route = validation["authority"]
+    if route.get("move_id") != "taunt":
+        return _result("rejected", "reflected_taunt_move_binding_invalid", {})
+    if (
+        not isinstance(strategy_d0, Mapping)
+        or strategy_d0.get("status") != "resolved"
+        or any(route.get(key) != strategy_d0.get(value) for key, value in (("session_id", "session_id"), ("source_runtime_fingerprint", "source_runtime_fingerprint"), ("source_branch_fingerprint", "strategy_preview_fingerprint"), ("decision_owner", "decision_owner")))
+        or not isinstance(runtime_snapshot, Mapping)
+        or runtime_snapshot.get("state_fingerprint") != route.get("source_runtime_fingerprint")
+        or action.get("action_id") != route.get("original_action_id")
+        or action.get("identity", action.get("move_id")) != "taunt"
+    ):
+        return _result("rejected", "reflected_taunt_current_binding_invalid", {})
+    actor, target = route["reflected_source"], route["reflected_target"]
+    base = _base(strategy_d0, action, actor, target)
+    if base is None or base.get("action_id") != route.get("original_action_id"):
+        return _result("rejected", "reflected_taunt_effective_binding_invalid", {})
+    abilities = freeze_runtime_d0_status_special_current_ability_authority(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        actor=actor,
+        target=target,
+        action_id=base["action_id"],
+        move_id="taunt",
+    )
+    if abilities.get("status") != "resolved":
+        return _result(abilities.get("status", "incomplete"), abilities.get("reason", "reflected_taunt_target_ability_unavailable"), base)
+    return _materialize_bound_taunt_outcome(
+        base=base,
+        target_ability_authority=abilities,
+        target_side_ability_authority=abilities,
+        accuracy_outcome="hit",
+        evidence=route,
+        reflected_route=route,
+    )
+
+
+def _materialize_bound_taunt_outcome(*, base: Mapping[str, Any], target_ability_authority: Mapping[str, Any], target_side_ability_authority: Mapping[str, Any], accuracy_outcome: str, evidence: Mapping[str, Any], reflected_route: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    extra = {"reflected_status_routing_authority": deepcopy(dict(reflected_route)), "execution_mode": "reflected_original_action"} if isinstance(reflected_route, Mapping) else {}
+    if target_ability_authority.get("ability") == "oblivious": return _outcome(base, "no_effect", "taunt_target_oblivious", evidence, **extra)
+    if target_side_ability_authority.get("ability") == "aroma-veil": return _outcome(base, "no_effect", "taunt_target_protected_by_aroma_veil", evidence, **extra)
+    if accuracy_outcome == "missed": return _outcome(base, "missed", "taunt_missed", evidence, **extra)
+    if accuracy_outcome != "hit": return _result("rejected", "taunt_accuracy_outcome_invalid", base)
+    return _outcome(base, "applied", "taunt_applied", evidence, remaining_target_turns=3, **extra)
 
 
 def materialize_taunt_execution_gate(*, selected_action: Mapping[str, Any], actor: Mapping[str, Any], current_restriction: Mapping[str, Any] | None = None, same_branch_application: Mapping[str, Any] | None = None) -> dict[str, Any]:
