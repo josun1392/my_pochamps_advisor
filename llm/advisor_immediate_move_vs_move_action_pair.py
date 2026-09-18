@@ -136,7 +136,9 @@ from llm.advisor_detached_encore_action_restriction import (
     materialize_encore_forced_execution_action,
 )
 from llm.advisor_detached_disable_action_restriction import (
-    materialize_disable_execution_gate, disable_restriction_failure_leaf,
+    materialize_detached_reflected_disable_application,
+    materialize_disable_execution_gate,
+    disable_restriction_failure_leaf,
 )
 from llm.advisor_runtime_d0_mat_block_direct_damage_applicability_authority import SCHEMA_VERSION as MAT_BLOCK_SCHEMA_VERSION
 from llm.advisor_detached_pure_status_action_materializer import materialize_detached_pure_status_action
@@ -796,16 +798,32 @@ def _materialize_disable_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[s
     special_action, special_meta, special_actor, special_target, pending_action, pending_meta, pending_actor, pending_target = roles
     application = applications.get(special_action.get("action_id")) if isinstance(applications, Mapping) else None
     if not isinstance(application, Mapping): return _result("incomplete", "disable_application_authority_missing", base)
-    if application.get("status") != "resolved" or application.get("actor") != special_actor or application.get("target") != special_target or application.get("action_id") != special_action.get("action_id"): return _result(_status(application), application.get("reason", "disable_application_binding_mismatch"), base)
+    if application.get("status") != "resolved": return _result(_status(application), application.get("reason", "disable_application_unavailable"), base)
+    reflected = application.get("execution_mode") == "reflected_original_action"
+    if reflected:
+        route = _validated_reflected_disable_application(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, special_action=special_action, special_actor=special_actor, special_target=special_target, application=application)
+        if isinstance(route, str): return _result("rejected", route, base)
+        pending_category = pending_meta.get("metadata", {}).get("category") if isinstance(pending_meta, Mapping) and isinstance(pending_meta.get("metadata"), Mapping) else None
+        if pending_category != "status":
+            return _result("unsupported", "reflected_disable_pair_requires_zero_hp_pending_status", base)
+    else:
+        if application.get("execution_mode") is not None or application.get("reflected_status_routing_authority") is not None:
+            return _result("rejected", "disable_application_execution_mode_invalid", base)
+        if application.get("actor") != special_actor or application.get("target") != special_target or application.get("action_id") != special_action.get("action_id"):
+            return _result("rejected", "disable_application_binding_mismatch", base)
     branches=[]
     for plan in orders:
-        first_leaf=_disable_pair_leaf(application,strategy_d0)
+        first_leaf=_reflected_disable_pair_leaf(application,strategy_d0,special_actor,special_target) if reflected else _disable_pair_leaf(application,strategy_d0)
         if isinstance(first_leaf,str):return _result("incomplete",first_leaf,base)
         special_first=(plan["order"]=="own_first") == (special_actor==base["own_actor"])
         if not special_first:
             first=_ordinary_selected_leaf(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=pending_action,actor=pending_actor,target=pending_target,metadata=pending_meta,pure_status_authorities=pure_status_authorities)
             if isinstance(first,str):return _result("incomplete",first,base)
             branches.append(_branch(base,plan["order"],first["terminal_leaves"][0],{},first_leaf,special_actor,plan));continue
+        if reflected:
+            second=_ordinary_selected_leaf(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=pending_action,actor=pending_actor,target=pending_target,metadata=pending_meta,pure_status_authorities=pure_status_authorities)
+            if isinstance(second,str):return _result("incomplete",second,base)
+            branches.append(_branch(base,plan["order"],first_leaf,{},second["terminal_leaves"][0],pending_actor,plan));continue
         pending={**deepcopy(dict(pending_action)),"metadata_authority":deepcopy(dict(pending_meta))}
         gate=materialize_disable_execution_gate(selected_action=pending,actor=pending_actor,same_branch_application=application)
         if gate.get("status")!="resolved":return _result(_status(gate),gate.get("reason","disable_execution_gate_unavailable"),base)
@@ -826,6 +844,50 @@ def _disable_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str,
     if not _hp(own) or not _hp(foe):return "disable_pair_hp_authority_missing"
     outcome=application["outcome"]
     return {"leaf_id":f"{application['action_id']}:{outcome}","candidate_id":application["action_id"],"branch_path":("disable","accuracy_miss" if outcome=="missed" else outcome),"probability":_fd(Fraction(1,1)),"hit_state":"missed" if outcome=="missed" else "not_applicable","critical_state":"not_applicable","damage_roll":"not_applicable","consequences":{"damage":0,"own_final_hp":own,"target_final_hp":foe,"target_ko":foe==0,"self_fainted":own==0,"secondary":None,"contact":"not_applicable","disable_application":deepcopy(dict(application))},"provenance":{"session_id":application["session_id"],"source_runtime_fingerprint":application["source_runtime_fingerprint"],"source_branch_fingerprint":application["source_branch_fingerprint"],"decision_owner":deepcopy(application["decision_owner"]),"attacker":deepcopy(application["actor"]),"target":deepcopy(application["target"]),"move_id":"disable","disable_application":deepcopy(dict(application))}}
+
+
+def _validated_reflected_disable_application(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], special_action: Mapping[str, Any], special_actor: Mapping[str, Any], special_target: Mapping[str, Any], application: Mapping[str, Any]) -> Mapping[str, Any] | str:
+    route=application.get("reflected_status_routing_authority")
+    validation=validate_detached_reflected_status_routing_authority(route)
+    if validation.get("status")!="resolved":return "reflected_disable_route_invalid"
+    route=validation["authority"]
+    if (
+        route.get("original_actor")!=special_actor
+        or route.get("original_target")!=special_target
+        or route.get("original_action_id")!=special_action.get("action_id")
+        or route.get("move_id")!="disable"
+        or route.get("reflected_source")!=special_target
+        or route.get("reflected_target")!=special_actor
+        or application.get("actor")!=route.get("reflected_source")
+        or application.get("target")!=route.get("reflected_target")
+        or application.get("action_id")!=special_action.get("action_id")
+        or application.get("move_id")!="disable"
+    ):return "reflected_disable_application_binding_mismatch"
+    reproduced=materialize_detached_reflected_disable_application(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,action=special_action,routing_authority=route)
+    if reproduced!=application:return "reflected_disable_application_provenance_invalid"
+    return route
+
+
+def _reflected_disable_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, Any], selected_actor: Mapping[str, Any], selected_target: Mapping[str, Any]) -> dict[str, Any] | str:
+    route=application.get("reflected_status_routing_authority")
+    if not isinstance(route,Mapping):return "reflected_disable_route_missing"
+    active=strategy_d0.get("strategy_state",{}).get("active",{})
+    own=active.get(selected_actor.get("side"),{}).get("current_hp"); foe=active.get(selected_target.get("side"),{}).get("current_hp")
+    if not _hp(own) or not _hp(foe):return "disable_pair_hp_authority_missing"
+    family={}
+    if application.get("outcome")=="applicable":
+        family={"disabled_move_id":application.get("disabled_move_id"),"last_used_execution_id":application.get("last_used_execution_id"),"remaining_target_turns":application.get("remaining_target_turns")}
+    return {
+        "leaf_id":f"{application['action_id']}:reflected:{application['outcome']}",
+        "candidate_id":application["action_id"],
+        "branch_path":("disable","reflected",application["outcome"]),
+        "probability":_fd(Fraction(1,1)),
+        "hit_state":"not_applicable",
+        "critical_state":"not_applicable",
+        "damage_roll":"not_applicable",
+        "consequences":{"damage":0,"own_final_hp":own,"target_final_hp":foe,"target_ko":foe==0,"self_fainted":own==0,"secondary":None,"contact":"not_applicable","disable_application":deepcopy(dict(application)),"reflected_status_routing_authority":deepcopy(dict(route)),**deepcopy(family)},
+        "provenance":{"session_id":application["session_id"],"source_runtime_fingerprint":application["source_runtime_fingerprint"],"source_branch_fingerprint":application["source_branch_fingerprint"],"decision_owner":deepcopy(application["decision_owner"]),"attacker":deepcopy(dict(selected_actor)),"target":deepcopy(dict(selected_target)),"selected_actor":deepcopy(dict(selected_actor)),"selected_target":deepcopy(dict(selected_target)),"effective_source":deepcopy(dict(route["reflected_source"])),"effective_target":deepcopy(dict(route["reflected_target"])),"move_id":"disable","disable_application":deepcopy(dict(application)),"reflected_status_routing_authority":deepcopy(dict(route))}
+    }
 
 
 def _encore_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, Any]) -> dict[str, Any] | str:
