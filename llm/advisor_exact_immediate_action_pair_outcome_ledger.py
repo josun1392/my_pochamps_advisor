@@ -112,6 +112,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if value.get("provenance") != dict(base): return "pair_terminal_branch_provenance_mismatch"
     first, second = value.get("first_action_leaf"), value.get("second_action")
     if not isinstance(first, Mapping) or not isinstance(first.get("leaf_id"), str) or _fraction(first.get("probability")) <= 0: return "first_action_leaf_invalid"
+    reflected_taunt_error = _reflected_taunt_leaf(first, base)
+    if reflected_taunt_error is not None: return reflected_taunt_error
     sucker_error = _sucker_punch_leaf(first, action_order=value["action_order"], pair_base=base)
     if sucker_error is not None: return sucker_error
     heal_error = _direct_heal_leaf(first)
@@ -164,6 +166,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     second_leaf = second.get("leaf")
     if second["state"] == "executed":
         if not isinstance(second_leaf, Mapping) or not isinstance(second_leaf.get("leaf_id"), str) or _fraction(second_leaf.get("probability")) * execution_probability != conditional: return "executed_second_action_leaf_invalid"
+        reflected_taunt_error = _reflected_taunt_leaf(second_leaf, base)
+        if reflected_taunt_error is not None: return reflected_taunt_error
         encore_error = _encore_forced_execution_leaf(first, second, second_leaf, base, value["action_order"])
         if encore_error is not None: return encore_error
         pivot_error = _pivot_second_action_target_binding(value, base, first, second_leaf)
@@ -182,6 +186,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if second_leaf is not None or conditional != Fraction(1, 8) or execution_probability != Fraction(1, 8) or second.get("reason") != "second_action_cancelled_due_to_paralysis": return "cancelled_second_action_branch_invalid"
     elif second_leaf is not None or conditional != Fraction(1, 1) or execution_probability != Fraction(1, 1) or second.get("reason") != "second_action_cancelled_due_to_flinch": return "cancelled_second_action_branch_invalid"
     elif _flinch_cancellation_binding(first, second) is not None: return _flinch_cancellation_binding(first, second)
+    reflected_taunt_branch_error = _reflected_taunt_branch_binding(first, second_leaf, base)
+    if reflected_taunt_branch_error is not None: return reflected_taunt_branch_error
     probability = _fraction(value.get("probability"))
     if probability != order_probability * _fraction(first["probability"]) * conditional: return "pair_leaf_probability_composition_invalid"
     focus_error = _focus_sash_leaf(first)
@@ -829,6 +835,141 @@ def _contact_reactive_status(value: Any) -> bool:
 def _effect_spore_contact_reactive_status(authority: Mapping[str, Any], overlay: Any, branch: Any) -> bool:
     """Use the graph ledger's strict canonical Effect Spore row contract."""
     return _validate_effect_spore_contact_reactive_status(authority, overlay, branch)
+
+
+def _reflected_taunt_leaf(leaf: Mapping[str, Any], base: Mapping[str, Any]) -> str | None:
+    consequences = leaf.get("consequences")
+    provenance = leaf.get("provenance")
+    consequence_route = consequences.get("reflected_status_routing_authority") if isinstance(consequences, Mapping) else None
+    provenance_route = provenance.get("reflected_status_routing_authority") if isinstance(provenance, Mapping) else None
+    consequence_application = consequences.get("taunt_application") if isinstance(consequences, Mapping) else None
+    provenance_application = provenance.get("taunt_application") if isinstance(provenance, Mapping) else None
+    reflected_application_marker = (
+        isinstance(consequence_application, Mapping)
+        and consequence_application.get("execution_mode") == "reflected_original_action"
+    ) or (
+        isinstance(provenance_application, Mapping)
+        and provenance_application.get("execution_mode") == "reflected_original_action"
+    )
+    reflected_path_marker = isinstance(leaf.get("branch_path"), (tuple, list)) and tuple(leaf["branch_path"][:2]) == ("taunt", "reflected")
+    marker = consequence_route is not None or provenance_route is not None or reflected_application_marker or reflected_path_marker
+    if not marker: return None
+    if not isinstance(consequence_route, Mapping) or consequence_route != provenance_route:
+        return "reflected_taunt_ledger_route_mismatch"
+    if not isinstance(consequence_application, Mapping) or consequence_application != provenance_application:
+        return "reflected_taunt_ledger_application_mismatch"
+    try:
+        from llm.advisor_detached_reflected_status_routing_authority import validate_detached_reflected_status_routing_authority
+        from llm.advisor_detached_taunt_action_restriction import materialize_detached_reflected_taunt_application
+        validation = validate_detached_reflected_status_routing_authority(consequence_route)
+        if validation.get("status") != "resolved":
+            return "reflected_taunt_ledger_route_invalid"
+        route = validation["authority"]
+        candidate_id = leaf.get("candidate_id")
+        if candidate_id == base["own_action_id"]:
+            selected_actor, selected_target = base["own_actor"], base["opponent_actor"]
+        elif candidate_id == base["opponent_action_id"]:
+            selected_actor, selected_target = base["opponent_actor"], base["own_actor"]
+        else:
+            return "reflected_taunt_ledger_selected_action_invalid"
+        if (
+            route.get("session_id") != base["session_id"]
+            or route.get("source_runtime_fingerprint") != base["source_runtime_fingerprint"]
+            or route.get("source_branch_fingerprint") != base["source_branch_fingerprint"]
+            or route.get("decision_owner") != base["decision_owner"]
+            or route.get("original_action_id") != candidate_id
+            or route.get("move_id") != "taunt"
+            or route.get("original_actor") != selected_actor
+            or route.get("original_target") != selected_target
+            or route.get("reflected_source") != selected_target
+            or route.get("reflected_target") != selected_actor
+        ):
+            return "reflected_taunt_ledger_selected_route_binding_invalid"
+        if (
+            consequence_application.get("status") != "resolved"
+            or consequence_application.get("execution_mode") != "reflected_original_action"
+            or consequence_application.get("action_id") != candidate_id
+            or consequence_application.get("move_id") != "taunt"
+            or consequence_application.get("actor") != selected_target
+            or consequence_application.get("target") != selected_actor
+            or consequence_application.get("reflected_status_routing_authority") != route
+        ):
+            return "reflected_taunt_ledger_application_binding_invalid"
+        if (
+            provenance.get("attacker") != selected_actor
+            or provenance.get("target") != selected_target
+            or provenance.get("selected_actor") != selected_actor
+            or provenance.get("selected_target") != selected_target
+            or provenance.get("effective_source") != selected_target
+            or provenance.get("effective_target") != selected_actor
+            or provenance.get("move_id") != "taunt"
+        ):
+            return "reflected_taunt_ledger_leaf_identity_invalid"
+        if (
+            leaf.get("hit_state") != "not_applicable"
+            or leaf.get("critical_state") != "not_applicable"
+            or leaf.get("damage_roll") != "not_applicable"
+            or consequences.get("damage") != 0
+            or consequences.get("contact") != "not_applicable"
+            or _fraction(leaf.get("probability")) != Fraction(1, 1)
+        ):
+            return "reflected_taunt_ledger_zero_damage_identity_invalid"
+        request = route.get("validation_request")
+        if not isinstance(request, Mapping):
+            return "reflected_taunt_ledger_route_request_missing"
+        reproduced = materialize_detached_reflected_taunt_application(
+            strategy_d0=request["strategy_d0"],
+            runtime_snapshot=request["runtime_snapshot"],
+            action=request["action"],
+            routing_authority=route,
+        )
+        if reproduced != consequence_application:
+            return "reflected_taunt_ledger_application_reproduction_invalid"
+        active = request["strategy_d0"].get("strategy_state", {}).get("active", {})
+        selected_hp = active.get(selected_actor["side"], {}).get("current_hp")
+        target_hp = active.get(selected_target["side"], {}).get("current_hp")
+        if (
+            consequences.get("own_final_hp") != selected_hp
+            or consequences.get("target_final_hp") != target_hp
+            or consequences.get("self_fainted") != (selected_hp == 0)
+            or consequences.get("target_ko") != (target_hp == 0)
+        ):
+            return "reflected_taunt_ledger_hp_orientation_invalid"
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return "reflected_taunt_ledger_validation_error"
+    return None
+
+
+def _reflected_taunt_branch_binding(first: Mapping[str, Any], second_leaf: Any, base: Mapping[str, Any]) -> str | None:
+    def route_of(leaf: Any) -> Mapping[str, Any] | None:
+        consequences = leaf.get("consequences") if isinstance(leaf, Mapping) else None
+        route = consequences.get("reflected_status_routing_authority") if isinstance(consequences, Mapping) else None
+        return route if isinstance(route, Mapping) else None
+    first_route, second_route = route_of(first), route_of(second_leaf)
+    if first_route is not None and second_route is not None:
+        return "reflected_taunt_ledger_multiple_reflected_actions_invalid"
+    if first_route is None and second_route is None:
+        return None
+    reflected_leaf, other_leaf, route = (first, second_leaf, first_route) if first_route is not None else (second_leaf, first, second_route)
+    if not isinstance(reflected_leaf, Mapping) or not isinstance(other_leaf, Mapping) or not isinstance(route, Mapping):
+        return "reflected_taunt_ledger_pair_action_missing"
+    selected_id = route.get("original_action_id")
+    if selected_id == base["own_action_id"]:
+        pending_id, pending_actor = base["opponent_action_id"], base["opponent_actor"]
+    elif selected_id == base["opponent_action_id"]:
+        pending_id, pending_actor = base["own_action_id"], base["own_actor"]
+    else:
+        return "reflected_taunt_ledger_selected_action_invalid"
+    other_provenance = other_leaf.get("provenance")
+    if other_leaf.get("candidate_id") != pending_id or not isinstance(other_provenance, Mapping) or other_provenance.get("attacker") != pending_actor or pending_actor != route.get("original_target"):
+        return "reflected_taunt_ledger_pending_action_binding_invalid"
+    other_consequences = other_leaf.get("consequences")
+    if isinstance(other_consequences, Mapping) and (
+        other_consequences.get("execution_failure") == "taunt_action_restriction"
+        or "taunt_execution_gate" in other_consequences
+    ):
+        return "reflected_taunt_ledger_wrong_pending_taunt_cancellation"
+    return None
 
 
 def _disable_restriction_leaf(first: Mapping[str, Any], second_leaf: Any, base: Mapping[str, Any], action_order: str) -> str | None:

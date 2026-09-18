@@ -125,7 +125,12 @@ from llm.advisor_runtime_d0_sucker_punch_execution_applicability_authority impor
     freeze_runtime_d0_sucker_punch_execution_applicability_authority,
 )
 from llm.advisor_detached_taunt_action_restriction import (
-    materialize_taunt_execution_gate, taunt_restriction_failure_leaf,
+    materialize_detached_reflected_taunt_application,
+    materialize_taunt_execution_gate,
+    taunt_restriction_failure_leaf,
+)
+from llm.advisor_detached_reflected_status_routing_authority import (
+    validate_detached_reflected_status_routing_authority,
 )
 from llm.advisor_detached_encore_action_restriction import (
     materialize_encore_forced_execution_action,
@@ -709,15 +714,28 @@ def _materialize_taunt_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str
     application = applications.get(special_action.get("action_id")) if isinstance(applications, Mapping) else None
     if not isinstance(application, Mapping): return _result("incomplete", "taunt_application_authority_missing", base)
     if application.get("status") != "resolved": return _result(_status(application), application.get("reason", "taunt_application_unavailable"), base)
-    if application.get("actor") != special_actor or application.get("target") != special_target or application.get("action_id") != special_action.get("action_id"):
-        return _result("rejected", "taunt_application_binding_mismatch", base)
+    reflected = application.get("execution_mode") == "reflected_original_action"
+    if reflected:
+        route = _validated_reflected_taunt_application(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, special_action=special_action, special_actor=special_actor, special_target=special_target, application=application)
+        if isinstance(route, str): return _result("rejected", route, base)
+        pending_category = pending_meta.get("metadata", {}).get("category") if isinstance(pending_meta, Mapping) and isinstance(pending_meta.get("metadata"), Mapping) else None
+        if pending_category != "status":
+            return _result("unsupported", "reflected_taunt_pair_requires_zero_hp_pending_status", base)
+    else:
+        if application.get("execution_mode") is not None or application.get("reflected_status_routing_authority") is not None:
+            return _result("rejected", "taunt_application_execution_mode_invalid", base)
+        if application.get("actor") != special_actor or application.get("target") != special_target or application.get("action_id") != special_action.get("action_id"):
+            return _result("rejected", "taunt_application_binding_mismatch", base)
     branches = []
     for plan in orders:
-        taunt_leaf = _taunt_pair_leaf(application, strategy_d0)
+        taunt_leaf = _reflected_taunt_pair_leaf(application, strategy_d0, special_actor, special_target) if reflected else _taunt_pair_leaf(application, strategy_d0)
         if isinstance(taunt_leaf, str): return _result("incomplete", taunt_leaf, base)
         special_first = (plan["order"] == "own_first") == (special_actor == base["own_actor"])
         if special_first:
-            second = _taunt_pending_second_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, application=application, pure_status_authorities=pure_status_authorities)
+            if reflected:
+                second = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, pure_status_authorities=pure_status_authorities)
+            else:
+                second = _taunt_pending_second_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, application=application, pure_status_authorities=pure_status_authorities)
             if isinstance(second, Mapping) and second.get("status") != "evaluable": return _result(_status(second), second.get("reason", "taunt_pending_action_unavailable"), base)
             if isinstance(second, str): return _result("incomplete", second, base)
             branches.append(_branch(base, plan["order"], taunt_leaf, {}, second["terminal_leaves"][0], pending_actor, plan))
@@ -837,6 +855,34 @@ def _ordinary_selected_leaf(*, strategy_d0: Mapping[str, Any], runtime_snapshot:
     return {"status":"evaluable", "terminal_leaves": (leaf,)} if isinstance(leaf, Mapping) else leaf
 
 
+def _validated_reflected_taunt_application(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], special_action: Mapping[str, Any], special_actor: Mapping[str, Any], special_target: Mapping[str, Any], application: Mapping[str, Any]) -> Mapping[str, Any] | str:
+    route = application.get("reflected_status_routing_authority")
+    validation = validate_detached_reflected_status_routing_authority(route)
+    if validation.get("status") != "resolved": return "reflected_taunt_route_invalid"
+    route = validation["authority"]
+    if (
+        route.get("original_actor") != special_actor
+        or route.get("original_target") != special_target
+        or route.get("original_action_id") != special_action.get("action_id")
+        or route.get("move_id") != "taunt"
+        or route.get("reflected_source") != special_target
+        or route.get("reflected_target") != special_actor
+        or application.get("actor") != route.get("reflected_source")
+        or application.get("target") != route.get("reflected_target")
+        or application.get("action_id") != special_action.get("action_id")
+        or application.get("move_id") != "taunt"
+    ):
+        return "reflected_taunt_application_binding_mismatch"
+    reproduced = materialize_detached_reflected_taunt_application(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        action=special_action,
+        routing_authority=route,
+    )
+    if reproduced != application: return "reflected_taunt_application_provenance_invalid"
+    return route
+
+
 def _taunt_pending_second_leaf(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], application: Mapping[str, Any], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any] | str:
     pending = {**deepcopy(dict(action)), "metadata_authority": deepcopy(dict(metadata))}
     gate = materialize_taunt_execution_gate(selected_action=pending, actor=actor, same_branch_application=application)
@@ -852,6 +898,50 @@ def _taunt_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, A
     target_hp = active.get(target.get("side"), {}).get("current_hp") if isinstance(target, Mapping) else None
     if not _hp(own_hp) or not _hp(target_hp): return "taunt_pair_hp_authority_missing"
     return {"leaf_id":f"{application['action_id']}:{application['outcome']}","candidate_id":application["action_id"],"branch_path":("taunt",application["outcome"]),"probability":_fd(Fraction(1,1)),"hit_state":"not_applicable","critical_state":"not_applicable","damage_roll":"not_applicable","consequences":{"damage":0,"own_final_hp":own_hp,"target_final_hp":target_hp,"target_ko":target_hp==0,"self_fainted":own_hp==0,"secondary":None,"contact":"not_applicable","taunt_application":deepcopy(dict(application))},"provenance":{"session_id":application["session_id"],"source_runtime_fingerprint":application["source_runtime_fingerprint"],"source_branch_fingerprint":application["source_branch_fingerprint"],"decision_owner":deepcopy(application["decision_owner"]),"attacker":deepcopy(actor),"target":deepcopy(target),"move_id":"taunt","taunt_application":deepcopy(dict(application))}}
+
+
+def _reflected_taunt_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, Any], selected_actor: Mapping[str, Any], selected_target: Mapping[str, Any]) -> dict[str, Any] | str:
+    route = application.get("reflected_status_routing_authority")
+    if not isinstance(route, Mapping): return "reflected_taunt_route_missing"
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    own_hp = active.get(selected_actor.get("side"), {}).get("current_hp")
+    target_hp = active.get(selected_target.get("side"), {}).get("current_hp")
+    if not _hp(own_hp) or not _hp(target_hp): return "taunt_pair_hp_authority_missing"
+    return {
+        "leaf_id": f"{application['action_id']}:reflected:{application['outcome']}",
+        "candidate_id": application["action_id"],
+        "branch_path": ("taunt", "reflected", application["outcome"]),
+        "probability": _fd(Fraction(1, 1)),
+        "hit_state": "not_applicable",
+        "critical_state": "not_applicable",
+        "damage_roll": "not_applicable",
+        "consequences": {
+            "damage": 0,
+            "own_final_hp": own_hp,
+            "target_final_hp": target_hp,
+            "target_ko": target_hp == 0,
+            "self_fainted": own_hp == 0,
+            "secondary": None,
+            "contact": "not_applicable",
+            "taunt_application": deepcopy(dict(application)),
+            "reflected_status_routing_authority": deepcopy(dict(route)),
+        },
+        "provenance": {
+            "session_id": application["session_id"],
+            "source_runtime_fingerprint": application["source_runtime_fingerprint"],
+            "source_branch_fingerprint": application["source_branch_fingerprint"],
+            "decision_owner": deepcopy(application["decision_owner"]),
+            "attacker": deepcopy(dict(selected_actor)),
+            "target": deepcopy(dict(selected_target)),
+            "selected_actor": deepcopy(dict(selected_actor)),
+            "selected_target": deepcopy(dict(selected_target)),
+            "effective_source": deepcopy(dict(route["reflected_source"])),
+            "effective_target": deepcopy(dict(route["reflected_target"])),
+            "move_id": "taunt",
+            "taunt_application": deepcopy(dict(application)),
+            "reflected_status_routing_authority": deepcopy(dict(route)),
+        },
+    }
 
 
 def _materialize_sucker_punch_vs_tail_whip_pair(
