@@ -21,20 +21,61 @@ def materialize_detached_encore_application(*, strategy_d0: Mapping[str, Any], a
     if protection_authority.get("outcome") != "not_applicable": return _result("rejected", "encore_protection_outcome_invalid", base)
     if reflection_authority.get("outcome") == "reflected": return _result("incomplete", "encore_reflection_execution_unsupported", base)
     if reflection_authority.get("outcome") != "not_applicable": return _result("rejected", "encore_reflection_outcome_invalid", base)
-    if target_side_ability_authority.get("ability") == "aroma-veil": return _outcome(base, "failed", "encore_target_protected_by_aroma_veil", target_side_ability_authority)
-    if not _current_encore(current_encore_authority, base, target): return _result("incomplete", "current_encore_authority_missing", base)
-    if current_encore_authority.get("state") == "active": return _outcome(base, "failed", "encore_target_already_encored", current_encore_authority)
-    if current_encore_authority.get("state") != "not_active": return _result("rejected", "current_encore_state_invalid", base)
-    if not _bound_owner(last_used_move_authority, base, target): return _result("incomplete", "last_executed_move_authority_missing", base)
-    move_id = last_used_move_authority.get("move_id")
-    if not isinstance(move_id, str) or not move_id: return _result("rejected", "last_executed_move_identity_invalid", base)
-    meta = last_used_move_metadata_authority.get("metadata") if isinstance(last_used_move_metadata_authority, Mapping) else None
-    if not _bound_owner(last_used_move_metadata_authority, base, target) or not isinstance(meta, Mapping) or meta.get("move_id") != move_id or not isinstance(meta.get("priority"), int) or isinstance(meta.get("priority"), bool): return _result("incomplete", "last_executed_move_metadata_missing", base)
-    if meta.get("encore_eligible") is False or move_id in _INELIGIBLE: return _outcome(base, "failed", "encore_locked_move_ineligible", last_used_move_metadata_authority, locked_move_id=move_id)
-    if not _bound_owner(last_move_pp_authority, base, target) or last_move_pp_authority.get("move_id") != move_id: return _result("incomplete", "encore_locked_move_pp_authority_missing", base)
-    if last_move_pp_authority.get("usable") is False: return _outcome(base, "failed", "encore_locked_move_no_pp", last_move_pp_authority, locked_move_id=move_id)
-    if last_move_pp_authority.get("usable") is not True: return _result("rejected", "encore_locked_move_pp_invalid", base)
-    return _outcome(base, "applicable", "encore_applicable", accuracy_authority, locked_move_id=move_id, locked_move_metadata=deepcopy(dict(meta)), last_used_execution_id=last_used_move_authority.get("execution_id"), remaining_target_turns=3)
+    return _materialize_bound_encore_outcome(base=base,target=target,last_used_move_authority=last_used_move_authority,last_used_move_metadata_authority=last_used_move_metadata_authority,last_move_pp_authority=last_move_pp_authority,current_encore_authority=current_encore_authority,target_side_ability_authority=target_side_ability_authority,evidence=accuracy_authority)
+
+
+def materialize_detached_reflected_encore_application(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], routing_authority: Mapping[str, Any], canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    from llm.advisor_detached_reflected_status_routing_authority import validate_detached_reflected_status_routing_authority
+    from llm.advisor_runtime_d0_status_special_application_authority import freeze_runtime_d0_status_special_current_ability_authority, freeze_runtime_d0_status_special_last_move_metadata_authority
+    from llm.advisor_runtime_d0_last_executed_move_authority import freeze_runtime_d0_last_executed_move_authority
+    from llm.advisor_runtime_d0_encore_restriction_authority import freeze_runtime_d0_encore_restriction_authority
+    from llm.advisor_runtime_d0_encore_locked_move_pp_authority import freeze_runtime_d0_encore_locked_move_pp_authority
+    validation=validate_detached_reflected_status_routing_authority(routing_authority)
+    if validation.get("status")!="resolved":return _result("rejected","reflected_encore_routing_authority_invalid",{})
+    route=validation["authority"]
+    if route.get("move_id")!="encore":return _result("rejected","reflected_encore_move_binding_invalid",{})
+    if (
+        not isinstance(strategy_d0,Mapping)
+        or strategy_d0.get("status")!="resolved"
+        or any(route.get(k)!=strategy_d0.get(v) for k,v in (("session_id","session_id"),("source_runtime_fingerprint","source_runtime_fingerprint"),("source_branch_fingerprint","strategy_preview_fingerprint"),("decision_owner","decision_owner")))
+        or not isinstance(runtime_snapshot,Mapping)
+        or runtime_snapshot.get("state_fingerprint")!=route.get("source_runtime_fingerprint")
+        or action.get("action_id")!=route.get("original_action_id")
+        or action.get("identity",action.get("move_id"))!="encore"
+        or route.get("route_depth")!=1
+        or route.get("reflection_consumed") is not True
+    ):return _result("rejected","reflected_encore_current_binding_invalid",{})
+    actor,target=route["reflected_source"],route["reflected_target"]
+    if route.get("reflector")!=route.get("original_target") or actor!=route.get("original_target") or target!=route.get("original_actor"):
+        return _result("rejected","reflected_encore_route_identity_invalid",{})
+    base=_base(strategy_d0,action,actor,target)
+    if base is None or base.get("action_id")!=route.get("original_action_id"):return _result("rejected","reflected_encore_effective_binding_invalid",{})
+    abilities=freeze_runtime_d0_status_special_current_ability_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,actor=actor,target=target,action_id=base["action_id"],move_id="encore")
+    if abilities.get("status")!="resolved":return _result(abilities.get("status","incomplete"),abilities.get("reason","reflected_encore_target_ability_unavailable"),base)
+    current=freeze_runtime_d0_encore_restriction_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,owner=target)
+    history=freeze_runtime_d0_last_executed_move_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,owner=target)
+    metadata=freeze_runtime_d0_status_special_last_move_metadata_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,owner=target,last_used_move_authority=history,canonical_move_metadata_authorities=canonical_move_metadata_authorities)
+    move_id=history.get("move_id") if isinstance(history,Mapping) else ""
+    pp=freeze_runtime_d0_encore_locked_move_pp_authority(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,owner=target,move_id=move_id)
+    return _materialize_bound_encore_outcome(base=base,target=target,last_used_move_authority=history,last_used_move_metadata_authority=metadata,last_move_pp_authority=pp,current_encore_authority=current,target_side_ability_authority=abilities,evidence=route,reflected_route=route)
+
+
+def _materialize_bound_encore_outcome(*,base:Mapping[str,Any],target:Mapping[str,Any],last_used_move_authority:Mapping[str,Any],last_used_move_metadata_authority:Mapping[str,Any],last_move_pp_authority:Mapping[str,Any],current_encore_authority:Mapping[str,Any],target_side_ability_authority:Mapping[str,Any],evidence:Mapping[str,Any],reflected_route:Mapping[str,Any]|None=None)->dict[str,Any]:
+    extra={"execution_mode":"reflected_original_action","reflected_status_routing_authority":deepcopy(dict(reflected_route)),"original_actor":deepcopy(dict(reflected_route["original_actor"])),"original_target":deepcopy(dict(reflected_route["original_target"]))} if isinstance(reflected_route,Mapping) else {}
+    if target_side_ability_authority.get("ability")=="aroma-veil":return _outcome(base,"failed","encore_target_protected_by_aroma_veil",target_side_ability_authority,**extra)
+    if not _current_encore(current_encore_authority,base,target):return _result("incomplete","current_encore_authority_missing",base)
+    if current_encore_authority.get("state")=="active":return _outcome(base,"failed","encore_target_already_encored",current_encore_authority,**extra)
+    if current_encore_authority.get("state")!="not_active":return _result("rejected","current_encore_state_invalid",base)
+    if not _bound_owner(last_used_move_authority,base,target):return _result("incomplete","last_executed_move_authority_missing",base)
+    move_id=last_used_move_authority.get("move_id")
+    if not isinstance(move_id,str) or not move_id:return _result("rejected","last_executed_move_identity_invalid",base)
+    meta=last_used_move_metadata_authority.get("metadata") if isinstance(last_used_move_metadata_authority,Mapping) else None
+    if not _bound_owner(last_used_move_metadata_authority,base,target) or not isinstance(meta,Mapping) or meta.get("move_id")!=move_id or not isinstance(meta.get("priority"),int) or isinstance(meta.get("priority"),bool):return _result("incomplete","last_executed_move_metadata_missing",base)
+    if meta.get("encore_eligible") is False or move_id in _INELIGIBLE:return _outcome(base,"failed","encore_locked_move_ineligible",last_used_move_metadata_authority,locked_move_id=move_id,**extra)
+    if not _bound_owner(last_move_pp_authority,base,target) or last_move_pp_authority.get("move_id")!=move_id:return _result("incomplete","encore_locked_move_pp_authority_missing",base)
+    if last_move_pp_authority.get("usable") is False:return _outcome(base,"failed","encore_locked_move_no_pp",last_move_pp_authority,locked_move_id=move_id,**extra)
+    if last_move_pp_authority.get("usable") is not True:return _result("rejected","encore_locked_move_pp_invalid",base)
+    return _outcome(base,"applicable","encore_applicable",evidence,locked_move_id=move_id,locked_move_metadata=deepcopy(dict(meta)),last_used_execution_id=last_used_move_authority.get("execution_id"),remaining_target_turns=3,**extra)
 
 
 def materialize_encore_forced_execution_action(*, selected_action: Mapping[str, Any], actor: Mapping[str, Any], encore_application: Mapping[str, Any]) -> dict[str, Any]:

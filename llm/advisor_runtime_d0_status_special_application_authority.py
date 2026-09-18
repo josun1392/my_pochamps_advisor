@@ -33,7 +33,7 @@ def freeze_runtime_d0_status_special_application_authority(*, strategy_d0: Mappi
     history = freeze_runtime_d0_last_executed_move_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
     if move == "encore":
         current = freeze_runtime_d0_encore_restriction_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
-        meta = _last_move_metadata(base, history, target, canonical_move_metadata_authorities)
+        meta = freeze_runtime_d0_status_special_last_move_metadata_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target, last_used_move_authority=history, canonical_move_metadata_authorities=canonical_move_metadata_authorities)
         pp = freeze_runtime_d0_encore_locked_move_pp_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target, move_id=history.get("move_id") if isinstance(history, Mapping) else "")
         result = materialize_detached_encore_application(strategy_d0=strategy_d0, action=action, actor=actor, target=target, accuracy_authority=accuracy, last_used_move_authority=history, last_used_move_metadata_authority=meta, last_move_pp_authority=pp, current_encore_authority=current, target_side_ability_authority=abilities, protection_authority=protection, reflection_authority=reflection)
         return _preserve_reflection_evidence(result, reflection)
@@ -145,10 +145,25 @@ def _preserve_reflection_evidence(result: Mapping[str, Any], reflection: Mapping
     return frozen
 
 
-def _last_move_metadata(base: Mapping[str, Any], history: Mapping[str, Any], target: Mapping[str, Any], catalog: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
-    move = history.get("move_id") if isinstance(history, Mapping) else None; entry = catalog.get(move) if isinstance(catalog, Mapping) and isinstance(move, str) else None; row = entry.get("metadata") if isinstance(entry, Mapping) else None
-    if not isinstance(row, Mapping) or row.get("move_id") != move: return _result("incomplete", "last_executed_move_metadata_missing", {**base, "owner": deepcopy(dict(target))})
-    return {"status": "resolved", "schema_version": SCHEMA_VERSION, "session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": deepcopy(dict(base["decision_owner"])), "owner": deepcopy(dict(target)), "metadata": deepcopy(dict(row)), "provenance": "frozen_canonical_last_move_metadata_v1"}
+def freeze_runtime_d0_status_special_last_move_metadata_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], owner: Mapping[str, Any], last_used_move_authority: Mapping[str, Any], canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    if not isinstance(strategy_d0, Mapping) or strategy_d0.get("status") != "resolved" or not isinstance(owner, Mapping) or strategy_d0.get("active_owners", {}).get(owner.get("side")) != dict(owner):
+        return _result("rejected", "last_executed_move_metadata_binding_invalid", {})
+    base = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "owner": deepcopy(dict(owner))}
+    if runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current":
+        return _result("rejected", "stale_runtime_d0", base)
+    if (
+        not isinstance(last_used_move_authority, Mapping)
+        or last_used_move_authority.get("status") != "resolved"
+        or last_used_move_authority.get("owner") != dict(owner)
+        or any(last_used_move_authority.get(key) != base[key] for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner"))
+    ):
+        return _result("incomplete", "last_executed_move_metadata_history_unavailable", base)
+    move = last_used_move_authority.get("move_id")
+    entry = canonical_move_metadata_authorities.get(move) if isinstance(canonical_move_metadata_authorities, Mapping) and isinstance(move, str) else None
+    row = entry.get("metadata") if isinstance(entry, Mapping) else None
+    if not isinstance(row, Mapping) or row.get("move_id") != move:
+        return _result("incomplete", "last_executed_move_metadata_missing", base)
+    return {"status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(base), "metadata": deepcopy(dict(row)), "provenance": "frozen_canonical_last_move_metadata_v1"}
 
 
 def freeze_runtime_d0_status_special_current_known_moves_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> dict[str, Any]:
