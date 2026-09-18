@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from copy import deepcopy
@@ -63,8 +64,11 @@ from llm.advisor_current_state_runtime_admission import (
 )
 from llm.advisor_production_paralysis_application import admit_observed_champions_paralysis_result
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
+from llm.advisor_observed_contact_reactive_status_runtime_admission import admit_observed_contact_reactive_status_result
+from llm.advisor_observed_contact_reactive_damage_runtime_admission import admit_observed_contact_reactive_damage_result
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
+from llm.advisor_lifecycle_confirmation import EXECUTED_MOVE_SOURCE, USER_TRUST
 from llm.advisor_runtime_state_projection import build_runtime_advice_state_projection
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
 from llm.advisor_candidate_contract import prepare_ui_recommendation_cycle
@@ -94,6 +98,7 @@ from ui.widgets.current_final_stat_dialog import CurrentFinalStatDialog
 from ui.widgets.current_hp_dialog import CurrentHPDialog
 from ui.widgets.current_battle_format_dialog import CurrentBattleFormatDialog
 from ui.widgets.current_observed_damage_dialog import CurrentObservedDamageDialog
+from ui.widgets.contact_reactive_result_dialog import ContactStatusResultDialog, ContactReactiveDamageResultDialog
 from ui.widgets.move_search_box import MoveSearchBox
 from ui.widgets.pokemon_panel import PokemonTeamColumn
 from ui.widgets.pokemon_search_box import PokemonSearchBox
@@ -448,6 +453,7 @@ class MainWindow(QMainWindow):
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
         self._structured_observed_damage_confirmations: list[dict] = []
+        self._contact_result_action_ids: dict[tuple[str, str, int, str], str] = {}
         self._battle_counter_confirmation: dict[str, int] | None = None
         self._consecutive_use_confirmation: dict[str, int | bool] | None = None
 
@@ -527,6 +533,8 @@ class MainWindow(QMainWindow):
         self.center_column.llm_advice_panel.current_battle_format_session_reset_requested.connect(self._clear_current_battle_format_confirmation)
         self.center_column.llm_advice_panel.current_observed_damage_requested.connect(self._open_current_observed_damage_dialog)
         self.center_column.llm_advice_panel.current_observed_damage_reset_requested.connect(self._clear_current_observed_damage_confirmation)
+        self.center_column.llm_advice_panel.contact_status_result_requested.connect(self._open_contact_status_result_dialog)
+        self.center_column.llm_advice_panel.contact_reactive_damage_requested.connect(self._open_contact_reactive_damage_dialog)
         self.center_column.llm_advice_panel.battle_counter_requested.connect(self._open_battle_counter_dialog)
         self.center_column.llm_advice_panel.battle_counter_reset_requested.connect(self._clear_battle_counter_confirmation)
         self._update_item_event_summary()
@@ -1648,6 +1656,7 @@ class MainWindow(QMainWindow):
         self._current_hp_confirmation_owners = {}
         self._current_observed_damage_confirmation = None
         self._structured_observed_damage_confirmations = []
+        self._contact_result_action_ids = {}
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
         update_persistent_effect_summary = getattr(self, "_update_current_persistent_effect_summary", None)
@@ -1742,6 +1751,331 @@ class MainWindow(QMainWindow):
         self._current_observed_damage_confirmation = None
         self._structured_observed_damage_confirmations = []
         self._update_current_observed_damage_summary()
+
+    @Slot()
+    def _open_contact_status_result_dialog(self) -> None:
+        captured_session_id = MainWindow._active_session_id(self)
+        dialog = ContactStatusResultDialog(
+            default_turn=getattr(self, "_current_trusted_turn_number", None),
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        confirmation = dialog.confirmation
+        if isinstance(confirmation, dict):
+            self._submit_contact_status_result(
+                confirmation,
+                captured_session_id=captured_session_id,
+            )
+
+    @Slot()
+    def _open_contact_reactive_damage_dialog(self) -> None:
+        captured_session_id = MainWindow._active_session_id(self)
+        dialog = ContactReactiveDamageResultDialog(
+            default_turn=getattr(self, "_current_trusted_turn_number", None),
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        confirmation = dialog.confirmation
+        if isinstance(confirmation, dict):
+            self._submit_contact_reactive_damage_result(
+                confirmation,
+                captured_session_id=captured_session_id,
+            )
+
+    def _submit_contact_status_result(
+        self,
+        confirmation: dict,
+        *,
+        captured_session_id: str | None = None,
+    ) -> dict:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = captured_session_id if captured_session_id is not None else MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str) or not session_id:
+            result = {"status": "rejected", "reason": "active_session_unavailable"}
+            self._present_contact_result_status("Contact status result", result, False)
+            return result
+        if not isinstance(confirmation, dict):
+            result = {"status": "rejected", "reason": "invalid_contact_status_confirmation"}
+            self._present_contact_result_status("Contact status result", result, False)
+            return result
+
+        attacker_side = confirmation.get("attacker_side")
+        move_id = confirmation.get("move_id")
+        turn_number = confirmation.get("turn_number")
+        target_hp_after = confirmation.get("target_hp_after")
+        outcome = confirmation.get("outcome")
+        current_turn = getattr(self, "_current_trusted_turn_number", None)
+        if current_turn is not None and turn_number != current_turn:
+            result = {"status": "rejected", "reason": "observed_contact_turn_mismatch"}
+            self._present_contact_result_status("Contact status result", result, False)
+            return result
+
+        before = manager.capture_runtime_state_snapshot(session_id)
+        action = self._resolve_contact_source_action_id(
+            captured_session_id=session_id,
+            attacker_side=attacker_side,
+            move_id=move_id,
+            turn_number=turn_number,
+        )
+        if action.get("status") != "resolved":
+            self._present_contact_result_status("Contact status result", action, False)
+            return action
+
+        result = admit_observed_contact_reactive_status_result(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            attacker_side=attacker_side,
+            move_id=move_id,
+            source_action_id=action["source_action_id"],
+            target_hp_after=target_hp_after,
+            outcome=outcome,
+            turn_number=turn_number,
+        )
+        return self._finalize_contact_result(
+            label="Contact status result",
+            before_snapshot=before,
+            result=result,
+            action_key=action["action_key"],
+            source_action_id=action["source_action_id"],
+        )
+
+    def _submit_contact_reactive_damage_result(
+        self,
+        confirmation: dict,
+        *,
+        captured_session_id: str | None = None,
+    ) -> dict:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = captured_session_id if captured_session_id is not None else MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str) or not session_id:
+            result = {"status": "rejected", "reason": "active_session_unavailable"}
+            self._present_contact_result_status("Contact reactive damage", result, False)
+            return result
+        if not isinstance(confirmation, dict):
+            result = {"status": "rejected", "reason": "invalid_contact_reactive_damage_confirmation"}
+            self._present_contact_result_status("Contact reactive damage", result, False)
+            return result
+
+        attacker_side = confirmation.get("attacker_side")
+        move_id = confirmation.get("move_id")
+        turn_number = confirmation.get("turn_number")
+        attacker_hp_after = confirmation.get("attacker_hp_after")
+        source_hit_actual_damage = confirmation.get("source_hit_actual_damage")
+        routing = confirmation.get("source_hit_target_routing")
+        current_turn = getattr(self, "_current_trusted_turn_number", None)
+        if current_turn is not None and turn_number != current_turn:
+            result = {"status": "rejected", "reason": "observed_contact_turn_mismatch"}
+            self._present_contact_result_status("Contact reactive damage", result, False)
+            return result
+        if routing not in {"target", "substitute"}:
+            result = {"status": "incomplete", "reason": "contact_target_routing_unconfirmed"}
+            self._present_contact_result_status("Contact reactive damage", result, False)
+            return result
+
+        before = manager.capture_runtime_state_snapshot(session_id)
+        action = self._resolve_contact_source_action_id(
+            captured_session_id=session_id,
+            attacker_side=attacker_side,
+            move_id=move_id,
+            turn_number=turn_number,
+        )
+        if action.get("status") != "resolved":
+            self._present_contact_result_status("Contact reactive damage", action, False)
+            return action
+
+        result = admit_observed_contact_reactive_damage_result(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            attacker_side=attacker_side,
+            move_id=move_id,
+            source_action_id=action["source_action_id"],
+            attacker_hp_after=attacker_hp_after,
+            source_hit_actual_damage=source_hit_actual_damage,
+            source_hit_target_routing=routing,
+            turn_number=turn_number,
+        )
+        return self._finalize_contact_result(
+            label="Contact reactive damage",
+            before_snapshot=before,
+            result=result,
+            action_key=action["action_key"],
+            source_action_id=action["source_action_id"],
+        )
+
+    def _resolve_contact_source_action_id(
+        self,
+        *,
+        captured_session_id: str,
+        attacker_side: object,
+        move_id: object,
+        turn_number: object,
+    ) -> dict:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        if (
+            not isinstance(manager, BattleObservationRuntimeSessionManager)
+            or attacker_side not in {"self", "opponent"}
+            or not isinstance(move_id, str)
+            or not move_id
+            or move_id != move_id.lower()
+            or " " in move_id
+            or "_" in move_id
+            or not isinstance(turn_number, int)
+            or isinstance(turn_number, bool)
+            or turn_number < 1
+        ):
+            return {"status": "rejected", "reason": "invalid_observed_contact_action_context"}
+
+        snapshot = manager.capture_runtime_state_snapshot(captured_session_id)
+        if snapshot.get("status") != "runtime_snapshot_ready":
+            return {"status": "rejected", "reason": "stale_or_unavailable_contact_session"}
+        state = snapshot.get("state")
+        side_state = state.get(f"{attacker_side}_side") if isinstance(state, dict) else None
+        slot_index = side_state.get("active_slot_index") if isinstance(side_state, dict) else None
+        roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+        pokemon = roster.get(slot_index) if isinstance(roster, dict) and isinstance(slot_index, int) and not isinstance(slot_index, bool) else None
+        pokemon_id = pokemon.get("pokemon_id") if isinstance(pokemon, dict) else None
+        if not isinstance(pokemon_id, str) or not pokemon_id:
+            return {"status": "rejected", "reason": "contact_attacker_owner_unavailable"}
+
+        collection = manager.read_collection_snapshot()
+        compatible = [
+            row
+            for row in collection.get("ordered_observations", [])
+            if isinstance(row, dict)
+            and row.get("event_kind") == "executed_move_observed"
+            and row.get("source") == EXECUTED_MOVE_SOURCE
+            and row.get("trust") == USER_TRUST
+            and row.get("session_id") == captured_session_id
+            and row.get("turn_number") == turn_number
+            and (row.get("side"), row.get("slot_index"), row.get("pokemon_id"))
+            == (attacker_side, slot_index, pokemon_id)
+            and row.get("payload", {}).get("move_id") == move_id
+        ]
+        if len(compatible) > 1:
+            return {"status": "rejected", "reason": "ambiguous_contact_source_action"}
+
+        key = (captured_session_id, attacker_side, turn_number, move_id)
+        cache = getattr(self, "_contact_result_action_ids", {})
+        cached = cache.get(key) if isinstance(cache, dict) else None
+        if compatible:
+            source_action_id = compatible[0].get("payload", {}).get("source_action_id")
+            if not isinstance(source_action_id, str) or not source_action_id:
+                return {"status": "rejected", "reason": "invalid_existing_contact_source_action"}
+            if isinstance(cached, str) and cached and cached != source_action_id:
+                return {"status": "rejected", "reason": "conflicting_contact_source_action_cache"}
+            return {
+                "status": "resolved",
+                "reason": "existing_execution_reuse",
+                "source_action_id": source_action_id,
+                "action_key": key,
+            }
+        if isinstance(cached, str) and cached:
+            return {
+                "status": "resolved",
+                "reason": "cached_contact_action_reuse",
+                "source_action_id": cached,
+                "action_key": key,
+            }
+
+        digest = hashlib.sha256(
+            f"{captured_session_id}|{attacker_side}|{turn_number}|{move_id}".encode("utf-8")
+        ).hexdigest()[:12]
+        return {
+            "status": "resolved",
+            "reason": "deterministic_contact_action",
+            "source_action_id": f"contact:{turn_number}:{attacker_side}:{move_id}:{digest}",
+            "action_key": key,
+        }
+
+    def _finalize_contact_result(
+        self,
+        *,
+        label: str,
+        before_snapshot: dict,
+        result: dict,
+        action_key: tuple[str, str, int, str],
+        source_action_id: str,
+    ) -> dict:
+        changed = False
+        if result.get("status") == "resolved":
+            runtime_snapshot = result.get("runtime_snapshot")
+            changed = (
+                isinstance(before_snapshot, dict)
+                and before_snapshot.get("status") == "runtime_snapshot_ready"
+                and isinstance(runtime_snapshot, dict)
+                and runtime_snapshot.get("status") == "runtime_snapshot_ready"
+                and before_snapshot.get("state_fingerprint") != runtime_snapshot.get("state_fingerprint")
+            )
+            cache = getattr(self, "_contact_result_action_ids", {})
+            cache = dict(cache) if isinstance(cache, dict) else {}
+            cache[action_key] = source_action_id
+            self._contact_result_action_ids = cache
+            if changed:
+                self._retire_advice_presentation_authority()
+                self._recommendation_readiness_owner = None
+                try:
+                    self.center_column.llm_advice_panel.clear_recommendation_readiness()
+                except (AttributeError, RuntimeError):
+                    pass
+                self._retire_stale_contact_current_state_mirrors(result)
+        self._present_contact_result_status(label, result, changed)
+        return result
+
+    def _retire_stale_contact_current_state_mirrors(self, result: dict) -> None:
+        hp_sides = {
+            row.get("side")
+            for row in result.get("observations", [])
+            if isinstance(row, dict) and row.get("event_kind") == "exact_hp_transition_observed"
+        }
+        condition_sides = {
+            row.get("side")
+            for row in result.get("observations", [])
+            if isinstance(row, dict) and row.get("event_kind") == "current_condition_observed"
+        }
+        if hp_sides:
+            current_hp = dict(getattr(self, "_current_hp_confirmations", {}))
+            owners = dict(getattr(self, "_current_hp_confirmation_owners", {}))
+            for side in hp_sides:
+                current_hp.pop(side, None)
+                owners.pop(side, None)
+            self._current_hp_confirmations = current_hp
+            self._current_hp_confirmation_owners = owners
+            update = getattr(self, "_update_current_hp_summary", None)
+            if callable(update):
+                update()
+        if condition_sides:
+            current = dict(getattr(self, "_current_condition_confirmations", {}))
+            for side in condition_sides:
+                current.pop(side, None)
+            self._current_condition_confirmations = current
+            update = getattr(self, "_update_current_condition_summary", None)
+            if callable(update):
+                update()
+
+    def _present_contact_result_status(self, label: str, result: dict, changed: bool) -> None:
+        status = result.get("status") if isinstance(result, dict) else "rejected"
+        reason = result.get("reason") if isinstance(result, dict) else "invalid_result"
+        if status == "resolved":
+            if result.get("idempotent") is True:
+                message = f"{label} already recorded"
+            elif result.get("replacement_boundary", {}).get("status") == "replacement_required_after_faint":
+                message = f"{label} recorded | replacement required"
+            elif changed:
+                message = f"{label} recorded"
+            else:
+                message = f"{label} confirmed | no runtime change"
+        elif status == "incomplete":
+            message = f"{label} incomplete | {reason or 'required current authority missing'}"
+        elif status == "unsupported":
+            message = f"{label} unsupported | {reason or 'unsupported current boundary'}"
+        else:
+            message = f"{label} rejected | {reason or 'conflicting or stale confirmation'}"
+        try:
+            self.statusBar().showMessage(message)
+        except (AttributeError, RuntimeError):
+            pass
 
     def _capture_structured_observed_damage_confirmation(self, entry: dict) -> dict | None:
         """Bind the legacy amount-only confirmation to current owners privately."""
