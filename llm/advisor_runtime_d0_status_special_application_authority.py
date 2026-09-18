@@ -38,7 +38,7 @@ def freeze_runtime_d0_status_special_application_authority(*, strategy_d0: Mappi
         result = materialize_detached_encore_application(strategy_d0=strategy_d0, action=action, actor=actor, target=target, accuracy_authority=accuracy, last_used_move_authority=history, last_used_move_metadata_authority=meta, last_move_pp_authority=pp, current_encore_authority=current, target_side_ability_authority=abilities, protection_authority=protection, reflection_authority=reflection)
         return _preserve_reflection_evidence(result, reflection)
     current = freeze_runtime_d0_disable_restriction_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
-    known = _known_moves(base, runtime_snapshot, target)
+    known = freeze_runtime_d0_status_special_current_known_moves_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, owner=target)
     result = materialize_detached_disable_application(strategy_d0=strategy_d0, action=action, actor=actor, target=target, accuracy_authority=accuracy, last_used_move_authority=history, current_known_moves_authority=known, current_disable_authority=current, target_side_ability_authority=abilities, protection_authority=protection, reflection_authority=reflection)
     return _preserve_reflection_evidence(result, reflection)
 
@@ -151,8 +151,16 @@ def _last_move_metadata(base: Mapping[str, Any], history: Mapping[str, Any], tar
     return {"status": "resolved", "schema_version": SCHEMA_VERSION, "session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": deepcopy(dict(base["decision_owner"])), "owner": deepcopy(dict(target)), "metadata": deepcopy(dict(row)), "provenance": "frozen_canonical_last_move_metadata_v1"}
 
 
-def _known_moves(base: Mapping[str, Any], snapshot: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
-    state = snapshot.get("state") if isinstance(snapshot, Mapping) else None; side = state.get(f"{target['side']}_side") if isinstance(state, Mapping) else None; roster = side.get("pokemon") if isinstance(side, Mapping) else None; row = roster.get(target["slot_index"]) if isinstance(roster, Mapping) else None
+def freeze_runtime_d0_status_special_current_known_moves_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], owner: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(strategy_d0, Mapping) or strategy_d0.get("status") != "resolved" or not isinstance(owner, Mapping):
+        return _result("rejected", "current_known_moves_binding_invalid", {})
+    if strategy_d0.get("active_owners", {}).get(owner.get("side")) != dict(owner):
+        return _result("rejected", "current_known_moves_binding_invalid", {})
+    base = {"session_id": strategy_d0["session_id"], "source_runtime_fingerprint": strategy_d0["source_runtime_fingerprint"], "source_branch_fingerprint": strategy_d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(strategy_d0["decision_owner"])), "owner": deepcopy(dict(owner))}
+    if runtime_strategy_d0_freshness(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot).get("status") != "current":
+        return _result("rejected", "stale_runtime_d0", base)
+    state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, Mapping) else None; side = state.get(f"{owner['side']}_side") if isinstance(state, Mapping) else None; roster = side.get("pokemon") if isinstance(side, Mapping) else None; row = roster.get(owner["slot_index"]) if isinstance(roster, Mapping) else None
     moves, provenance = (row.get("known_move_ids"), row.get("known_move_ids_provenance")) if isinstance(row, Mapping) else (None, None)
-    if not isinstance(moves, list) or not isinstance(provenance, Mapping) or set(provenance) != set(moves) or any(not isinstance(x, str) or not x for x in moves) or any(not isinstance(provenance.get(x), Mapping) or provenance[x].get("trust") != "user_confirmed_observation" for x in moves): return _result("incomplete", "current_known_moves_authority_missing", {**base, "owner": deepcopy(dict(target))})
-    return {"status": "resolved", "schema_version": SCHEMA_VERSION, "session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "decision_owner": deepcopy(dict(base["decision_owner"])), "owner": deepcopy(dict(target)), "move_ids": deepcopy(moves), "moveset_completeness": "complete" if len(moves) == 4 else "partial", "provenance": "strict_runtime_d0_known_move_identity_v1"}
+    if not isinstance(moves, list) or not isinstance(provenance, Mapping) or set(provenance) != set(moves) or any(not isinstance(x, str) or not x for x in moves) or any(not isinstance(provenance.get(x), Mapping) or provenance[x].get("trust") != "user_confirmed_observation" for x in moves):
+        return _result("incomplete", "current_known_moves_authority_missing", base)
+    return {"status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(base), "move_ids": deepcopy(moves), "moveset_completeness": "complete" if len(moves) == 4 else "partial", "provenance": "strict_runtime_d0_known_move_identity_v1"}
