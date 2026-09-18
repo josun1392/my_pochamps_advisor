@@ -49,6 +49,7 @@ DOUBLES_ACTIVE_TOPOLOGY_SOURCE = "ui_doubles_active_topology_confirmation"
 SELECTED_ACTION_TARGETING_SOURCE = "ui_selected_action_targeting_confirmation"
 PERSISTENT_EFFECT_SOURCE = "ui_persistent_effect_state_confirmation"
 CONFUSION_SOURCE = "ui_confusion_state_confirmation"
+STATUS_PROGRESSION_SOURCE = "ui_sleep_freeze_progression_confirmation"
 FIXTURE_SOURCE = "fixture_contract_confirmation"
 USER_TRUST = "user_confirmed_observation"
 FIXTURE_TRUST = "fixture_contract_only"
@@ -62,6 +63,7 @@ _KINDS["contact_reactive_status_result_observed"] = "production_ready"
 _KINDS["contact_reactive_damage_result_observed"] = "production_ready"
 for _kind in {"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"}: _KINDS[_kind] = "production_ready"
 for _kind in {"current_confusion_state_observed", "champions_confusion_progression_observed"}: _KINDS[_kind] = "production_ready"
+_KINDS["champions_status_progression_observed"] = "production_ready"
 for _kind in {"taunt_restriction_applied_observed", "encore_restriction_applied_observed", "disable_restriction_applied_observed", "taunt_restricted_turn_completed_observed", "encore_restricted_turn_completed_observed", "disable_restricted_turn_completed_observed"}: _KINDS[_kind] = "production_ready"
 
 
@@ -89,7 +91,7 @@ class LifecycleConfirmationBoundary:
         if event_kind.endswith("restriction_applied_observed") or event_kind.endswith("restricted_turn_completed_observed"):
             if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1: return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "first_end_of_turn_reached_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
-        if event_kind in {"current_type_observed", "current_condition_observed", "current_healing_prevented_observed", "pending_status_action_execution_observed", "mat_block_active_entry_eligibility_observed", "fake_out_active_entry_eligibility_observed", "supreme_overlord_initial_active_observed", "doubles_active_topology_observed", "selected_action_targeting_observed", "current_level_observed", "current_final_combat_stat_observed", "current_opponent_response_set_observed", "current_opponent_switch_response_set_observed", "substitute_state_observed", "current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed", "current_confusion_state_observed", "champions_confusion_progression_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
+        if event_kind in {"current_type_observed", "current_condition_observed", "current_healing_prevented_observed", "pending_status_action_execution_observed", "mat_block_active_entry_eligibility_observed", "fake_out_active_entry_eligibility_observed", "supreme_overlord_initial_active_observed", "doubles_active_topology_observed", "selected_action_targeting_observed", "current_level_observed", "current_final_combat_stat_observed", "current_opponent_response_set_observed", "current_opponent_switch_response_set_observed", "substitute_state_observed", "current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed", "current_confusion_state_observed", "champions_confusion_progression_observed", "champions_status_progression_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind in {"current_weather_observed", "current_ability_observed", "current_item_observed", "current_terrain_observed", "current_side_conditions_observed", "current_battle_format_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "condition_applied_observed" and payload.get("condition") == "toxic" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "same_turn_event_observed" and not _owner_matches(self._owners, payload.get("target_side"), payload.get("target_slot_index"), payload.get("target_pokemon_id")): return _result("invalid_provenance", "target_owner_mismatch", readiness)
@@ -177,6 +179,7 @@ def _production_source_matches(kind, source):
     if kind == "contact_reactive_damage_result_observed": return source == CONTACT_REACTIVE_DAMAGE_RESULT_SOURCE
     if kind in {"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"}: return source == PERSISTENT_EFFECT_SOURCE
     if kind in {"current_confusion_state_observed", "champions_confusion_progression_observed"}: return source == CONFUSION_SOURCE
+    if kind == "champions_status_progression_observed": return source == STATUS_PROGRESSION_SOURCE
     if kind.endswith("restriction_applied_observed") or kind.endswith("restricted_turn_completed_observed"): return source == RESTRICTION_SOURCE
     return {"direct_move_damage_observed": PRODUCTION_SOURCE, "used_move_observed": USED_MOVE_SOURCE, "exact_hp_transition_observed": HP_TRANSITION_SOURCE, "exact_hp_recovery_observed": HP_RECOVERY_SOURCE, "current_type_observed": CURRENT_TYPE_SOURCE, "current_condition_observed": CURRENT_CONDITION_SOURCE, "current_healing_prevented_observed": CURRENT_HEALING_PREVENTED_SOURCE, "pending_status_action_execution_observed": PENDING_STATUS_ACTION_EXECUTION_SOURCE, "doubles_active_topology_observed": DOUBLES_ACTIVE_TOPOLOGY_SOURCE, "selected_action_targeting_observed": SELECTED_ACTION_TARGETING_SOURCE, "current_weather_observed": CURRENT_WEATHER_SOURCE, "current_ability_observed": CURRENT_ABILITY_SOURCE, "current_item_observed": CURRENT_ITEM_SOURCE, "current_terrain_observed": CURRENT_TERRAIN_SOURCE, "current_side_conditions_observed": CURRENT_SIDE_CONDITIONS_SOURCE, "current_battle_format_observed": CURRENT_BATTLE_FORMAT_SOURCE, "current_level_observed": CURRENT_LEVEL_SOURCE, "current_final_combat_stat_observed": FINAL_COMBAT_STAT_SOURCE, "current_opponent_response_set_observed": OPPONENT_RESPONSE_SET_SOURCE, "current_opponent_switch_response_set_observed": OPPONENT_SWITCH_RESPONSE_SET_SOURCE, "current_opponent_switch_target_combat_observed": OPPONENT_SWITCH_TARGET_COMBAT_SOURCE, "substitute_state_observed": SUBSTITUTE_STATE_SOURCE, "pokemon_switch_observed": SWITCH_SOURCE, "pokemon_faint_observed": FAINT_SOURCE, "condition_applied_observed": CONDITION_APPLICATION_SOURCE, "stat_stage_observed": STAT_STAGE_SOURCE, "switch_hazards_observed": HAZARD_STATE_SOURCE, "tailwind_side_condition_observed": TAILWIND_SOURCE, "trick_room_field_observed": TRICK_ROOM_SOURCE, "magic_room_field_observed": MAGIC_ROOM_SOURCE, "same_turn_event_observed": SAME_TURN_EVENT_SOURCE, "first_end_of_turn_reached_observed": FIRST_END_OF_TURN_SOURCE}.get(kind) == source
 def _valid_turn_number(value): return value is None or (isinstance(value, int) and not isinstance(value, bool) and value > 0)
@@ -203,6 +206,14 @@ def _valid_payload(kind, payload):
                 and payload.get("state") == "confused" and isinstance(payload.get("origin_id"), str) and bool(payload["origin_id"])
                 and isinstance(payload.get("established_turn"), int) and not isinstance(payload.get("established_turn"), bool) and payload["established_turn"] >= 1
                 and payload.get("prior_opportunities") == 0 and payload.get("duration") is None)
+    if kind == "champions_status_progression_observed":
+        condition, established, attempts, duration = payload.get("condition"), payload.get("established_turn"), payload.get("prior_attempts"), payload.get("sleep_duration")
+        return (set(payload) == {"condition", "origin_id", "established_turn", "prior_attempts", "sleep_duration"}
+                and condition in {"sleep", "freeze"} and isinstance(payload.get("origin_id"), str) and bool(payload["origin_id"])
+                and isinstance(established, int) and not isinstance(established, bool) and established >= 1
+                and isinstance(attempts, int) and not isinstance(attempts, bool) and 0 <= attempts <= 2
+                and (duration is None or type(duration) is int and duration in {2, 3})
+                and (condition == "sleep" or duration is None))
     if kind == "pending_status_action_execution_observed":
         condition, state, blocker, outcome = (payload.get("condition"), payload.get("execution_state"),
                                                payload.get("blocker"), payload.get("outcome_class"))

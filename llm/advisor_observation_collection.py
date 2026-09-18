@@ -15,7 +15,7 @@ _KINDS.add("contact_reactive_damage_result_observed")
 _KINDS.update({"taunt_restriction_applied_observed", "encore_restriction_applied_observed", "disable_restriction_applied_observed", "taunt_restricted_turn_completed_observed", "encore_restricted_turn_completed_observed", "disable_restricted_turn_completed_observed"})
 _KINDS.update({"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"})
 _KINDS.add("current_condition_observed")
-_KINDS.update({"current_confusion_state_observed", "champions_confusion_progression_observed"})
+_KINDS.update({"current_confusion_state_observed", "champions_confusion_progression_observed", "champions_status_progression_observed"})
 # These lifecycle-confirmed observations have canonical replay/reducer owners and
 # are intended to enter the normal production runtime pipeline.  Keep fixture
 # transitions and special evidence-only observations out of this admission set.

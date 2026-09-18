@@ -58,6 +58,7 @@ from llm.advisor_entry_hazard_ko_replacement_runtime_admission import admit_entr
 from llm.advisor_production_forced_switch_integration import admit_forced_switch_phazing
 from llm.advisor_production_confusion_integration import admit_current_confusion_state
 from llm.advisor_current_condition_observation import admit_current_condition_observation
+from llm.advisor_status_progression_observation import admit_champions_status_progression_observation
 from llm.advisor_current_state_runtime_admission import (
     admit_current_state_observation,
     admit_current_state_observations,
@@ -87,6 +88,7 @@ from ui.widgets.item_profile_dialog import (
 from ui.widgets.field_profile_dialog import FieldProfileDialog
 from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
+from ui.widgets.status_progression_dialog import SleepFreezeProgressionDialog
 from ui.widgets.current_ability_dialog import CurrentAbilityDialog
 from ui.widgets.current_persistent_effect_dialog import CurrentPersistentEffectDialog
 from llm.advisor_persistent_effect_state_runtime_admission import admit_current_persistent_effect_state
@@ -437,6 +439,7 @@ class MainWindow(QMainWindow):
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
         self._current_condition_confirmations: dict[str, dict] = {}
+        self._status_progression_confirmations: dict[str, dict] = {}
         self._current_ability_confirmations: dict[str, dict] = {}
         self._current_persistent_effect_confirmations: dict[str, dict] = {}
         self._structured_ability_confirmations: dict[str, dict] = {}
@@ -507,6 +510,7 @@ class MainWindow(QMainWindow):
         self.center_column.llm_advice_panel.current_condition_session_reset_requested.connect(
             self._clear_current_condition_confirmations
         )
+        self.center_column.llm_advice_panel.status_progression_requested.connect(self._open_status_progression_dialog)
         self.center_column.llm_advice_panel.current_ability_requested.connect(self._open_current_ability_dialog)
         self.center_column.llm_advice_panel.current_persistent_effect_requested.connect(self._open_current_persistent_effect_dialog)
         self.center_column.llm_advice_panel.switch_permission_requested.connect(self._open_switch_permission_dialog)
@@ -698,6 +702,10 @@ class MainWindow(QMainWindow):
             normalized["side"]: normalized,
         }
         self._update_current_condition_summary()
+        progressions = dict(getattr(self, "_status_progression_confirmations", {}))
+        progressions.pop(normalized["side"], None)
+        self._status_progression_confirmations = progressions
+        self._update_status_progression_summary()
         try:
             self.statusBar().showMessage("Current condition applied")
         except (AttributeError, RuntimeError):
@@ -707,6 +715,104 @@ class MainWindow(QMainWindow):
     def _clear_current_condition_confirmations(self) -> None:
         self._current_condition_confirmations = {}
         self._update_current_condition_summary()
+
+    @Slot()
+    def _open_status_progression_dialog(self) -> None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            try:
+                self.statusBar().showMessage("Sleep / Freeze progression failed: active session unavailable")
+            except (AttributeError, RuntimeError):
+                pass
+            return
+        snapshot = manager.capture_runtime_state_snapshot(session_id)
+        state = snapshot.get("state") if snapshot.get("status") == "runtime_snapshot_ready" else None
+        if not isinstance(state, dict):
+            try:
+                self.statusBar().showMessage("Sleep / Freeze progression failed: runtime snapshot unavailable")
+            except (AttributeError, RuntimeError):
+                pass
+            return
+        current_conditions: dict[str, str] = {}
+        current_progressions: dict[str, dict] = {}
+        for side in ("self", "opponent"):
+            side_state = state.get(f"{side}_side")
+            roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+            slot = side_state.get("active_slot_index") if isinstance(side_state, dict) else None
+            pokemon = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) and isinstance(slot, int) and not isinstance(slot, bool) else None
+            if not isinstance(pokemon, dict):
+                current_conditions[side] = "unknown"
+                continue
+            raw_condition = pokemon.get("condition")
+            if raw_condition is None:
+                current_conditions[side] = "none"
+            elif isinstance(raw_condition, str):
+                current_conditions[side] = raw_condition
+            else:
+                current_conditions[side] = "unknown"
+            progression = pokemon.get("champions_status_progression")
+            if (
+                isinstance(progression, dict)
+                and progression.get("condition_observation") == pokemon.get("condition_provenance")
+            ):
+                current_progressions[side] = {
+                    "established_turn": progression.get("established_turn"),
+                    "prior_attempts": progression.get("prior_attempts"),
+                    "sleep_duration": progression.get("sleep_duration"),
+                }
+        dialog = SleepFreezeProgressionDialog(
+            current_conditions=current_conditions,
+            current_progressions=current_progressions,
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        confirmation = dialog.progression_confirmation
+        if not isinstance(confirmation, dict):
+            return
+        result = admit_champions_status_progression_observation(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            side=confirmation.get("side"),
+            established_turn=confirmation.get("established_turn"),
+            prior_attempts=confirmation.get("prior_attempts"),
+            sleep_duration=confirmation.get("sleep_duration"),
+            turn_number=getattr(self, "_current_trusted_turn_number", None),
+        )
+        if result.get("status") != "resolved":
+            try:
+                reason = result.get("reason") or "confirmation rejected"
+                self.statusBar().showMessage(f"Sleep / Freeze progression failed: {reason}")
+            except (AttributeError, RuntimeError):
+                pass
+            return
+        progression = result.get("progression")
+        if isinstance(progression, dict):
+            self._status_progression_confirmations = {
+                **dict(getattr(self, "_status_progression_confirmations", {})),
+                confirmation["side"]: {
+                    "established_turn": progression.get("established_turn"),
+                    "prior_attempts": progression.get("prior_attempts"),
+                    "sleep_duration": progression.get("sleep_duration"),
+                },
+            }
+            self._update_status_progression_summary()
+        if result.get("runtime_committed") is True:
+            self._retire_advice_presentation_authority()
+            self._recommendation_readiness_owner = None
+            try:
+                self.center_column.llm_advice_panel.clear_recommendation_readiness()
+            except (AttributeError, RuntimeError):
+                pass
+        try:
+            self.statusBar().showMessage(
+                "Sleep / Freeze progression already recorded"
+                if result.get("idempotent") is True
+                else "Sleep / Freeze progression applied"
+            )
+        except (AttributeError, RuntimeError):
+            pass
 
     def _admit_current_state_fact(self, event_kind: str, payload: dict, side: str | None = None) -> bool:
         """Commit a dialog fact before allowing its local presentation mirror."""
@@ -1644,6 +1750,7 @@ class MainWindow(QMainWindow):
             update_persistence_actions()
         self._current_trusted_turn_number = None
         self._current_condition_confirmations = {}
+        self._status_progression_confirmations = {}
         self._current_ability_confirmations = {}
         self._current_persistent_effect_confirmations = {}
         self._structured_ability_confirmations = {}
@@ -1662,6 +1769,9 @@ class MainWindow(QMainWindow):
         update_persistent_effect_summary = getattr(self, "_update_current_persistent_effect_summary", None)
         if callable(update_persistent_effect_summary):
             update_persistent_effect_summary()
+        update_status_progression_summary = getattr(self, "_update_status_progression_summary", None)
+        if callable(update_status_progression_summary):
+            update_status_progression_summary()
         self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
         self._battle_counter_confirmation = None
         self._consecutive_use_confirmation = None
@@ -2117,6 +2227,13 @@ class MainWindow(QMainWindow):
         try:
             panel = self.center_column.llm_advice_panel
             panel.set_current_condition_count(len(self._current_condition_confirmations))
+        except (AttributeError, RuntimeError):
+            pass
+
+    def _update_status_progression_summary(self) -> None:
+        try:
+            panel = self.center_column.llm_advice_panel
+            panel.set_status_progression_count(len(self._status_progression_confirmations))
         except (AttributeError, RuntimeError):
             pass
 

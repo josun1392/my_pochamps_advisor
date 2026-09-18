@@ -31,6 +31,7 @@ class LLMAdvicePanel(QFrame):
     item_event_session_reset_requested = Signal()
     current_condition_requested = Signal()
     current_condition_session_reset_requested = Signal()
+    status_progression_requested = Signal()
     current_ability_requested = Signal()
     current_persistent_effect_requested = Signal()
     switch_permission_requested = Signal()
@@ -126,6 +127,11 @@ class LLMAdvicePanel(QFrame):
         self.clear_current_conditions_button.setObjectName("clearCurrentConditionsButton")
         self.clear_current_conditions_button.setToolTip("Clear user-confirmed current conditions for this battle session.")
         self.clear_current_conditions_button.clicked.connect(self.current_condition_session_reset_requested.emit)
+
+        self.status_progression_button = QPushButton("Sleep / Freeze progression")
+        self.status_progression_button.setObjectName("statusProgressionButton")
+        self.status_progression_button.setToolTip("Confirm explicit progression knowledge for the current runtime sleep/freeze episode. No duration or attempts are inferred.")
+        self.status_progression_button.clicked.connect(self.status_progression_requested.emit)
 
         self.current_ability_button = QPushButton("Ability")
         self.current_ability_button.setObjectName("currentAbilityButton")
@@ -224,6 +230,7 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.clear_item_events_button)
         layout.addWidget(self.current_condition_button)
         layout.addWidget(self.clear_current_conditions_button)
+        layout.addWidget(self.status_progression_button)
         layout.addWidget(self.current_ability_button)
         layout.addWidget(self.current_persistent_effect_button)
         layout.addWidget(self.switch_permission_button)
@@ -268,6 +275,10 @@ class LLMAdvicePanel(QFrame):
         label = "Condition" if normalized_count == 0 else f"Condition ({normalized_count})"
         self.current_condition_button.setText(label)
 
+    def set_status_progression_count(self, count: int) -> None:
+        normalized_count = max(0, int(count))
+        self.status_progression_button.setText("Sleep / Freeze progression" if normalized_count == 0 else f"Sleep / Freeze progression ({normalized_count})")
+
     def set_current_ability_count(self, count: int) -> None:
         normalized_count = max(0, int(count))
         label = "Ability" if normalized_count == 0 else f"Ability ({normalized_count})"
@@ -310,6 +321,7 @@ class LLMAdvicePanel(QFrame):
         self.clear_item_events_button.setDisabled(is_running)
         self.current_condition_button.setDisabled(is_running)
         self.clear_current_conditions_button.setDisabled(is_running)
+        self.status_progression_button.setDisabled(is_running)
         self.current_ability_button.setDisabled(is_running)
         self.current_persistent_effect_button.setDisabled(is_running)
         self.switch_permission_button.setDisabled(is_running)
