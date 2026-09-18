@@ -106,6 +106,13 @@ from llm.advisor_detached_knock_off_item_removal import materialize_detached_kno
 from llm.advisor_runtime_d0_fling_item_execution_authority import freeze_runtime_d0_fling_item_execution_authority
 from llm.advisor_detached_fling_item_throw import materialize_detached_fling_item_throw
 from llm.advisor_runtime_d0_fling_item_bound_deterministic_target_effect_authority import freeze_runtime_d0_fling_item_bound_deterministic_target_effect_authority, materialize_detached_fling_item_bound_deterministic_target_effect
+from llm.advisor_runtime_d0_fling_berry_eat_item_interaction_authority import (
+    freeze_runtime_d0_fling_berry_eat_item_interaction_authority,
+)
+from llm.advisor_runtime_d0_fling_major_status_cure_berry_target_effect_authority import (
+    freeze_runtime_d0_fling_major_status_cure_berry_target_effect_authority,
+    materialize_detached_fling_major_status_cure_berry_target_effect,
+)
 from llm.advisor_detached_item_transfer_after_hit import materialize_detached_item_transfer_after_hit
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
 from llm.advisor_detached_drain_consequence import apply_detached_drain_consequence
@@ -241,7 +248,21 @@ def materialize_immediate_move_vs_move_action_pair(
     if any(member.get("current_confusion") == "confused" for member in status_members):
         from llm.advisor_champions_confusion_gated_pair import materialize_champions_confusion_gated_pair
         return materialize_champions_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
-    if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and (not pending_status_execution_authorities or any(member.get("champions_status_progression") for member in status_members)):
+    defer_sleep_freeze_gate_for_fling_cure = _defer_sleep_freeze_gate_for_first_fling_cure(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        base=base,
+        orders=orders,
+        own_action=own_action,
+        opponent_action=opponent_action,
+        own_meta=own_meta,
+        opponent_meta=opponent_meta,
+    )
+    if (
+        any(member.get("condition") in {"sleep", "freeze"} for member in status_members)
+        and (not pending_status_execution_authorities or any(member.get("champions_status_progression") for member in status_members))
+        and not defer_sleep_freeze_gate_for_fling_cure
+    ):
         from llm.advisor_champions_status_gated_pair import materialize_champions_status_gated_pair
         return materialize_champions_status_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
     if canonical_endure_metadata(own_meta.get("metadata", {}).get("move_id") if isinstance(own_meta.get("metadata"), Mapping) else None) is not None or canonical_endure_metadata(opponent_meta.get("metadata", {}).get("move_id") if isinstance(opponent_meta.get("metadata"), Mapping) else None) is not None:
@@ -1886,7 +1907,22 @@ def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runti
     normal = _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_survival_authority=endure_turn_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, fling_execution_authority=fling_execution)
     if fling_execution is not None:
         thrown = _apply_fling_item_throw_to_ledger(ledger=normal, authority=fling_execution)
-        return _apply_fling_deterministic_target_effect_to_ledger(ledger=thrown, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, authority=fling_execution, pending_target_action=pending_target_action, action_order=action_order)
+        deterministic = _apply_fling_deterministic_target_effect_to_ledger(
+            ledger=thrown,
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            authority=fling_execution,
+            pending_target_action=pending_target_action,
+            action_order=action_order,
+        )
+        return _apply_fling_major_status_cure_berry_target_effect_to_ledger(
+            ledger=deterministic,
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            authority=fling_execution,
+            actor=actor,
+            target=target,
+        )
     if metadata.get("move_id") in {"avalanche", "revenge"}: return _bind_was_damaged_power_authority_to_ledger(normal, power)
     if metadata.get("move_id") == "assurance": return _bind_target_was_damaged_power_authority_to_ledger(normal, power)
     if metadata.get("move_id") == "payback": return _bind_target_already_acted_power_authority_to_ledger(normal, power)
@@ -2445,6 +2481,106 @@ def _base(d0: Any, own: Any, opponent: Any) -> dict[str, Any] | None:
     self_owner, opp_owner = d0.get("active_owners", {}).get("self"), d0.get("active_owners", {}).get("opponent")
     if not isinstance(self_owner, Mapping) or not isinstance(opp_owner, Mapping) or d0.get("decision_owner") != self_owner: return None
     return {"pair_id": f"pair:{own['action_id']}:{opponent.get('action_id') if isinstance(opponent, Mapping) else None}", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "own_action_id": own["action_id"], "opponent_action_id": opponent.get("action_id") if isinstance(opponent, Mapping) else None, "own_actor": deepcopy(dict(self_owner)), "opponent_actor": deepcopy(dict(opp_owner))}
+def _defer_sleep_freeze_gate_for_first_fling_cure(
+    *,
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    base: Mapping[str, Any],
+    orders: list[dict[str, Any]],
+    own_action: Mapping[str, Any],
+    opponent_action: Mapping[str, Any],
+    own_meta: Mapping[str, Any],
+    opponent_meta: Mapping[str, Any],
+) -> bool:
+    """Defer only an exact cure-before-action sleep/freeze gate.
+
+    The global Champions sleep/freeze wrapper normally owns current sleep/freeze
+    execution.  A Flinged Chesto/Aspear Berry can remove that condition before
+    the pending actor acts, so only one already-frozen first-action order is
+    admitted here.  Equal-Speed/tie branches and a sleeping/frozen Fling user
+    remain with the existing wrapper.
+    """
+    if len(orders) != 1 or orders[0].get("order") not in {"own_first", "opponent_first"}:
+        return False
+    order = orders[0]["order"]
+    if order == "own_first":
+        first_actor = base["own_actor"]
+        second_actor = base["opponent_actor"]
+        first_action = own_action
+        first_meta = own_meta
+        execution_d0 = strategy_d0
+        execution_snapshot = runtime_snapshot
+    else:
+        first_actor = base["opponent_actor"]
+        second_actor = base["own_actor"]
+        first_action = opponent_action
+        first_meta = opponent_meta
+        root = freeze_detached_actor_neutral_root_predictive_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            opponent_action=opponent_action,
+        )
+        if root.get("status") != "resolved":
+            return False
+        execution_d0 = root.get("predictive_strategy_d0")
+        execution_snapshot = root.get("predictive_runtime_snapshot")
+        if not isinstance(execution_d0, Mapping) or not isinstance(execution_snapshot, Mapping):
+            return False
+
+    metadata = first_meta.get("metadata") if isinstance(first_meta, Mapping) else None
+    if (
+        not isinstance(metadata, Mapping)
+        or metadata.get("move_id") != "fling"
+        or first_action.get("action_type") != "attack"
+        or first_action.get("identity") != "fling"
+    ):
+        return False
+
+    conditions = strategy_d0.get("current_condition_authority")
+    if not isinstance(conditions, Mapping):
+        return False
+    first_condition = conditions.get(first_actor["side"])
+    second_condition = conditions.get(second_actor["side"])
+    if not isinstance(first_condition, Mapping) or not isinstance(second_condition, Mapping):
+        return False
+    if first_condition.get("owner") != first_actor or second_condition.get("owner") != second_actor:
+        return False
+    first_value = first_condition.get("condition")
+    second_value = second_condition.get("condition")
+    if (
+        not isinstance(first_value, Mapping)
+        or not isinstance(second_value, Mapping)
+        or first_condition.get("status") != "resolved"
+        or second_condition.get("status") != "resolved"
+    ):
+        return False
+    if first_value.get("status") == "known_present" and first_value.get("condition") in {"sleep", "freeze"}:
+        return False
+    if (
+        second_value.get("status") != "known_present"
+        or second_value.get("condition") not in {"sleep", "freeze"}
+    ):
+        return False
+
+    execution = freeze_runtime_d0_fling_item_execution_authority(
+        strategy_d0=execution_d0,
+        runtime_snapshot=execution_snapshot,
+        action=first_action,
+        actor=first_actor,
+        target=second_actor,
+    )
+    family = execution.get("fling_major_status_cure_berry_authority")
+    return (
+        execution.get("status") == "resolved"
+        and execution.get("outcome") == "ready_throw"
+        and execution.get("fling_major_status_cure_berry_support")
+        == "fling_major_status_cure_berry_target_effect_v1"
+        and isinstance(family, Mapping)
+        and family.get("status") == "resolved"
+        and second_value.get("condition") in set(family.get("removable_conditions", ()))
+    )
+
+
 def _orders(value: Any, base: Mapping[str, Any], quick_claw_authority: Mapping[str, Any] | None = None) -> list[dict[str, Any]] | tuple[str, str]:
     if not isinstance(value, Mapping) or value.get("schema_version") != "runtime-d0-action-order-authority-v1": return ("rejected", "action_order_authority_invalid")
     for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_action_id", "opponent_action_id", "own_actor", "opponent_actor"):
@@ -2577,6 +2713,75 @@ def _apply_fling_deterministic_target_effect_to_ledger(*, ledger: Mapping[str, A
             consequences["secondary"]={"branch":"effect","hypothetical_target_flinch":deepcopy(detached["hypothetical_target_flinch"]),"fling_item_bound_target_effect_authority":deepcopy(bound)}
         row=deepcopy(dict(leaf)); row["consequences"]=consequences; rows.append(row)
     out=deepcopy(dict(ledger));out["terminal_leaves"]=tuple(rows);out["component_manifest"]={**deepcopy(dict(out.get("component_manifest",{}))),"fling_item_bound_target_effect":{"status":"resolved"}};return out
+def _apply_fling_major_status_cure_berry_target_effect_to_ledger(
+    *,
+    ledger: Mapping[str, Any],
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    authority: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+) -> dict[str, Any]:
+    if authority.get("fling_major_status_cure_berry_support") != "fling_major_status_cure_berry_target_effect_v1":
+        return ledger
+    if ledger.get("status") != "evaluable" or not isinstance(ledger.get("terminal_leaves"), tuple):
+        return deepcopy(dict(ledger))
+    rows = []
+    for leaf in ledger["terminal_leaves"]:
+        interaction = freeze_runtime_d0_fling_berry_eat_item_interaction_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            fling_execution_authority=authority,
+            actor=actor,
+            target=target,
+            phase="post_hit_target_berry_interaction",
+            source_leaf=leaf,
+        )
+        if interaction.get("status") != "resolved":
+            return _result(
+                _status(interaction),
+                interaction.get("reason", "fling_berry_eat_item_interaction_unavailable"),
+                {},
+            )
+        bound = freeze_runtime_d0_fling_major_status_cure_berry_target_effect_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            fling_execution_authority=authority,
+            source_leaf=leaf,
+            berry_eat_item_interaction_authority=interaction,
+            actor=actor,
+            target=target,
+        )
+        if bound.get("status") != "resolved":
+            return _result(
+                _status(bound),
+                bound.get("reason", "fling_status_cure_berry_target_effect_unavailable"),
+                {},
+            )
+        detached = materialize_detached_fling_major_status_cure_berry_target_effect(
+            authority=bound,
+        )
+        if detached.get("status") != "resolved":
+            return _result(
+                _status(detached),
+                detached.get("reason", "fling_status_cure_berry_materialization_unavailable"),
+                {},
+            )
+        row = deepcopy(dict(leaf))
+        row["consequences"] = {
+            **deepcopy(dict(row.get("consequences", {}))),
+            "fling_major_status_cure_berry_target_effect": detached,
+        }
+        rows.append(row)
+    out = deepcopy(dict(ledger))
+    out["terminal_leaves"] = tuple(rows)
+    out["component_manifest"] = {
+        **deepcopy(dict(out.get("component_manifest", {}))),
+        "fling_major_status_cure_berry_target_effect": {"status": "resolved"},
+    }
+    return out
+
+
 def _sucker_punch_failure_ledger(*, strategy_d0: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], action: Mapping[str, Any], applicability: Mapping[str, Any]) -> dict[str, Any]:
     """Represent an attempted but pre-execution Sucker Punch failure exactly."""
     own_hp = strategy_d0.get("strategy_state", {}).get("active", {}).get(actor.get("side"), {}).get("current_hp")

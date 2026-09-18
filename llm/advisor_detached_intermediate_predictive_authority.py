@@ -12,6 +12,9 @@ from typing import Any, Mapping
 
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0, runtime_strategy_d0_freshness
+from llm.advisor_runtime_d0_fling_major_status_cure_berry_target_effect_authority import (
+    validate_detached_fling_major_status_cure_berry_no_transition,
+)
 
 
 SCHEMA_VERSION = "detached-intermediate-predictive-authority-v1"
@@ -65,6 +68,27 @@ def freeze_detached_intermediate_predictive_authority(
                 "source": values["item"]["source"],
                 "status": values["item"].get("status"),
             }
+        condition = values["condition"]
+        if condition.get("source") == "exact_terminal_leaf_condition_no_transition":
+            if not validate_detached_fling_major_status_cure_berry_no_transition(
+                consequence=condition.get("effect"),
+                source_leaf_id=parsed["source_leaf_id"],
+                expected_target=owner,
+            ):
+                return _result(
+                    "rejected",
+                    "intermediate_fling_berry_condition_no_transition_invalid",
+                    {**base, **parsed["binding"]},
+                )
+            condition_value = condition.get("condition")
+            if raw.get("condition") != condition_value:
+                return _result(
+                    "rejected",
+                    "intermediate_fling_berry_condition_no_transition_mismatch",
+                    {**base, **parsed["binding"]},
+                )
+            if condition_value in {"burn", "poison", "toxic"}:
+                raw["detached_exact_intermediate_condition_authority"] = True
         healing = values["healing_prevented"]
         if healing.get("source") == "exact_terminal_leaf_psychic_noise_healing_prevented_transition":
             raw["healing_prevented_status"] = "active"

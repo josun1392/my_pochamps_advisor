@@ -21,6 +21,12 @@ from llm.advisor_full_hp_defender_ability import (
 )
 from llm.advisor_ability_item_steal_ledger_validation import validate_ability_item_steal_leaf
 from advisor.canonical_recent_damage_retaliation_family import resolve_canonical_recent_damage_retaliation_move
+from advisor.canonical_fling_major_status_cure_berry import (
+    resolve_canonical_fling_major_status_cure_berry,
+)
+from llm.advisor_detached_target_condition_removal_validation import (
+    validate_detached_target_condition_removal,
+)
 
 
 SCHEMA_VERSION = "exact-immediate-action-pair-outcome-ledger-v1"
@@ -134,6 +140,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if fling_error is not None: return fling_error
     fling_effect_error = _fling_item_bound_target_effect_leaf(first)
     if fling_effect_error is not None: return fling_effect_error
+    fling_berry_cure_error = _fling_major_status_cure_berry_target_effect_leaf(first)
+    if fling_berry_cure_error is not None: return fling_berry_cure_error
     steal_error = validate_ability_item_steal_leaf(first, pair_base=base, first_action=True)
     if steal_error is not None: return steal_error
     transfer_error = _item_transfer_leaf(first)
@@ -230,6 +238,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if fling_error is not None: return fling_error
         fling_effect_error = _fling_item_bound_target_effect_leaf(second_leaf)
         if fling_effect_error is not None: return fling_effect_error
+        fling_berry_cure_error = _fling_major_status_cure_berry_target_effect_leaf(second_leaf)
+        if fling_berry_cure_error is not None: return fling_berry_cure_error
         steal_error = validate_ability_item_steal_leaf(second_leaf, pair_base=base)
         if steal_error is not None: return steal_error
         transfer_error = _item_transfer_leaf(second_leaf)
@@ -514,7 +524,15 @@ def _fling_item_throw_leaf(leaf: Mapping[str, Any]) -> str | None:
     effect = metadata.get("effect", {}) if isinstance(metadata, Mapping) else {}
     supported = authority.get("deterministic_target_effect_support") == "fling_item_bound_deterministic_target_effect_v1" and (effect.get("kind") == "flinch" or effect.get("kind") == "major_status" and effect.get("condition") in {"paralysis", "poison"})
     ordinary = effect.get("kind") == "none" and effect.get("classification") == "explicit_no_target_effect" and metadata.get("support_status") == "not_applicable"
-    if not isinstance(item, Mapping) or item.get("status") != "known" or payload.get("item_before") != item.get("value") or payload.get("item_after") is not None or payload.get("outcome") != "thrown" or payload.get("timing") != "prepare_hit_before_accuracy_protection_immunity_damage" or leaf.get("hit_state") not in {"hit", "miss"} or not isinstance(metadata, Mapping) or not (ordinary or supported) or metadata.get("provenance") != "frozen_pinned_showdown_fling_metadata_v1" or authority.get("resolved_base_power") != metadata.get("base_power") or authority.get("item_after") != {"state": "known_absent", "item": None} or not isinstance(field, Mapping) or field.get("status") != "resolved" or field.get("state") != "known_absent" or not isinstance(abilities, Mapping) or abilities.get("status") != "resolved" or abilities.get("klutz_active") is not False:
+    berry_family = authority.get("fling_major_status_cure_berry_authority")
+    canonical_berry = resolve_canonical_fling_major_status_cure_berry(item.get("value")) if isinstance(item, Mapping) else {"status": "not_applicable"}
+    berry_supported = (
+        authority.get("fling_major_status_cure_berry_support") == "fling_major_status_cure_berry_target_effect_v1"
+        and canonical_berry.get("status") == "resolved"
+        and berry_family == canonical_berry
+        and effect.get("kind") == "berry_effect"
+    )
+    if not isinstance(item, Mapping) or item.get("status") != "known" or payload.get("item_before") != item.get("value") or payload.get("item_after") is not None or payload.get("outcome") != "thrown" or payload.get("timing") != "prepare_hit_before_accuracy_protection_immunity_damage" or leaf.get("hit_state") not in {"hit", "miss"} or not isinstance(metadata, Mapping) or not (ordinary or supported or berry_supported) or metadata.get("provenance") != "frozen_pinned_showdown_fling_metadata_v1" or authority.get("resolved_base_power") != metadata.get("base_power") or authority.get("item_after") != {"state": "known_absent", "item": None} or not isinstance(field, Mapping) or field.get("status") != "resolved" or field.get("state") != "known_absent" or not isinstance(abilities, Mapping) or abilities.get("status") != "resolved" or abilities.get("klutz_active") is not False:
         return "fling_item_throw_transition_invalid"
     return None
 
@@ -534,6 +552,144 @@ def _fling_item_bound_target_effect_leaf(leaf: Mapping[str, Any]) -> str | None:
         if outcome=="applied_flinch_pending_action" and not isinstance(effect.get("hypothetical_target_flinch"),Mapping):return "fling_target_effect_flinch_materialization_invalid"
     else:return "fling_target_effect_kind_invalid"
     return None
+
+def _fling_major_status_cure_berry_target_effect_leaf(leaf: Mapping[str, Any]) -> str | None:
+    provenance, consequences = leaf.get("provenance"), leaf.get("consequences")
+    payload = consequences.get("fling_major_status_cure_berry_target_effect") if isinstance(consequences, Mapping) else None
+    move = provenance.get("move_id") if isinstance(provenance, Mapping) else None
+    if move != "fling":
+        return "unexpected_fling_status_cure_berry_payload" if payload is not None else None
+    execution = provenance.get("fling_execution_authority") if isinstance(provenance, Mapping) else None
+    if not isinstance(execution, Mapping):
+        return "fling_status_cure_berry_execution_authority_missing"
+    family = execution.get("fling_major_status_cure_berry_authority")
+    supported = execution.get("fling_major_status_cure_berry_support") == "fling_major_status_cure_berry_target_effect_v1"
+    if not supported:
+        return "unexpected_fling_status_cure_berry_payload" if payload is not None else None
+    canonical = resolve_canonical_fling_major_status_cure_berry(execution.get("user_item_before", {}).get("value"))
+    if canonical.get("status") != "resolved" or family != canonical:
+        return "fling_status_cure_berry_family_binding_invalid"
+    if not isinstance(payload, Mapping):
+        return "fling_status_cure_berry_consequence_missing"
+    authority = payload.get("authority")
+    if (
+        payload.get("schema_version") != "detached-fling-major-status-cure-berry-target-effect-v1"
+        or payload.get("status") != "resolved"
+        or not isinstance(authority, Mapping)
+        or authority.get("schema_version") != "runtime-d0-fling-major-status-cure-berry-target-effect-authority-v1"
+        or authority.get("status") != "resolved"
+        or authority.get("fling_execution_authority") != execution
+        or authority.get("berry_family_authority") != canonical
+        or authority.get("actor") != provenance.get("attacker")
+        or authority.get("target") != provenance.get("target")
+        or authority.get("item_id") != execution.get("user_item_before", {}).get("value")
+        or authority.get("action_id") != leaf.get("candidate_id")
+        or authority.get("source_leaf_id") != leaf.get("leaf_id")
+        or payload.get("outcome") != authority.get("outcome")
+        or payload.get("item_id") != authority.get("item_id")
+        or payload.get("actor") != authority.get("actor")
+        or payload.get("target") != authority.get("target")
+        or payload.get("condition_before") != authority.get("condition_before")
+        or payload.get("condition_after") != authority.get("condition_after")
+        or any(
+            authority.get(key) != provenance.get(key)
+            for key in ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")
+        )
+    ):
+        return "fling_status_cure_berry_authority_binding_invalid"
+
+    leaf_binding = authority.get("source_leaf_binding")
+    if (
+        not isinstance(leaf_binding, Mapping)
+        or leaf_binding.get("leaf_id") != leaf.get("leaf_id")
+        or leaf_binding.get("candidate_id") != leaf.get("candidate_id")
+        or leaf_binding.get("hit_state") != leaf.get("hit_state")
+        or leaf_binding.get("source_hit_context") != consequences.get("source_hit_context")
+        or leaf_binding.get("target_final_hp") != consequences.get("target_final_hp")
+        or leaf_binding.get("target_ko") != consequences.get("target_ko")
+    ):
+        return "fling_status_cure_berry_source_leaf_binding_invalid"
+    expected_leaf_provenance = leaf_binding.get("provenance")
+    if not isinstance(expected_leaf_provenance, Mapping) or any(
+        provenance.get(key) != expected_leaf_provenance.get(key)
+        for key in expected_leaf_provenance
+    ):
+        return "fling_status_cure_berry_source_leaf_provenance_invalid"
+
+    interaction = authority.get("berry_eat_item_interaction_authority")
+    if (
+        not isinstance(interaction, Mapping)
+        or interaction.get("schema_version") != "runtime-d0-fling-berry-eat-item-interaction-authority-v1"
+        or interaction.get("status") != "resolved"
+        or interaction.get("phase") != "post_hit_target_berry_interaction"
+        or interaction.get("actor") != authority.get("actor")
+        or interaction.get("target") != authority.get("target")
+        or interaction.get("item_id") != authority.get("item_id")
+        or interaction.get("action_id") != authority.get("action_id")
+        or interaction.get("fling_execution_authority") != execution
+        or interaction.get("source_hit", {}).get("source_leaf_id") != leaf.get("leaf_id")
+    ):
+        return "fling_status_cure_berry_eat_item_binding_invalid"
+
+    outcome = authority.get("outcome")
+    removal = payload.get("hypothetical_target_condition_removal")
+    current = authority.get("current_condition_authority")
+    if outcome == "applied_major_status_cure":
+        before = authority.get("condition_before")
+        if (
+            before not in set(canonical.get("removable_conditions", ()))
+            or authority.get("condition_after") != "none"
+            or not isinstance(current, Mapping)
+            or current.get("owner") != authority.get("target")
+            or current.get("condition", {}).get("status") != "known_present"
+            or current.get("condition", {}).get("condition") != before
+            or not validate_detached_target_condition_removal(
+                removal,
+                source_leaf_id=leaf.get("leaf_id"),
+                source_leaf=leaf,
+                expected_target=authority.get("target"),
+            )
+        ):
+            return "fling_status_cure_berry_removal_marker_invalid"
+        return None
+    if removal is not None:
+        return "fling_status_cure_berry_no_transition_claims_removal"
+    if outcome == "no_transition_healthy":
+        if (
+            authority.get("condition_before") != "none"
+            or authority.get("condition_after") != "none"
+            or not isinstance(current, Mapping)
+            or current.get("owner") != authority.get("target")
+            or current.get("condition", {}).get("status") != "known_none"
+        ):
+            return "fling_status_cure_berry_healthy_transition_invalid"
+        return None
+    if outcome == "no_transition_nonmatching_condition":
+        before = authority.get("condition_before")
+        if (
+            not isinstance(before, str)
+            or before in set(canonical.get("removable_conditions", ()))
+            or authority.get("condition_after") != before
+            or not isinstance(current, Mapping)
+            or current.get("owner") != authority.get("target")
+            or current.get("condition", {}).get("status") != "known_present"
+            or current.get("condition", {}).get("condition") != before
+        ):
+            return "fling_status_cure_berry_nonmatching_transition_invalid"
+        return None
+    if outcome == "not_applicable":
+        if (
+            authority.get("condition_before") != "not_evaluated"
+            or authority.get("condition_after") != "not_evaluated"
+            or interaction.get("outcome") != "post_hit_target_eat_not_reached"
+            or interaction.get("target_eat_occurred") is not False
+            or interaction.get("target_eat_item_dispatched") is not False
+            or current is not None
+        ):
+            return "fling_status_cure_berry_not_applicable_transition_invalid"
+        return None
+    return "fling_status_cure_berry_outcome_invalid"
+
 
 def _item_transfer_leaf(leaf: Mapping[str, Any]) -> str | None:
  p,c=leaf.get("provenance"),leaf.get("consequences"); move=p.get("move_id") if isinstance(p,Mapping) else None; x=c.get("item_transfer_after_hit") if isinstance(c,Mapping) else None

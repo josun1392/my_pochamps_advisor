@@ -11,6 +11,9 @@ from llm.advisor_detached_intermediate_predictive_authority import (
 )
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from llm.advisor_detached_target_condition_removal_validation import (
+    validate_detached_target_condition_removal,
+)
 
 
 SCHEMA_VERSION = "detached-intermediate-paralysis-second-action-authority-v1"
@@ -42,7 +45,12 @@ def consume_detached_intermediate_paralysis_for_second_action(
     overrides = authority.get("intermediate_overrides")
     if not isinstance(overrides, Mapping):
         return _result("rejected", "intermediate_condition_overrides_missing", base)
-    changed = _changed_conditions(overrides, authority.get("source_first_action_leaf_id"))
+    changed = _changed_conditions(
+        overrides,
+        authority.get("source_first_action_leaf_id"),
+        actor=authority.get("predictive_actor"),
+        target=authority.get("predictive_target"),
+    )
     if isinstance(changed, str):
         return _result("incomplete", changed, base)
     if not changed:
@@ -115,8 +123,15 @@ def _execution_branches(*, paralyzed: bool) -> tuple[dict[str, Any], ...]:
     )
 
 
-def _changed_conditions(overrides: Mapping[str, Any], source_leaf_id: Any) -> dict[str, str] | str:
+def _changed_conditions(
+    overrides: Mapping[str, Any],
+    source_leaf_id: Any,
+    *,
+    actor: Any,
+    target: Any,
+) -> dict[str, str] | str:
     changed: dict[str, str] = {}
+    owners = {"actor": actor, "target": target}
     for role in ("actor", "target"):
         row = overrides.get(role)
         if not isinstance(row, Mapping):
@@ -132,7 +147,15 @@ def _changed_conditions(overrides: Mapping[str, Any], source_leaf_id: Any) -> di
         if condition.get("source") == "exact_terminal_leaf_condition_effect" and condition.get("status") == "known_present" and isinstance(condition.get("condition"), str):
             changed[role] = condition["condition"]
             continue
-        if condition.get("source") == "exact_terminal_leaf_condition_removal" and condition.get("status") == "known_none" and _sparkling_aria_burn_removal(condition.get("effect"), source_leaf_id):
+        if (
+            condition.get("source") == "exact_terminal_leaf_condition_removal"
+            and condition.get("status") == "known_none"
+            and validate_detached_target_condition_removal(
+                condition.get("effect"),
+                source_leaf_id=source_leaf_id,
+                expected_target=owners[role] if isinstance(owners[role], Mapping) else None,
+            )
+        ):
             changed[role] = "none"
             continue
         return "intermediate_exact_condition_authority_missing"
@@ -205,16 +228,6 @@ def _condition_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str
             "calculator_view": "exact_intermediate_condition_for_supported_status_dependent_damage",
         },
         "provenance": "private_exact_hypothetical_intermediate_condition_builder_view_v1",
-    }
-
-
-def _sparkling_aria_burn_removal(value: Any, source_leaf_id: Any) -> bool:
-    return isinstance(value, Mapping) and value == {
-        "schema_version": "detached-hypothetical-target-condition-removal-v1",
-        "condition_before": "burn", "condition_removed": "burn", "condition_after": "none",
-        "removal_trigger": "successful_damaging_hit_target_survives",
-        "provenance": "sparkling_aria_successful_damage_roll_burn_clearing_v1",
-        "source_leaf_id": source_leaf_id,
     }
 
 

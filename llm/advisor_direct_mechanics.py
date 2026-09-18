@@ -14,6 +14,9 @@ from advisor.damage.field import Field, SideField
 from advisor.damage.items import get_champions_supported_type_boost_item, get_item
 from advisor.damage.q12 import M_HALF, Q12_ONE
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
+from advisor.canonical_fling_major_status_cure_berry import (
+    resolve_canonical_fling_major_status_cure_berry,
+)
 from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.move_categories import load_move_flags as load_move_category_flags
@@ -322,6 +325,7 @@ def evaluate_direct_damage_mechanics(
         allow_exact_guts_condition=isinstance(ability_modifier.get("guts_applicability"), Mapping),
         allow_exact_detached_switch_entry_condition=_has_exact_detached_switch_entry_condition(current),
         allow_exact_detached_defender_condition=_has_exact_detached_sparkling_aria_pre_hit_burn(current),
+        allow_fling_berry_defender_conditions=tuple(fling.get("target_condition_context_values", ())) if isinstance(fling, Mapping) else (),
     )
     if legacy_modifier_reason is not None:
         return _unsupported(legacy_modifier_reason)
@@ -362,6 +366,8 @@ def evaluate_direct_damage_mechanics(
         elif side_name == "defender" and _has_exact_detached_switch_entry_condition(current):
             pass
         elif side_name == "defender" and _has_exact_detached_sparkling_aria_pre_hit_burn(current):
+            pass
+        elif side_name == "defender" and isinstance(fling, Mapping) and side.get("status", {}).get("value") in set(fling.get("target_condition_context_values", ())):
             pass
         else:
             _require_known_absent(side.get("status"), f"{side_name}.status", missing)
@@ -626,7 +632,7 @@ def _require_hp(value: Mapping[str, Any], side: str, missing: list[str]) -> None
     if _positive_int(current) and _positive_int(maximum) and current > maximum: missing.append(f"{side}.current_hp")
 
 
-def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_guts_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False, allow_exact_detached_defender_condition: bool = False, allow_champions_status_gate: bool = False) -> str | None:
+def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_guts_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False, allow_exact_detached_defender_condition: bool = False, allow_champions_status_gate: bool = False, allow_fling_berry_defender_conditions: tuple[str, ...] = ()) -> str | None:
     for is_defender, side in ((False, attacker), (True, defender)):
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
@@ -645,6 +651,8 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
                 if key == "status" and value.get("value") in {"poison", "toxic"} and allow_exact_detached_switch_entry_condition:
                     continue
                 if key == "status" and is_defender and value.get("value") == "burn" and allow_exact_detached_defender_condition:
+                    continue
+                if key == "status" and is_defender and value.get("value") in set(allow_fling_berry_defender_conditions):
                     continue
                 return reason
         boosts = side.get("boosts")
@@ -1243,9 +1251,26 @@ def _fling_power_context(current: Mapping[str, Any], move: Mapping[str, Any]) ->
     metadata = authority.get("fling_item_metadata")
     effect = _mapping(metadata.get("effect")) if isinstance(metadata, Mapping) else {}
     deterministic = authority.get("deterministic_target_effect_support") == "fling_item_bound_deterministic_target_effect_v1" and (effect.get("kind") == "flinch" or effect.get("kind") == "major_status" and effect.get("condition") in {"paralysis", "poison"})
-    if authority.get("status") != "resolved" or authority.get("schema_version") != "runtime-d0-fling-item-execution-authority-v1" or authority.get("outcome") != "ready_throw" or authority.get("move_id") != "fling" or not _positive_int(power) or move.get("power") != power or not isinstance(metadata, Mapping) or metadata.get("base_power") != power or not ((effect.get("kind") == "none" and metadata.get("support_status") == "not_applicable") or deterministic) or authority.get("item_after") != {"state": "known_absent", "item": None}:
+    item_id = authority.get("user_item_before", {}).get("value")
+    canonical_berry = resolve_canonical_fling_major_status_cure_berry(item_id)
+    berry_cure = (
+        effect.get("kind") == "berry_effect"
+        and authority.get("fling_major_status_cure_berry_support") == "fling_major_status_cure_berry_target_effect_v1"
+        and canonical_berry.get("status") == "resolved"
+        and authority.get("fling_major_status_cure_berry_authority") == canonical_berry
+    )
+    if authority.get("status") != "resolved" or authority.get("schema_version") != "runtime-d0-fling-item-execution-authority-v1" or authority.get("outcome") != "ready_throw" or authority.get("move_id") != "fling" or not _positive_int(power) or move.get("power") != power or not isinstance(metadata, Mapping) or metadata.get("base_power") != power or not ((effect.get("kind") == "none" and metadata.get("support_status") == "not_applicable") or deterministic or berry_cure) or authority.get("item_after") != {"state": "known_absent", "item": None}:
         return {"status": "incomplete", "mechanic": "fling_item_power_and_throw", "missing_inputs": ["fling.execution_authority"]}
-    return {"status": "known", "mechanic": "fling_item_power_and_throw", "effective_power": power, "item_effects_active_during_damage": False, "execution_authority": deepcopy(dict(authority)), "missing_inputs": []}
+    return {
+        "status": "known",
+        "mechanic": "fling_item_power_and_throw",
+        "effective_power": power,
+        "item_effects_active_during_damage": False,
+        "target_cure_conditions": tuple(canonical_berry.get("removable_conditions", ())) if berry_cure else (),
+        "target_condition_context_values": ("burn", "poison", "toxic", "paralysis", "sleep", "freeze") if berry_cure else (),
+        "execution_authority": deepcopy(dict(authority)),
+        "missing_inputs": [],
+    }
 
 def _facade_power_context(current: Mapping[str, Any]) -> dict[str, Any]:
     """Resolve Facade only from one exact attacker-owned current condition."""

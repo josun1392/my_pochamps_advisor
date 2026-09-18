@@ -10,6 +10,12 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0, runtime_strategy_d0_freshness
+from llm.advisor_detached_target_condition_removal_validation import (
+    validate_detached_target_condition_removal,
+)
+from llm.advisor_runtime_d0_fling_major_status_cure_berry_target_effect_authority import (
+    validate_detached_fling_major_status_cure_berry_no_transition,
+)
 
 
 SCHEMA_VERSION = "detached-predictive-intermediate-state-v1"
@@ -192,6 +198,21 @@ def _condition(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str
         condition = effect.get("hypothetical_target_condition")
         if role == "target" and isinstance(condition, Mapping) and isinstance(condition.get("resulting_condition"), str):
             return {"status": "known_present", "condition": condition["resulting_condition"], "source": "exact_terminal_leaf_condition_effect", "effect": deepcopy(dict(condition))}
+        no_transition = effect.get("hypothetical_target_condition_no_transition")
+        if (
+            role == "target"
+            and isinstance(no_transition, Mapping)
+            and no_transition.get("status") == "known_present"
+            and isinstance(no_transition.get("condition"), str)
+            and no_transition.get("source") == "exact_terminal_leaf_fling_berry_condition_no_transition"
+            and isinstance(no_transition.get("effect"), Mapping)
+        ):
+            return {
+                "status": "known_present",
+                "condition": no_transition["condition"],
+                "source": "exact_terminal_leaf_condition_no_transition",
+                "effect": deepcopy(dict(no_transition["effect"])),
+            }
         removal = effect.get("hypothetical_target_condition_removal")
         if role == "target" and isinstance(removal, Mapping):
             return {"status": "known_none", "source": "exact_terminal_leaf_condition_removal", "effect": deepcopy(dict(removal))}
@@ -234,7 +255,12 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
         if isinstance(condition, Mapping): result.append({"owner": "target", "hypothetical_target_condition": condition})
         removal = secondary.get("hypothetical_target_condition_removal")
         if removal is not None:
-            if not _condition_removal(removal, leaf.get("leaf_id")):
+            if not validate_detached_target_condition_removal(
+                removal,
+                source_leaf_id=leaf.get("leaf_id"),
+                source_leaf=leaf,
+                expected_target=leaf.get("provenance", {}).get("target"),
+            ):
                 return "terminal_leaf_condition_removal_consequence_invalid"
             result.append({"owner": "target", "hypothetical_target_condition_removal": removal})
     focus = consequences.get("focus_sash_survival")
@@ -261,6 +287,44 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
     condition = fling_effect.get("hypothetical_target_condition") if isinstance(fling_effect, Mapping) else None
     if isinstance(condition, Mapping):
         result.append({"owner": "target", "hypothetical_target_condition": deepcopy(dict(condition))})
+    berry_cure = consequences.get("fling_major_status_cure_berry_target_effect")
+    if isinstance(berry_cure, Mapping):
+        removal = berry_cure.get("hypothetical_target_condition_removal")
+        if berry_cure.get("outcome") == "applied_major_status_cure":
+            if not validate_detached_target_condition_removal(
+                removal,
+                source_leaf_id=leaf.get("leaf_id"),
+                source_leaf=leaf,
+                expected_target=leaf.get("provenance", {}).get("target"),
+            ):
+                return "terminal_leaf_condition_removal_consequence_invalid"
+            result.append({
+                "owner": "target",
+                "hypothetical_target_condition_removal": deepcopy(dict(removal)),
+            })
+        elif berry_cure.get("outcome") == "no_transition_nonmatching_condition":
+            target = leaf.get("provenance", {}).get("target")
+            if (
+                not isinstance(target, Mapping)
+                or not validate_detached_fling_major_status_cure_berry_no_transition(
+                    consequence=berry_cure,
+                    source_leaf=leaf,
+                    expected_target=target,
+                )
+            ):
+                return "terminal_leaf_fling_berry_condition_no_transition_invalid"
+            condition = berry_cure.get("condition_before")
+            result.append({
+                "owner": "target",
+                "hypothetical_target_condition_no_transition": {
+                    "status": "known_present",
+                    "condition": condition,
+                    "source": "exact_terminal_leaf_fling_berry_condition_no_transition",
+                    "effect": deepcopy(dict(berry_cure)),
+                },
+            })
+        elif removal is not None:
+            return "terminal_leaf_condition_removal_consequence_invalid"
     transfer = consequences.get("item_transfer_after_hit")
     if isinstance(transfer, Mapping) and transfer.get("outcome") == "transferred" and isinstance(transfer.get("item"), str):
         result.extend(({"owner":"self","hypothetical_self_item":{"status":"known","value":transfer["item"],"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}, {"owner":"target","hypothetical_target_item":{"status":"known_absent","value":None,"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}))
@@ -302,16 +366,6 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
 
 def _atomic_item_state(value: Any) -> bool:
     return isinstance(value, Mapping) and ((value.get("state") == "known_present" and isinstance(value.get("item"), str) and bool(value["item"])) or (value.get("state") == "known_absent" and value.get("item") is None))
-
-
-def _condition_removal(value: Any, leaf_id: Any) -> bool:
-    return isinstance(value, Mapping) and value == {
-        "schema_version": "detached-hypothetical-target-condition-removal-v1",
-        "condition_before": "burn", "condition_removed": "burn", "condition_after": "none",
-        "removal_trigger": "successful_damaging_hit_target_survives",
-        "provenance": "sparkling_aria_successful_damage_roll_burn_clearing_v1",
-        "source_leaf_id": leaf_id,
-    }
 
 
 def _flinch_cancellation_consequence(consequences: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any] | str:

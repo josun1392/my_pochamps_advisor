@@ -52,13 +52,22 @@ def test_catalog_and_supported_throw_bind_exact_manifest_power() -> None:
 def test_unknown_absent_unsupported_magic_room_and_klutz_fail_closed() -> None:
     assert _authority(_state(item=None))["outcome"] == "failed_no_item"
     assert _authority(_state(item={"knowledge": "unknown"}))["status"] == "incomplete"
-    assert _authority(_state(item="aspear-berry"))["status"] == "unsupported"
+    assert _authority(_state(item="oran-berry"))["status"] == "unsupported"
     assert _authority(_state(magic_room="active"))["outcome"] == "failed_item_suppressed"
     unknown_field = _state(); unknown_field["field"]["magic_room_status"] = {"knowledge": "unknown"}; unknown_field["field"].pop("magic_room_status_provenance")
     assert _authority(unknown_field)["status"] == "incomplete"
     assert _authority(_state(ability="klutz"))["outcome"] == "failed_klutz"
     gas = _state(ability="klutz"); gas["opponent_side"]["pokemon"][0]["current_ability"] = "neutralizing-gas"
     assert _authority(gas)["outcome"] == "ready_throw"
+
+
+def test_five_status_cure_berries_are_narrowly_admitted_for_throw() -> None:
+    for item in ("cheri-berry", "chesto-berry", "aspear-berry", "pecha-berry", "rawst-berry"):
+        result = _authority(_state(item=item))
+        assert result["status"] == "resolved"
+        assert result["outcome"] == "ready_throw"
+        assert result["fling_major_status_cure_berry_support"] == "fling_major_status_cure_berry_target_effect_v1"
+        assert result["fling_major_status_cure_berry_authority"]["item_id"] == item
 
 
 def test_throw_materialization_consumes_only_after_prepare_hit_boundary() -> None:
@@ -70,12 +79,20 @@ def test_throw_materialization_consumes_only_after_prepare_hit_boundary() -> Non
     assert materialize_detached_fling_item_throw(authority=authority, source_leaf={**leaf, "hit_state": "not_applicable"})["status"] == "rejected"
 
 
-def _production_fling_pair(*, item: str = "abomasite", target_ability: str = "pressure", opponent_hp: int = 100) -> tuple[dict, dict]:
+def _production_fling_pair(
+    *,
+    item: str = "abomasite",
+    target_ability: str = "pressure",
+    opponent_hp: int = 100,
+    target_condition: str = "none",
+) -> tuple[dict, dict]:
     """Build the existing ordinary physical pair fixture with Fling selected."""
     state, snapshot, d0, _own, responses, _orders = _inputs(opponent_hp=opponent_hp)
     state["self_side"]["pokemon"][0]["known_item"] = item
     state["self_side"]["pokemon"][0]["known_item_provenance"]["status"] = "known"
     state["opponent_side"]["pokemon"][0]["current_ability"] = target_ability
+    state["opponent_side"]["pokemon"][0]["condition"] = target_condition
+    state["opponent_side"]["pokemon"][0]["condition_provenance"]["condition"] = target_condition
     state["field"]["magic_room_status"] = "inactive"
     state["field"]["magic_room_status_provenance"] = {
         "event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation",

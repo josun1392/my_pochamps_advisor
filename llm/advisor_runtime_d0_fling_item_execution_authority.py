@@ -6,6 +6,9 @@ from typing import Any, Mapping
 
 from advisor.canonical_fling_core import resolve_canonical_fling_core_move
 from advisor.canonical_fling_item_metadata import resolve_canonical_fling_item_metadata
+from advisor.canonical_fling_major_status_cure_berry import (
+    resolve_canonical_fling_major_status_cure_berry,
+)
 from llm.advisor_reducer_state_model import is_unknown_battle_fact
 from llm.advisor_runtime_d0_item_suppression_field_authority import resolve_runtime_d0_item_suppression_field_authority
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
@@ -62,10 +65,32 @@ def freeze_runtime_d0_fling_item_execution_authority(
     if not metadata.get("flingable") or not isinstance(metadata.get("base_power"), int) or isinstance(metadata["base_power"], bool) or metadata["base_power"] <= 0 or not isinstance(effect, Mapping):
         return _terminal("incomplete_authority", "incomplete", "fling_item_execution_eligibility_unknown", base, common)
     supported_effect = effect.get("kind") == "major_status" and effect.get("condition") in {"paralysis", "poison"} or effect.get("kind") == "flinch"
-    if not ((effect.get("kind") == "none" and metadata.get("support_status") == "not_applicable") or supported_effect):
+    berry_cure = (
+        resolve_canonical_fling_major_status_cure_berry(item["value"])
+        if effect.get("kind") == "berry_effect"
+        else {"status": "not_applicable"}
+    )
+    if berry_cure.get("status") == "rejected":
+        common["fling_major_status_cure_berry_authority"] = berry_cure
+        return _terminal(
+            "incomplete_authority",
+            "rejected",
+            berry_cure.get("reason", "fling_status_cure_berry_authority_rejected"),
+            base,
+            common,
+        )
+    supported_berry_cure = berry_cure.get("status") == "resolved"
+    if not (
+        (effect.get("kind") == "none" and metadata.get("support_status") == "not_applicable")
+        or supported_effect
+        or supported_berry_cure
+    ):
         return _terminal("unsupported_mandatory_item_effect", "unsupported", "fling_mandatory_item_effect_unsupported", base, common)
     if supported_effect:
         common["deterministic_target_effect_support"] = "fling_item_bound_deterministic_target_effect_v1"
+    if supported_berry_cure:
+        common["fling_major_status_cure_berry_support"] = "fling_major_status_cure_berry_target_effect_v1"
+        common["fling_major_status_cure_berry_authority"] = berry_cure
     common["item_after"] = {"state": "known_absent", "item": None}
     common["resolved_base_power"] = metadata["base_power"]
     return _terminal("ready_throw", "resolved", "fling_prepare_hit_throw_ready", base, common)
