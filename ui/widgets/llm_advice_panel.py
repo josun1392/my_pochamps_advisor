@@ -32,6 +32,7 @@ class LLMAdvicePanel(QFrame):
     current_condition_requested = Signal()
     current_condition_session_reset_requested = Signal()
     status_progression_requested = Signal()
+    pending_status_action_result_requested = Signal()
     current_ability_requested = Signal()
     current_persistent_effect_requested = Signal()
     switch_permission_requested = Signal()
@@ -133,6 +134,11 @@ class LLMAdvicePanel(QFrame):
         self.status_progression_button.setToolTip("Confirm explicit progression knowledge for the current runtime sleep/freeze episode. No duration or attempts are inferred.")
         self.status_progression_button.clicked.connect(self.status_progression_requested.emit)
 
+        self.pending_status_action_result_button = QPushButton("Sleep / Freeze action result")
+        self.pending_status_action_result_button.setObjectName("pendingStatusActionResultButton")
+        self.pending_status_action_result_button.setToolTip("Confirm only an actually observed Sleep/Freeze action result. Selection alone records nothing.")
+        self.pending_status_action_result_button.clicked.connect(self.pending_status_action_result_requested.emit)
+
         self.current_ability_button = QPushButton("Ability")
         self.current_ability_button.setObjectName("currentAbilityButton")
         self.current_ability_button.setToolTip(
@@ -231,6 +237,7 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.current_condition_button)
         layout.addWidget(self.clear_current_conditions_button)
         layout.addWidget(self.status_progression_button)
+        layout.addWidget(self.pending_status_action_result_button)
         layout.addWidget(self.current_ability_button)
         layout.addWidget(self.current_persistent_effect_button)
         layout.addWidget(self.switch_permission_button)
@@ -322,6 +329,7 @@ class LLMAdvicePanel(QFrame):
         self.current_condition_button.setDisabled(is_running)
         self.clear_current_conditions_button.setDisabled(is_running)
         self.status_progression_button.setDisabled(is_running)
+        self.pending_status_action_result_button.setDisabled(is_running)
         self.current_ability_button.setDisabled(is_running)
         self.current_persistent_effect_button.setDisabled(is_running)
         self.switch_permission_button.setDisabled(is_running)

@@ -34,9 +34,11 @@ def admit_pending_status_action_execution(*, runtime_session_manager: BattleObse
     owner, pokemon = _active_owner(state, side)
     if owner is None or owner.get("slot_index") != slot_index or owner.get("pokemon_id") != pokemon_id:
         return _result("rejected", "pending_status_action_actor_mismatch")
-    if pokemon.get("condition") != condition:
-        return _result("rejected", "pending_status_action_condition_mismatch")
     duplicate = state.get("pending_status_action_execution_context") if isinstance(state, Mapping) else None
+    if _same_pending_action_identity(duplicate, owner, decision_point, action_id, move_id, condition) and not _same_semantic_pending_action(
+        duplicate, owner, decision_point, action_id, move_id, condition, execution_state, blocker, outcome_class
+    ):
+        return _result("rejected", "conflicting_pending_status_action_retry")
     if _same_semantic_pending_action(duplicate, owner, decision_point, action_id, move_id, condition, execution_state, blocker, outcome_class):
         if not _pending_context_is_current(state, duplicate):
             return _result("rejected", "stale_pending_status_action_duplicate")
@@ -45,6 +47,8 @@ def admit_pending_status_action_execution(*, runtime_session_manager: BattleObse
         return {"status": "resolved", "reason": "duplicate_pending_status_action", "runtime_committed": False,
                 "observation": None, "derived_observations": [], "runtime_snapshot": deepcopy(committed),
                 "strategy_d0": d0 if d0.get("status") == "resolved" else None}
+    if pokemon.get("condition") != condition:
+        return _result("rejected", "pending_status_action_condition_mismatch")
     sequence = runtime_session_manager.allocate_observation_sequence()
     if sequence.get("status") != "allocated" or sequence.get("session_id") != captured_session_id:
         return _result("rejected", "observation_sequence_binding_mismatch")
@@ -94,6 +98,15 @@ def _derive(state: Mapping[str, Any], pokemon: Mapping[str, Any], source: Mappin
     row = pokemon.get("champions_status_progression")
     if not valid_progression(row, owner) or row.get("condition") != payload["condition"]:
         return {"status": "incomplete", "reason": "champions_status_progression_unavailable"}
+    current_condition_observation = pokemon.get("condition_provenance")
+    if (
+        not isinstance(current_condition_observation, Mapping)
+        or current_condition_observation.get("event_kind") != "current_condition_observed"
+        or current_condition_observation.get("trust") != "user_confirmed_observation"
+        or current_condition_observation.get("condition") != payload["condition"]
+        or row.get("condition_observation") != current_condition_observation
+    ):
+        return {"status": "rejected", "reason": "champions_status_progression_foreign_or_stale"}
     if outcome == "sleep_exception_execute":
         return {"status": "resolved", "confirmations": []}
     allocated = allocate()
@@ -135,6 +148,14 @@ def _preview_snapshot(snapshot: Mapping[str, Any], observations: list[Mapping[st
 def _result(status: str, reason: str | None):
     return {"status": status, "reason": reason, "runtime_committed": False, "observation": None,
             "derived_observations": [], "runtime_snapshot": None, "strategy_d0": None}
+
+
+def _same_pending_action_identity(context: Any, owner: Mapping[str, Any], decision_point: str,
+                                  action_id: str, move_id: str, condition: str) -> bool:
+    return isinstance(context, Mapping) and context.get("actor") == dict(owner) and all(
+        context.get(key) == value for key, value in {
+            "decision_point": decision_point, "action_id": action_id, "move_id": move_id, "condition": condition,
+        }.items())
 
 
 def _same_semantic_pending_action(context: Any, owner: Mapping[str, Any], decision_point: str, action_id: str,

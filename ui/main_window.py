@@ -59,6 +59,7 @@ from llm.advisor_production_forced_switch_integration import admit_forced_switch
 from llm.advisor_production_confusion_integration import admit_current_confusion_state
 from llm.advisor_current_condition_observation import admit_current_condition_observation
 from llm.advisor_status_progression_observation import admit_champions_status_progression_observation
+from llm.advisor_pending_status_action_runtime_admission import admit_pending_status_action_execution
 from llm.advisor_current_state_runtime_admission import (
     admit_current_state_observation,
     admit_current_state_observations,
@@ -89,6 +90,7 @@ from ui.widgets.field_profile_dialog import FieldProfileDialog
 from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
 from ui.widgets.status_progression_dialog import SleepFreezeProgressionDialog
+from ui.widgets.pending_status_action_result_dialog import SleepFreezeActionResultDialog
 from ui.widgets.current_ability_dialog import CurrentAbilityDialog
 from ui.widgets.current_persistent_effect_dialog import CurrentPersistentEffectDialog
 from llm.advisor_persistent_effect_state_runtime_admission import admit_current_persistent_effect_state
@@ -113,6 +115,15 @@ from ui.widgets.stat_profile_dialog import (
 
 OPPONENT_CANDIDATE_MOVES_LIMIT = 24
 SPEED_CONTEXT_MODE = "choice_scarf_effective_speed_v0.30"
+_PENDING_STATUS_RESULT_ARGUMENTS = {
+    ("sleep", "remained_asleep"): ("blocked_sleep", "blocked", "sleep"),
+    ("sleep", "woke_and_executed"): ("wake_and_execute", "executable", None),
+    ("sleep", "executed_while_asleep"): ("sleep_exception_execute", "executable", None),
+    ("freeze", "remained_frozen"): ("blocked_freeze", "blocked", "freeze"),
+    ("freeze", "natural_thaw"): ("natural_thaw_and_execute", "executable", None),
+    ("freeze", "self_thaw_move"): ("self_thaw_move_execute", "executable", None),
+}
+
 SPEED_CONTEXT_LIMITATIONS = [
     "Effective Speed includes only supported speed modifiers.",
     "Choice Scarf speed is modeled only when the item is user-confirmed.",
@@ -511,6 +522,7 @@ class MainWindow(QMainWindow):
             self._clear_current_condition_confirmations
         )
         self.center_column.llm_advice_panel.status_progression_requested.connect(self._open_status_progression_dialog)
+        self.center_column.llm_advice_panel.pending_status_action_result_requested.connect(self._open_pending_status_action_result_dialog)
         self.center_column.llm_advice_panel.current_ability_requested.connect(self._open_current_ability_dialog)
         self.center_column.llm_advice_panel.current_persistent_effect_requested.connect(self._open_current_persistent_effect_dialog)
         self.center_column.llm_advice_panel.switch_permission_requested.connect(self._open_switch_permission_dialog)
@@ -811,6 +823,317 @@ class MainWindow(QMainWindow):
                 if result.get("idempotent") is True
                 else "Sleep / Freeze progression applied"
             )
+        except (AttributeError, RuntimeError):
+            pass
+
+    @Slot()
+    def _open_pending_status_action_result_dialog(self) -> None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        captured_session_id = MainWindow._active_session_id(self)
+        captured_turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(captured_session_id, str):
+            self._present_pending_status_result({"status": "rejected", "reason": "active_session_unavailable"})
+            return
+        snapshot = manager.capture_runtime_state_snapshot(captured_session_id)
+        conditions = {
+            side: self._pending_status_condition_for_display(snapshot, side)
+            for side in ("self", "opponent")
+        }
+        dialog = SleepFreezeActionResultDialog(current_conditions=conditions, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        confirmation = dialog.confirmation
+        if isinstance(confirmation, dict):
+            self._submit_pending_status_action_result(
+                confirmation,
+                captured_session_id=captured_session_id,
+                captured_turn_number=captured_turn_number,
+            )
+
+    def _submit_pending_status_action_result(
+        self,
+        confirmation: dict,
+        *,
+        captured_session_id: str | None = None,
+        captured_turn_number: int | None = None,
+    ) -> dict:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = captured_session_id if captured_session_id is not None else MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str) or not session_id:
+            result = {"status": "rejected", "reason": "active_session_unavailable"}
+            self._present_pending_status_result(result)
+            return result
+        if not isinstance(confirmation, dict):
+            result = {"status": "rejected", "reason": "invalid_pending_status_action_confirmation"}
+            self._present_pending_status_result(result)
+            return result
+        side, move_id, observed_result = (
+            confirmation.get("side"),
+            confirmation.get("move_id"),
+            confirmation.get("result"),
+        )
+        current_turn_number = getattr(self, "_current_trusted_turn_number", None)
+        turn_number = captured_turn_number if captured_turn_number is not None else current_turn_number
+        if captured_turn_number is not None and current_turn_number != captured_turn_number:
+            result = {"status": "rejected", "reason": "pending_status_action_turn_mismatch"}
+            self._present_pending_status_result(result)
+            return result
+        before = manager.capture_runtime_state_snapshot(session_id)
+        actor = self._resolve_pending_status_actor(
+            before, session_id=session_id, side=side, move_id=move_id,
+            turn_number=turn_number, allow_committed_retry=True,
+        )
+        if actor.get("status") != "resolved":
+            self._present_pending_status_result(actor)
+            return actor
+        condition = actor["condition"]
+        mapped = _PENDING_STATUS_RESULT_ARGUMENTS.get((condition, observed_result))
+        if mapped is None:
+            result = {"status": "rejected", "reason": "observed_result_not_valid_for_current_condition"}
+            self._present_pending_status_result(result)
+            return result
+        identity = self._resolve_pending_status_action_identity(
+            captured_session_id=session_id,
+            owner=actor["owner"],
+            move_id=move_id,
+            turn_number=turn_number,
+            runtime_snapshot=before,
+        )
+        if identity.get("status") != "resolved":
+            self._present_pending_status_result(identity)
+            return identity
+        outcome_class, execution_state, blocker = mapped
+        result = admit_pending_status_action_execution(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            side=actor["owner"]["side"],
+            slot_index=actor["owner"]["slot_index"],
+            pokemon_id=actor["owner"]["pokemon_id"],
+            turn_number=turn_number,
+            decision_point=identity["decision_point"],
+            action_id=identity["action_id"],
+            move_id=move_id,
+            condition=condition,
+            execution_state=execution_state,
+            blocker=blocker,
+            outcome_class=outcome_class,
+        )
+        if result.get("status") == "resolved":
+            after = result.get("runtime_snapshot")
+            changed = (
+                isinstance(before, dict)
+                and before.get("status") == "runtime_snapshot_ready"
+                and isinstance(after, dict)
+                and after.get("status") == "runtime_snapshot_ready"
+                and before.get("state_fingerprint") != after.get("state_fingerprint")
+            )
+            if changed:
+                self._retire_advice_presentation_authority()
+                self._recommendation_readiness_owner = None
+                try:
+                    self.center_column.llm_advice_panel.clear_recommendation_readiness()
+                except (AttributeError, RuntimeError):
+                    pass
+                self._sync_pending_status_ui_mirrors(result, side)
+        self._present_pending_status_result(result)
+        return result
+
+    def _pending_status_condition_for_display(self, snapshot: dict, side: str) -> str:
+        resolved = self._resolve_pending_status_actor(snapshot, session_id=snapshot.get("session_id"), side=side)
+        if resolved.get("status") == "resolved":
+            return resolved["condition"]
+        state = snapshot.get("state") if isinstance(snapshot, dict) else None
+        side_state = state.get(f"{side}_side") if isinstance(state, dict) else None
+        roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+        slot = side_state.get("active_slot_index") if isinstance(side_state, dict) else None
+        pokemon = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) and isinstance(slot, int) and not isinstance(slot, bool) else None
+        value = pokemon.get("condition") if isinstance(pokemon, dict) else None
+        return value if isinstance(value, str) else "unknown"
+
+    def _resolve_pending_status_actor(
+        self, snapshot: dict, *, session_id: object, side: object,
+        move_id: object = None, turn_number: object = None, allow_committed_retry: bool = False,
+    ) -> dict:
+        if (
+            not isinstance(snapshot, dict)
+            or snapshot.get("status") != "runtime_snapshot_ready"
+            or snapshot.get("session_id") != session_id
+            or side not in {"self", "opponent"}
+        ):
+            return {"status": "rejected", "reason": "stale_or_invalid_pending_status_session"}
+        state = snapshot.get("state")
+        side_state = state.get(f"{side}_side") if isinstance(state, dict) else None
+        roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+        slot = side_state.get("active_slot_index") if isinstance(side_state, dict) else None
+        pokemon = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) and isinstance(slot, int) and not isinstance(slot, bool) else None
+        pokemon_id = pokemon.get("pokemon_id") if isinstance(pokemon, dict) else None
+        if not isinstance(pokemon_id, str) or not pokemon_id or pokemon.get("fainted") is True:
+            return {"status": "rejected", "reason": "pending_status_action_actor_unavailable"}
+        condition = pokemon.get("condition")
+        provenance = pokemon.get("condition_provenance")
+        if not isinstance(condition, str) or condition not in {"sleep", "freeze"}:
+            pending = state.get("pending_status_action_execution_context") if isinstance(state, dict) else None
+            pending_provenance = pending.get("provenance") if isinstance(pending, dict) else None
+            owner = {"session_id": session_id, "side": side, "slot_index": slot, "pokemon_id": pokemon_id}
+            if (
+                allow_committed_retry
+                and isinstance(pending, dict)
+                and pending.get("actor") == owner
+                and pending.get("move_id") == move_id
+                and pending.get("condition") in {"sleep", "freeze"}
+                and isinstance(pending_provenance, dict)
+                and pending_provenance.get("turn_number") == turn_number
+            ):
+                return {"status": "resolved", "reason": "committed_pending_retry", "condition": pending["condition"], "owner": owner}
+            return {"status": "incomplete", "reason": "current_sleep_freeze_condition_unavailable"}
+        if (
+            not isinstance(provenance, dict)
+            or provenance.get("event_kind") != "current_condition_observed"
+            or provenance.get("trust") != USER_TRUST
+            or provenance.get("condition") != condition
+            or not isinstance(provenance.get("source_observation_id"), str)
+            or not provenance["source_observation_id"]
+        ):
+            return {"status": "rejected", "reason": "current_sleep_freeze_condition_provenance_invalid"}
+        return {
+            "status": "resolved",
+            "reason": None,
+            "condition": condition,
+            "owner": {
+                "session_id": session_id,
+                "side": side,
+                "slot_index": slot,
+                "pokemon_id": pokemon_id,
+            },
+        }
+
+    def _resolve_pending_status_action_identity(
+        self,
+        *,
+        captured_session_id: str,
+        owner: dict,
+        move_id: object,
+        turn_number: object,
+        runtime_snapshot: dict,
+    ) -> dict:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        if (
+            not isinstance(manager, BattleObservationRuntimeSessionManager)
+            or not isinstance(move_id, str)
+            or not move_id
+            or move_id != move_id.lower()
+            or " " in move_id
+            or "_" in move_id
+            or not isinstance(turn_number, int)
+            or isinstance(turn_number, bool)
+            or turn_number < 1
+        ):
+            return {"status": "rejected", "reason": "invalid_pending_status_action_identity"}
+        state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, dict) else None
+        pending = state.get("pending_status_action_execution_context") if isinstance(state, dict) else None
+        provenance = pending.get("provenance") if isinstance(pending, dict) else None
+        if (
+            isinstance(pending, dict)
+            and pending.get("actor") == owner
+            and pending.get("move_id") == move_id
+            and isinstance(provenance, dict)
+            and provenance.get("turn_number") == turn_number
+            and isinstance(pending.get("action_id"), str)
+            and pending["action_id"]
+            and isinstance(pending.get("decision_point"), str)
+            and pending["decision_point"]
+        ):
+            return {
+                "status": "resolved",
+                "reason": "existing_pending_identity_reuse",
+                "action_id": pending["action_id"],
+                "decision_point": pending["decision_point"],
+            }
+        collection = manager.read_collection_snapshot()
+        compatible = [
+            row
+            for row in collection.get("ordered_observations", [])
+            if isinstance(row, dict)
+            and row.get("event_kind") == "executed_move_observed"
+            and row.get("source") == EXECUTED_MOVE_SOURCE
+            and row.get("trust") == USER_TRUST
+            and row.get("session_id") == captured_session_id
+            and row.get("turn_number") == turn_number
+            and (row.get("side"), row.get("slot_index"), row.get("pokemon_id"))
+            == (owner["side"], owner["slot_index"], owner["pokemon_id"])
+            and row.get("payload", {}).get("move_id") == move_id
+        ]
+        if len(compatible) > 1:
+            return {"status": "rejected", "reason": "ambiguous_pending_status_action_identity"}
+        digest = hashlib.sha256(
+            f"{captured_session_id}|{owner['side']}|{owner['slot_index']}|{owner['pokemon_id']}|{turn_number}|{move_id}".encode("utf-8")
+        ).hexdigest()[:12]
+        action_id = f"pending-status:{turn_number}:{owner['side']}:{move_id}:{digest}"
+        if compatible:
+            existing = compatible[0].get("payload", {}).get("source_action_id")
+            if not isinstance(existing, str) or not existing:
+                return {"status": "rejected", "reason": "invalid_existing_pending_status_action_identity"}
+            action_id = existing
+        decision_digest = hashlib.sha256(
+            f"{captured_session_id}|{owner['side']}|{owner['slot_index']}|{owner['pokemon_id']}|{turn_number}|pending-status".encode("utf-8")
+        ).hexdigest()[:12]
+        return {
+            "status": "resolved",
+            "reason": "existing_execution_reuse" if compatible else "deterministic_pending_identity",
+            "action_id": action_id,
+            "decision_point": f"pending-status:{turn_number}:{owner['side']}:{decision_digest}",
+        }
+
+    def _sync_pending_status_ui_mirrors(self, result: dict, side: object) -> None:
+        snapshot = result.get("runtime_snapshot") if isinstance(result, dict) else None
+        state = snapshot.get("state") if isinstance(snapshot, dict) else None
+        side_state = state.get(f"{side}_side") if isinstance(state, dict) and side in {"self", "opponent"} else None
+        roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+        slot = side_state.get("active_slot_index") if isinstance(side_state, dict) else None
+        pokemon = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) and isinstance(slot, int) and not isinstance(slot, bool) else None
+        if not isinstance(pokemon, dict):
+            return
+        progressions = dict(getattr(self, "_status_progression_confirmations", {}))
+        progression = pokemon.get("champions_status_progression")
+        if isinstance(progression, dict):
+            progressions[side] = {
+                "established_turn": progression.get("established_turn"),
+                "prior_attempts": progression.get("prior_attempts"),
+                "sleep_duration": progression.get("sleep_duration"),
+            }
+        else:
+            progressions.pop(side, None)
+        self._status_progression_confirmations = progressions
+        self._update_status_progression_summary()
+        if pokemon.get("condition") is None:
+            conditions = dict(getattr(self, "_current_condition_confirmations", {}))
+            conditions.pop(side, None)
+            self._current_condition_confirmations = conditions
+            self._update_current_condition_summary()
+
+    def _present_pending_status_result(self, result: dict) -> None:
+        status = result.get("status") if isinstance(result, dict) else "rejected"
+        reason = result.get("reason") if isinstance(result, dict) else "invalid_result"
+        if status == "resolved":
+            if reason == "duplicate_pending_status_action":
+                message = "Sleep / Freeze action result already recorded"
+            else:
+                observation = result.get("observation")
+                outcome = observation.get("payload", {}).get("outcome_class") if isinstance(observation, dict) else None
+                message = {
+                    "blocked_sleep": "Sleep progression advanced",
+                    "blocked_freeze": "Pokémon remained frozen",
+                    "wake_and_execute": "Pokémon woke and action executed",
+                    "natural_thaw_and_execute": "Freeze cleared and action executed",
+                    "self_thaw_move_execute": "Freeze cleared and action executed",
+                    "sleep_exception_execute": "Action executed while Pokémon remained asleep",
+                }.get(outcome, "Sleep / Freeze action result recorded")
+        elif status == "incomplete" and reason == "champions_status_progression_unavailable":
+            message = "Sleep / Freeze action result incomplete: confirm Sleep / Freeze progression first"
+        else:
+            message = f"Sleep / Freeze action result {status}: {reason or 'confirmation rejected'}"
+        try:
+            self.statusBar().showMessage(message)
         except (AttributeError, RuntimeError):
             pass
 
