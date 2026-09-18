@@ -340,6 +340,8 @@ def _project_live_opponent_response_profiles(
                     )
                     field = f"{response_metadata['move_id']}_application_authorities"
                     authorities[field] = {response_id: application}
+                    if response_metadata.get("move_id") == "encore":
+                        authorities["canonical_move_metadata_authorities"] = deepcopy(dict(canonical_move_metadata_authorities))
                 if canonical_protection_metadata(response_metadata.get("move_id") if isinstance(response_metadata, Mapping) else None) is not None:
                     protection = freeze_runtime_d0_nonconsecutive_protection_success_authority(
                         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,

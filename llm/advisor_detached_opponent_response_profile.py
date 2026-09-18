@@ -36,6 +36,7 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
     "atomic_item_swap_status_execution_authorities",
     "taunt_application_authorities",
     "encore_application_authorities",
+    "canonical_move_metadata_authorities",
     "disable_application_authorities",
     "opponent_protection_success_authority",
     "incoming_contact_authority",
@@ -53,7 +54,7 @@ _ORDINARY_PAIR_BUNDLE_KEYS = {
 _ORDINARY_PAIR_CONTEXT_KEYS = {"reactive_shield_common_block_context"}
 # Native graph pairs consume the same strict Rest witness and replay the
 # atomic materializer against their exact detached branch.
-_GRAPH_PAIR_BUNDLE_KEYS = frozenset(_ORDINARY_PAIR_BUNDLE_KEYS)
+_GRAPH_PAIR_BUNDLE_KEYS = frozenset(_ORDINARY_PAIR_BUNDLE_KEYS - {"canonical_move_metadata_authorities"})
 
 
 def materialize_detached_opponent_response_profile(

@@ -133,6 +133,7 @@ from llm.advisor_detached_reflected_status_routing_authority import (
     validate_detached_reflected_status_routing_authority,
 )
 from llm.advisor_detached_encore_action_restriction import (
+    materialize_detached_reflected_encore_application,
     materialize_encore_forced_execution_action,
 )
 from llm.advisor_detached_disable_action_restriction import (
@@ -200,6 +201,7 @@ def materialize_immediate_move_vs_move_action_pair(
     pending_status_execution_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     taunt_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     encore_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
+    canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     disable_application_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None = None,
@@ -290,7 +292,8 @@ def materialize_immediate_move_vs_move_action_pair(
         return _materialize_encore_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, opponent_meta=opponent_meta,
             orders=orders, pure_status_authorities=pure_status_execution_authorities,
-            applications=encore_application_authorities)
+            applications=encore_application_authorities,
+            canonical_move_metadata_authorities=canonical_move_metadata_authorities)
     if own_meta.get("metadata", {}).get("move_id") == "disable" or opponent_meta.get("metadata", {}).get("move_id") == "disable":
         return _materialize_disable_pair(base=base, strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
             own_action=own_action, opponent_action=opponent_action, opponent_meta=opponent_meta, orders=orders,
@@ -751,7 +754,7 @@ def _materialize_taunt_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str
     return {"status":"evaluable","schema_version":SCHEMA_VERSION,"horizon":HORIZON,**deepcopy(dict(base)),"action_order":{"taunt":"external_exact_order_authority"},"terminal_branches":tuple(branches),"terminal_probability_mass":_fd(mass),"aggregation":"none_preserve_taunt_application_and_selected_intent","provenance":"strict_taunt_immediate_pair_materialization_v1"}
 
 
-def _materialize_encore_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None, applications: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
+def _materialize_encore_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], opponent_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], pure_status_authorities: Mapping[str, Mapping[str, Any]] | None, applications: Mapping[str, Mapping[str, Any]] | None, canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any]:
     """Replace only a still-pending selected action; never retroactively reorder."""
     own_meta = own_action.get("metadata_authority", own_action.get("move_metadata_authority", {}))
     roles = _special_pair_roles(base, own_action, opponent_action, own_meta, opponent_meta, "encore")
@@ -760,17 +763,39 @@ def _materialize_encore_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[st
     application = applications.get(special_action.get("action_id")) if isinstance(applications, Mapping) else None
     if not isinstance(application, Mapping): return _result("incomplete", "encore_application_authority_missing", base)
     if application.get("status") != "resolved": return _result(_status(application), application.get("reason", "encore_application_unavailable"), base)
-    if application.get("actor") != special_actor or application.get("target") != special_target or application.get("action_id") != special_action.get("action_id"):
-        return _result("rejected", "encore_application_binding_mismatch", base)
+    reflected = application.get("execution_mode") == "reflected_original_action"
+    if reflected:
+        route = _validated_reflected_encore_application(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            special_action=special_action,
+            special_actor=special_actor,
+            special_target=special_target,
+            application=application,
+            canonical_move_metadata_authorities=canonical_move_metadata_authorities,
+        )
+        if isinstance(route, str): return _result("rejected", route, base)
+        pending_category = pending_meta.get("metadata", {}).get("category") if isinstance(pending_meta, Mapping) and isinstance(pending_meta.get("metadata"), Mapping) else None
+        if pending_category != "status":
+            return _result("unsupported", "reflected_encore_pair_requires_zero_hp_pending_status", base)
+    else:
+        if application.get("execution_mode") is not None or application.get("reflected_status_routing_authority") is not None:
+            return _result("rejected", "encore_application_execution_mode_invalid", base)
+        if application.get("actor") != special_actor or application.get("target") != special_target or application.get("action_id") != special_action.get("action_id"):
+            return _result("rejected", "encore_application_binding_mismatch", base)
     branches = []
     for plan in orders:
-        encore_leaf = _encore_pair_leaf(application, strategy_d0)
+        encore_leaf = _reflected_encore_pair_leaf(application, strategy_d0, special_actor, special_target, canonical_move_metadata_authorities) if reflected else _encore_pair_leaf(application, strategy_d0)
         if isinstance(encore_leaf, str): return _result("incomplete", encore_leaf, base)
         special_first = (plan["order"] == "own_first") == (special_actor == base["own_actor"])
         if not special_first:
             first = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, pure_status_authorities=pure_status_authorities)
             if isinstance(first, str): return _result("incomplete", first, base)
             branches.append(_branch(base, plan["order"], first["terminal_leaves"][0], {}, encore_leaf, special_actor, plan)); continue
+        if reflected:
+            second = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, pure_status_authorities=pure_status_authorities)
+            if isinstance(second, str): return _result("incomplete", second, base)
+            branches.append(_branch(base, plan["order"], encore_leaf, {}, second["terminal_leaves"][0], pending_actor, plan)); continue
         if application.get("outcome") != "applicable":
             second = _ordinary_selected_leaf(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=pending_action, actor=pending_actor, target=pending_target, metadata=pending_meta, pure_status_authorities=pure_status_authorities)
             if isinstance(second, str): return _result("incomplete", second, base)
@@ -896,6 +921,94 @@ def _encore_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, 
     if not _hp(own_hp) or not _hp(target_hp): return "encore_pair_hp_authority_missing"
     outcome = application["outcome"]
     return {"leaf_id": f"{application['action_id']}:{outcome}", "candidate_id": application["action_id"], "branch_path": ("encore", "accuracy_miss" if outcome == "missed" else outcome), "probability": _fd(Fraction(1, 1)), "hit_state": "missed" if outcome == "missed" else "not_applicable", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": own_hp, "target_final_hp": target_hp, "target_ko": target_hp == 0, "self_fainted": own_hp == 0, "secondary": None, "contact": "not_applicable", "encore_application": deepcopy(dict(application))}, "provenance": {"session_id": application["session_id"], "source_runtime_fingerprint": application["source_runtime_fingerprint"], "source_branch_fingerprint": application["source_branch_fingerprint"], "decision_owner": deepcopy(application["decision_owner"]), "attacker": deepcopy(application["actor"]), "target": deepcopy(application["target"]), "move_id": "encore", "encore_application": deepcopy(dict(application))}}
+
+
+def _validated_reflected_encore_application(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], special_action: Mapping[str, Any], special_actor: Mapping[str, Any], special_target: Mapping[str, Any], application: Mapping[str, Any], canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]] | None) -> Mapping[str, Any] | str:
+    if not isinstance(canonical_move_metadata_authorities, Mapping):
+        return "reflected_encore_canonical_move_metadata_authorities_missing"
+    route = application.get("reflected_status_routing_authority")
+    validation = validate_detached_reflected_status_routing_authority(route)
+    if validation.get("status") != "resolved": return "reflected_encore_route_invalid"
+    route = validation["authority"]
+    if (
+        route.get("original_actor") != special_actor
+        or route.get("original_target") != special_target
+        or route.get("original_action_id") != special_action.get("action_id")
+        or route.get("move_id") != "encore"
+        or route.get("reflected_source") != special_target
+        or route.get("reflected_target") != special_actor
+        or application.get("actor") != route.get("reflected_source")
+        or application.get("target") != route.get("reflected_target")
+        or application.get("action_id") != special_action.get("action_id")
+        or application.get("move_id") != "encore"
+    ):
+        return "reflected_encore_application_binding_mismatch"
+    reproduced = materialize_detached_reflected_encore_application(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        action=special_action,
+        routing_authority=route,
+        canonical_move_metadata_authorities=canonical_move_metadata_authorities,
+    )
+    if reproduced != application: return "reflected_encore_application_provenance_invalid"
+    return route
+
+
+def _reflected_encore_pair_leaf(application: Mapping[str, Any], strategy_d0: Mapping[str, Any], selected_actor: Mapping[str, Any], selected_target: Mapping[str, Any], canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]] | None) -> dict[str, Any] | str:
+    route = application.get("reflected_status_routing_authority")
+    if not isinstance(route, Mapping): return "reflected_encore_route_missing"
+    if not isinstance(canonical_move_metadata_authorities, Mapping): return "reflected_encore_canonical_move_metadata_authorities_missing"
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    own_hp = active.get(selected_actor.get("side"), {}).get("current_hp")
+    target_hp = active.get(selected_target.get("side"), {}).get("current_hp")
+    if not _hp(own_hp) or not _hp(target_hp): return "encore_pair_hp_authority_missing"
+    family = {}
+    if application.get("outcome") == "applicable":
+        family = {
+            "locked_move_id": application.get("locked_move_id"),
+            "locked_move_metadata": deepcopy(application.get("locked_move_metadata")),
+            "last_used_execution_id": application.get("last_used_execution_id"),
+            "remaining_target_turns": application.get("remaining_target_turns"),
+        }
+    catalog = deepcopy(dict(canonical_move_metadata_authorities))
+    return {
+        "leaf_id": f"{application['action_id']}:reflected:{application['outcome']}",
+        "candidate_id": application["action_id"],
+        "branch_path": ("encore", "reflected", application["outcome"]),
+        "probability": _fd(Fraction(1, 1)),
+        "hit_state": "not_applicable",
+        "critical_state": "not_applicable",
+        "damage_roll": "not_applicable",
+        "consequences": {
+            "damage": 0,
+            "own_final_hp": own_hp,
+            "target_final_hp": target_hp,
+            "target_ko": target_hp == 0,
+            "self_fainted": own_hp == 0,
+            "secondary": None,
+            "contact": "not_applicable",
+            "encore_application": deepcopy(dict(application)),
+            "reflected_status_routing_authority": deepcopy(dict(route)),
+            "canonical_move_metadata_authorities": deepcopy(catalog),
+            **deepcopy(family),
+        },
+        "provenance": {
+            "session_id": application["session_id"],
+            "source_runtime_fingerprint": application["source_runtime_fingerprint"],
+            "source_branch_fingerprint": application["source_branch_fingerprint"],
+            "decision_owner": deepcopy(application["decision_owner"]),
+            "attacker": deepcopy(dict(selected_actor)),
+            "target": deepcopy(dict(selected_target)),
+            "selected_actor": deepcopy(dict(selected_actor)),
+            "selected_target": deepcopy(dict(selected_target)),
+            "effective_source": deepcopy(dict(route["reflected_source"])),
+            "effective_target": deepcopy(dict(route["reflected_target"])),
+            "move_id": "encore",
+            "encore_application": deepcopy(dict(application)),
+            "reflected_status_routing_authority": deepcopy(dict(route)),
+            "canonical_move_metadata_authorities": deepcopy(catalog),
+        },
+    }
 
 
 def _bind_encore_forced_leaf(leaf: Mapping[str, Any], forced: Mapping[str, Any]) -> dict[str, Any]:

@@ -116,6 +116,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if reflected_taunt_error is not None: return reflected_taunt_error
     reflected_disable_error = _reflected_disable_leaf(first, base)
     if reflected_disable_error is not None: return reflected_disable_error
+    reflected_encore_error = _reflected_encore_leaf(first, base)
+    if reflected_encore_error is not None: return reflected_encore_error
     sucker_error = _sucker_punch_leaf(first, action_order=value["action_order"], pair_base=base)
     if sucker_error is not None: return sucker_error
     heal_error = _direct_heal_leaf(first)
@@ -172,6 +174,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if reflected_taunt_error is not None: return reflected_taunt_error
         reflected_disable_error = _reflected_disable_leaf(second_leaf, base)
         if reflected_disable_error is not None: return reflected_disable_error
+        reflected_encore_error = _reflected_encore_leaf(second_leaf, base)
+        if reflected_encore_error is not None: return reflected_encore_error
         encore_error = _encore_forced_execution_leaf(first, second, second_leaf, base, value["action_order"])
         if encore_error is not None: return encore_error
         pivot_error = _pivot_second_action_target_binding(value, base, first, second_leaf)
@@ -194,6 +198,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if reflected_taunt_branch_error is not None: return reflected_taunt_branch_error
     reflected_disable_branch_error = _reflected_disable_branch_binding(first, second_leaf, base)
     if reflected_disable_branch_error is not None: return reflected_disable_branch_error
+    reflected_encore_branch_error = _reflected_encore_branch_binding(first, second, second_leaf, base)
+    if reflected_encore_branch_error is not None: return reflected_encore_branch_error
     probability = _fraction(value.get("probability"))
     if probability != order_probability * _fraction(first["probability"]) * conditional: return "pair_leaf_probability_composition_invalid"
     focus_error = _focus_sash_leaf(first)
@@ -1110,6 +1116,168 @@ def _disable_restriction_leaf(first: Mapping[str, Any], second_leaf: Any, base: 
     evidence = gate.get("restriction_evidence")
     if not isinstance(first_app, Mapping) or first_app.get("outcome") != "applicable" or first_app.get("actor") != base["own_actor"] or first_app.get("target") != base["opponent_actor"] or first_app.get("disabled_move_id") != gate.get("selected_move_id") or not isinstance(evidence, tuple) or not evidence or evidence[0] != first_app: return "disable_restriction_ledger_application_invalid"
     if any(second_leaf.get(key) != "not_applicable" for key in ("hit_state", "critical_state", "damage_roll")) or consequences.get("damage") != 0 or consequences.get("contact") != "not_applicable": return "disable_restriction_ledger_failure_identity_invalid"
+    return None
+
+
+def _reflected_encore_leaf(leaf: Mapping[str, Any], base: Mapping[str, Any]) -> str | None:
+    consequences = leaf.get("consequences")
+    provenance = leaf.get("provenance")
+    consequence_route = consequences.get("reflected_status_routing_authority") if isinstance(consequences, Mapping) else None
+    provenance_route = provenance.get("reflected_status_routing_authority") if isinstance(provenance, Mapping) else None
+    consequence_application = consequences.get("encore_application") if isinstance(consequences, Mapping) else None
+    provenance_application = provenance.get("encore_application") if isinstance(provenance, Mapping) else None
+    consequence_catalog = consequences.get("canonical_move_metadata_authorities") if isinstance(consequences, Mapping) else None
+    provenance_catalog = provenance.get("canonical_move_metadata_authorities") if isinstance(provenance, Mapping) else None
+    reflected_application_marker = (
+        isinstance(consequence_application, Mapping)
+        and consequence_application.get("execution_mode") == "reflected_original_action"
+        and consequence_application.get("move_id") == "encore"
+    ) or (
+        isinstance(provenance_application, Mapping)
+        and provenance_application.get("execution_mode") == "reflected_original_action"
+        and provenance_application.get("move_id") == "encore"
+    )
+    reflected_path_marker = isinstance(leaf.get("branch_path"), (tuple, list)) and tuple(leaf["branch_path"][:2]) == ("encore", "reflected")
+    route_marker = (isinstance(consequence_route, Mapping) and consequence_route.get("move_id") == "encore") or (isinstance(provenance_route, Mapping) and provenance_route.get("move_id") == "encore")
+    if not (route_marker or reflected_application_marker or reflected_path_marker): return None
+    if not isinstance(consequence_route, Mapping) or consequence_route != provenance_route:
+        return "reflected_encore_ledger_route_mismatch"
+    if not isinstance(consequence_application, Mapping) or consequence_application != provenance_application:
+        return "reflected_encore_ledger_application_mismatch"
+    if not isinstance(consequence_catalog, Mapping) or consequence_catalog != provenance_catalog:
+        return "reflected_encore_ledger_canonical_metadata_authorities_mismatch"
+    try:
+        from llm.advisor_detached_reflected_status_routing_authority import validate_detached_reflected_status_routing_authority
+        from llm.advisor_detached_encore_action_restriction import materialize_detached_reflected_encore_application
+        validation = validate_detached_reflected_status_routing_authority(consequence_route)
+        if validation.get("status") != "resolved":
+            return "reflected_encore_ledger_route_invalid"
+        route = validation["authority"]
+        candidate_id = leaf.get("candidate_id")
+        if candidate_id == base["own_action_id"]:
+            selected_actor, selected_target = base["own_actor"], base["opponent_actor"]
+        elif candidate_id == base["opponent_action_id"]:
+            selected_actor, selected_target = base["opponent_actor"], base["own_actor"]
+        else:
+            return "reflected_encore_ledger_selected_action_invalid"
+        if (
+            route.get("session_id") != base["session_id"]
+            or route.get("source_runtime_fingerprint") != base["source_runtime_fingerprint"]
+            or route.get("source_branch_fingerprint") != base["source_branch_fingerprint"]
+            or route.get("decision_owner") != base["decision_owner"]
+            or route.get("original_action_id") != candidate_id
+            or route.get("move_id") != "encore"
+            or route.get("original_actor") != selected_actor
+            or route.get("original_target") != selected_target
+            or route.get("reflected_source") != selected_target
+            or route.get("reflected_target") != selected_actor
+        ):
+            return "reflected_encore_ledger_selected_route_binding_invalid"
+        if (
+            consequence_application.get("status") != "resolved"
+            or consequence_application.get("execution_mode") != "reflected_original_action"
+            or consequence_application.get("action_id") != candidate_id
+            or consequence_application.get("move_id") != "encore"
+            or consequence_application.get("actor") != selected_target
+            or consequence_application.get("target") != selected_actor
+            or consequence_application.get("reflected_status_routing_authority") != route
+        ):
+            return "reflected_encore_ledger_application_binding_invalid"
+        if (
+            provenance.get("attacker") != selected_actor
+            or provenance.get("target") != selected_target
+            or provenance.get("selected_actor") != selected_actor
+            or provenance.get("selected_target") != selected_target
+            or provenance.get("effective_source") != selected_target
+            or provenance.get("effective_target") != selected_actor
+            or provenance.get("move_id") != "encore"
+        ):
+            return "reflected_encore_ledger_leaf_identity_invalid"
+        if (
+            leaf.get("hit_state") != "not_applicable"
+            or leaf.get("critical_state") != "not_applicable"
+            or leaf.get("damage_roll") != "not_applicable"
+            or consequences.get("damage") != 0
+            or consequences.get("contact") != "not_applicable"
+            or _fraction(leaf.get("probability")) != Fraction(1, 1)
+        ):
+            return "reflected_encore_ledger_zero_damage_identity_invalid"
+        request = route.get("validation_request")
+        if not isinstance(request, Mapping):
+            return "reflected_encore_ledger_route_request_missing"
+        reproduced = materialize_detached_reflected_encore_application(
+            strategy_d0=request["strategy_d0"],
+            runtime_snapshot=request["runtime_snapshot"],
+            action=request["action"],
+            routing_authority=route,
+            canonical_move_metadata_authorities=consequence_catalog,
+        )
+        if reproduced != consequence_application:
+            return "reflected_encore_ledger_application_reproduction_invalid"
+        if consequence_application.get("outcome") == "applicable":
+            if (
+                consequences.get("locked_move_id") != consequence_application.get("locked_move_id")
+                or consequences.get("locked_move_metadata") != consequence_application.get("locked_move_metadata")
+                or consequences.get("last_used_execution_id") != consequence_application.get("last_used_execution_id")
+                or consequences.get("remaining_target_turns") != consequence_application.get("remaining_target_turns")
+            ):
+                return "reflected_encore_ledger_family_consequence_invalid"
+        active = request["strategy_d0"].get("strategy_state", {}).get("active", {})
+        selected_hp = active.get(selected_actor["side"], {}).get("current_hp")
+        target_hp = active.get(selected_target["side"], {}).get("current_hp")
+        if (
+            consequences.get("own_final_hp") != selected_hp
+            or consequences.get("target_final_hp") != target_hp
+            or consequences.get("self_fainted") != (selected_hp == 0)
+            or consequences.get("target_ko") != (target_hp == 0)
+        ):
+            return "reflected_encore_ledger_hp_orientation_invalid"
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return "reflected_encore_ledger_validation_error"
+    return None
+
+
+def _reflected_encore_branch_binding(first: Mapping[str, Any], second: Mapping[str, Any], second_leaf: Any, base: Mapping[str, Any]) -> str | None:
+    def route_of(leaf: Any) -> Mapping[str, Any] | None:
+        consequences = leaf.get("consequences") if isinstance(leaf, Mapping) else None
+        route = consequences.get("reflected_status_routing_authority") if isinstance(consequences, Mapping) else None
+        return route if isinstance(route, Mapping) and route.get("move_id") == "encore" else None
+    first_route, second_route = route_of(first), route_of(second_leaf)
+    if first_route is not None and second_route is not None:
+        return "reflected_encore_ledger_multiple_reflected_actions_invalid"
+    if first_route is None and second_route is None:
+        return None
+    reflected_leaf, other_leaf, route = (first, second_leaf, first_route) if first_route is not None else (second_leaf, first, second_route)
+    if not isinstance(reflected_leaf, Mapping) or not isinstance(other_leaf, Mapping) or not isinstance(route, Mapping):
+        return "reflected_encore_ledger_pair_action_missing"
+    selected_id = route.get("original_action_id")
+    if selected_id == base["own_action_id"]:
+        pending_id, pending_actor = base["opponent_action_id"], base["opponent_actor"]
+    elif selected_id == base["opponent_action_id"]:
+        pending_id, pending_actor = base["own_action_id"], base["own_actor"]
+    else:
+        return "reflected_encore_ledger_selected_action_invalid"
+    other_provenance = other_leaf.get("provenance")
+    if (
+        other_leaf.get("candidate_id") != pending_id
+        or not isinstance(other_provenance, Mapping)
+        or other_provenance.get("attacker") != pending_actor
+        or pending_actor != route.get("original_target")
+    ):
+        return "reflected_encore_ledger_pending_action_binding_invalid"
+    if isinstance(second, Mapping) and second.get("forced_execution_action") is not None:
+        return "reflected_encore_ledger_wrong_forced_execution"
+    for candidate in (reflected_leaf, other_leaf):
+        candidate_consequences = candidate.get("consequences") if isinstance(candidate, Mapping) else None
+        candidate_provenance = candidate.get("provenance") if isinstance(candidate, Mapping) else None
+        if (
+            isinstance(candidate_consequences, Mapping)
+            and "encore_forced_execution" in candidate_consequences
+        ) or (
+            isinstance(candidate_provenance, Mapping)
+            and "encore_forced_execution" in candidate_provenance
+        ):
+            return "reflected_encore_ledger_wrong_forced_execution"
     return None
 
 
