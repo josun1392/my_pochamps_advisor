@@ -45,6 +45,10 @@ def freeze_champions_confusion_application(*,strategy_d0,runtime_snapshot,source
             return {"status":"incomplete","reason":"reflection_authority_incomplete",**base}
     state=runtime_snapshot["state"];raw=_owner(state,target); src=_owner(state,source)
     if not isinstance(raw,Mapping) or not isinstance(src,Mapping):return {"status":"rejected","reason":"confusion_application_active_identity_missing",**base}
+    if "current_confusion" not in raw:return {"status":"incomplete","reason":"target_confusion_state_unknown",**base}
+    confusion=raw["current_confusion"]
+    if confusion=="unknown":return {"status":"incomplete","reason":"target_confusion_state_unknown",**base}
+    if confusion not in {"none","confused"}:return {"status":"rejected","reason":"target_confusion_state_invalid",**base}
     if move=="teeter-dance":
         battle_format=state.get("field",{}).get("battle_format") if isinstance(state.get("field"),Mapping) else None
         if battle_format is None:return {"status":"incomplete","reason":"teeter_dance_battle_format_unknown",**base}
@@ -54,8 +58,7 @@ def freeze_champions_confusion_application(*,strategy_d0,runtime_snapshot,source
     gas="neutralizing-gas" in abilities.values(); prevent=None
     if outcome=="missed":prevent="move_missed"
     elif outcome=="blocked_by_protection":prevent="blocked_by_protection"
-    elif raw.get("current_confusion")=="unknown":return {"status":"incomplete","reason":"target_confusion_state_unknown",**base}
-    elif raw.get("current_confusion")=="confused":prevent="already_confused_no_new_application"
+    elif confusion=="confused":prevent="already_confused_no_new_application"
     elif raw.get("current_ability")=="own-tempo" and not gas:prevent="blocked_by_own_tempo"
     else:
         field=state.get("field",{}); terrain=field.get("terrain") if isinstance(field,Mapping) else None
@@ -72,7 +75,7 @@ def freeze_champions_confusion_application(*,strategy_d0,runtime_snapshot,source
             if len(match)!=1:return {"status":"incomplete","reason":"substitute_authority_unknown",**base}
             if match[0].get("state")=="known_active" and src.get("current_ability")!="infiltrator":prevent="blocked_by_substitute"
             elif match[0].get("state")=="unknown":return {"status":"incomplete","reason":"substitute_authority_unknown",**base}
-    authority={"status":"resolved","schema_version":SCHEMA,**base,"application_kind":rule["kind"],"move_success_authority":deepcopy(success),"target_confusion_before":raw.get("current_confusion","none"),"target_ability_authority":{"abilities":abilities,"suppressed":gas},"prevention_outcome":prevent or "applies","swagger_stage":rule["stage"],"reflection_authority":deepcopy(reflection_authority),"provenance":"champions_catalogued_confusion_application_v1"}
+    authority={"status":"resolved","schema_version":SCHEMA,**base,"application_kind":rule["kind"],"move_success_authority":deepcopy(success),"target_confusion_before":confusion,"target_ability_authority":{"abilities":abilities,"suppressed":gas},"prevention_outcome":prevent or "applies","swagger_stage":rule["stage"],"reflection_authority":deepcopy(reflection_authority),"provenance":"champions_catalogued_confusion_application_v1"}
     authority["validation_request"]={"strategy_d0":deepcopy(strategy_d0),"runtime_snapshot":deepcopy(runtime_snapshot),"source":deepcopy(source),"target":deepcopy(target),"action":deepcopy(action),"move_success_authority":deepcopy(move_success_authority),"path":tuple(path),"reflection_authority":deepcopy(reflection_authority)}
     return authority
 

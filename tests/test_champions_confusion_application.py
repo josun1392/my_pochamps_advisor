@@ -2,18 +2,60 @@ from copy import deepcopy
 import pytest
 from tests.test_detached_opponent_response_profile import _state,_complete_state,_owner,_snapshot
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
-from llm.advisor_champions_confusion_application import freeze_champions_confusion_application as freeze,materialize_champions_confusion_application as materialize
+from llm.advisor_champions_confusion_application import freeze_champions_confusion_application as freeze,materialize_champions_confusion_application as materialize,validate_champions_confusion_application as validate
 
 def inputs(move="confuse-ray",outcome="hit",**changes):
-    state=_complete_state(_state()); state["field"]["terrain"]="none"; state["identity_groundedness_context"]={"schema_version":"identity-groundedness-v1","session_id":state["session_id"],"side":"opponent","slot_index":0,"pokemon_id":"opponent-a","status":"grounded"}
+    state=_complete_state(_state()); state["field"]["terrain"]="none"; state["opponent_side"]["pokemon"][0]["current_confusion"]="none"; state["identity_groundedness_context"]={"schema_version":"identity-groundedness-v1","session_id":state["session_id"],"side":"opponent","slot_index":0,"pokemon_id":"opponent-a","status":"grounded"}
     for path,value in changes.items():
         target=state["opponent_side"]["pokemon"][0] if path.startswith("target_") else state["self_side"]["pokemon"][0]
         target[path.removeprefix("target_")]=value
     snapshot=_snapshot(state);d0=freeze_runtime_strategy_d0(runtime_snapshot=snapshot,decision_owner=_owner(state,"self"));source,target=_owner(state,"self"),_owner(state,"opponent");action={"action_id":f"attack:{move}","action_type":"attack","identity":move};base={"session_id":d0["session_id"],"source_runtime_fingerprint":d0["source_runtime_fingerprint"],"source_branch_fingerprint":d0["strategy_preview_fingerprint"],"source":source,"target":target,"action_id":action["action_id"],"move_id":move};success={"status":"resolved",**base,"outcome":outcome,**({"damage_resolved":True} if move=="dynamic-punch" and outcome=="hit" else {})};return snapshot,d0,source,target,action,success
 
+def with_target_confusion(value, *, outcome="hit", missing=False):
+    snapshot,d0,source,target,action,success=inputs(outcome=outcome); state=deepcopy(snapshot["state"]); raw=state["opponent_side"]["pokemon"][0]
+    if missing: raw.pop("current_confusion",None)
+    else: raw["current_confusion"]=value
+    snapshot=_snapshot(state);d0=freeze_runtime_strategy_d0(runtime_snapshot=snapshot,decision_owner=source);success=deepcopy(success);success.update(source_runtime_fingerprint=d0["source_runtime_fingerprint"],source_branch_fingerprint=d0["strategy_preview_fingerprint"])
+    return snapshot,d0,source,target,action,success
+
 def test_confuse_ray_establishes_existing_confusion_owner_and_input_stays_immutable():
     snapshot,d0,source,target,action,success=inputs();before=deepcopy((snapshot,d0));authority=freeze(strategy_d0=d0,runtime_snapshot=snapshot,source=source,target=target,action=action,move_success_authority=success);result=materialize(authority=authority,runtime_snapshot=snapshot)
     raw=result["runtime_snapshot"]["state"]["opponent_side"]["pokemon"][0];assert authority["prevention_outcome"]=="applies" and raw["current_confusion"]=="confused" and raw["champions_confusion_progression"]["duration"] is None
+    assert (snapshot,d0)==before
+
+@pytest.mark.parametrize("outcome",["hit","missed","blocked_by_protection"])
+def test_missing_current_confusion_fails_closed_before_hit_miss_or_protection_resolution(outcome):
+    snapshot,d0,source,target,action,success=with_target_confusion(None,outcome=outcome,missing=True); before=deepcopy((snapshot,d0))
+    authority=freeze(strategy_d0=d0,runtime_snapshot=snapshot,source=source,target=target,action=action,move_success_authority=success)
+    assert authority["status"]=="incomplete" and authority["reason"]=="target_confusion_state_unknown"
+    assert "target_confusion_before" not in authority
+    assert (snapshot,d0)==before
+
+def test_explicit_unknown_none_confused_and_malformed_confusion_states_are_distinct():
+    snapshot,d0,source,target,action,success=with_target_confusion("unknown")
+    unknown=freeze(strategy_d0=d0,runtime_snapshot=snapshot,source=source,target=target,action=action,move_success_authority=success)
+    assert unknown["status"]=="incomplete" and unknown["reason"]=="target_confusion_state_unknown" and "target_confusion_before" not in unknown
+
+    snapshot,d0,source,target,action,success=with_target_confusion("none"); before=deepcopy((snapshot,d0))
+    clear=freeze(strategy_d0=d0,runtime_snapshot=snapshot,source=source,target=target,action=action,move_success_authority=success)
+    assert clear["status"]=="resolved" and clear["prevention_outcome"]=="applies" and clear["target_confusion_before"]=="none"
+    assert validate(clear)["status"]=="resolved" and (snapshot,d0)==before
+
+    snapshot,d0,source,target,action,success=with_target_confusion("confused")
+    confused=freeze(strategy_d0=d0,runtime_snapshot=snapshot,source=source,target=target,action=action,move_success_authority=success)
+    assert confused["status"]=="resolved" and confused["prevention_outcome"]=="already_confused_no_new_application" and confused["target_confusion_before"]=="confused"
+
+    snapshot,d0,source,target,action,success=with_target_confusion(None)
+    malformed=freeze(strategy_d0=d0,runtime_snapshot=snapshot,source=source,target=target,action=action,move_success_authority=success)
+    assert malformed["status"]=="rejected" and malformed["reason"]=="target_confusion_state_invalid" and "target_confusion_before" not in malformed
+
+def test_validated_explicit_none_authority_rejects_tampering_without_mutating_inputs():
+    snapshot,d0,source,target,action,success=with_target_confusion("none"); before=deepcopy((snapshot,d0))
+    authority=freeze(strategy_d0=d0,runtime_snapshot=snapshot,source=source,target=target,action=action,move_success_authority=success)
+    assert validate(authority)["status"]=="resolved"
+    tampered=deepcopy(authority);tampered["target_confusion_before"]="confused"
+    assert validate(tampered)["status"]=="rejected"
+    assert materialize(authority=tampered,runtime_snapshot=snapshot)["reason"]=="confusion_application_provenance_invalid"
     assert (snapshot,d0)==before
 
 def test_application_reuses_the_existing_confusion_action_gate_owner():
