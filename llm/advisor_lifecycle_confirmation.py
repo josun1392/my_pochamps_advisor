@@ -18,6 +18,7 @@ CONDITION_APPLICATION_SOURCE = "ui_condition_application_confirmation"
 CURRENT_CONDITION_SOURCE = "ui_current_condition_confirmation"
 CONTACT_REACTIVE_STATUS_APPLICATION_SOURCE = "runtime_observed_contact_reactive_status_application"
 CONTACT_REACTIVE_STATUS_RESULT_SOURCE = "runtime_observed_contact_reactive_status_result"
+CONTACT_REACTIVE_DAMAGE_RESULT_SOURCE = "runtime_observed_contact_reactive_damage_result"
 PARALYSIS_APPLICATION_SOURCE = "runtime_champions_paralysis_application"
 CURRENT_HEALING_PREVENTED_SOURCE = "ui_current_healing_prevented_confirmation"
 STAT_STAGE_SOURCE = "ui_stat_stage_confirmation"
@@ -58,6 +59,7 @@ _KINDS["supreme_overlord_initial_active_observed"] = "production_ready"
 _KINDS["executed_move_observed"] = "production_ready"
 _KINDS["previous_action_result_observed"] = "production_ready"
 _KINDS["contact_reactive_status_result_observed"] = "production_ready"
+_KINDS["contact_reactive_damage_result_observed"] = "production_ready"
 for _kind in {"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"}: _KINDS[_kind] = "production_ready"
 for _kind in {"current_confusion_state_observed", "champions_confusion_progression_observed"}: _KINDS[_kind] = "production_ready"
 for _kind in {"taunt_restriction_applied_observed", "encore_restriction_applied_observed", "disable_restriction_applied_observed", "taunt_restricted_turn_completed_observed", "encore_restricted_turn_completed_observed", "disable_restricted_turn_completed_observed"}: _KINDS[_kind] = "production_ready"
@@ -83,7 +85,7 @@ class LifecycleConfirmationBoundary:
         if not _valid_turn_number(turn_number): return _result("invalid_provenance", "invalid_turn_number", readiness)
         if event_kind not in {"direct_move_damage_observed", "switch_hazards_observed", "tailwind_side_condition_observed", "trick_room_field_observed", "magic_room_field_observed", "first_end_of_turn_reached_observed", "current_weather_observed", "current_terrain_observed", "current_side_conditions_observed", "current_battle_format_observed", "doubles_active_topology_observed"} and not _owner_matches(self._owners, side, slot_index, pokemon_id): return _result("invalid_provenance", "owner_mismatch", readiness)
         if event_kind == "same_turn_event_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
-        if event_kind in {"executed_move_observed", "previous_action_result_observed", "contact_reactive_status_result_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
+        if event_kind in {"executed_move_observed", "previous_action_result_observed", "contact_reactive_status_result_observed", "contact_reactive_damage_result_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind.endswith("restriction_applied_observed") or event_kind.endswith("restricted_turn_completed_observed"):
             if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1: return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "first_end_of_turn_reached_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
@@ -97,12 +99,18 @@ class LifecycleConfirmationBoundary:
             if defender != (side, slot_index, pokemon_id): return _result("invalid_provenance", "defender_owner_mismatch", readiness)
             opposite = self._owners.get(payload.get("attacker_side")) if isinstance(self._owners, dict) else None
             if isinstance(opposite, dict) and attacker != (opposite.get("side"), opposite.get("slot_index"), opposite.get("pokemon_id")): return _result("invalid_provenance", "attacker_owner_mismatch", readiness)
+        if event_kind == "contact_reactive_damage_result_observed":
+            attacker = (payload.get("attacker_side"), payload.get("attacker_slot_index"), payload.get("attacker_pokemon_id"))
+            defender = (payload.get("defender_side"), payload.get("defender_slot_index"), payload.get("defender_pokemon_id"))
+            if attacker != (side, slot_index, pokemon_id): return _result("invalid_provenance", "attacker_owner_mismatch", readiness)
+            opposite = self._owners.get(payload.get("defender_side")) if isinstance(self._owners, dict) else None
+            if isinstance(opposite, dict) and defender != (opposite.get("side"), opposite.get("slot_index"), opposite.get("pokemon_id")): return _result("invalid_provenance", "defender_owner_mismatch", readiness)
         if event_kind == "same_turn_event_observed" and (side, slot_index, pokemon_id) == (payload.get("target_side"), payload.get("target_slot_index"), payload.get("target_pokemon_id")):
             return _result("invalid_provenance", "target_must_differ_from_subject", readiness)
         if event_kind in {"switch_hazards_observed", "tailwind_side_condition_observed"} and side not in {"self", "opponent"}: return _result("invalid_provenance", "side_owner_mismatch", readiness)
         if event_kind == "current_leech_seed_state_observed" and payload.get("persistent_state") == "active" and payload.get("source_side") == side: return _result("invalid_provenance", "leech_seed_source_must_be_opposite_side", readiness)
         oid = observation_id or f"{self._session_id}:obs:{self._next_sequence}"
-        record = {"event_kind": event_kind, "observation_id": oid, "session_id": self._session_id, "turn_number": turn_number, "source": source, "trust": trust, "confirmed": True, "observed": True, "payload": deepcopy(payload), "reducer_eligibility": "evidence_only" if event_kind in {"direct_move_damage_observed", "contact_reactive_status_result_observed"} else "candidate"}
+        record = {"event_kind": event_kind, "observation_id": oid, "session_id": self._session_id, "turn_number": turn_number, "source": source, "trust": trust, "confirmed": True, "observed": True, "payload": deepcopy(payload), "reducer_eligibility": "evidence_only" if event_kind in {"direct_move_damage_observed", "contact_reactive_status_result_observed", "contact_reactive_damage_result_observed"} else "candidate"}
         if side is not None: record.update(side=side, slot_index=slot_index, pokemon_id=pokemon_id)
         if event_kind == "pokemon_switch_observed": record.update(**{key: payload[key] for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id")}, switch_kind="unknown")
         if event_kind == "used_move_observed": record.update(move_id=payload["move_id"], move_slot=payload.get("move_slot"))
@@ -166,6 +174,7 @@ def _production_source_matches(kind, source):
     if kind == "executed_move_observed": return source == EXECUTED_MOVE_SOURCE
     if kind == "previous_action_result_observed": return source == PREVIOUS_ACTION_RESULT_SOURCE
     if kind == "contact_reactive_status_result_observed": return source == CONTACT_REACTIVE_STATUS_RESULT_SOURCE
+    if kind == "contact_reactive_damage_result_observed": return source == CONTACT_REACTIVE_DAMAGE_RESULT_SOURCE
     if kind in {"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"}: return source == PERSISTENT_EFFECT_SOURCE
     if kind in {"current_confusion_state_observed", "champions_confusion_progression_observed"}: return source == CONFUSION_SOURCE
     if kind.endswith("restriction_applied_observed") or kind.endswith("restricted_turn_completed_observed"): return source == RESTRICTION_SOURCE
@@ -249,6 +258,20 @@ def _valid_payload(kind, payload):
         ability, outcome = payload.get("reactive_ability"), payload.get("outcome")
         valid_outcome = (ability in {"static", "flame-body", "poison-point"} and outcome in {"activation", "no_activation"}) or (ability == "effect-spore" and outcome in {"sleep", "paralysis", "poison", "none"})
         return set(payload) == keys and all(isinstance(payload.get(key), str) and bool(payload[key]) and payload[key] == payload[key].lower() and " " not in payload[key] and "_" not in payload[key] for key in ("source_action_id", "move_id")) and valid_outcome and payload.get("attacker_side") in {"self", "opponent"} and payload.get("defender_side") in {"self", "opponent"} and payload["attacker_side"] != payload["defender_side"] and all(isinstance(payload.get(key), int) and not isinstance(payload[key], bool) and payload[key] >= 0 for key in ("attacker_slot_index", "defender_slot_index", "hp_before", "hp_after")) and payload["hp_before"] > payload["hp_after"] and all(isinstance(payload.get(key), str) and bool(payload[key]) for key in ("attacker_pokemon_id", "defender_pokemon_id"))
+    if kind == "contact_reactive_damage_result_observed":
+        keys = {"source_action_id", "move_id", "attacker_side", "attacker_slot_index", "attacker_pokemon_id", "defender_side", "defender_slot_index", "defender_pokemon_id", "hp_before", "hp_after", "source_hit_actual_damage", "source_hit_target_routing", "ordered_sources"}
+        ordered = payload.get("ordered_sources")
+        if set(payload) != keys or not all(isinstance(payload.get(key), str) and bool(payload[key]) and payload[key] == payload[key].lower() and " " not in payload[key] and "_" not in payload[key] for key in ("source_action_id", "move_id")): return False
+        if payload.get("attacker_side") not in {"self", "opponent"} or payload.get("defender_side") not in {"self", "opponent"} or payload["attacker_side"] == payload["defender_side"]: return False
+        if not all(isinstance(payload.get(key), int) and not isinstance(payload[key], bool) and payload[key] >= 0 for key in ("attacker_slot_index", "defender_slot_index", "hp_before", "hp_after")) or payload["hp_before"] <= payload["hp_after"]: return False
+        if not all(isinstance(payload.get(key), str) and bool(payload[key]) for key in ("attacker_pokemon_id", "defender_pokemon_id")) or not isinstance(payload.get("source_hit_actual_damage"), int) or isinstance(payload["source_hit_actual_damage"], bool) or payload["source_hit_actual_damage"] <= 0 or payload.get("source_hit_target_routing") != "target" or not isinstance(ordered, list) or not ordered: return False
+        current = payload["hp_before"]
+        for index, row in enumerate(ordered, 1):
+            if not isinstance(row, dict) or row.get("order_index") != index or row.get("source_kind") not in {"rough-skin", "iron-barbs", "rocky-helmet"}: return False
+            damage, pre_hp, post_hp = row.get("reactive_damage"), row.get("pre_hp"), row.get("post_hp")
+            if not isinstance(damage, int) or isinstance(damage, bool) or damage < 0 or pre_hp != current or not isinstance(post_hp, int) or isinstance(post_hp, bool) or post_hp < 0 or post_hp != max(0, pre_hp - damage): return False
+            current = post_hp
+        return current == payload["hp_after"]
     if kind == "taunt_restriction_applied_observed": return set(payload) == {"source_action_id", "source_move_id"} and isinstance(payload.get("source_action_id"), str) and bool(payload["source_action_id"]) and payload.get("source_move_id") == "taunt"
     if kind in {"encore_restriction_applied_observed", "disable_restriction_applied_observed"}: return set(payload) == {"source_action_id", "source_move_id", "locked_move_id" if kind.startswith("encore") else "disabled_move_id", "last_used_execution_id"} and all(isinstance(value, str) and bool(value) for value in payload.values()) and payload.get("source_move_id") == ("encore" if kind.startswith("encore") else "disable")
     if kind.endswith("restricted_turn_completed_observed"): return payload == {"completion_kind": "affected_active_turn_completed"}
