@@ -111,12 +111,11 @@ def test_production_conflicting_retry_rejects_without_mutation(change):
     assert manager.read_state() == before
 
 
-def test_ko_is_preflight_rejected_without_runtime_mutation():
+def test_ko_is_composed_with_the_required_faint_lifecycle():
     manager = _runtime_manager()
-    state, collection, sequence = manager.read_state(), manager.read_collection_snapshot(), manager.last_allocated_sequence
     result = admit_observed_contact_reactive_status_result(runtime_session_manager=manager, captured_session_id="contact-runtime", attacker_side="self", move_id="tackle", source_action_id="action:ko", target_hp_after=0, outcome="activation", turn_number=2)
-    assert result["status"] == "rejected" and result["reason"] == "observed_contact_ko_requires_faint_lifecycle"
-    assert manager.read_state() == state and manager.read_collection_snapshot() == collection and manager.last_allocated_sequence == sequence
+    assert result["status"] == "resolved" and result["strategy_d0"] is None
+    assert [row["event_kind"] for row in result["observations"]] == ["executed_move_observed", "contact_reactive_status_result_observed", "exact_hp_transition_observed", "pokemon_faint_observed", "current_condition_observed"]
 
 
 def test_no_activation_preserves_canonical_condition_and_provenance():

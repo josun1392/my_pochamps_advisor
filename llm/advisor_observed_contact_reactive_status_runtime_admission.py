@@ -6,6 +6,11 @@ from llm.advisor_lifecycle_confirmation import (CONTACT_REACTIVE_STATUS_APPLICAT
     CONTACT_REACTIVE_STATUS_RESULT_SOURCE, EXECUTED_MOVE_SOURCE, HP_TRANSITION_SOURCE,
     USER_TRUST, LifecycleConfirmationBoundary)
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
+from llm.advisor_exact_hp_zero_faint_runtime_lifecycle import (
+    SOURCE as HP_ZERO_FAINT_SOURCE,
+    build_exact_hp_zero_faint_confirmation_pair,
+    validate_exact_hp_zero_faint_confirmation_pair,
+)
 from llm.advisor_runtime_d0_canonical_contact_classification_authority import canonical_move_contact_metadata
 from llm.advisor_runtime_d0_contact_reactive_status_authority import freeze_runtime_d0_contact_reactive_status_authority
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
@@ -18,7 +23,7 @@ def admit_observed_contact_reactive_status_result(*, runtime_session_manager, ca
         return _result("rejected", "invalid_observed_contact_request")
     snapshot = runtime_session_manager.capture_runtime_state_snapshot(captured_session_id)
     if snapshot.get("status") != "runtime_snapshot_ready": return _result("rejected" if snapshot.get("status") == "stale_session" else "incomplete", "runtime_snapshot_unavailable")
-    state = snapshot.get("state"); attacker, defender = _active_owner(state, attacker_side), _active_owner(state, _other(attacker_side))
+    state = snapshot.get("state"); attacker, defender = _active_owner(state, attacker_side), _active_identity(state, _other(attacker_side))
     if attacker is None or defender is None: return _result("rejected", "observed_contact_owner_unavailable")
     collection = runtime_session_manager.read_collection_snapshot()
     receipt = _receipt(collection, captured_session_id, source_action_id)
@@ -27,7 +32,6 @@ def admit_observed_contact_reactive_status_result(*, runtime_session_manager, ca
     if execution is not None and not _execution_matches(execution, attacker, move_id, turn_number): return _result("rejected", "conflicting_observed_contact_source_action")
     target = _pokemon(state, defender); before = target.get("current_hp") if isinstance(target, Mapping) else None
     if not _nonnegative(before) or target_hp_after >= before: return _result("rejected", "observed_contact_hp_transition_invalid")
-    if target_hp_after == 0: return _result("rejected", "observed_contact_ko_requires_faint_lifecycle")
     metadata = canonical_move_contact_metadata(move_id)
     if not isinstance(metadata, Mapping) or metadata.get("status") != "resolved": return _result(metadata.get("status", "rejected") if isinstance(metadata, Mapping) else "rejected", metadata.get("reason", "contact_metadata_unavailable") if isinstance(metadata, Mapping) else "contact_metadata_unavailable")
     if metadata.get("contact_state") != "contact": return _result("rejected", "observed_contact_non_contact_move")
@@ -52,16 +56,21 @@ def admit_observed_contact_reactive_status_result(*, runtime_session_manager, ca
     if runtime_session_manager.apply(captured_session_id, runtime_session_manager.read_collection_snapshot()).get("status") not in {"applied", "already_applied"}: return _result("rejected", "observed_contact_application_rejected")
     committed = runtime_session_manager.capture_runtime_state_snapshot(captured_session_id)
     before_actor = _pokemon(state, attacker)
-    if not _committed_ok(committed, attacker, defender, target_hp_after, ability, outcome, before_actor): return _result("rejected", "observed_contact_committed_runtime_verification_failed")
-    fresh = freeze_runtime_strategy_d0(runtime_snapshot=committed, decision_owner=attacker)
+    if not _committed_ok(committed, attacker, defender, target_hp_after, ability, outcome, before_actor, confirmations): return _result("rejected", "observed_contact_committed_runtime_verification_failed")
+    fresh = freeze_runtime_strategy_d0(runtime_snapshot=committed, decision_owner=attacker) if target_hp_after > 0 else None
     if target_hp_after > 0 and (fresh.get("status") != "resolved" or fresh.get("source_runtime_fingerprint") == d0.get("source_runtime_fingerprint")): return _result("rejected", "observed_contact_fresh_d0_verification_failed")
-    return {"status": "resolved", "reason": None, "owner": deepcopy(defender), "observations": [deepcopy(x["observation"]) for x in confirmations], "runtime_snapshot": committed, "strategy_d0": fresh, "idempotent": False}
+    return {"status": "resolved", "reason": None, "owner": deepcopy(defender), "observations": [deepcopy(x["observation"]) for x in confirmations], "runtime_snapshot": committed, "strategy_d0": fresh, "idempotent": False, **(_faint_boundary(defender, confirmations) if target_hp_after == 0 else {})}
 
 def _confirmations(session, attacker, defender, payload, turn, create_execution):
     boundary = LifecycleConfirmationBoundary(session, {attacker["side"]: attacker, defender["side"]: defender}); rows = []
     if create_execution: rows.append(boundary.confirm(event_kind="executed_move_observed", payload={"move_id":payload["move_id"],"source_action_id":payload["source_action_id"]}, session_id=session, source=EXECUTED_MOVE_SOURCE, trust=USER_TRUST, confirmed=True, side=attacker["side"], slot_index=attacker["slot_index"], pokemon_id=attacker["pokemon_id"], observation_id=f"{session}:contact-reactive:{payload['source_action_id']}:execution", turn_number=turn))
     rows.append(boundary.confirm(event_kind="contact_reactive_status_result_observed", payload=payload, session_id=session, source=CONTACT_REACTIVE_STATUS_RESULT_SOURCE, trust=USER_TRUST, confirmed=True, side=defender["side"], slot_index=defender["slot_index"], pokemon_id=defender["pokemon_id"], observation_id=f"{session}:contact-reactive:{payload['source_action_id']}:result", turn_number=turn))
-    rows.append(boundary.confirm(event_kind="exact_hp_transition_observed", payload={"hp_before":payload["hp_before"],"hp_after":payload["hp_after"]}, session_id=session, source=HP_TRANSITION_SOURCE, trust=USER_TRUST, confirmed=True, side=defender["side"], slot_index=defender["slot_index"], pokemon_id=defender["pokemon_id"], observation_id=f"{session}:contact-reactive:{payload['source_action_id']}:hp", turn_number=turn))
+    if payload["hp_after"] == 0:
+        pair = build_exact_hp_zero_faint_confirmation_pair(session_id=session, owner=defender, hp_before=payload["hp_before"], turn_number=turn, source_event_id=payload["source_action_id"], hp_observation_id=f"{session}:contact-reactive:{payload['source_action_id']}:hp", faint_observation_id=f"{session}:contact-reactive:{payload['source_action_id']}:faint")
+        if pair is None: return None
+        rows.extend(pair)
+    else:
+        rows.append(boundary.confirm(event_kind="exact_hp_transition_observed", payload={"hp_before":payload["hp_before"],"hp_after":payload["hp_after"]}, session_id=session, source=HP_TRANSITION_SOURCE, trust=USER_TRUST, confirmed=True, side=defender["side"], slot_index=defender["slot_index"], pokemon_id=defender["pokemon_id"], observation_id=f"{session}:contact-reactive:{payload['source_action_id']}:hp", turn_number=turn))
     if payload["outcome"] == "activation": rows.append(boundary.confirm(event_kind="current_condition_observed", payload={"condition":_ABILITIES[payload["reactive_ability"]]}, session_id=session, source=CONTACT_REACTIVE_STATUS_APPLICATION_SOURCE, trust=USER_TRUST, confirmed=True, side=attacker["side"], slot_index=attacker["slot_index"], pokemon_id=attacker["pokemon_id"], observation_id=f"{session}:contact-reactive:{payload['source_action_id']}:condition", turn_number=turn))
     return rows if all(row.get("status") == "confirmed" for row in rows) else None
 
@@ -72,13 +81,18 @@ def _reuse_receipt(receipt, attacker, defender, move, action, after, outcome, tu
     ability = payload.get("reactive_ability") if isinstance(payload, Mapping) else None
     execution = _execution(collection, receipt.get("session_id"), action)
     hp = next((x for x in collection.get("ordered_observations", []) if isinstance(x, Mapping) and x.get("observation_id") == f"{receipt.get('session_id')}:contact-reactive:{action}:hp"), None)
+    faint = next((x for x in collection.get("ordered_observations", []) if isinstance(x, Mapping) and x.get("observation_id") == f"{receipt.get('session_id')}:contact-reactive:{action}:faint"), None)
     condition = next((x for x in collection.get("ordered_observations", []) if isinstance(x, Mapping) and x.get("observation_id") == f"{receipt.get('session_id')}:contact-reactive:{action}:condition"), None)
-    hp_ok = isinstance(hp, Mapping) and hp.get("event_kind") == "exact_hp_transition_observed" and hp.get("source") == HP_TRANSITION_SOURCE and hp.get("session_id") == receipt.get("session_id") and hp.get("turn_number") == receipt.get("turn_number") and (hp.get("side"), hp.get("slot_index"), hp.get("pokemon_id"), hp.get("payload", {}).get("hp_before"), hp.get("payload", {}).get("hp_after")) == (defender["side"], defender["slot_index"], defender["pokemon_id"], before, after)
-    condition_ok = isinstance(condition, Mapping) and condition.get("event_kind") == "current_condition_observed" and condition.get("source") == CONTACT_REACTIVE_STATUS_APPLICATION_SOURCE and (condition.get("side"), condition.get("slot_index"), condition.get("pokemon_id"), condition.get("payload", {}).get("condition")) == (attacker["side"], attacker["slot_index"], attacker["pokemon_id"], _ABILITIES.get(ability))
-    if not _execution_matches(execution, attacker, move, turn) or not hp_ok or (outcome == "activation" and not condition_ok) or (outcome == "no_activation" and condition is not None): return _result("rejected", "incomplete_or_conflicting_observed_contact_receipt")
+    hp_ok = isinstance(hp, Mapping) and hp.get("event_kind") == "exact_hp_transition_observed" and hp.get("source") == HP_TRANSITION_SOURCE and hp.get("trust") == USER_TRUST and hp.get("session_id") == receipt.get("session_id") and hp.get("turn_number") == receipt.get("turn_number") and (hp.get("side"), hp.get("slot_index"), hp.get("pokemon_id"), hp.get("payload", {}).get("hp_before"), hp.get("payload", {}).get("hp_after")) == (defender["side"], defender["slot_index"], defender["pokemon_id"], before, after)
+    condition_ok = isinstance(condition, Mapping) and condition.get("event_kind") == "current_condition_observed" and condition.get("source") == CONTACT_REACTIVE_STATUS_APPLICATION_SOURCE and condition.get("trust") == USER_TRUST and condition.get("session_id") == receipt.get("session_id") and condition.get("turn_number") == receipt.get("turn_number") and (condition.get("side"), condition.get("slot_index"), condition.get("pokemon_id"), condition.get("payload", {}).get("condition")) == (attacker["side"], attacker["slot_index"], attacker["pokemon_id"], _ABILITIES.get(ability))
+    pair_state = validate_exact_hp_zero_faint_confirmation_pair(hp=hp, faint=faint, owner=defender, turn_number=turn, hp_observation_id=f"{receipt.get('session_id')}:contact-reactive:{action}:hp", faint_observation_id=f"{receipt.get('session_id')}:contact-reactive:{action}:faint", session_id=receipt.get("session_id")) if after == 0 else "not_required"
+    if not _execution_matches(execution, attacker, move, turn) or not hp_ok or pair_state not in {"exact", "not_required"} or (after > 0 and faint is not None) or (outcome == "activation" and not condition_ok) or (outcome == "no_activation" and condition is not None): return _result("rejected", "incomplete_or_conflicting_observed_contact_receipt")
     committed = manager.capture_runtime_state_snapshot(receipt.get("session_id"))
     if committed.get("status") != "runtime_snapshot_ready": return _result("rejected", "runtime_snapshot_unavailable")
-    return {"status":"resolved","reason":"idempotent_reuse","owner":deepcopy(defender),"observations":[deepcopy(receipt)],"runtime_snapshot":committed,"strategy_d0":freeze_runtime_strategy_d0(runtime_snapshot=committed, decision_owner=attacker),"idempotent":True}
+    rows = [execution, receipt, hp] + ([faint] if after == 0 else []) + ([condition] if outcome == "activation" else [])
+    if not _committed_ok(committed, attacker, defender, after, ability, outcome, _pokemon(committed.get("state"), attacker), [{"observation": row} for row in rows]): return _result("rejected", "inconsistent_committed_observed_contact_receipt")
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=committed, decision_owner=attacker) if after > 0 else None
+    return {"status":"resolved","reason":"idempotent_reuse","owner":deepcopy(defender),"observations":[deepcopy(row) for row in rows],"runtime_snapshot":committed,"strategy_d0":d0,"idempotent":True, **(_faint_boundary(defender, [{"observation": row} for row in rows]) if after == 0 else {})}
 def _payload(a,d,action,move,ability,outcome,before,after): return {"source_action_id":action,"move_id":move,"reactive_ability":ability,"outcome":outcome,"attacker_side":a["side"],"attacker_slot_index":a["slot_index"],"attacker_pokemon_id":a["pokemon_id"],"defender_side":d["side"],"defender_slot_index":d["slot_index"],"defender_pokemon_id":d["pokemon_id"],"hp_before":before,"hp_after":after}
 def _receipt(snapshot, session, action):
     row=next((x for x in snapshot.get("ordered_observations",[]) if isinstance(x,Mapping) and x.get("observation_id")==f"{session}:contact-reactive:{action}:result"),None)
@@ -90,17 +104,33 @@ def _execution_matches(row,owner,move,turn): return bool(row) and row.get("side"
 def _preview(snapshot,confirmations):
     if not isinstance(snapshot,Mapping) or snapshot.get("status")!="ready": return None
     return {**deepcopy(dict(snapshot)),"ordered_observations":sorted([*deepcopy(snapshot.get("ordered_observations",[])),*[deepcopy(x["observation"]) for x in confirmations]],key=lambda x:(x["observation_sequence"],x["observation_id"]))}
-def _committed_ok(snapshot,a,d,after,ability,outcome,before_actor):
+def _committed_ok(snapshot,a,d,after,ability,outcome,before_actor,confirmations):
     state=snapshot.get("state") if isinstance(snapshot,Mapping) else None; target=_pokemon(state,d); actor=_pokemon(state,a)
     if not isinstance(target,Mapping) or target.get("pokemon_id") != d["pokemon_id"] or target.get("current_hp")!=after: return False
+    rows = [row.get("observation") for row in confirmations if isinstance(row, Mapping) and isinstance(row.get("observation"), Mapping)]
+    hp = next((row for row in rows if row.get("event_kind") == "exact_hp_transition_observed"), None)
+    faint = next((row for row in rows if row.get("event_kind") == "pokemon_faint_observed"), None)
+    hp_provenance = target.get("current_hp_provenance")
+    if not isinstance(hp, Mapping) or not isinstance(hp_provenance, Mapping) or (hp_provenance.get("source_observation_id"), hp_provenance.get("source_sequence")) != (hp.get("observation_id"), hp.get("observation_sequence")): return False
     if after == 0:
-        if target.get("fainted") is not True: return False
+        faint_provenance = target.get("fainted_provenance")
+        if target.get("fainted") is not True or not isinstance(faint, Mapping) or not isinstance(faint_provenance, Mapping) or (faint_provenance.get("source_observation_id"), faint_provenance.get("source_sequence")) != (faint.get("observation_id"), faint.get("observation_sequence")): return False
     elif _active_owner(state,d["side"])!=d: return False
-    if outcome=="activation": return isinstance(actor,Mapping) and actor.get("condition")==_ABILITIES[ability] and isinstance(actor.get("condition_provenance"),Mapping) and actor["condition_provenance"].get("event_kind") == "current_condition_observed"
+    if outcome=="activation":
+        condition = next((row for row in rows if row.get("event_kind") == "current_condition_observed"), None); provenance = actor.get("condition_provenance") if isinstance(actor, Mapping) else None
+        return isinstance(actor,Mapping) and actor.get("condition")==_ABILITIES[ability] and isinstance(condition, Mapping) and isinstance(provenance,Mapping) and (provenance.get("source_observation_id"), provenance.get("source_sequence")) == (condition.get("observation_id"), condition.get("observation_sequence"))
     return isinstance(actor,Mapping) and isinstance(before_actor, Mapping) and actor.get("condition") == before_actor.get("condition") and actor.get("condition_provenance") == before_actor.get("condition_provenance")
 def _active_owner(state,side):
     row=state.get(f"{side}_side") if isinstance(state,Mapping) else None; roster=row.get("pokemon") if isinstance(row,Mapping) else None; slot=row.get("active_slot_index") if isinstance(row,Mapping) else None; pokemon=roster.get(slot,roster.get(str(slot))) if isinstance(roster,Mapping) and isinstance(slot,int) and not isinstance(slot,bool) and slot>=0 else None; session=state.get("session_id") if isinstance(state,Mapping) else None
     return {"session_id":session,"side":side,"slot_index":slot,"pokemon_id":pokemon.get("pokemon_id")} if isinstance(session,str) and session and isinstance(pokemon,Mapping) and isinstance(pokemon.get("pokemon_id"),str) and pokemon.get("pokemon_id") and pokemon.get("fainted") is not True else None
+def _active_identity(state,side):
+    row=state.get(f"{side}_side") if isinstance(state,Mapping) else None; roster=row.get("pokemon") if isinstance(row,Mapping) else None; slot=row.get("active_slot_index") if isinstance(row,Mapping) else None; pokemon=roster.get(slot,roster.get(str(slot))) if isinstance(roster,Mapping) and isinstance(slot,int) and not isinstance(slot,bool) and slot>=0 else None; session=state.get("session_id") if isinstance(state,Mapping) else None
+    return {"session_id":session,"side":side,"slot_index":slot,"pokemon_id":pokemon.get("pokemon_id")} if isinstance(session,str) and session and isinstance(pokemon,Mapping) and isinstance(pokemon.get("pokemon_id"),str) and pokemon.get("pokemon_id") else None
+def _faint_boundary(defender, confirmations):
+    rows = [row.get("observation") for row in confirmations if isinstance(row, Mapping) and isinstance(row.get("observation"), Mapping)]
+    hp = next(row for row in rows if row.get("event_kind") == "exact_hp_transition_observed")
+    faint = next(row for row in rows if row.get("event_kind") == "pokemon_faint_observed")
+    return {"replacement_boundary":{"status":"replacement_required_after_faint","fainted_owner":deepcopy(defender),"hp_transition_observation_id":hp["observation_id"],"faint_observation_id":faint["observation_id"],"terminal_sequence":faint["observation_sequence"],"provenance":HP_ZERO_FAINT_SOURCE}}
 def _pokemon(state,owner):
     side=state.get(f"{owner['side']}_side") if isinstance(state,Mapping) else None; roster=side.get("pokemon") if isinstance(side,Mapping) else None
     return roster.get(owner["slot_index"],roster.get(str(owner["slot_index"]))) if isinstance(roster,Mapping) else None

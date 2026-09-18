@@ -6,11 +6,12 @@ from llm.advisor_observation_runtime_session import BattleObservationRuntimeSess
 
 SOURCE = "runtime_exact_hp_zero_faint_lifecycle_v1"
 
-def build_exact_hp_zero_faint_confirmation_pair(*, session_id, owner, hp_before, turn_number, source_event_id):
+def build_exact_hp_zero_faint_confirmation_pair(*, session_id, owner, hp_before, turn_number, source_event_id, hp_observation_id=None, faint_observation_id=None):
     """Pure builder; callers may compose its rows into a larger atomic batch."""
     if not _owner(owner, session_id) or not _positive(hp_before) or not _positive(turn_number) or not _token(source_event_id): return None
     boundary=LifecycleConfirmationBoundary(session_id,{owner["side"]:owner})
-    hp_id=f"{session_id}:hp-zero-faint:{source_event_id}:hp"; faint_id=f"{session_id}:hp-zero-faint:{source_event_id}:faint"
+    hp_id=hp_observation_id or f"{session_id}:hp-zero-faint:{source_event_id}:hp"; faint_id=faint_observation_id or f"{session_id}:hp-zero-faint:{source_event_id}:faint"
+    if not _observation_id(hp_id) or not _observation_id(faint_id) or hp_id == faint_id: return None
     hp=boundary.confirm(event_kind="exact_hp_transition_observed",payload={"hp_before":hp_before,"hp_after":0},session_id=session_id,source=HP_TRANSITION_SOURCE,trust=USER_TRUST,confirmed=True,side=owner["side"],slot_index=owner["slot_index"],pokemon_id=owner["pokemon_id"],observation_id=hp_id,turn_number=turn_number)
     faint=boundary.confirm(event_kind="pokemon_faint_observed",payload={"cause_known":False},session_id=session_id,source=FAINT_SOURCE,trust=USER_TRUST,confirmed=True,side=owner["side"],slot_index=owner["slot_index"],pokemon_id=owner["pokemon_id"],observation_id=faint_id,related_observation_id=hp_id,turn_number=turn_number)
     return (hp,faint) if hp.get("status")=="confirmed" and faint.get("status")=="confirmed" else None
@@ -25,7 +26,7 @@ def admit_exact_hp_zero_faint(*, runtime_session_manager, captured_session_id, s
     rows=runtime_session_manager.read_collection_snapshot().get("ordered_observations",[])
     hp_id=f"{captured_session_id}:hp-zero-faint:{source_event_id}:hp"; faint_id=f"{captured_session_id}:hp-zero-faint:{source_event_id}:faint"
     oldhp=next((x for x in rows if x.get("observation_id")==hp_id),None); oldfaint=next((x for x in rows if x.get("observation_id")==faint_id),None)
-    existing=_existing_pair(oldhp,oldfaint,owner,turn_number,hp_id,faint_id,captured_session_id)
+    existing=validate_exact_hp_zero_faint_confirmation_pair(hp=oldhp,faint=oldfaint,owner=owner,turn_number=turn_number,hp_observation_id=hp_id,faint_observation_id=faint_id,session_id=captured_session_id)
     if existing=="exact":
         if not isinstance(pokemon,Mapping) or pokemon.get("current_hp") != 0 or pokemon.get("fainted") is not True: return _result("rejected","inconsistent_committed_hp_zero_faint_lifecycle")
         return {"status":"resolved","reason":"idempotent_reuse","owner":deepcopy(owner),"observations":[deepcopy(oldhp),deepcopy(oldfaint)],"runtime_snapshot":snap,"strategy_d0":None,"idempotent":True,"replacement_boundary":{"status":"replacement_required_after_faint","fainted_owner":deepcopy(owner),"hp_transition_observation_id":hp_id,"faint_observation_id":faint_id,"terminal_sequence":oldfaint["observation_sequence"],"provenance":SOURCE}}
@@ -45,7 +46,9 @@ def admit_exact_hp_zero_faint(*, runtime_session_manager, captured_session_id, s
     committed=runtime_session_manager.capture_runtime_state_snapshot(captured_session_id); target=_pokemon(committed.get("state"),owner)
     if not isinstance(target,Mapping) or target.get("current_hp")!=0 or target.get("fainted") is not True:return _result("rejected","committed_faint_verification_failed")
     return {"status":"resolved","reason":None,"owner":owner,"observations":[deepcopy(x["observation"]) for x in pair],"runtime_snapshot":committed,"strategy_d0":None,"idempotent":False,"replacement_boundary":{"status":"replacement_required_after_faint","fainted_owner":owner,"hp_transition_observation_id":hp_id,"faint_observation_id":faint_id,"terminal_sequence":pair[1]["observation"]["observation_sequence"],"provenance":SOURCE}}
-def _existing_pair(hp,faint,owner,turn,hp_id,faint_id,session):
+def validate_exact_hp_zero_faint_confirmation_pair(*, hp, faint, owner, turn_number, hp_observation_id, faint_observation_id, session_id):
+    """Classify an already-collected deterministic pair without mutating it."""
+    turn, hp_id, faint_id, session = turn_number, hp_observation_id, faint_observation_id, session_id
     if hp is None and faint is None:return "none"
     if not isinstance(hp,Mapping) or not isinstance(faint,Mapping):return "partial"
     match=lambda row,kind,source,oid: row.get("event_kind")==kind and row.get("source")==source and row.get("trust")==USER_TRUST and row.get("session_id")==session and row.get("observation_id")==oid and row.get("turn_number")==turn and (row.get("side"),row.get("slot_index"),row.get("pokemon_id"))==(owner["side"],owner["slot_index"],owner["pokemon_id"])
@@ -64,4 +67,5 @@ def _pokemon(state,o): return state.get(f"{o['side']}_side",{}).get("pokemon",{}
 def _owner(o,s):return isinstance(o,Mapping) and o.get("session_id")==s and o.get("side") in {"self","opponent"} and isinstance(o.get("slot_index"),int) and not isinstance(o.get("slot_index"),bool) and isinstance(o.get("pokemon_id"),str) and bool(o["pokemon_id"])
 def _positive(x):return isinstance(x,int) and not isinstance(x,bool) and x>0
 def _token(x):return isinstance(x,str) and bool(x) and x==x.lower() and " " not in x and "_" not in x
+def _observation_id(x):return isinstance(x,str) and bool(x)
 def _result(status,reason):return {"status":status,"reason":reason,"owner":None,"observations":[],"runtime_snapshot":None,"strategy_d0":None,"replacement_boundary":None}
