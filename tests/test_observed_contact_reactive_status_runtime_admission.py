@@ -65,13 +65,17 @@ def test_receipt_payload_fails_closed(mutate):
     assert retry["status"] == "invalid_provenance"
 
 
-def _runtime_manager(ability="static", self_ability="pressure", self_type="normal"):
+def _runtime_manager(ability="static", self_ability="pressure", self_type="normal", self_item=None):
     state = create_unknown_bootstrap_battle_state("contact-runtime", "self-a", "opponent-a")["state"]
     for side in ("self", "opponent"):
         state[f"{side}_side"]["pokemon"][0].update(current_hp=100, max_hp=100, fainted=False)
     steps = []; sequence = 0
-    for side, pokemon, types, current_ability in (("self", "self-a", [self_type], self_ability), ("opponent", "opponent-a", ["normal"], ability)):
-        for effect, data in (("set_current_condition", {"condition": "none"}), ("set_current_type", {"types": types}), ("set_current_ability", {"ability": current_ability}), ("set_current_item", {"status": "known_absent"})):
+    for side, pokemon, types, current_ability in (("self", "self-a", [self_type] if self_type else None, self_ability), ("opponent", "opponent-a", ["normal"], ability)):
+        facts = [("set_current_condition", {"condition": "none"})]
+        if types is not None: facts.append(("set_current_type", {"types": types}))
+        if current_ability is not None: facts.append(("set_current_ability", {"ability": current_ability}))
+        if side != "self" or self_item != "unknown": facts.append(("set_current_item", {"status": "known", "item": self_item} if side == "self" and self_item else {"status": "known_absent"}))
+        for effect, data in facts:
             sequence += 1; steps.append({"observation_id":f"x:{sequence}","observation_sequence":sequence,"planned_effect":effect,"trust":"user_confirmed_observation","turn_number":1,"side":side,"slot_index":0,"pokemon_id":pokemon,**data})
     projected = project_atomic_transition(state, {"session_id":"contact-runtime","status":"planned","conflicts":[],"ordered_steps":steps}, "contact-runtime")["projected_state"]
     return BattleObservationRuntimeSessionManager.create("contact-runtime", projected)["manager"]
