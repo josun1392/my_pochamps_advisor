@@ -123,6 +123,10 @@ from llm.advisor_runtime_d0_fling_persim_confusion_cure_target_effect_authority 
     freeze_runtime_d0_fling_persim_confusion_cure_target_effect_authority,
     materialize_detached_fling_persim_confusion_cure_target_effect,
 )
+from llm.advisor_runtime_d0_fling_lum_major_status_confusion_cure_target_effect_authority import (
+    freeze_runtime_d0_fling_lum_major_status_confusion_cure_target_effect_authority,
+    materialize_detached_fling_lum_major_status_confusion_cure_target_effect,
+)
 from llm.advisor_champions_confusion_progression import valid_confusion_progression
 from llm.advisor_detached_item_transfer_after_hit import materialize_detached_item_transfer_after_hit
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
@@ -273,10 +277,28 @@ def materialize_immediate_move_vs_move_action_pair(
         own_action=own_action,
         own_meta=own_meta,
     )
-    if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and any(member.get("current_confusion") == "confused" for member in status_members):
+    lum_gate_deferral = _lum_gate_deferral_for_first_cure(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        base=base,
+        orders=orders,
+        own_action=own_action,
+        opponent_action=opponent_action,
+        own_meta=own_meta,
+        opponent_meta=opponent_meta,
+    )
+    if (
+        any(member.get("condition") in {"sleep", "freeze"} for member in status_members)
+        and any(member.get("current_confusion") == "confused" for member in status_members)
+        and not lum_gate_deferral.get("defer_combined", False)
+    ):
         from llm.advisor_champions_status_confusion_gated_pair import materialize_champions_status_confusion_gated_pair
         return materialize_champions_status_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
-    if any(member.get("current_confusion") == "confused" for member in status_members) and not defer_confusion_gate_for_persim_cure:
+    if (
+        any(member.get("current_confusion") == "confused" for member in status_members)
+        and not defer_confusion_gate_for_persim_cure
+        and not lum_gate_deferral.get("defer_confusion", False)
+    ):
         from llm.advisor_champions_confusion_gated_pair import materialize_champions_confusion_gated_pair
         return materialize_champions_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
     defer_sleep_freeze_gate_for_fling_cure = _defer_sleep_freeze_gate_for_first_fling_cure(
@@ -293,6 +315,7 @@ def materialize_immediate_move_vs_move_action_pair(
         any(member.get("condition") in {"sleep", "freeze"} for member in status_members)
         and (not pending_status_execution_authorities or any(member.get("champions_status_progression") for member in status_members))
         and not defer_sleep_freeze_gate_for_fling_cure
+        and not lum_gate_deferral.get("defer_status", False)
     ):
         from llm.advisor_champions_status_gated_pair import materialize_champions_status_gated_pair
         return materialize_champions_status_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
@@ -399,6 +422,7 @@ def materialize_immediate_move_vs_move_action_pair(
             pivot_entry_authorities=pivot_entry_authorities,
             post_source_retaliation_protection_authority=post_source_retaliation_protection_authority,
             defer_confusion_gate_for_persim_cure=defer_confusion_gate_for_persim_cure,
+            lum_gate_deferral=lum_gate_deferral,
         )
         if isinstance(materialized, Mapping): return materialized
         branches.extend(materialized)
@@ -1674,6 +1698,7 @@ def _materialize_order(
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None,
     post_source_retaliation_protection_authority: Mapping[str, Any] | None,
     defer_confusion_gate_for_persim_cure: bool = False,
+    lum_gate_deferral: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]] | dict[str, Any]:
     order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
@@ -1803,6 +1828,58 @@ def _materialize_order(
                     "persim_confusion_cure_not_reached_before_pending_action",
                     base,
                     first_leaf_id=leaf["leaf_id"],
+                )
+        if isinstance(lum_gate_deferral, Mapping) and lum_gate_deferral.get("active") is True:
+            if (
+                lum_gate_deferral.get("order") != order
+                or lum_gate_deferral.get("first_actor") != first_actor
+                or lum_gate_deferral.get("target") != second_actor
+            ):
+                return _result(
+                    "rejected", "lum_gate_deferral_order_binding_invalid", base,
+                    first_leaf_id=leaf["leaf_id"],
+                )
+            lum_payload = leaf.get("consequences", {}).get(
+                "fling_lum_major_status_confusion_cure_target_effect"
+            )
+            if not isinstance(lum_payload, Mapping):
+                return _result(
+                    "incomplete",
+                    "lum_cure_not_reached_before_pending_action",
+                    base,
+                    first_leaf_id=leaf["leaf_id"],
+                )
+            active_row = intermediate.get("active", {}).get(second_actor["side"], {})
+            condition = active_row.get("hypothetical_condition")
+            confusion = active_row.get("hypothetical_confusion")
+            condition_before = lum_gate_deferral.get("target_condition_before")
+            if (
+                condition_before != "none"
+                and (
+                    not isinstance(condition, Mapping)
+                    or condition.get("status") != "known_none"
+                    or condition.get("source") != "exact_terminal_leaf_condition_removal"
+                )
+            ):
+                return _result(
+                    "incomplete", "lum_major_status_cure_not_projected_before_pending_action",
+                    base, first_leaf_id=leaf["leaf_id"],
+                )
+            expected_confusion_source = (
+                "exact_terminal_leaf_fling_lum_confusion_removal"
+                if lum_gate_deferral.get("target_confusion_before") == "confused"
+                else "exact_terminal_leaf_fling_lum_confusion_no_transition"
+            )
+            if (
+                not isinstance(confusion, Mapping)
+                or confusion.get("status") != "known_none"
+                or confusion.get("current_confusion") != "none"
+                or confusion.get("champions_confusion_progression") is not None
+                or confusion.get("source") != expected_confusion_source
+            ):
+                return _result(
+                    "incomplete", "lum_confusion_cure_not_projected_before_pending_action",
+                    base, first_leaf_id=leaf["leaf_id"],
                 )
         flinch = _pending_second_action_flinch(intermediate, second_actor)
         if isinstance(flinch, str):
@@ -1989,8 +2066,16 @@ def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runti
             actor=actor,
             target=target,
         )
-        return _apply_fling_persim_confusion_cure_target_effect_to_ledger(
+        persim = _apply_fling_persim_confusion_cure_target_effect_to_ledger(
             ledger=type_resist,
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            authority=fling_execution,
+            actor=actor,
+            target=target,
+        )
+        return _apply_fling_lum_major_status_confusion_cure_target_effect_to_ledger(
+            ledger=persim,
             strategy_d0=strategy_d0,
             runtime_snapshot=runtime_snapshot,
             authority=fling_execution,
@@ -2636,6 +2721,173 @@ def _defer_confusion_gate_for_first_persim_cure(
     )
 
 
+def _lum_gate_deferral_for_first_cure(
+    *,
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    base: Mapping[str, Any],
+    orders: list[dict[str, Any]],
+    own_action: Mapping[str, Any],
+    opponent_action: Mapping[str, Any],
+    own_meta: Mapping[str, Any],
+    opponent_meta: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Defer only the exact gate dimensions an already-frozen Lum-first can cure."""
+    inactive = {
+        "active": False,
+        "defer_status": False,
+        "defer_confusion": False,
+        "defer_combined": False,
+    }
+    if len(orders) != 1 or orders[0].get("order") not in {"own_first", "opponent_first"}:
+        return inactive
+    order = orders[0]["order"]
+    if order == "own_first":
+        first_actor, second_actor = base["own_actor"], base["opponent_actor"]
+        first_action, first_meta = own_action, own_meta
+        execution_d0, execution_snapshot = strategy_d0, runtime_snapshot
+    else:
+        first_actor, second_actor = base["opponent_actor"], base["own_actor"]
+        first_action, first_meta = opponent_action, opponent_meta
+        root = freeze_detached_actor_neutral_root_predictive_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            opponent_action=opponent_action,
+        )
+        if root.get("status") != "resolved":
+            return inactive
+        execution_d0 = root.get("predictive_strategy_d0")
+        execution_snapshot = root.get("predictive_runtime_snapshot")
+        if not isinstance(execution_d0, Mapping) or not isinstance(execution_snapshot, Mapping):
+            return inactive
+
+    metadata = first_meta.get("metadata") if isinstance(first_meta, Mapping) else None
+    if (
+        not isinstance(metadata, Mapping)
+        or metadata.get("move_id") != "fling"
+        or first_action.get("action_type") != "attack"
+        or first_action.get("identity") != "fling"
+    ):
+        return inactive
+
+    conditions = strategy_d0.get("current_condition_authority")
+    if not isinstance(conditions, Mapping):
+        return inactive
+    first_condition = conditions.get(first_actor["side"])
+    second_condition = conditions.get(second_actor["side"])
+    if (
+        not isinstance(first_condition, Mapping)
+        or not isinstance(second_condition, Mapping)
+        or first_condition.get("status") != "resolved"
+        or second_condition.get("status") != "resolved"
+        or first_condition.get("owner") != first_actor
+        or second_condition.get("owner") != second_actor
+    ):
+        return inactive
+    first_value = first_condition.get("condition")
+    second_value = second_condition.get("condition")
+    if not isinstance(first_value, Mapping) or not isinstance(second_value, Mapping):
+        return inactive
+    if first_value.get("status") not in {"known_none", "known_present"}:
+        return inactive
+    if (
+        first_value.get("status") == "known_present"
+        and first_value.get("condition") in {"sleep", "freeze"}
+    ):
+        return inactive
+    if second_value.get("status") == "known_none":
+        second_condition_value = "none"
+    elif (
+        second_value.get("status") == "known_present"
+        and second_value.get("condition")
+        in {"burn", "poison", "toxic", "paralysis", "sleep", "freeze"}
+    ):
+        second_condition_value = second_value["condition"]
+    else:
+        return inactive
+
+    first_confusion = _exact_lum_gate_confusion(runtime_snapshot, first_actor)
+    second_confusion = _exact_lum_gate_confusion(runtime_snapshot, second_actor)
+    if (
+        first_confusion is None
+        or second_confusion is None
+        or first_confusion["state"] != "none"
+    ):
+        return inactive
+
+    defer_status = second_condition_value in {"sleep", "freeze"}
+    defer_confusion = second_confusion["state"] == "confused"
+    if not (defer_status or defer_confusion):
+        return inactive
+
+    execution = freeze_runtime_d0_fling_item_execution_authority(
+        strategy_d0=execution_d0,
+        runtime_snapshot=execution_snapshot,
+        action=first_action,
+        actor=first_actor,
+        target=second_actor,
+    )
+    family = execution.get("fling_lum_major_status_confusion_cure_berry_authority")
+    if (
+        execution.get("status") != "resolved"
+        or execution.get("outcome") != "ready_throw"
+        or execution.get("fling_lum_major_status_confusion_cure_support")
+        != "fling_lum_major_status_confusion_cure_target_effect_v1"
+        or not isinstance(family, Mapping)
+        or family.get("status") != "resolved"
+        or execution.get("user_item_before", {}).get("value") != "lum-berry"
+        or execution.get("resolved_base_power") != 10
+    ):
+        return inactive
+    return {
+        "active": True,
+        "order": order,
+        "first_actor": deepcopy(dict(first_actor)),
+        "target": deepcopy(dict(second_actor)),
+        "target_condition_before": second_condition_value,
+        "target_confusion_before": second_confusion["state"],
+        "defer_status": defer_status,
+        "defer_confusion": defer_confusion,
+        "defer_combined": defer_status and defer_confusion,
+        "execution_authority": deepcopy(dict(execution)),
+        "provenance": "exact_single_order_lum_first_gate_deferral_v1",
+    }
+
+
+def _exact_lum_gate_confusion(
+    runtime_snapshot: Mapping[str, Any], owner: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    state = runtime_snapshot.get("state")
+    side = state.get(f"{owner.get('side')}_side") if isinstance(state, Mapping) else None
+    roster = side.get("pokemon") if isinstance(side, Mapping) else None
+    raw = roster.get(owner.get("slot_index")) if isinstance(roster, Mapping) else None
+    if (
+        not isinstance(raw, Mapping)
+        or raw.get("pokemon_id", raw.get("name_en")) != owner.get("pokemon_id")
+    ):
+        return None
+    value = raw.get("current_confusion")
+    provenance = raw.get("confusion_provenance")
+    progression = raw.get("champions_confusion_progression")
+    if (
+        value not in {"none", "confused"}
+        or not isinstance(provenance, Mapping)
+        or provenance.get("state") != value
+        or provenance.get("trust") != "user_confirmed_observation"
+        or provenance.get("event_kind")
+        not in {"current_confusion_observed", "confusion_cleared_on_switch"}
+    ):
+        return None
+    if value == "none":
+        return {"state": "none", "progression": None} if progression is None else None
+    if (
+        not valid_confusion_progression(progression, dict(owner))
+        or progression.get("confusion_observation") != dict(provenance)
+    ):
+        return None
+    return {"state": "confused", "progression": deepcopy(dict(progression))}
+
+
 def _defer_sleep_freeze_gate_for_first_fling_cure(
     *,
     strategy_d0: Mapping[str, Any],
@@ -3171,6 +3423,120 @@ def _apply_fling_persim_confusion_cure_target_effect_to_ledger(
     out["component_manifest"] = {
         **deepcopy(dict(out.get("component_manifest", {}))),
         "fling_persim_confusion_cure_target_effect": {
+            "status": "conditional_on_authenticated_target_eat",
+        },
+        "fling_berry_eaten_transition": {
+            "status": "conditional_on_authenticated_target_eat",
+        },
+    }
+    return out
+
+
+def _apply_fling_lum_major_status_confusion_cure_target_effect_to_ledger(
+    *,
+    ledger: Mapping[str, Any],
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    authority: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+) -> dict[str, Any]:
+    supported = (
+        authority.get("fling_lum_major_status_confusion_cure_support")
+        == "fling_lum_major_status_confusion_cure_target_effect_v1"
+    )
+    if not supported:
+        return ledger
+    if any(
+        authority.get(key) is not None
+        for key in (
+            "fling_major_status_cure_berry_support",
+            "fling_type_resist_empty_intrinsic_berry_support",
+            "fling_persim_confusion_cure_berry_support",
+        )
+    ):
+        return _result("rejected", "fling_berry_family_support_overlap", {})
+    if ledger.get("status") != "evaluable" or not isinstance(
+        ledger.get("terminal_leaves"), tuple
+    ):
+        return deepcopy(dict(ledger))
+
+    rows = []
+    for leaf in ledger["terminal_leaves"]:
+        interaction = freeze_runtime_d0_fling_berry_eat_item_interaction_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            fling_execution_authority=authority,
+            actor=actor,
+            target=target,
+            phase="post_hit_target_berry_interaction",
+            source_leaf=leaf,
+        )
+        if interaction.get("status") != "resolved":
+            return _result(
+                _status(interaction),
+                interaction.get("reason", "fling_berry_eat_item_interaction_unavailable"),
+                {},
+            )
+        bound = freeze_runtime_d0_fling_lum_major_status_confusion_cure_target_effect_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            fling_execution_authority=authority,
+            source_leaf=leaf,
+            berry_eat_item_interaction_authority=interaction,
+            actor=actor,
+            target=target,
+        )
+        if bound.get("status") != "resolved":
+            return _result(
+                _status(bound),
+                bound.get("reason", "fling_lum_target_effect_unavailable"),
+                {},
+            )
+        if bound.get("outcome") == "not_applicable":
+            rows.append(deepcopy(dict(leaf)))
+            continue
+        if bound.get("outcome") not in {
+            "applied_major_status_and_confusion_cure",
+            "applied_major_status_cure",
+            "applied_confusion_cure",
+            "no_transition_no_curable_state",
+        }:
+            return _result("rejected", "fling_lum_target_effect_outcome_invalid", {})
+        detached = materialize_detached_fling_lum_major_status_confusion_cure_target_effect(
+            authority=bound,
+        )
+        if detached.get("status") != "resolved":
+            return _result(
+                _status(detached),
+                detached.get("reason", "fling_lum_materialization_unavailable"),
+                {},
+            )
+        eaten = materialize_detached_fling_berry_eaten_transition(
+            strategy_d0=strategy_d0,
+            source_leaf=leaf,
+            interaction_authority=interaction,
+            target=target,
+        )
+        if eaten.get("status") != "resolved":
+            return _result(
+                _status(eaten),
+                eaten.get("reason", "fling_berry_eaten_transition_unavailable"),
+                {},
+            )
+        row = deepcopy(dict(leaf))
+        row["consequences"] = {
+            **deepcopy(dict(row.get("consequences", {}))),
+            "fling_lum_major_status_confusion_cure_target_effect": detached,
+            "fling_berry_eaten_transition": deepcopy(dict(eaten)),
+        }
+        rows.append(row)
+
+    out = deepcopy(dict(ledger))
+    out["terminal_leaves"] = tuple(rows)
+    out["component_manifest"] = {
+        **deepcopy(dict(out.get("component_manifest", {}))),
+        "fling_lum_major_status_confusion_cure_target_effect": {
             "status": "conditional_on_authenticated_target_eat",
         },
         "fling_berry_eaten_transition": {

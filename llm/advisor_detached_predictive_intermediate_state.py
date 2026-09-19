@@ -20,6 +20,10 @@ from llm.advisor_detached_berry_eaten_transition import validate_detached_berry_
 from llm.advisor_runtime_d0_fling_persim_confusion_cure_target_effect_authority import (
     validate_detached_persim_confusion_removal,
 )
+from llm.advisor_runtime_d0_fling_lum_major_status_confusion_cure_target_effect_authority import (
+    validate_detached_fling_lum_major_status_confusion_cure_target_effect,
+    validate_detached_lum_confusion_removal,
+)
 
 
 SCHEMA_VERSION = "detached-predictive-intermediate-state-v1"
@@ -150,9 +154,37 @@ def _confusion(
 ) -> dict[str, Any]:
     if role != "target":
         return {"status": "unchanged", "source": "frozen_current_confusion_authority"}
-    payload = leaf.get("consequences", {}).get(
-        "fling_persim_confusion_cure_target_effect"
-    )
+    consequences = leaf.get("consequences", {})
+    lum = consequences.get("fling_lum_major_status_confusion_cure_target_effect")
+    if isinstance(lum, Mapping):
+        if not validate_detached_fling_lum_major_status_confusion_cure_target_effect(
+            consequence=lum, source_leaf=leaf, expected_target=owner,
+        ):
+            return {"status": "invalid", "reason": "terminal_leaf_lum_atomic_cure_payload_invalid"}
+        removal = lum.get("hypothetical_target_confusion_removal")
+        if lum.get("confusion_before") == "none":
+            if removal is not None:
+                return {"status": "invalid", "reason": "terminal_leaf_lum_false_confusion_removal"}
+            return {
+                "status": "known_none",
+                "current_confusion": "none",
+                "champions_confusion_progression": None,
+                "source": "exact_terminal_leaf_fling_lum_confusion_no_transition",
+                "effect": deepcopy(dict(lum)),
+            }
+        if not validate_detached_lum_confusion_removal(
+            removal, source_leaf=leaf, expected_target=owner,
+        ):
+            return {"status": "invalid", "reason": "terminal_leaf_lum_confusion_removal_invalid"}
+        return {
+            "status": "known_none",
+            "current_confusion": "none",
+            "champions_confusion_progression": None,
+            "source": "exact_terminal_leaf_fling_lum_confusion_removal",
+            "effect": deepcopy(dict(removal)),
+        }
+
+    payload = consequences.get("fling_persim_confusion_cure_target_effect")
     if not isinstance(payload, Mapping):
         return {"status": "unchanged", "source": "frozen_current_confusion_authority"}
     removal = payload.get("hypothetical_target_confusion_removal")
@@ -389,6 +421,31 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
             })
         elif removal is not None:
             return "terminal_leaf_condition_removal_consequence_invalid"
+    lum = consequences.get("fling_lum_major_status_confusion_cure_target_effect")
+    if isinstance(lum, Mapping):
+        target = leaf.get("provenance", {}).get("target")
+        if (
+            not isinstance(target, Mapping)
+            or not validate_detached_fling_lum_major_status_confusion_cure_target_effect(
+                consequence=lum, source_leaf=leaf, expected_target=target,
+            )
+        ):
+            return "terminal_leaf_lum_atomic_cure_consequence_invalid"
+        removal = lum.get("hypothetical_target_condition_removal")
+        if lum.get("condition_before") in {"burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
+            if not validate_detached_target_condition_removal(
+                removal,
+                source_leaf_id=leaf.get("leaf_id"),
+                source_leaf=leaf,
+                expected_target=target,
+            ):
+                return "terminal_leaf_lum_condition_removal_invalid"
+            result.append({
+                "owner": "target",
+                "hypothetical_target_condition_removal": deepcopy(dict(removal)),
+            })
+        elif removal is not None:
+            return "terminal_leaf_lum_false_condition_removal"
     transfer = consequences.get("item_transfer_after_hit")
     if isinstance(transfer, Mapping) and transfer.get("outcome") == "transferred" and isinstance(transfer.get("item"), str):
         result.extend(({"owner":"self","hypothetical_self_item":{"status":"known","value":transfer["item"],"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}, {"owner":"target","hypothetical_target_item":{"status":"known_absent","value":None,"source":"exact_terminal_leaf_item_transfer","effect":deepcopy(dict(transfer))}}))

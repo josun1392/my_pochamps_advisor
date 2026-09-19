@@ -18,6 +18,9 @@ from llm.advisor_runtime_d0_fling_major_status_cure_berry_target_effect_authorit
 from llm.advisor_runtime_d0_fling_persim_confusion_cure_target_effect_authority import (
     validate_detached_persim_confusion_removal,
 )
+from llm.advisor_runtime_d0_fling_lum_major_status_confusion_cure_target_effect_authority import (
+    validate_detached_lum_confusion_removal,
+)
 
 
 SCHEMA_VERSION = "detached-intermediate-predictive-authority-v1"
@@ -118,6 +121,25 @@ def freeze_detached_intermediate_predictive_authority(
                 "source_leaf_id": parsed["source_leaf_id"],
             }
             raw["detached_exact_persim_confusion_authority"] = True
+        if confusion.get("source") == "exact_terminal_leaf_fling_lum_confusion_removal":
+            if not validate_detached_lum_confusion_removal(
+                confusion.get("effect"),
+                source_leaf_id=parsed["source_leaf_id"],
+                expected_target=owner,
+            ):
+                return _result(
+                    "rejected",
+                    "intermediate_fling_lum_confusion_removal_invalid",
+                    {**base, **parsed["binding"]},
+                )
+            raw["current_confusion"] = "none"
+            raw["champions_confusion_progression"] = None
+            raw["confusion_provenance"] = {
+                "state": "none",
+                "hypothetical_provenance": "fling_lum_confusion_cure_v1",
+                "source_leaf_id": parsed["source_leaf_id"],
+            }
+            raw["detached_exact_lum_confusion_authority"] = True
         healing = values["healing_prevented"]
         if healing.get("source") == "exact_terminal_leaf_psychic_noise_healing_prevented_transition":
             raw["healing_prevented_status"] = "active"

@@ -9,7 +9,7 @@ from llm.advisor_detached_intermediate_predictive_authority import (
     SCHEMA_VERSION as _INTERMEDIATE_SCHEMA_VERSION,
     detached_intermediate_builder_inputs,
 )
-from llm.advisor_reducer_state_model import state_fingerprint
+from llm.advisor_reducer_state_model import make_unknown_battle_fact, state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from llm.advisor_detached_target_condition_removal_validation import (
     validate_detached_target_condition_removal,
@@ -203,6 +203,11 @@ def _condition_builder_inputs(authority: Mapping[str, Any], changed: Mapping[str
         # admitted conditions, including exact detached known-none, only flow
         # into the private existing direct/crit consumers.
         raw["condition"] = changed[role]
+        if changed[role] == "none":
+            # Mirror the reducer's cleared-condition convention in this private
+            # hypothetical calculator view.  A cured Toxic episode cannot keep
+            # an active stale toxic progression.
+            raw["toxic_progression"] = make_unknown_battle_fact()
         raw["detached_exact_intermediate_condition_authority"] = True
         raw["condition_provenance"] = {
             "event_kind": "current_condition_observed", "trust": "user_confirmed_observation",
