@@ -67,8 +67,9 @@ def test_non_family_berries_are_not_admitted_by_this_family_owner(item_id):
     assert resolve_canonical_fling_type_resist_empty_intrinsic_berry(item_id)["status"] == "not_applicable"
 
 
-def test_still_unsupported_non_family_berry_does_not_become_ready_throw():
-    _state, _snapshot, _d0, _actor, _target, execution = _fixture(item="leppa-berry")
-    assert execution["outcome"] == "unsupported_mandatory_item_effect"
-    assert execution["status"] == "unsupported"
+def test_out_of_manifest_non_family_berry_does_not_become_ready_throw():
+    _state, _snapshot, _d0, _actor, _target, execution = _fixture(item="liechi-berry")
+    assert execution["outcome"] == "incomplete_authority"
+    assert execution["status"] == "incomplete"
+    assert execution["reason"] == "fling_item_not_in_frozen_champions_manifest"
     assert "fling_type_resist_empty_intrinsic_berry_support" not in execution

@@ -21,6 +21,9 @@ from advisor.canonical_fling_lum_major_status_confusion_cure_berry import (
 from advisor.canonical_fling_hp_restore_berry import (
     resolve_canonical_fling_hp_restore_berry,
 )
+from advisor.canonical_fling_leppa_pp_restore_berry import (
+    resolve_canonical_fling_leppa_pp_restore_berry,
+)
 from llm.advisor_reducer_state_model import is_unknown_battle_fact
 from llm.advisor_runtime_d0_item_suppression_field_authority import resolve_runtime_d0_item_suppression_field_authority
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
@@ -154,10 +157,23 @@ def freeze_runtime_d0_fling_item_execution_authority(
             common,
         )
     supported_hp_restore_berry = hp_restore_berry.get("status") == "resolved"
+    leppa_berry = (
+        resolve_canonical_fling_leppa_pp_restore_berry(item["value"])
+        if effect.get("kind") == "berry_effect"
+        else {"status": "not_applicable"}
+    )
+    if leppa_berry.get("status") == "rejected":
+        common["fling_leppa_pp_restore_berry_authority"] = leppa_berry
+        return _terminal(
+            "incomplete_authority", "rejected",
+            leppa_berry.get("reason", "fling_leppa_pp_restore_berry_authority_rejected"),
+            base, common,
+        )
+    supported_leppa_berry = leppa_berry.get("status") == "resolved"
     if sum(bool(value) for value in (
         supported_berry_cure, supported_type_resist_berry,
         supported_persim_berry, supported_lum_berry,
-        supported_hp_restore_berry,
+        supported_hp_restore_berry, supported_leppa_berry,
     )) > 1:
         return _terminal(
             "incomplete_authority", "rejected", "fling_berry_family_support_overlap",
@@ -171,6 +187,7 @@ def freeze_runtime_d0_fling_item_execution_authority(
         or supported_persim_berry
         or supported_lum_berry
         or supported_hp_restore_berry
+        or supported_leppa_berry
     ):
         return _terminal("unsupported_mandatory_item_effect", "unsupported", "fling_mandatory_item_effect_unsupported", base, common)
     if supported_effect:
@@ -190,6 +207,9 @@ def freeze_runtime_d0_fling_item_execution_authority(
     if supported_hp_restore_berry:
         common["fling_hp_restore_berry_support"] = "fling_hp_restore_berry_target_effect_v1"
         common["fling_hp_restore_berry_authority"] = hp_restore_berry
+    if supported_leppa_berry:
+        common["fling_leppa_pp_restore_support"] = "fling_leppa_pp_restore_target_effect_v1"
+        common["fling_leppa_pp_restore_berry_authority"] = leppa_berry
     common["item_after"] = {"state": "known_absent", "item": None}
     common["resolved_base_power"] = metadata["base_power"]
     return _terminal("ready_throw", "resolved", "fling_prepare_hit_throw_ready", base, common)

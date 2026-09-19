@@ -422,10 +422,11 @@ def _valid_current_move_usability(value, known_moves):
 def _valid_current_opponent_response_set(value, known_moves):
     if value is None:
         return True
-    if not isinstance(value, dict) or set(value) != {"moveset_completeness", "move_ids", "provenance"}:
+    allowed_keys = {"moveset_completeness", "move_ids", "provenance"}
+    if not isinstance(value, dict) or set(value) not in (allowed_keys, allowed_keys | {"move_pp_slots"}):
         return False
     provenance = value.get("provenance")
-    return (
+    if not (
         value.get("moveset_completeness") == "complete"
         and isinstance(value.get("move_ids"), list) and len(value["move_ids"]) == 4
         and value["move_ids"] == known_moves
@@ -434,7 +435,41 @@ def _valid_current_opponent_response_set(value, known_moves):
         and provenance.get("trust") == "user_confirmed_observation"
         and isinstance(provenance.get("turn_number"), int) and not isinstance(provenance.get("turn_number"), bool) and provenance["turn_number"] >= 1
         and isinstance(provenance.get("source_sequence"), int) and not isinstance(provenance.get("source_sequence"), bool) and provenance["source_sequence"] >= 1
-    )
+    ):
+        return False
+    pp = value.get("move_pp_slots")
+    if pp is None:
+        return "move_pp_slots" not in value
+    return _valid_move_pp_slots(value["move_ids"], None, pp)
+
+
+def _valid_move_pp_slots(moves, usability, pp):
+    if not isinstance(pp, list) or len(pp) != len(moves):
+        return False
+    seen_slots, seen_moves = set(), set()
+    for index, move in enumerate(moves):
+        row = pp[index]
+        if not isinstance(row, dict) or set(row) != {"slot_index", "move_id", "current_pp", "max_pp"}:
+            return False
+        current_pp, max_pp = row.get("current_pp"), row.get("max_pp")
+        if (
+            row.get("slot_index") != index or row.get("move_id") != move
+            or index in seen_slots or move in seen_moves
+            or not isinstance(current_pp, int) or isinstance(current_pp, bool) or current_pp < 0
+            or not isinstance(max_pp, int) or isinstance(max_pp, bool) or max_pp <= 0
+            or current_pp > max_pp
+        ):
+            return False
+        if isinstance(usability, dict):
+            u = usability.get(move)
+            if not isinstance(u, dict):
+                return False
+            if u.get("status") == "known_usable" and current_pp == 0:
+                return False
+            if u.get("status") == "known_unusable" and u.get("reason") == "no_pp" and current_pp > 0:
+                return False
+        seen_slots.add(index); seen_moves.add(move)
+    return True
 
 
 def _valid_current_opponent_switch_response_set(state, value):
@@ -1838,6 +1873,7 @@ def _set_current_opponent_response_set(state, event):
     """Apply one explicit current complete opponent move-response snapshot."""
     pokemon, side = _pokemon(state, event), _value(event, "side")
     moves, usability, turn_number = _value(event, "move_ids"), _value(event, "move_usability"), _value(event, "turn_number")
+    move_pp_slots = _value(event, "move_pp_slots")
     if (
         side != "opponent" or pokemon is None
         or not _active_identity_matches(state, side, _value(event, "slot_index"), _value(event, "pokemon_id"))
@@ -1857,11 +1893,16 @@ def _set_current_opponent_response_set(state, event):
         if (row["status"] == "known_usable" and row["reason"] is not None) or (row["status"] == "known_unusable" and row["reason"] not in allowed_reasons):
             return _conflict(event, "invalid_current_opponent_response_set_usability")
         normalized[move] = {"status": row["status"], "reason": row["reason"]}
+    if move_pp_slots is not None and not _valid_move_pp_slots(moves, normalized, move_pp_slots):
+        return _conflict(event, "invalid_current_opponent_response_set_pp_snapshot")
     provenance = _provenance(event) | {"event_kind": "current_opponent_response_set_observed", "trust": "user_confirmed_observation", "turn_number": turn_number}
     pokemon["known_move_ids"] = list(moves)
     pokemon["known_move_ids_provenance"] = {move: deepcopy(provenance) for move in moves}
     pokemon["current_move_usability"] = {move: {**row, "provenance": deepcopy(provenance)} for move, row in normalized.items()}
-    pokemon["current_opponent_response_set"] = {"moveset_completeness": "complete", "move_ids": list(moves), "provenance": deepcopy(provenance)}
+    response_set = {"moveset_completeness": "complete", "move_ids": list(moves), "provenance": deepcopy(provenance)}
+    if move_pp_slots is not None:
+        response_set["move_pp_slots"] = deepcopy(move_pp_slots)
+    pokemon["current_opponent_response_set"] = response_set
     return None
 
 

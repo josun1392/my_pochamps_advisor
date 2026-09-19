@@ -244,9 +244,27 @@ def _valid_payload(kind, payload):
     if kind == "current_level_observed": return set(payload) == {"level"} and isinstance(payload.get("level"), int) and not isinstance(payload.get("level"), bool) and 1 <= payload["level"] <= 100
     if kind == "current_final_combat_stat_observed": return set(payload) == {"stat", "value"} and payload.get("stat") in {"attack", "defense", "special-attack", "special-defense", "speed"} and isinstance(payload.get("value"), int) and not isinstance(payload.get("value"), bool) and 1 <= payload["value"] <= 9999
     if kind == "current_opponent_response_set_observed":
-        moves, usability = payload.get("move_ids"), payload.get("move_usability")
+        moves, usability, pp = payload.get("move_ids"), payload.get("move_usability"), payload.get("move_pp_slots")
         reasons = {"no_pp", "disabled", "choice_lock", "encore_restriction", "other_supported_restriction", "observed_unclassified"}
-        return set(payload) == {"move_ids", "move_usability"} and isinstance(moves, list) and len(moves) == 4 and len(set(moves)) == 4 and all(isinstance(move, str) and move and move == move.lower() and " " not in move and "_" not in move for move in moves) and isinstance(usability, dict) and set(usability) == set(moves) and all(isinstance(row, dict) and set(row) == {"status", "reason"} and row.get("status") in {"known_usable", "known_unusable"} and ((row["status"] == "known_usable" and row["reason"] is None) or (row["status"] == "known_unusable" and row["reason"] in reasons)) for row in usability.values())
+        keys_ok = set(payload) in ({"move_ids", "move_usability"}, {"move_ids", "move_usability", "move_pp_slots"})
+        base_ok = keys_ok and isinstance(moves, list) and len(moves) == 4 and len(set(moves)) == 4 and all(isinstance(move, str) and move and move == move.lower() and " " not in move and "_" not in move for move in moves) and isinstance(usability, dict) and set(usability) == set(moves) and all(isinstance(row, dict) and set(row) == {"status", "reason"} and row.get("status") in {"known_usable", "known_unusable"} and ((row["status"] == "known_usable" and row["reason"] is None) or (row["status"] == "known_unusable" and row["reason"] in reasons)) for row in usability.values())
+        if not base_ok or "move_pp_slots" not in payload:
+            return base_ok
+        if not isinstance(pp, list) or len(pp) != 4:
+            return False
+        for index, move in enumerate(moves):
+            row = pp[index]
+            if not isinstance(row, dict) or set(row) != {"slot_index", "move_id", "current_pp", "max_pp"}:
+                return False
+            current_pp, max_pp = row.get("current_pp"), row.get("max_pp")
+            if row.get("slot_index") != index or row.get("move_id") != move or not isinstance(current_pp, int) or isinstance(current_pp, bool) or current_pp < 0 or not isinstance(max_pp, int) or isinstance(max_pp, bool) or max_pp <= 0 or current_pp > max_pp:
+                return False
+            u = usability[move]
+            if u["status"] == "known_usable" and current_pp == 0:
+                return False
+            if u["status"] == "known_unusable" and u["reason"] == "no_pp" and current_pp > 0:
+                return False
+        return True
     if kind == "current_opponent_switch_response_set_observed":
         targets = payload.get("targets")
         return set(payload) == {"permission", "targets"} and payload.get("permission") in {"permitted", "blocked", "unknown"} and isinstance(targets, list) and all(isinstance(row, dict) and set(row) == {"slot_index", "pokemon_id", "availability"} and isinstance(row.get("slot_index"), int) and not isinstance(row.get("slot_index"), bool) and row["slot_index"] >= 0 and isinstance(row.get("pokemon_id"), str) and bool(row["pokemon_id"]) and row.get("availability") in {"alive", "fainted", "unknown"} for row in targets) and len({(row["slot_index"], row["pokemon_id"]) for row in targets}) == len(targets)

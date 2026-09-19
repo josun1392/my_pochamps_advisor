@@ -20,6 +20,7 @@ def admit_current_combined_opponent_response_universe_observation(
     *, runtime_session_manager: BattleObservationRuntimeSessionManager,
     captured_session_id: str, move_ids: list[str],
     move_usability: Mapping[str, Mapping[str, object]], permission: str,
+    move_pp_slots: Sequence[Mapping[str, object]] | None = None,
     targets: Sequence[Mapping[str, object]], turn_number: int | None,
     target_combat_facts: Sequence[Mapping[str, object]] = (),
     switch_hazard_context: Mapping[str, object] | None = None,
@@ -36,7 +37,7 @@ def admit_current_combined_opponent_response_universe_observation(
     own, opponent = _active_owner(state, "self"), _active_owner(state, "opponent")
     if own is None or opponent is None:
         return _result("incomplete", "active_owner_unavailable")
-    moves = _normalize_explicit_response_set(move_ids, move_usability)
+    moves = _normalize_explicit_response_set(move_ids, move_usability, move_pp_slots)
     switches = _normalize_explicit_switch_response_set(state, permission, targets)
     if moves.get("status") != "resolved":
         return _result("incomplete", moves["reason"])
@@ -51,9 +52,12 @@ def admit_current_combined_opponent_response_universe_observation(
     combat_by_identity = {(row.get("slot_index"), row.get("pokemon_id")): row for row in target_combat_facts if isinstance(row, Mapping)}
     target_owners = [{"session_id": captured_session_id, "side": "opponent", "slot_index": row["slot_index"], "pokemon_id": row["pokemon_id"]} for row in switches["targets"] if row.get("availability") == "alive" and (row["slot_index"], row["pokemon_id"]) in combat_by_identity]
     boundary = LifecycleConfirmationBoundary(captured_session_id, {"self": own, "opponent": opponent, "opponent_targets": target_owners})
+    move_payload = {"move_ids": moves["move_ids"], "move_usability": moves["move_usability"]}
+    if moves["move_pp_slots"] is not None:
+        move_payload["move_pp_slots"] = moves["move_pp_slots"]
     move_confirmation = boundary.confirm(
         event_kind="current_opponent_response_set_observed",
-        payload={"move_ids": moves["move_ids"], "move_usability": moves["move_usability"]},
+        payload=move_payload,
         session_id=captured_session_id, source=OPPONENT_RESPONSE_SET_SOURCE,
         trust=USER_TRUST, confirmed=True, side="opponent",
         slot_index=opponent["slot_index"], pokemon_id=opponent["pokemon_id"],

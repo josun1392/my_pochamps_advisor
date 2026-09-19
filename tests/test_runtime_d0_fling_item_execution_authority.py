@@ -49,10 +49,12 @@ def test_catalog_and_supported_throw_bind_exact_manifest_power() -> None:
     assert result["fling_item_metadata"]["provenance"] == "frozen_pinned_showdown_fling_metadata_v1"
 
 
-def test_unknown_absent_unsupported_magic_room_and_klutz_fail_closed() -> None:
+def test_unknown_absent_out_of_manifest_magic_room_and_klutz_fail_closed() -> None:
     assert _authority(_state(item=None))["outcome"] == "failed_no_item"
     assert _authority(_state(item={"knowledge": "unknown"}))["status"] == "incomplete"
-    assert _authority(_state(item="leppa-berry"))["status"] == "unsupported"
+    outside = _authority(_state(item="liechi-berry"))
+    assert outside["status"] == "incomplete"
+    assert outside["reason"] == "fling_item_not_in_frozen_champions_manifest"
     assert _authority(_state(magic_room="active"))["outcome"] == "failed_item_suppressed"
     unknown_field = _state(); unknown_field["field"]["magic_room_status"] = {"knowledge": "unknown"}; unknown_field["field"].pop("magic_room_status_provenance")
     assert _authority(unknown_field)["status"] == "incomplete"
@@ -81,6 +83,7 @@ def test_throw_materialization_consumes_only_after_prepare_hit_boundary() -> Non
 
 _TARGET_ITEM_UNSET = object()
 _TARGET_HEALING_UNSET = object()
+_TARGET_PP_UNSET = object()
 
 
 def _production_fling_pair(
@@ -92,7 +95,9 @@ def _production_fling_pair(
     target_max_hp: int | None = None,
     target_condition: str = "none",
     target_healing_prevented=_TARGET_HEALING_UNSET,
+    target_move_pp_slots=_TARGET_PP_UNSET,
     opponent_move: str = "water-gun",
+    action_order: str = "own_first",
 ) -> tuple[dict, dict]:
     """Build the existing ordinary physical pair fixture with Fling selected."""
     state, snapshot, d0, _own, responses, _orders = _inputs(opponent_hp=opponent_hp)
@@ -139,6 +144,34 @@ def _production_fling_pair(
                 "source_observation_id": "fling-target-healing-prevented",
                 "source_sequence": 1,
             }
+    if target_move_pp_slots is not _TARGET_PP_UNSET:
+        pp_moves = ["water-gun", "tackle", "growl", "tail-whip"]
+        sequence = 77
+        provenance = {
+            "event_kind": "current_opponent_response_set_observed",
+            "trust": "user_confirmed_observation",
+            "turn_number": 1,
+            "source_observation_id": "fling-target-response-set",
+            "source_sequence": sequence,
+        }
+        pp_rows = deepcopy(list(target_move_pp_slots))
+        target_row["known_move_ids"] = list(pp_moves)
+        target_row["known_move_ids_provenance"] = {move: deepcopy(provenance) for move in pp_moves}
+        target_row["current_move_usability"] = {}
+        for row in pp_rows:
+            move = row["move_id"]
+            target_row["current_move_usability"][move] = {
+                "status": "known_unusable" if row["current_pp"] == 0 else "known_usable",
+                "reason": "no_pp" if row["current_pp"] == 0 else None,
+                "provenance": deepcopy(provenance),
+            }
+        target_row["current_opponent_response_set"] = {
+            "moveset_completeness": "complete",
+            "move_ids": list(pp_moves),
+            "move_pp_slots": pp_rows,
+            "provenance": deepcopy(provenance),
+        }
+        state["last_applied_observation_sequence"] = sequence
     state["field"]["magic_room_status"] = "inactive"
     state["field"]["magic_room_status_provenance"] = {
         "event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation",
@@ -183,10 +216,12 @@ def _production_fling_pair(
         }
     else:
         raise AssertionError(f"unsupported test opponent move: {opponent_move}")
-    order = {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "own_first",
+    order = {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": action_order,
         "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
         "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
         "own_action_id": own["action_id"], "opponent_action_id": opponent["action_id"], "own_actor": actor, "opponent_actor": target}
+    if action_order == "unresolved_tie":
+        order["order_engine"] = {"status": "speed_tie"}
     pair = materialize_immediate_move_vs_move_action_pair(
         strategy_d0=d0, runtime_snapshot=snapshot, own_action=own,
         opponent_action=opponent, action_order_authority=order,

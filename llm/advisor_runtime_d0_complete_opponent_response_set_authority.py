@@ -96,7 +96,8 @@ def _active_opponent(state: Any, owner: Mapping[str, Any]) -> Mapping[str, Any] 
 def _observed_complete_set(value: Any, state: Any, pokemon: Mapping[str, Any]) -> Mapping[str, Any] | str | None:
     if value is None:
         return None
-    if not isinstance(value, Mapping) or set(value) != {"moveset_completeness", "move_ids", "provenance"}:
+    allowed = {"moveset_completeness", "move_ids", "provenance"}
+    if not isinstance(value, Mapping) or set(value) not in (allowed, allowed | {"move_pp_slots"}):
         return "opponent_moveset_completeness_record_invalid"
     provenance, moves = value.get("provenance"), value.get("move_ids")
     if value.get("moveset_completeness") != "complete" or not isinstance(moves, list) or len(moves) != 4 or len(set(moves)) != 4 or moves != pokemon.get("known_move_ids"):

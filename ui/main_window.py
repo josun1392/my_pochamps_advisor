@@ -1703,6 +1703,9 @@ class MainWindow(QMainWindow):
             if not accepted:
                 return
             usability[move_id.strip().lower()] = {"status": value}
+        pp_ok, move_pp_slots = self._collect_optional_opponent_move_pp_slots(move_ids)
+        if not pp_ok:
+            return
         targets = [{"slot_index": slot, "pokemon_id": pokemon["pokemon_id"]} for slot, pokemon in roster.items() if isinstance(slot, int) and slot != active_slot and isinstance(pokemon, dict) and isinstance(pokemon.get("pokemon_id"), str) and pokemon["pokemon_id"]]
         permission, accepted = QInputDialog.getItem(self, "Opponent switch permission", "Current opponent switch permission", ["permitted", "blocked", "unknown"], 0, False)
         if not accepted:
@@ -1719,7 +1722,7 @@ class MainWindow(QMainWindow):
         target_combat_facts, switch_hazard_context = self._collect_current_opponent_switch_target_combat_facts(confirmed_targets)
         if target_combat_facts is None:
             return
-        result = admit_current_combined_opponent_response_universe_observation(runtime_session_manager=manager, captured_session_id=session_id, move_ids=move_ids, move_usability=usability, permission=permission, targets=confirmed_targets, turn_number=turn_number, target_combat_facts=target_combat_facts, switch_hazard_context=switch_hazard_context)
+        result = admit_current_combined_opponent_response_universe_observation(runtime_session_manager=manager, captured_session_id=session_id, move_ids=move_ids, move_usability=usability, move_pp_slots=move_pp_slots, permission=permission, targets=confirmed_targets, turn_number=turn_number, target_combat_facts=target_combat_facts, switch_hazard_context=switch_hazard_context)
         self.statusBar().showMessage("현재 상대 통합 응답 집합 확인 완료" if result.get("status") == "resolved" else "상대 통합 응답 확인 실패: 명시적 현재 정보가 필요합니다")
 
     def _collect_current_opponent_switch_target_combat_facts(self, targets: list[dict]) -> tuple[list[dict] | None, dict | None]:
@@ -1766,12 +1769,16 @@ class MainWindow(QMainWindow):
             if not accepted:
                 return
             usability[move_id.strip().lower()] = {"status": value}
+        pp_ok, move_pp_slots = self._collect_optional_opponent_move_pp_slots(move_ids)
+        if not pp_ok:
+            return
         result = admit_current_opponent_response_set_observation(
             runtime_session_manager=manager,
             captured_session_id=session_id,
             move_ids=move_ids,
             move_usability=usability,
             turn_number=turn_number,
+            move_pp_slots=move_pp_slots,
         )
         if result.get("status") == "resolved":
             self.statusBar().showMessage("현재 상대 응답 집합 확인 완료")
@@ -1779,6 +1786,52 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("상대 기술 사용 가능 여부가 unknown: 응답 집합은 불완전 상태로 유지")
         else:
             self.statusBar().showMessage("상대 응답 집합 확인 실패: 명시적 현재 정보가 필요합니다")
+
+    def _collect_optional_opponent_move_pp_slots(self, move_ids: list[str]) -> tuple[bool, list[dict] | None]:
+        """Optionally collect one exact ordered PP snapshot; no metadata defaults."""
+        answer = QMessageBox.question(
+            self,
+            "Confirm exact opponent PP",
+            "현재 4개 기술의 정확한 현재 PP / 최대 PP도 알고 있습니까?\n"
+            "No를 선택하면 PP는 unknown으로 유지되며 기존 응답 집합 확인은 정상 진행됩니다.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return True, None
+        normalized = [move.strip().lower() for move in move_ids]
+        template = [
+            {"slot_index": index, "move_id": move, "current_pp": None, "max_pp": None}
+            for index, move in enumerate(normalized)
+        ]
+        text, accepted = QInputDialog.getMultiLineText(
+            self,
+            "Confirm exact opponent PP",
+            "4개 기술의 exact ordered PP snapshot JSON. null을 모두 실제 정수로 교체하세요:",
+            json.dumps(template),
+        )
+        if not accepted:
+            return False, None
+        try:
+            rows = json.loads(text)
+            if not isinstance(rows, list) or len(rows) != 4:
+                raise ValueError
+            for index, move in enumerate(normalized):
+                row = rows[index]
+                if (
+                    not isinstance(row, dict)
+                    or set(row) != {"slot_index", "move_id", "current_pp", "max_pp"}
+                    or row.get("slot_index") != index
+                    or row.get("move_id") != move
+                    or not isinstance(row.get("current_pp"), int) or isinstance(row.get("current_pp"), bool)
+                    or not isinstance(row.get("max_pp"), int) or isinstance(row.get("max_pp"), bool)
+                    or row["current_pp"] < 0 or row["max_pp"] <= 0 or row["current_pp"] > row["max_pp"]
+                ):
+                    raise ValueError
+            return True, rows
+        except (TypeError, ValueError, json.JSONDecodeError):
+            self.statusBar().showMessage("상대 PP 확인 실패: 4개 기술의 정확한 ordered PP 정수가 필요합니다")
+            return False, None
 
     @Slot()
     def _open_current_opponent_switch_response_set_confirmation(self) -> None:

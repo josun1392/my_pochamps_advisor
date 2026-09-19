@@ -80,7 +80,12 @@ def test_invalid_second_dimension_leaves_no_partial_current_authority_and_stale_
 
 def test_window_uses_one_atomic_combined_production_admission():
     source = getsource(MainWindow._open_current_combined_opponent_response_universe_confirmation)
+    pp_source = getsource(MainWindow._collect_optional_opponent_move_pp_slots)
     assert "admit_current_combined_opponent_response_universe_observation" in source
+    assert "_collect_optional_opponent_move_pp_slots" in source
+    assert "QMessageBox.StandardButton.No" in pp_source
+    assert "current_pp" in pp_source and "max_pp" in pp_source
+    assert "None" in pp_source
 
 
 def test_atomic_target_combat_observation_is_d0_bound_and_resolves_switch_in_authority():

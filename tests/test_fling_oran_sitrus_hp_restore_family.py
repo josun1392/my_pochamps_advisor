@@ -38,7 +38,7 @@ def test_exact_nominal_heal_math():
     assert nominal_fling_hp_restore_amount(family=sitrus, maximum_hp=3) == 1
 
 
-def test_fling_execution_admits_oran_sitrus_exclusively_and_leppa_remains_unsupported():
+def test_fling_execution_admits_oran_sitrus_exclusively_and_out_of_manifest_berry_fails_closed():
     from tests.test_runtime_d0_fling_berry_eat_item_interaction_authority import _fixture
 
     for item in ("oran-berry", "sitrus-berry"):
@@ -57,9 +57,10 @@ def test_fling_execution_admits_oran_sitrus_exclusively_and_leppa_remains_unsupp
                 "fling_lum_major_status_confusion_cure_support",
             )
         )
-    _state, _snapshot, _d0, _actor, _target, leppa = _fixture(item="leppa-berry")
-    assert leppa["status"] == "unsupported"
-    assert leppa["outcome"] == "unsupported_mandatory_item_effect"
+    _state, _snapshot, _d0, _actor, _target, unsupported = _fixture(item="liechi-berry")
+    assert unsupported["status"] == "incomplete"
+    assert unsupported["outcome"] == "incomplete_authority"
+    assert unsupported["reason"] == "fling_item_not_in_frozen_champions_manifest"
 
 
 def test_source_klutz_and_magic_room_still_fail_before_oran_sitrus_target_eat():

@@ -36,8 +36,9 @@ def test_exact_persim_is_admitted_as_10_bp_ready_throw_only_by_persim_support():
     assert "fling_type_resist_empty_intrinsic_berry_support" not in execution
 
 
-def test_remaining_bounded_berries_stay_unsupported():
-    for item in ("leppa-berry",):
+def test_out_of_manifest_berries_stay_fail_closed():
+    for item in ("liechi-berry",):
         _state, _snapshot, _d0, _actor, _target, execution = _fixture(item=item)
-        assert execution["status"] == "unsupported"
-        assert execution["outcome"] == "unsupported_mandatory_item_effect"
+        assert execution["status"] == "incomplete"
+        assert execution["outcome"] == "incomplete_authority"
+        assert execution["reason"] == "fling_item_not_in_frozen_champions_manifest"
