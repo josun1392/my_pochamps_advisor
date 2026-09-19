@@ -11,6 +11,9 @@ from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_current_condition_authority,
     runtime_strategy_d0_freshness,
 )
+from llm.advisor_runtime_d0_fling_berry_eat_item_interaction_authority import (
+    assess_fling_berry_target_eat_item_consequence_readiness,
+)
 
 
 SCHEMA_VERSION = "runtime-d0-fling-major-status-cure-berry-target-effect-authority-v1"
@@ -87,6 +90,23 @@ def freeze_runtime_d0_fling_major_status_cure_berry_target_effect_authority(
         or berry_eat_item_interaction_authority.get("target_eat_item_dispatched") is not True
     ):
         return _result("rejected", "fling_status_cure_berry_eat_item_prerequisite_invalid", common)
+
+    readiness = assess_fling_berry_target_eat_item_consequence_readiness(
+        berry_eat_item_interaction_authority,
+    )
+    common = {
+        **common,
+        "target_eat_item_consequence_readiness": deepcopy(readiness),
+    }
+    if readiness.get("status") != "resolved" or readiness.get("readiness") != "ready":
+        status = readiness.get("status")
+        if status not in {"incomplete", "rejected"}:
+            status = "rejected"
+        return _result(
+            status,
+            readiness.get("reason", "fling_berry_target_eat_item_consequence_not_ready"),
+            common,
+        )
 
     current = freeze_runtime_current_condition_authority(
         strategy_d0=strategy_d0,
@@ -468,6 +488,15 @@ def _authority_shape(value: Any) -> bool:
         }
     ):
         return False
+    if value.get("outcome") != "not_applicable":
+        interaction = value.get("berry_eat_item_interaction_authority")
+        readiness = assess_fling_berry_target_eat_item_consequence_readiness(interaction)
+        if (
+            readiness.get("status") != "resolved"
+            or readiness.get("readiness") != "ready"
+            or value.get("target_eat_item_consequence_readiness") != readiness
+        ):
+            return False
     if value.get("outcome") == "applied_major_status_cure":
         family = value.get("berry_family_authority")
         return (

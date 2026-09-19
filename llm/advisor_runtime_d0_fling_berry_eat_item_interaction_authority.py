@@ -219,6 +219,95 @@ def _target_phase(
     )
 
 
+def assess_fling_berry_target_eat_item_consequence_readiness(
+    interaction_authority: Any,
+) -> dict[str, Any]:
+    """Validate whether exact downstream target-side Berry mechanics may continue.
+
+    The Eat/EatItem interaction owner remains descriptive.  This helper only
+    answers whether a known direct target EatItem hook has an exact materialized
+    consequence available to a downstream consumer.
+    """
+    base = {
+        "schema_version": "fling-berry-target-eat-item-consequence-readiness-v1",
+    }
+    if (
+        not isinstance(interaction_authority, Mapping)
+        or interaction_authority.get("schema_version") != SCHEMA_VERSION
+        or interaction_authority.get("status") != "resolved"
+        or interaction_authority.get("phase") != "post_hit_target_berry_interaction"
+        or interaction_authority.get("outcome") != "post_hit_target_eat_item_dispatched"
+        or interaction_authority.get("target_eat_occurred") is not True
+        or interaction_authority.get("target_eat_item_dispatched") is not True
+    ):
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_eat_item_readiness_authority_invalid",
+        }
+
+    target_ability = interaction_authority.get("target_ability_authority")
+    target_class = interaction_authority.get("target_ability_classification")
+    if (
+        not isinstance(target_ability, Mapping)
+        or target_ability.get("status") != "resolved"
+        or not isinstance(target_ability.get("ability_id"), str)
+        or not isinstance(target_class, Mapping)
+        or target_class.get("status") != "resolved"
+    ):
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_eat_item_readiness_ability_binding_invalid",
+        }
+
+    canonical = resolve_canonical_fling_berry_ability_interaction(
+        target_ability["ability_id"],
+    )
+    if canonical.get("status") != "resolved" or target_class != canonical:
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_eat_item_readiness_classification_mismatch",
+        }
+
+    classification = canonical.get("classification")
+    if not isinstance(classification, Mapping):
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_eat_item_readiness_classification_invalid",
+        }
+    direct_hook = classification.get("direct_target_eat_item_hook") is True
+    expected_interaction = "applies" if direct_hook else "not_applicable"
+    expected_materialization = "deferred" if direct_hook else "not_applicable"
+    if (
+        interaction_authority.get("target_ability_interaction") != expected_interaction
+        or interaction_authority.get("ability_consequence_materialization")
+        != expected_materialization
+    ):
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_eat_item_readiness_state_inconsistent",
+            "target_ability_id": target_ability["ability_id"],
+            "direct_target_eat_item_hook": direct_hook,
+        }
+
+    if direct_hook:
+        return {
+            "status": "incomplete", **base,
+            "readiness": "incomplete_due_to_deferred_direct_target_hook",
+            "reason": "fling_berry_direct_target_eat_item_consequence_deferred",
+            "target_ability_id": target_ability["ability_id"],
+            "target_ability_classification": deepcopy(canonical),
+            "ability_consequence_materialization": "deferred",
+        }
+    return {
+        "status": "resolved", **base,
+        "readiness": "ready",
+        "reason": "no_direct_target_eat_item_hook",
+        "target_ability_id": target_ability["ability_id"],
+        "target_ability_classification": deepcopy(canonical),
+        "ability_consequence_materialization": "not_applicable",
+    }
+
+
 def _base(d0: Any, execution: Any, actor: Any, target: Any) -> dict[str, Any] | str:
     if not isinstance(d0, Mapping) or d0.get("status") != "resolved":
         return "invalid_runtime_strategy_d0"
