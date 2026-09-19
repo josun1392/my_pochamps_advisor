@@ -9,6 +9,9 @@ from advisor.canonical_fling_item_metadata import resolve_canonical_fling_item_m
 from advisor.canonical_fling_major_status_cure_berry import (
     resolve_canonical_fling_major_status_cure_berry,
 )
+from advisor.canonical_fling_type_resist_empty_intrinsic_berry import (
+    resolve_canonical_fling_type_resist_empty_intrinsic_berry,
+)
 from llm.advisor_reducer_state_model import is_unknown_battle_fact
 from llm.advisor_runtime_d0_item_suppression_field_authority import resolve_runtime_d0_item_suppression_field_authority
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
@@ -80,10 +83,28 @@ def freeze_runtime_d0_fling_item_execution_authority(
             common,
         )
     supported_berry_cure = berry_cure.get("status") == "resolved"
+    type_resist_berry = (
+        resolve_canonical_fling_type_resist_empty_intrinsic_berry(item["value"])
+        if effect.get("kind") == "berry_effect"
+        else {"status": "not_applicable"}
+    )
+    if type_resist_berry.get("status") == "rejected":
+        common["fling_type_resist_empty_intrinsic_berry_authority"] = type_resist_berry
+        return _terminal(
+            "incomplete_authority",
+            "rejected",
+            type_resist_berry.get(
+                "reason", "fling_type_resist_empty_intrinsic_berry_authority_rejected"
+            ),
+            base,
+            common,
+        )
+    supported_type_resist_berry = type_resist_berry.get("status") == "resolved"
     if not (
         (effect.get("kind") == "none" and metadata.get("support_status") == "not_applicable")
         or supported_effect
         or supported_berry_cure
+        or supported_type_resist_berry
     ):
         return _terminal("unsupported_mandatory_item_effect", "unsupported", "fling_mandatory_item_effect_unsupported", base, common)
     if supported_effect:
@@ -91,6 +112,9 @@ def freeze_runtime_d0_fling_item_execution_authority(
     if supported_berry_cure:
         common["fling_major_status_cure_berry_support"] = "fling_major_status_cure_berry_target_effect_v1"
         common["fling_major_status_cure_berry_authority"] = berry_cure
+    if supported_type_resist_berry:
+        common["fling_type_resist_empty_intrinsic_berry_support"] = "fling_type_resist_empty_intrinsic_berry_target_effect_v1"
+        common["fling_type_resist_empty_intrinsic_berry_authority"] = type_resist_berry
     common["item_after"] = {"state": "known_absent", "item": None}
     common["resolved_base_power"] = metadata["base_power"]
     return _terminal("ready_throw", "resolved", "fling_prepare_hit_throw_ready", base, common)

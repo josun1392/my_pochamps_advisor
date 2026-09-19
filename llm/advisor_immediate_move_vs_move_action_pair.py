@@ -115,6 +115,10 @@ from llm.advisor_runtime_d0_fling_major_status_cure_berry_target_effect_authorit
     freeze_runtime_d0_fling_major_status_cure_berry_target_effect_authority,
     materialize_detached_fling_major_status_cure_berry_target_effect,
 )
+from llm.advisor_runtime_d0_fling_type_resist_empty_intrinsic_berry_target_effect_authority import (
+    freeze_runtime_d0_fling_type_resist_empty_intrinsic_berry_target_effect_authority,
+    materialize_detached_fling_type_resist_empty_intrinsic_berry_target_effect,
+)
 from llm.advisor_detached_item_transfer_after_hit import materialize_detached_item_transfer_after_hit
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
 from llm.advisor_detached_drain_consequence import apply_detached_drain_consequence
@@ -1929,8 +1933,16 @@ def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runti
             pending_target_action=pending_target_action,
             action_order=action_order,
         )
-        return _apply_fling_major_status_cure_berry_target_effect_to_ledger(
+        berry_cure = _apply_fling_major_status_cure_berry_target_effect_to_ledger(
             ledger=deterministic,
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            authority=fling_execution,
+            actor=actor,
+            target=target,
+        )
+        return _apply_fling_type_resist_empty_intrinsic_berry_target_effect_to_ledger(
+            ledger=berry_cure,
             strategy_d0=strategy_d0,
             runtime_snapshot=runtime_snapshot,
             authority=fling_execution,
@@ -2806,6 +2818,126 @@ def _apply_fling_major_status_cure_berry_target_effect_to_ledger(
         **deepcopy(dict(out.get("component_manifest", {}))),
         "fling_major_status_cure_berry_target_effect": {"status": "resolved"},
         "fling_berry_eaten_transition": {"status": "conditional_on_authenticated_target_eat"},
+    }
+    return out
+
+
+def _apply_fling_type_resist_empty_intrinsic_berry_target_effect_to_ledger(
+    *,
+    ledger: Mapping[str, Any],
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    authority: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+) -> dict[str, Any]:
+    supported = (
+        authority.get("fling_type_resist_empty_intrinsic_berry_support")
+        == "fling_type_resist_empty_intrinsic_berry_target_effect_v1"
+    )
+    if not supported:
+        return ledger
+    if authority.get("fling_major_status_cure_berry_support") is not None:
+        return _result("rejected", "fling_berry_family_support_overlap", {})
+    if ledger.get("status") != "evaluable" or not isinstance(
+        ledger.get("terminal_leaves"), tuple
+    ):
+        return deepcopy(dict(ledger))
+
+    rows = []
+    for leaf in ledger["terminal_leaves"]:
+        interaction = freeze_runtime_d0_fling_berry_eat_item_interaction_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            fling_execution_authority=authority,
+            actor=actor,
+            target=target,
+            phase="post_hit_target_berry_interaction",
+            source_leaf=leaf,
+        )
+        if interaction.get("status") != "resolved":
+            return _result(
+                _status(interaction),
+                interaction.get(
+                    "reason", "fling_berry_eat_item_interaction_unavailable"
+                ),
+                {},
+            )
+        bound = (
+            freeze_runtime_d0_fling_type_resist_empty_intrinsic_berry_target_effect_authority(
+                strategy_d0=strategy_d0,
+                runtime_snapshot=runtime_snapshot,
+                fling_execution_authority=authority,
+                source_leaf=leaf,
+                berry_eat_item_interaction_authority=interaction,
+                actor=actor,
+                target=target,
+            )
+        )
+        if bound.get("status") != "resolved":
+            return _result(
+                _status(bound),
+                bound.get(
+                    "reason",
+                    "fling_type_resist_empty_intrinsic_berry_target_effect_unavailable",
+                ),
+                {},
+            )
+
+        if bound.get("outcome") == "not_applicable":
+            rows.append(deepcopy(dict(leaf)))
+            continue
+        if bound.get("outcome") != "no_intrinsic_target_effect":
+            return _result(
+                "rejected",
+                "fling_type_resist_empty_intrinsic_berry_target_effect_outcome_invalid",
+                {},
+            )
+
+        detached = (
+            materialize_detached_fling_type_resist_empty_intrinsic_berry_target_effect(
+                authority=bound,
+            )
+        )
+        if detached.get("status") != "resolved":
+            return _result(
+                _status(detached),
+                detached.get(
+                    "reason",
+                    "fling_type_resist_empty_intrinsic_berry_materialization_unavailable",
+                ),
+                {},
+            )
+        eaten = materialize_detached_fling_berry_eaten_transition(
+            strategy_d0=strategy_d0,
+            source_leaf=leaf,
+            interaction_authority=interaction,
+            target=target,
+        )
+        if eaten.get("status") != "resolved":
+            return _result(
+                _status(eaten),
+                eaten.get("reason", "fling_berry_eaten_transition_unavailable"),
+                {},
+            )
+        row = deepcopy(dict(leaf))
+        row["consequences"] = {
+            **deepcopy(dict(row.get("consequences", {}))),
+            "fling_type_resist_empty_intrinsic_berry_target_effect": detached,
+            "fling_berry_eaten_transition": deepcopy(dict(eaten)),
+        }
+        rows.append(row)
+
+    out = deepcopy(dict(ledger))
+    out["terminal_leaves"] = tuple(rows)
+    out["component_manifest"] = {
+        **deepcopy(dict(out.get("component_manifest", {}))),
+        "fling_type_resist_empty_intrinsic_berry_target_effect": {
+            "status": "conditional_on_authenticated_target_eat",
+        },
+        "fling_berry_eaten_transition": {
+            "status": "conditional_on_authenticated_target_eat",
+        },
     }
     return out
 
