@@ -82,19 +82,27 @@ def materialize_detached_standard_charge_start(
     }
     leaf = {
         "leaf_id": leaf_id,
-        "candidate_id": base["action_id"],
+        "candidate_id": f"attack:{base['move_id']}",
+        "action_type": "attack",
+        "branch_path": ("standard_charge_start",),
         "probability": probability,
         "hit_state": "not_applicable",
+        "critical_state": "not_applicable",
         "critical_hit_state": "not_applicable",
         "damage_roll": "not_applicable",
         "contact_state": "not_applicable",
         "secondary_effect_state": "none",
         "damage": 0,
         "consequences": {
+            "damage": 0,
+            "own_final_hp": actor_hp,
             "actor_final_hp": actor_hp,
             "target_final_hp": target_hp,
+            "self_fainted": False,
             "actor_ko": False,
             "target_ko": False,
+            "secondary": None,
+            "contact": "not_applicable",
             "detached_standard_charge_lifecycle_context": deepcopy(context),
         },
         "provenance": {
@@ -227,19 +235,27 @@ def validate_detached_standard_charge_start(
     provenance = leaf.get("provenance")
     if (
         leaf.get("leaf_id") != f"{base['action_id']}:charge-start"
-        or leaf.get("candidate_id") != base["action_id"]
+        or leaf.get("candidate_id") != f"attack:{base['move_id']}"
+        or leaf.get("action_type") != "attack"
+        or tuple(leaf.get("branch_path", ())) != ("standard_charge_start",)
         or leaf.get("probability") != {"numerator": 1, "denominator": 1}
         or leaf.get("hit_state") != "not_applicable"
+        or leaf.get("critical_state") != "not_applicable"
         or leaf.get("critical_hit_state") != "not_applicable"
         or leaf.get("damage_roll") != "not_applicable"
         or leaf.get("contact_state") != "not_applicable"
         or leaf.get("secondary_effect_state") != "none"
         or leaf.get("damage") != 0
         or not isinstance(consequences, Mapping)
+        or consequences.get("damage") != 0
+        or consequences.get("own_final_hp") != actor_hp
         or consequences.get("actor_final_hp") != actor_hp
         or consequences.get("target_final_hp") != target_hp
+        or consequences.get("self_fainted") is not False
         or consequences.get("actor_ko") is not False
         or consequences.get("target_ko") is not False
+        or consequences.get("secondary") is not None
+        or consequences.get("contact") != "not_applicable"
         or consequences.get("detached_standard_charge_lifecycle_context") != context
         or not isinstance(provenance, Mapping)
         or provenance.get("session_id") != base["session_id"]
@@ -271,6 +287,122 @@ def validate_detached_standard_charge_start(
     ):
         return False
     return True
+
+
+
+
+def validate_pair_compatible_standard_charge_leaf(leaf: Any) -> str | None:
+    """Validate a standard-charge terminal leaf without current runtime access."""
+    if not isinstance(leaf, Mapping):
+        return "standard_charge_leaf_invalid"
+    provenance = leaf.get("provenance")
+    consequences = leaf.get("consequences")
+    if not isinstance(provenance, Mapping) or not isinstance(consequences, Mapping):
+        return "standard_charge_leaf_provenance_or_consequence_missing"
+    move_id = provenance.get("move_id")
+    context = consequences.get("detached_standard_charge_lifecycle_context")
+    if move_id not in _SUPPORTED_MOVES:
+        return "unexpected_standard_charge_lifecycle_context" if context is not None else None
+    if not isinstance(context, Mapping):
+        return "standard_charge_lifecycle_context_missing"
+    actor = provenance.get("attacker")
+    target = provenance.get("target")
+    action_id = provenance.get("action_id")
+    if (
+        not isinstance(actor, Mapping)
+        or not isinstance(target, Mapping)
+        or actor.get("side") == target.get("side")
+        or not isinstance(action_id, str)
+        or not action_id
+    ):
+        return "standard_charge_leaf_identity_invalid"
+    base = {
+        "session_id": provenance.get("session_id"),
+        "source_runtime_fingerprint": provenance.get("source_runtime_fingerprint"),
+        "source_branch_fingerprint": provenance.get("source_branch_fingerprint"),
+        "decision_owner": provenance.get("decision_owner"),
+        "actor": actor,
+        "source_target_owner": target,
+        "action_id": action_id,
+        "move_id": move_id,
+    }
+    if not all(base.get(key) is not None for key in (
+        "session_id", "source_runtime_fingerprint", "source_branch_fingerprint",
+        "decision_owner",
+    )):
+        return "standard_charge_leaf_binding_incomplete"
+    readiness = provenance.get("standard_charge_start_readiness_authority")
+    error = _readiness_error(readiness, base)
+    if error is not None:
+        return "standard_charge_leaf_readiness_invalid"
+    if context.get("readiness_authority") != readiness:
+        return "standard_charge_leaf_readiness_context_mismatch"
+    canonical = readiness.get("canonical_charge_lifecycle_authority")
+    if (
+        not isinstance(canonical, Mapping)
+        or canonical.get("move_id") != move_id
+        or canonical.get("lifecycle_family") != "ordinary_charge_then_damage"
+        or canonical.get("execution_model") != "charge_then_execute"
+    ):
+        return "standard_charge_leaf_canonical_lifecycle_invalid"
+    locator = context.get("continuation_target_locator")
+    if (
+        context.get("status") != "resolved"
+        or context.get("schema_version") != CONTEXT_SCHEMA_VERSION
+        or context.get("state") != "charging"
+        or context.get("phase") != "turn_one_charge_started"
+        or context.get("actor") != actor
+        or context.get("action_id") != action_id
+        or context.get("move_id") != move_id
+        or context.get("canonical_lifecycle_family") != "ordinary_charge_then_damage"
+        or context.get("execution_model") != "charge_then_execute"
+        or context.get("source_target_owner") != target
+        or not isinstance(locator, Mapping)
+        or set(locator) != {"session_id", "side", "slot_index"}
+        or "pokemon_id" in locator
+        or locator != readiness.get("continuation_target_locator")
+        or context.get("source_charge_start_leaf_id") != leaf.get("leaf_id")
+        or context.get("source_runtime_fingerprint") != provenance.get("source_runtime_fingerprint")
+        or context.get("source_branch_fingerprint") != provenance.get("source_branch_fingerprint")
+        or context.get("power_herb_applicability_state") != readiness.get("power_herb_applicability_state")
+        or context.get("turn_two_continuation_required") is not True
+        or context.get("immediate_damage_executed") is not False
+        or context.get("charge_turn_damage") != 0
+        or context.get("pp_consumption_materialized") is not False
+    ):
+        return "standard_charge_lifecycle_context_invalid"
+    if context.get("power_herb_applicability_state", {}).get("status") == "active":
+        return "standard_charge_active_power_herb_context_invalid"
+    own_hp = consequences.get("own_final_hp")
+    actor_hp = consequences.get("actor_final_hp")
+    target_hp = consequences.get("target_final_hp")
+    if (
+        leaf.get("candidate_id") != f"attack:{move_id}"
+        or leaf.get("action_type") != "attack"
+        or tuple(leaf.get("branch_path", ())) != ("standard_charge_start",)
+        or leaf.get("probability") != {"numerator": 1, "denominator": 1}
+        or leaf.get("hit_state") != "not_applicable"
+        or leaf.get("critical_state") != "not_applicable"
+        or leaf.get("critical_hit_state") != "not_applicable"
+        or leaf.get("damage_roll") != "not_applicable"
+        or leaf.get("contact_state") != "not_applicable"
+        or leaf.get("secondary_effect_state") != "none"
+        or leaf.get("damage") != 0
+        or consequences.get("damage") != 0
+        or not isinstance(own_hp, int) or isinstance(own_hp, bool) or own_hp <= 0
+        or actor_hp != own_hp
+        or not isinstance(target_hp, int) or isinstance(target_hp, bool) or target_hp <= 0
+        or consequences.get("self_fainted") is not False
+        or consequences.get("actor_ko") is not False
+        or consequences.get("target_ko") is not False
+        or consequences.get("secondary") is not None
+        or consequences.get("contact") != "not_applicable"
+        or consequences.get("detached_standard_charge_lifecycle_context") != context
+        or provenance.get("execution_opportunity_granted_by_outer_gate") is not True
+        or provenance.get("immediate_damage_execution_grant") is not False
+    ):
+        return "standard_charge_leaf_no_damage_semantics_invalid"
+    return None
 
 
 def _base(

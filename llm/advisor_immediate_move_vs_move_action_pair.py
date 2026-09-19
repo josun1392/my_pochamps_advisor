@@ -179,6 +179,15 @@ from llm.advisor_detached_direct_heal_materializer import materialize_detached_d
 from llm.advisor_runtime_d0_direct_heal_execution_authority import freeze_runtime_d0_direct_heal_execution_authority
 from llm.advisor_champions_sleep_application import materialize_champions_rest, validate_champions_rest
 from llm.advisor_reducer_state_model import state_fingerprint
+from llm.advisor_branch_bound_selected_action_request import (
+    normalize_branch_bound_selected_attack_request,
+)
+from llm.advisor_runtime_d0_standard_charge_start_readiness_authority import (
+    freeze_runtime_d0_standard_charge_start_readiness_authority,
+)
+from llm.advisor_detached_selected_action_execution_result import (
+    materialize_detached_selected_action_execution_result,
+)
 from llm.advisor_predictive_critical_damage_context import materialize_predictive_critical_damage_contexts
 from llm.advisor_predictive_critical_hit_uncertainty import compose_predictive_critical_hit_uncertainty
 from llm.advisor_predictive_hit_miss_uncertainty import compose_predictive_hit_miss_uncertainty
@@ -203,6 +212,16 @@ SCHEMA_VERSION = "immediate-move-vs-move-action-pair-v1"
 HORIZON = "immediate_action_pair"
 _STATUSES = {"incomplete", "unsupported", "rejected"}
 _CHARGE_MOVES = ChargeMoveRepository()
+_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn"})
+_STANDARD_CHARGE_EXCLUDED_COUNTERPARTS = frozenset({
+    "fling", "u-turn", "volt-switch", "flip-turn", "sucker-punch",
+    "seismic-toss", "night-shade", "dragon-rage", "sonic-boom",
+    "super-fang", "natures-madness", "ruination",
+    "endeavor", "final-gambit", "counter", "mirror-coat", "comeuppance",
+    "metal-burst", "explosion", "self-destruct", "misty-explosion",
+    "double-hit", "double-kick", "bullet-seed", "rock-blast",
+    "population-bomb", "triple-axel", "triple-kick", "rock-slide",
+})
 
 
 def materialize_immediate_move_vs_move_action_pair(
@@ -270,10 +289,21 @@ def materialize_immediate_move_vs_move_action_pair(
                 return _result(_status(gate), gate.get("reason", "belch_eligibility_unknown"), base, guarded_action=role, belch_eligibility_authority=gate)
             if gate.get("eligibility") != "eligible":
                 return _result("incomplete", gate.get("reason", "belch_not_eligible"), base, guarded_action=role, belch_eligibility_authority=gate)
+    standard_charge_present = False
     for role, metadata in (("own", own_meta.get("metadata")), ("opponent", opponent_meta.get("metadata"))):
-        guard = _CHARGE_MOVES.immediate_execution_guard(metadata.get("move_id") if isinstance(metadata, Mapping) else None)
+        move_id = metadata.get("move_id") if isinstance(metadata, Mapping) else None
+        guard = _CHARGE_MOVES.immediate_execution_guard(move_id)
         if guard is not None:
+            if move_id in _STANDARD_CHARGE_MOVES:
+                standard_charge_present = True
+                continue
             return _result("unsupported", guard["reason"], base, guarded_action=role, execution_guard=guard)
+    if standard_charge_present:
+        scope_error = _standard_charge_pair_scope_error(
+            own_meta.get("metadata"), opponent_meta.get("metadata"),
+        )
+        if scope_error is not None:
+            return _result("unsupported", scope_error, base)
     status_members = [runtime_snapshot.get("state", {}).get(f"{owner['side']}_side", {}).get("pokemon", {}).get(owner["slot_index"], {}) for owner in (base["own_actor"], base["opponent_actor"])]
     for gated_extension in (first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority):
         if isinstance(gated_extension, Mapping) and gated_extension.get("status") == "resolved" and not isinstance(gated_extension.get("session_id"), str):
@@ -469,6 +499,42 @@ def _is_recovery_metadata(metadata: Any) -> bool:
 
 def _is_atomic_item_swap_metadata(metadata: Any) -> bool:
     return isinstance(metadata, Mapping) and metadata.get("move_id") in {"trick", "switcheroo"} and metadata.get("category") == "status" and metadata.get("target") == "selected-pokemon" and metadata.get("contact") is False
+
+
+
+
+def _standard_charge_pair_scope_error(
+    own_metadata: Any,
+    opponent_metadata: Any,
+) -> str | None:
+    if not isinstance(own_metadata, Mapping) or not isinstance(opponent_metadata, Mapping):
+        return "standard_charge_pair_counterpart_family_unrepresented"
+    own_move = own_metadata.get("move_id")
+    opponent_move = opponent_metadata.get("move_id")
+    own_charge = own_move in _STANDARD_CHARGE_MOVES
+    opponent_charge = opponent_move in _STANDARD_CHARGE_MOVES
+    if not (own_charge or opponent_charge):
+        return None
+    if own_charge and opponent_charge:
+        return None
+    counterpart = opponent_metadata if own_charge else own_metadata
+    return None if _standard_charge_ordinary_counterpart(counterpart) else "standard_charge_pair_counterpart_family_unrepresented"
+
+
+def _standard_charge_ordinary_counterpart(metadata: Any) -> bool:
+    if not isinstance(metadata, Mapping):
+        return False
+    move_id = metadata.get("move_id")
+    if (
+        not isinstance(move_id, str)
+        or metadata.get("category") not in {"physical", "special"}
+        or move_id in _STANDARD_CHARGE_EXCLUDED_COUNTERPARTS
+        or move_id in _STANDARD_CHARGE_MOVES
+        or metadata.get("min_hits") is not None
+        or metadata.get("max_hits") is not None
+    ):
+        return False
+    return _CHARGE_MOVES.immediate_execution_guard(move_id) is None
 
 
 def _special_pair_roles(base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], move_id: str) -> tuple[Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]] | str:
@@ -1697,6 +1763,130 @@ def _sucker_punch_second_failure_branch(base: Mapping[str, Any], plan: Mapping[s
     return {"pair_leaf_id": f"{first['leaf_id']}/{failure['leaf_id']}", "action_order": plan["order"], **({"action_order_branch": deepcopy(dict(plan["source_branch"])), "action_order_conditional_probability": _fd(plan["probability"])} if isinstance(plan.get("source_branch"), Mapping) else {}), "first_action_leaf": deepcopy(dict(first)), "intermediate_state_id": f"intermediate:{first['candidate_id']}:{first['leaf_id']}", "second_action": {"state": "executed", "actor": deepcopy(dict(base["own_actor"])), "conditional_probability": deepcopy(failure["probability"]), "leaf": deepcopy(dict(failure))}, "probability": _fd(probability), "provenance": deepcopy(dict(base))}
 
 
+
+
+def _pair_action_ledger(
+    *,
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+    metadata_authority: Mapping[str, Any],
+    action: Mapping[str, Any],
+    source_metadata_authority: Mapping[str, Any] | None = None,
+    **attack_kwargs: Any,
+) -> dict[str, Any]:
+    metadata = _metadata_for_inputs(metadata_authority, None)
+    if metadata is None:
+        return _result("rejected", "pair_action_move_metadata_invalid", {})
+    move_id = metadata.get("move_id")
+    if move_id not in _STANDARD_CHARGE_MOVES:
+        return _attack_ledger(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            actor=actor,
+            target=target,
+            metadata_authority=metadata_authority,
+            action=action,
+            **attack_kwargs,
+        )
+
+    if source_metadata_authority is None:
+        source_authority = metadata_authority
+    elif not isinstance(source_metadata_authority, Mapping):
+        return _result(
+            "rejected",
+            "standard_charge_source_metadata_authority_unavailable",
+            {},
+        )
+    else:
+        source_authority = source_metadata_authority
+    if not isinstance(source_authority, Mapping):
+        return _result(
+            "rejected",
+            "standard_charge_source_metadata_authority_unavailable",
+            {},
+        )
+    if source_authority.get("status") != "resolved":
+        status = _status(source_authority)
+        return _result(
+            status,
+            source_authority.get(
+                "reason",
+                "standard_charge_source_metadata_authority_unavailable",
+            ),
+            {},
+        )
+    rebound = normalize_branch_bound_selected_attack_request(
+        strategy_d0=strategy_d0,
+        source_action=action,
+        actor=actor,
+        target=target,
+        metadata_authority=source_authority,
+    )
+    if rebound.get("status") != "resolved":
+        return _result(
+            _status(rebound),
+            rebound.get("reason", "standard_charge_action_normalization_unavailable"),
+            {},
+        )
+    readiness = freeze_runtime_d0_standard_charge_start_readiness_authority(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        action=rebound["normalized_action"],
+        actor=actor,
+        target=target,
+    )
+    if readiness.get("status") != "resolved":
+        return _result(
+            _status(readiness),
+            readiness.get("reason", "standard_charge_start_readiness_unavailable"),
+            {},
+        )
+    selected = materialize_detached_selected_action_execution_result(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        action=rebound["normalized_action"],
+        actor=actor,
+        target=target,
+        move_metadata=metadata,
+        family_authorities={
+            "standard_charge_start_readiness_authority": readiness,
+        },
+    )
+    if selected.get("status") != "resolved":
+        return _result(
+            _status(selected),
+            selected.get("reason", "standard_charge_selected_action_execution_unavailable"),
+            {},
+        )
+    if selected.get("execution_family") != "standard_charge_start":
+        return _result("rejected", "standard_charge_selected_action_family_mismatch", {})
+    paths = selected.get("paths")
+    if not isinstance(paths, tuple) or len(paths) != 1:
+        return _result("rejected", "standard_charge_selected_action_paths_invalid", {})
+    path = paths[0]
+    leaf = path.get("action_leaf") if isinstance(path, Mapping) else None
+    if (
+        not isinstance(leaf, Mapping)
+        or path.get("probability") != {"numerator": 1, "denominator": 1}
+        or leaf.get("probability") != {"numerator": 1, "denominator": 1}
+    ):
+        return _result("rejected", "standard_charge_action_leaf_invalid", {})
+    return {
+        "status": "evaluable",
+        "terminal_leaves": (deepcopy(dict(leaf)),),
+        "terminal_probability_mass": {"numerator": 1, "denominator": 1},
+        "component_manifest": {
+            "standard_charge_start": {
+                "status": "resolved",
+                "readiness_authority": deepcopy(dict(readiness)),
+            },
+        },
+        "provenance": "selected_action_standard_charge_start_to_pair_action_ledger_v1",
+    }
+
+
 def _materialize_order(
     *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
     base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any],
@@ -1765,7 +1955,7 @@ def _materialize_order(
             return _result(_status(first_gate), first_gate.get("reason", "sucker_punch_execution_authority_unavailable"), base)
     first = (_sucker_punch_failure_ledger(strategy_d0=first_d0, actor=first_actor, target=base["opponent_actor"], action=own_action, applicability=first_gate)
              if isinstance(first_gate, Mapping) and first_gate.get("status") == "not_applicable"
-             else _attack_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
+             else _pair_action_ledger(strategy_d0=first_d0, runtime_snapshot=first_snapshot, actor=first_actor,
                                  target=base["opponent_actor"] if first_actor == base["own_actor"] else base["own_actor"], metadata_authority=first_meta,
                                  sturdy_survival_authority=first_action_sturdy_survival_authority,
                                  focus_sash_survival_authority=first_action_focus_sash_survival_authority, action=first_action,
@@ -1774,7 +1964,11 @@ def _materialize_order(
                                  action_order=order))
     if isinstance(first_gate, Mapping) and first_gate.get("status") == "applies":
         first = _bind_sucker_punch_execution_ledger(first, first_gate)
-    if first.get("status") != "evaluable": return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base, first_action_ledger=first)
+    if first.get("status") != "evaluable":
+        reason = first.get("reason", "ledger_unavailable")
+        if reason != "power_herb_charge_skip_execution_unrepresented":
+            reason = f"first_action_{reason}"
+        return _result(_status(first), reason, base, first_action_ledger=first)
     branches: list[dict[str, Any]] = []
     second_actor = base["opponent_actor"] if order == "own_first" else base["own_actor"]
     second_meta = opponent_meta if order == "own_first" else own_meta
@@ -1961,10 +2155,15 @@ def _materialize_order(
                     strategy_d0=inputs["strategy_d0"], actor=inputs["attacker"], target=inputs["target"], base=base, plan=order_plan, source_action_order_authority=action_order_authority,
                 ) if second_actor == base["own_actor"] else None
                 recent_event = materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=inputs["strategy_d0"], terminal_leaf=leaf, recipient=inputs["attacker"], source_move_metadata=first_meta["metadata"])
-                second = _attack_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
-                    actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs), action=opponent_action if order == "own_first" else own_action,
+                second = _pair_action_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
+                    actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs),
+                    source_metadata_authority=second_meta, action=opponent_action if order == "own_first" else own_action,
                     analytic_action_order_authority=second_analytic, same_turn_last_incoming_attack_event=recent_event, post_source_retaliation_protection_authority=post_source_retaliation_protection_authority, source_terminal_leaf=leaf, source_selected_action=first_action, source_execution_order_provenance=order_plan)
-            if second.get("status") != "evaluable": return _result(_status(second), f"second_action_{second.get('reason', 'ledger_unavailable')}", base, first_leaf_id=leaf["leaf_id"])
+            if second.get("status") != "evaluable":
+                reason = second.get("reason", "ledger_unavailable")
+                if reason != "power_herb_charge_skip_execution_unrepresented":
+                    reason = f"second_action_{reason}"
+                return _result(_status(second), reason, base, first_leaf_id=leaf["leaf_id"])
             if isinstance(second_gate, Mapping) and second_gate.get("status") == "applies":
                 second = _bind_sucker_punch_execution_ledger(second, second_gate)
         for execution_branch in execution:

@@ -63,6 +63,9 @@ from llm.advisor_runtime_d0_fling_leppa_pp_restore_target_effect_authority impor
     validate_detached_fling_leppa_pp_restore_target_effect,
     validate_fling_leppa_pp_restore_target_effect_authority,
 )
+from llm.advisor_detached_standard_charge_start import (
+    validate_pair_compatible_standard_charge_leaf,
+)
 
 
 SCHEMA_VERSION = "exact-immediate-action-pair-outcome-ledger-v1"
@@ -162,6 +165,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if reflected_encore_error is not None: return reflected_encore_error
     sucker_error = _sucker_punch_leaf(first, action_order=value["action_order"], pair_base=base)
     if sucker_error is not None: return sucker_error
+    charge_error = validate_pair_compatible_standard_charge_leaf(first)
+    if charge_error is not None: return charge_error
     heal_error = _direct_heal_leaf(first)
     if heal_error is not None: return heal_error
     drain_error = _drain_leaf(first)
@@ -236,6 +241,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if encore_error is not None: return encore_error
         pivot_error = _pivot_second_action_target_binding(value, base, first, second_leaf)
         if pivot_error is not None: return pivot_error
+        charge_error = validate_pair_compatible_standard_charge_leaf(second_leaf)
+        if charge_error is not None: return charge_error
         focus_error = _focus_sash_leaf(second_leaf)
         if focus_error is not None: return focus_error
         low_hp_error = _low_hp_type_leaf(second_leaf)

@@ -13,6 +13,9 @@ from llm.advisor_detached_selected_action_execution_result import materialize_de
 from llm.advisor_runtime_d0_standard_charge_start_readiness_authority import (
     freeze_runtime_d0_standard_charge_start_readiness_authority,
 )
+from llm.advisor_branch_bound_selected_action_request import (
+    normalize_branch_bound_selected_attack_request,
+)
 
 
 def execute_gated_selected_action(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
@@ -108,20 +111,21 @@ def _family_authorities(
         "focus_sash_survival_authority": pick("first_action_focus_sash_survival_authority"),
     }
     if move_id in {"sky-attack", "razor-wind", "freeze-shock", "ice-burn"}:
-        branch_action = _branch_bound_selected_action(
+        rebound = normalize_branch_bound_selected_attack_request(
             strategy_d0=strategy_d0,
-            action=action,
-            metadata=metadata,
+            source_action=action,
+            actor=actor,
+            target=target,
             metadata_authority=metadata_authority,
         )
-        if isinstance(branch_action, Mapping) and branch_action.get("status") == "rejected":
-            out["standard_charge_start_readiness_authority"] = branch_action
+        if rebound.get("status") != "resolved":
+            out["standard_charge_start_readiness_authority"] = rebound
         else:
             out["standard_charge_start_readiness_authority"] = (
                 freeze_runtime_d0_standard_charge_start_readiness_authority(
                     strategy_d0=strategy_d0,
                     runtime_snapshot=runtime_snapshot,
-                    action=branch_action,
+                    action=rebound["normalized_action"],
                     actor=actor,
                     target=target,
                 )
@@ -172,42 +176,6 @@ def _family_authorities(
         )
     return {key: value for key, value in out.items() if value is not None}
 
-
-
-def _branch_bound_selected_action(
-    *,
-    strategy_d0: Mapping[str, Any],
-    action: Mapping[str, Any],
-    metadata: Mapping[str, Any],
-    metadata_authority: Mapping[str, Any],
-) -> dict[str, Any]:
-    """Rebind immutable selected move metadata to this exact gated branch."""
-    if (
-        not isinstance(action, Mapping)
-        or not isinstance(metadata, Mapping)
-        or not isinstance(metadata_authority, Mapping)
-        or metadata_authority.get("status") != "resolved"
-        or metadata_authority.get("metadata") != metadata
-        or action.get("identity") != metadata.get("move_id")
-        or not isinstance(action.get("action_id"), str)
-    ):
-        return {"status": "rejected", "reason": "gated_standard_charge_move_metadata_invalid"}
-    rebound = deepcopy(dict(metadata_authority))
-    rebound.update({
-        "status": "resolved",
-        "candidate_id": action["action_id"],
-        "move_id": metadata["move_id"],
-        "session_id": strategy_d0.get("session_id"),
-        "source_runtime_fingerprint": strategy_d0.get("source_runtime_fingerprint"),
-        "source_branch_fingerprint": strategy_d0.get("strategy_preview_fingerprint"),
-        "decision_owner": deepcopy(strategy_d0.get("decision_owner")),
-        "active_attacker": deepcopy(strategy_d0.get("decision_owner")),
-        "metadata": deepcopy(dict(metadata)),
-        "branch_rebound_from_gated_selected_action": True,
-    })
-    rebound_action = deepcopy(dict(action))
-    rebound_action["move_metadata_authority"] = rebound
-    return rebound_action
 
 
 def _protection_setup(*, strategy_d0: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], pending_action: Mapping[str, Any] | None, pending_metadata_authority: Mapping[str, Any] | None, ext: Mapping[str, Any]) -> dict[str, Any]:
