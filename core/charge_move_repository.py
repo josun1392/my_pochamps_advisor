@@ -4,6 +4,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+from advisor.canonical_charge_move_lifecycle import (
+    INVENTORY_SCHEMA_VERSION,
+    load_canonical_charge_move_lifecycle_inventory,
+)
+
 
 DEFAULT_CHARGE_MOVES_PATH = Path("data/static/charge_moves.json")
 CHARGE_MOVES_VERSION = "charge_moves_v1"
@@ -26,7 +31,14 @@ def load_charge_moves(path: Path | None = None) -> dict[str, Any]:
 class ChargeMoveRepository:
     def __init__(self, path: Path | None = None) -> None:
         self.path = path or DEFAULT_CHARGE_MOVES_PATH
-        self.data = load_charge_moves(self.path)
+        self._canonical = path is None
+        self.data = (
+            load_canonical_charge_move_lifecycle_inventory()
+            if self._canonical
+            else load_charge_moves(self.path)
+        )
+        if self._canonical and self.data.get("version") != INVENTORY_SCHEMA_VERSION:
+            raise ValueError("Canonical charge move inventory version mismatch.")
         self._moves = self.data["moves"]
 
     def get_charge_move_metadata(self, move_id: str | None) -> dict[str, Any] | None:
@@ -57,6 +69,7 @@ class ChargeMoveRepository:
             "execution_model": metadata["execution_model"],
             "reason": "two_turn_execution_unrepresented",
             "source": metadata["source"],
+            "canonical_recognition_grants_immediate_execution": False,
         }
 
 
