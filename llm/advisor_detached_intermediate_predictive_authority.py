@@ -15,6 +15,9 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0, runtime_
 from llm.advisor_runtime_d0_fling_major_status_cure_berry_target_effect_authority import (
     validate_detached_fling_major_status_cure_berry_no_transition,
 )
+from llm.advisor_runtime_d0_fling_persim_confusion_cure_target_effect_authority import (
+    validate_detached_persim_confusion_removal,
+)
 
 
 SCHEMA_VERSION = "detached-intermediate-predictive-authority-v1"
@@ -89,6 +92,32 @@ def freeze_detached_intermediate_predictive_authority(
                 )
             if condition_value in {"burn", "poison", "toxic"}:
                 raw["detached_exact_intermediate_condition_authority"] = True
+        confusion = values["confusion"]
+        if confusion.get("status") == "invalid":
+            return _result(
+                "rejected",
+                confusion.get("reason", "intermediate_confusion_invalid"),
+                {**base, **parsed["binding"]},
+            )
+        if confusion.get("source") == "exact_terminal_leaf_fling_persim_confusion_removal":
+            if not validate_detached_persim_confusion_removal(
+                confusion.get("effect"),
+                source_leaf_id=parsed["source_leaf_id"],
+                expected_target=owner,
+            ):
+                return _result(
+                    "rejected",
+                    "intermediate_fling_persim_confusion_removal_invalid",
+                    {**base, **parsed["binding"]},
+                )
+            raw["current_confusion"] = "none"
+            raw["champions_confusion_progression"] = None
+            raw["confusion_provenance"] = {
+                "state": "none",
+                "hypothetical_provenance": "fling_persim_confusion_cure_v1",
+                "source_leaf_id": parsed["source_leaf_id"],
+            }
+            raw["detached_exact_persim_confusion_authority"] = True
         healing = values["healing_prevented"]
         if healing.get("source") == "exact_terminal_leaf_psychic_noise_healing_prevented_transition":
             raw["healing_prevented_status"] = "active"
@@ -164,12 +193,17 @@ def _intermediate(value: Any, d0: Mapping[str, Any], actor: Mapping[str, Any], t
         if not isinstance(condition, Mapping): condition = {"status": "unknown", "reason": "intermediate_condition_missing"}
         item = row.get("hypothetical_item")
         if not isinstance(item, Mapping): item = {"status": "unknown", "reason": "intermediate_item_missing"}
+        confusion = row.get("hypothetical_confusion")
+        if not isinstance(confusion, Mapping):
+            confusion = {"status": "unknown", "reason": "intermediate_confusion_missing"}
+        if confusion.get("status") == "invalid":
+            return confusion.get("reason", "intermediate_confusion_invalid")
         healing = row.get("hypothetical_healing_prevented")
         if not isinstance(healing, Mapping):
             healing = {"status": "unknown", "reason": "intermediate_healing_prevented_missing"}
         if healing.get("status") == "invalid":
             return healing.get("reason", "intermediate_healing_prevented_invalid")
-        return {"hp": hp["value"], "fainted": fainted["value"], "stages": {stat: stages[stat]["value"] for stat in _STAGES}, "condition": deepcopy(dict(condition)), "item": deepcopy(dict(item)), "healing_prevented": deepcopy(dict(healing)), "condition_changed": condition.get("source") in {"exact_terminal_leaf_condition_effect", "exact_terminal_leaf_condition_removal"}}
+        return {"hp": hp["value"], "fainted": fainted["value"], "stages": {stat: stages[stat]["value"] for stat in _STAGES}, "condition": deepcopy(dict(condition)), "confusion": deepcopy(dict(confusion)), "item": deepcopy(dict(item)), "healing_prevented": deepcopy(dict(healing)), "condition_changed": condition.get("source") in {"exact_terminal_leaf_condition_effect", "exact_terminal_leaf_condition_removal"}}
     parsed_actor, parsed_target = participant(actor), participant(target)
     if isinstance(parsed_actor, str) or isinstance(parsed_target, str): return parsed_actor if isinstance(parsed_actor, str) else parsed_target
     first = value.get("first_action")

@@ -68,7 +68,7 @@ def test_non_family_berries_are_not_admitted_by_this_family_owner(item_id):
 
 
 def test_still_unsupported_non_family_berry_does_not_become_ready_throw():
-    _state, _snapshot, _d0, _actor, _target, execution = _fixture(item="persim-berry")
+    _state, _snapshot, _d0, _actor, _target, execution = _fixture(item="lum-berry")
     assert execution["outcome"] == "unsupported_mandatory_item_effect"
     assert execution["status"] == "unsupported"
     assert "fling_type_resist_empty_intrinsic_berry_support" not in execution

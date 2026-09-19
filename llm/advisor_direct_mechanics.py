@@ -20,6 +20,9 @@ from advisor.canonical_fling_major_status_cure_berry import (
 from advisor.canonical_fling_type_resist_empty_intrinsic_berry import (
     resolve_canonical_fling_type_resist_empty_intrinsic_berry,
 )
+from advisor.canonical_fling_persim_confusion_cure_berry import (
+    resolve_canonical_fling_persim_confusion_cure_berry,
+)
 from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.move_categories import load_move_flags as load_move_category_flags
@@ -1273,7 +1276,16 @@ def _fling_power_context(current: Mapping[str, Any], move: Mapping[str, Any]) ->
         and authority.get("fling_type_resist_empty_intrinsic_berry_authority")
         == canonical_type_resist_berry
     )
-    if authority.get("status") != "resolved" or authority.get("schema_version") != "runtime-d0-fling-item-execution-authority-v1" or authority.get("outcome") != "ready_throw" or authority.get("move_id") != "fling" or not _positive_int(power) or move.get("power") != power or not isinstance(metadata, Mapping) or metadata.get("base_power") != power or not ((effect.get("kind") == "none" and metadata.get("support_status") == "not_applicable") or deterministic or berry_cure or type_resist_empty_intrinsic_berry) or authority.get("item_after") != {"state": "known_absent", "item": None}:
+    canonical_persim_berry = resolve_canonical_fling_persim_confusion_cure_berry(item_id)
+    persim_confusion_cure = (
+        effect.get("kind") == "berry_effect"
+        and authority.get("fling_persim_confusion_cure_berry_support")
+        == "fling_persim_confusion_cure_target_effect_v1"
+        and canonical_persim_berry.get("status") == "resolved"
+        and authority.get("fling_persim_confusion_cure_berry_authority")
+        == canonical_persim_berry
+    )
+    if authority.get("status") != "resolved" or authority.get("schema_version") != "runtime-d0-fling-item-execution-authority-v1" or authority.get("outcome") != "ready_throw" or authority.get("move_id") != "fling" or not _positive_int(power) or move.get("power") != power or not isinstance(metadata, Mapping) or metadata.get("base_power") != power or not ((effect.get("kind") == "none" and metadata.get("support_status") == "not_applicable") or deterministic or berry_cure or type_resist_empty_intrinsic_berry or persim_confusion_cure) or authority.get("item_after") != {"state": "known_absent", "item": None}:
         return {"status": "incomplete", "mechanic": "fling_item_power_and_throw", "missing_inputs": ["fling.execution_authority"]}
     return {
         "status": "known",
@@ -1283,6 +1295,7 @@ def _fling_power_context(current: Mapping[str, Any], move: Mapping[str, Any]) ->
         "target_cure_conditions": tuple(canonical_berry.get("removable_conditions", ())) if berry_cure else (),
         "target_condition_context_values": ("burn", "poison", "toxic", "paralysis", "sleep", "freeze") if berry_cure else (),
         "type_resist_empty_intrinsic_berry": deepcopy(canonical_type_resist_berry) if type_resist_empty_intrinsic_berry else None,
+        "persim_confusion_cure_berry": deepcopy(canonical_persim_berry) if persim_confusion_cure else None,
         "execution_authority": deepcopy(dict(authority)),
         "missing_inputs": [],
     }

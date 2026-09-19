@@ -17,6 +17,9 @@ from llm.advisor_runtime_d0_fling_major_status_cure_berry_target_effect_authorit
     validate_detached_fling_major_status_cure_berry_no_transition,
 )
 from llm.advisor_detached_berry_eaten_transition import validate_detached_berry_eaten_transition
+from llm.advisor_runtime_d0_fling_persim_confusion_cure_target_effect_authority import (
+    validate_detached_persim_confusion_removal,
+)
 
 
 SCHEMA_VERSION = "detached-predictive-intermediate-state-v1"
@@ -136,8 +139,48 @@ def _participant(d0: Mapping[str, Any], leaf: Mapping[str, Any], owner: Mapping[
         "hypothetical_stages": _stages(current_stages, effects, role),
         "current_condition_authority": deepcopy(current_condition),
         "hypothetical_condition": _condition(current_condition, effects, role),
+        "hypothetical_confusion": _confusion(leaf, owner, role),
         "hypothetical_healing_prevented": healing_prevented,
         "hypothetical_berry_eaten": _berry_eaten(d0, leaf, owner, role),
+    }
+
+
+def _confusion(
+    leaf: Mapping[str, Any], owner: Mapping[str, Any], role: str,
+) -> dict[str, Any]:
+    if role != "target":
+        return {"status": "unchanged", "source": "frozen_current_confusion_authority"}
+    payload = leaf.get("consequences", {}).get(
+        "fling_persim_confusion_cure_target_effect"
+    )
+    if not isinstance(payload, Mapping):
+        return {"status": "unchanged", "source": "frozen_current_confusion_authority"}
+    removal = payload.get("hypothetical_target_confusion_removal")
+    if removal is None:
+        if payload.get("outcome") == "no_transition_not_confused":
+            return {
+                "status": "known_none",
+                "current_confusion": "none",
+                "champions_confusion_progression": None,
+                "source": "exact_terminal_leaf_fling_persim_confusion_no_transition",
+                "effect": deepcopy(dict(payload)),
+            }
+        return {"status": "invalid", "reason": "terminal_leaf_persim_confusion_payload_invalid"}
+    if not validate_detached_persim_confusion_removal(
+        removal,
+        source_leaf=leaf,
+        expected_target=owner,
+    ):
+        return {
+            "status": "invalid",
+            "reason": "terminal_leaf_persim_confusion_removal_invalid",
+        }
+    return {
+        "status": "known_none",
+        "current_confusion": "none",
+        "champions_confusion_progression": None,
+        "source": "exact_terminal_leaf_fling_persim_confusion_removal",
+        "effect": deepcopy(dict(removal)),
     }
 
 

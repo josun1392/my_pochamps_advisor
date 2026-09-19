@@ -119,6 +119,11 @@ from llm.advisor_runtime_d0_fling_type_resist_empty_intrinsic_berry_target_effec
     freeze_runtime_d0_fling_type_resist_empty_intrinsic_berry_target_effect_authority,
     materialize_detached_fling_type_resist_empty_intrinsic_berry_target_effect,
 )
+from llm.advisor_runtime_d0_fling_persim_confusion_cure_target_effect_authority import (
+    freeze_runtime_d0_fling_persim_confusion_cure_target_effect_authority,
+    materialize_detached_fling_persim_confusion_cure_target_effect,
+)
+from llm.advisor_champions_confusion_progression import valid_confusion_progression
 from llm.advisor_detached_item_transfer_after_hit import materialize_detached_item_transfer_after_hit
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
 from llm.advisor_detached_drain_consequence import apply_detached_drain_consequence
@@ -260,10 +265,18 @@ def materialize_immediate_move_vs_move_action_pair(
     for gated_extension in (first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority):
         if isinstance(gated_extension, Mapping) and gated_extension.get("status") == "resolved" and not isinstance(gated_extension.get("session_id"), str):
             return _result("incomplete", "champions_status_pair_extension_binding_required", base)
+    defer_confusion_gate_for_persim_cure = _defer_confusion_gate_for_first_persim_cure(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        base=base,
+        orders=orders,
+        own_action=own_action,
+        own_meta=own_meta,
+    )
     if any(member.get("condition") in {"sleep", "freeze"} for member in status_members) and any(member.get("current_confusion") == "confused" for member in status_members):
         from llm.advisor_champions_status_confusion_gated_pair import materialize_champions_status_confusion_gated_pair
         return materialize_champions_status_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
-    if any(member.get("current_confusion") == "confused" for member in status_members):
+    if any(member.get("current_confusion") == "confused" for member in status_members) and not defer_confusion_gate_for_persim_cure:
         from llm.advisor_champions_confusion_gated_pair import materialize_champions_confusion_gated_pair
         return materialize_champions_confusion_gated_pair(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base, own_action=own_action, opponent_action=opponent_action, own_meta=own_meta, opponent_meta=opponent_meta, orders=orders, action_order_authority=action_order_authority, quick_claw_action_order_authority=quick_claw_action_order_authority, extension_authorities=_gated_extension_authorities(first_action_sturdy_survival_authority=first_action_sturdy_survival_authority, first_action_focus_sash_survival_authority=first_action_focus_sash_survival_authority, opponent_protection_success_authority=opponent_protection_success_authority, incoming_contact_authority=incoming_contact_authority, silk_trap_reactive_interaction_authority=silk_trap_reactive_interaction_authority, kings_shield_reactive_interaction_authority=kings_shield_reactive_interaction_authority, obstruct_reactive_interaction_authority=obstruct_reactive_interaction_authority, spiky_shield_reactive_damage_authority=spiky_shield_reactive_damage_authority, baneful_bunker_reactive_poison_authority=baneful_bunker_reactive_poison_authority, burning_bulwark_reactive_burn_authority=burning_bulwark_reactive_burn_authority, quick_guard_priority_applicability_authority=quick_guard_priority_applicability_authority, mat_block_direct_damage_applicability_authority=mat_block_direct_damage_applicability_authority, pure_status_execution_authorities=pure_status_execution_authorities, atomic_item_swap_status_execution_authorities=atomic_item_swap_status_execution_authorities, direct_heal_execution_authorities=direct_heal_execution_authorities, rest_execution_authorities=rest_execution_authorities, taunt_application_authorities=taunt_application_authorities, encore_application_authorities=encore_application_authorities, disable_application_authorities=disable_application_authorities, pivot_replacement_authorities=pivot_replacement_authorities, pivot_entry_authorities=pivot_entry_authorities))
     defer_sleep_freeze_gate_for_fling_cure = _defer_sleep_freeze_gate_for_first_fling_cure(
@@ -385,6 +398,7 @@ def materialize_immediate_move_vs_move_action_pair(
             pivot_replacement_authorities=pivot_replacement_authorities,
             pivot_entry_authorities=pivot_entry_authorities,
             post_source_retaliation_protection_authority=post_source_retaliation_protection_authority,
+            defer_confusion_gate_for_persim_cure=defer_confusion_gate_for_persim_cure,
         )
         if isinstance(materialized, Mapping): return materialized
         branches.extend(materialized)
@@ -1659,6 +1673,7 @@ def _materialize_order(
     pivot_replacement_authorities: Mapping[str, Mapping[str, Any]] | None,
     pivot_entry_authorities: Mapping[str, Mapping[str, Any]] | None,
     post_source_retaliation_protection_authority: Mapping[str, Any] | None,
+    defer_confusion_gate_for_persim_cure: bool = False,
 ) -> list[dict[str, Any]] | dict[str, Any]:
     order = order_plan["order"]
     first_actor = base["own_actor"] if order == "own_first" else base["opponent_actor"]
@@ -1764,6 +1779,31 @@ def _materialize_order(
             branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan)); continue
         if _fainted(intermediate, first_actor):
             branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan)); continue
+        if defer_confusion_gate_for_persim_cure:
+            if order != "own_first" or second_actor != base["opponent_actor"]:
+                return _result(
+                    "rejected",
+                    "persim_confusion_gate_deferral_order_binding_invalid",
+                    base,
+                    first_leaf_id=leaf["leaf_id"],
+                )
+            confusion = intermediate.get("active", {}).get(
+                second_actor["side"], {}
+            ).get("hypothetical_confusion")
+            if (
+                not isinstance(confusion, Mapping)
+                or confusion.get("status") != "known_none"
+                or confusion.get("current_confusion") != "none"
+                or confusion.get("champions_confusion_progression") is not None
+                or confusion.get("source")
+                != "exact_terminal_leaf_fling_persim_confusion_removal"
+            ):
+                return _result(
+                    "incomplete",
+                    "persim_confusion_cure_not_reached_before_pending_action",
+                    base,
+                    first_leaf_id=leaf["leaf_id"],
+                )
         flinch = _pending_second_action_flinch(intermediate, second_actor)
         if isinstance(flinch, str):
             return _result("rejected", flinch, base, first_leaf_id=leaf["leaf_id"])
@@ -1941,8 +1981,16 @@ def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runti
             actor=actor,
             target=target,
         )
-        return _apply_fling_type_resist_empty_intrinsic_berry_target_effect_to_ledger(
+        type_resist = _apply_fling_type_resist_empty_intrinsic_berry_target_effect_to_ledger(
             ledger=berry_cure,
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            authority=fling_execution,
+            actor=actor,
+            target=target,
+        )
+        return _apply_fling_persim_confusion_cure_target_effect_to_ledger(
+            ledger=type_resist,
             strategy_d0=strategy_d0,
             runtime_snapshot=runtime_snapshot,
             authority=fling_execution,
@@ -2507,6 +2555,87 @@ def _base(d0: Any, own: Any, opponent: Any) -> dict[str, Any] | None:
     self_owner, opp_owner = d0.get("active_owners", {}).get("self"), d0.get("active_owners", {}).get("opponent")
     if not isinstance(self_owner, Mapping) or not isinstance(opp_owner, Mapping) or d0.get("decision_owner") != self_owner: return None
     return {"pair_id": f"pair:{own['action_id']}:{opponent.get('action_id') if isinstance(opponent, Mapping) else None}", "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "own_action_id": own["action_id"], "opponent_action_id": opponent.get("action_id") if isinstance(opponent, Mapping) else None, "own_actor": deepcopy(dict(self_owner)), "opponent_actor": deepcopy(dict(opp_owner))}
+def _defer_confusion_gate_for_first_persim_cure(
+    *,
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    base: Mapping[str, Any],
+    orders: list[dict[str, Any]],
+    own_action: Mapping[str, Any],
+    own_meta: Mapping[str, Any],
+) -> bool:
+    """Defer only an exact own-side Persim-first confusion opportunity.
+
+    This is intentionally narrower than the generic confusion pair wrapper:
+    one frozen own-first order, exact non-confused Fling user, exact confused
+    target with authenticated progression, and exact Persim execution support.
+    Equal-speed, opponent-first, confused Fling users, unknown confusion and
+    wrong items remain with the existing Champions confusion gate.
+    """
+    if len(orders) != 1 or orders[0].get("order") != "own_first":
+        return False
+    metadata = own_meta.get("metadata") if isinstance(own_meta, Mapping) else None
+    if (
+        not isinstance(metadata, Mapping)
+        or metadata.get("move_id") != "fling"
+        or own_action.get("action_type") != "attack"
+        or own_action.get("identity") != "fling"
+    ):
+        return False
+    state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, Mapping) else None
+    if not isinstance(state, Mapping):
+        return False
+    first_actor, second_actor = base["own_actor"], base["opponent_actor"]
+
+    def current(owner: Mapping[str, Any]) -> Mapping[str, Any] | None:
+        side = state.get(f"{owner['side']}_side")
+        roster = side.get("pokemon") if isinstance(side, Mapping) else None
+        raw = roster.get(owner["slot_index"]) if isinstance(roster, Mapping) else None
+        if not isinstance(raw, Mapping) or raw.get("pokemon_id", raw.get("name_en")) != owner["pokemon_id"]:
+            return None
+        return raw
+
+    first_raw, second_raw = current(first_actor), current(second_actor)
+    if first_raw is None or second_raw is None:
+        return False
+    first_prov, second_prov = first_raw.get("confusion_provenance"), second_raw.get("confusion_provenance")
+    if (
+        first_raw.get("current_confusion") != "none"
+        or not isinstance(first_prov, Mapping)
+        or first_prov.get("state") != "none"
+        or first_prov.get("trust") != "user_confirmed_observation"
+    ):
+        return False
+    progression = second_raw.get("champions_confusion_progression")
+    if (
+        second_raw.get("current_confusion") != "confused"
+        or not isinstance(second_prov, Mapping)
+        or second_prov.get("event_kind") != "current_confusion_observed"
+        or second_prov.get("trust") != "user_confirmed_observation"
+        or second_prov.get("state") != "confused"
+        or not valid_confusion_progression(progression, second_actor)
+        or progression.get("confusion_observation") != second_prov
+    ):
+        return False
+    execution = freeze_runtime_d0_fling_item_execution_authority(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        action=own_action,
+        actor=first_actor,
+        target=second_actor,
+    )
+    family = execution.get("fling_persim_confusion_cure_berry_authority")
+    return (
+        execution.get("status") == "resolved"
+        and execution.get("outcome") == "ready_throw"
+        and execution.get("fling_persim_confusion_cure_berry_support")
+        == "fling_persim_confusion_cure_target_effect_v1"
+        and isinstance(family, Mapping)
+        and family.get("status") == "resolved"
+        and family.get("item_id") == "persim-berry"
+    )
+
+
 def _defer_sleep_freeze_gate_for_first_fling_cure(
     *,
     strategy_d0: Mapping[str, Any],
@@ -2933,6 +3062,115 @@ def _apply_fling_type_resist_empty_intrinsic_berry_target_effect_to_ledger(
     out["component_manifest"] = {
         **deepcopy(dict(out.get("component_manifest", {}))),
         "fling_type_resist_empty_intrinsic_berry_target_effect": {
+            "status": "conditional_on_authenticated_target_eat",
+        },
+        "fling_berry_eaten_transition": {
+            "status": "conditional_on_authenticated_target_eat",
+        },
+    }
+    return out
+
+
+def _apply_fling_persim_confusion_cure_target_effect_to_ledger(
+    *,
+    ledger: Mapping[str, Any],
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    authority: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+) -> dict[str, Any]:
+    supported = (
+        authority.get("fling_persim_confusion_cure_berry_support")
+        == "fling_persim_confusion_cure_target_effect_v1"
+    )
+    if not supported:
+        return ledger
+    if (
+        authority.get("fling_major_status_cure_berry_support") is not None
+        or authority.get("fling_type_resist_empty_intrinsic_berry_support") is not None
+    ):
+        return _result("rejected", "fling_berry_family_support_overlap", {})
+    if ledger.get("status") != "evaluable" or not isinstance(
+        ledger.get("terminal_leaves"), tuple
+    ):
+        return deepcopy(dict(ledger))
+
+    rows = []
+    for leaf in ledger["terminal_leaves"]:
+        interaction = freeze_runtime_d0_fling_berry_eat_item_interaction_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            fling_execution_authority=authority,
+            actor=actor,
+            target=target,
+            phase="post_hit_target_berry_interaction",
+            source_leaf=leaf,
+        )
+        if interaction.get("status") != "resolved":
+            return _result(
+                _status(interaction),
+                interaction.get("reason", "fling_berry_eat_item_interaction_unavailable"),
+                {},
+            )
+        bound = freeze_runtime_d0_fling_persim_confusion_cure_target_effect_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            fling_execution_authority=authority,
+            source_leaf=leaf,
+            berry_eat_item_interaction_authority=interaction,
+            actor=actor,
+            target=target,
+        )
+        if bound.get("status") != "resolved":
+            return _result(
+                _status(bound),
+                bound.get("reason", "fling_persim_target_effect_unavailable"),
+                {},
+            )
+        if bound.get("outcome") == "not_applicable":
+            rows.append(deepcopy(dict(leaf)))
+            continue
+        if bound.get("outcome") not in {
+            "applied_confusion_cure", "no_transition_not_confused",
+        }:
+            return _result(
+                "rejected", "fling_persim_target_effect_outcome_invalid", {}
+            )
+        detached = materialize_detached_fling_persim_confusion_cure_target_effect(
+            authority=bound,
+        )
+        if detached.get("status") != "resolved":
+            return _result(
+                _status(detached),
+                detached.get("reason", "fling_persim_materialization_unavailable"),
+                {},
+            )
+        eaten = materialize_detached_fling_berry_eaten_transition(
+            strategy_d0=strategy_d0,
+            source_leaf=leaf,
+            interaction_authority=interaction,
+            target=target,
+        )
+        if eaten.get("status") != "resolved":
+            return _result(
+                _status(eaten),
+                eaten.get("reason", "fling_berry_eaten_transition_unavailable"),
+                {},
+            )
+        row = deepcopy(dict(leaf))
+        row["consequences"] = {
+            **deepcopy(dict(row.get("consequences", {}))),
+            "fling_persim_confusion_cure_target_effect": detached,
+            "fling_berry_eaten_transition": deepcopy(dict(eaten)),
+        }
+        rows.append(row)
+
+    out = deepcopy(dict(ledger))
+    out["terminal_leaves"] = tuple(rows)
+    out["component_manifest"] = {
+        **deepcopy(dict(out.get("component_manifest", {}))),
+        "fling_persim_confusion_cure_target_effect": {
             "status": "conditional_on_authenticated_target_eat",
         },
         "fling_berry_eaten_transition": {
