@@ -9,6 +9,10 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from advisor.damage.abilities import get_ability
+from advisor.canonical_fling_berry_target_intrinsic_on_eat_suppression import (
+    resolve_canonical_fling_berry_target_intrinsic_on_eat_suppression_contract,
+    resolve_canonical_target_item_ignore_klutz,
+)
 
 
 SCHEMA_VERSION = "hit-modifier-capability-resolution-v1"
@@ -167,6 +171,13 @@ def resolve_runtime_hit_modifier_capabilities(*, move: Mapping[str, Any], source
     if old["status"] != "resolved": return {**base, "status": old["status"], "reason": old.get("reason"), "ledger": tuple(ledger) + tuple(old.get("ledger", ()))}
     ledger.extend(old["ledger"])
     ability = source["target_ability"]
+    target_klutz_fling = (
+        normalized["move_id"] == "fling"
+        and ability["status"] == "known"
+        and ability.get("value") == "klutz"
+        and resolve_canonical_fling_berry_target_intrinsic_on_eat_suppression_contract().get("status")
+        == "resolved"
+    )
     if ability["status"] == "unknown": return _runtime_unavailable(base, "incomplete", "target_ability_unknown", ledger, "target_ability")
     if ability["status"] == "known" and ability["value"] in {"sand-veil", "snow-cloak", "tangled-feet"}:
         if ability.get("applicability") == "unknown": return _runtime_unavailable(base, "incomplete", "target_ability_applicability_unknown", ledger, "target_ability", ability["value"])
@@ -177,12 +188,49 @@ def resolve_runtime_hit_modifier_capabilities(*, move: Mapping[str, Any], source
         applies = ability["applicability"] == "applicable" and ((required_weather and weather["value"] == required_weather) or (ability["value"] == "tangled-feet" and source["target_confusion"].get("value") == "confused"))
         if applies: ledger.append(_row("target_ability", "applicable", rule_id=f"{ability['value']}-accuracy-evasion-v1", source_value=ability["value"], effect={"kind": "accuracy_multiplier_q12", "numerator": 2048 if ability["value"] == "tangled-feet" else 3277, "denominator": 4096, "ordering": "before_accuracy_evasion_stages"}))
         else: ledger.append(_row("target_ability", "known_neutral", source_value=ability["value"], reason="catalog_ability_condition_not_met"))
-    elif ability["status"] == "known_absent" or ability.get("value") in _KNOWN_NEUTRAL_ABILITY_IDS | {"hustle"}:
+    elif ability["status"] == "known_absent" or ability.get("value") in _KNOWN_NEUTRAL_ABILITY_IDS | {"hustle"} or target_klutz_fling:
         ledger.append(_row("target_ability", "known_neutral", **({"source_value": ability["value"]} if ability["status"] == "known" else {"reason": "proven_ability_absent"})))
     else: return _runtime_unavailable(base, "unsupported", "target_ability_not_in_supported_hit_modifier_catalog", ledger, "target_ability", ability.get("value"))
     item = source["target_item"]
-    if item["status"] == "unknown": return _runtime_unavailable(base, "incomplete", "target_item_unknown", ledger, "target_item")
-    if item["status"] == "known" and item["value"] == "bright-powder":
+    if target_klutz_fling:
+        if item["status"] == "unknown":
+            return _runtime_unavailable(
+                base, "incomplete", "target_klutz_current_held_item_unknown",
+                ledger, "target_item",
+            )
+        if item["status"] == "known_absent":
+            ledger.append(_row(
+                "target_item", "known_neutral",
+                reason="target_klutz_known_absent_item_suppresses_no_accuracy_effect",
+            ))
+        elif item["status"] == "known":
+            classification = resolve_canonical_target_item_ignore_klutz(item["value"])
+            if classification.get("status") != "resolved":
+                return _runtime_unavailable(
+                    base, "incomplete",
+                    classification.get("reason", "target_klutz_item_ignore_klutz_unavailable"),
+                    ledger, "target_item", item["value"],
+                )
+            if classification.get("ignore_klutz") is False:
+                ledger.append(_row(
+                    "target_item", "known_neutral", source_value=item["value"],
+                    reason="target_klutz_suppresses_current_item_accuracy_effect",
+                ))
+            elif classification.get("showdown_item_id") == "abilityshield":
+                ledger.append(_row(
+                    "target_item", "known_neutral", source_value=item["value"],
+                    reason="ability_shield_has_no_regular_accuracy_effect",
+                ))
+            else:
+                return _runtime_unavailable(
+                    base, "unsupported",
+                    "target_ignore_klutz_item_not_in_supported_hit_modifier_catalog",
+                    ledger, "target_item", item["value"],
+                )
+        else:
+            return _result("rejected", "invalid_target_klutz_item_authority")
+    elif item["status"] == "unknown": return _runtime_unavailable(base, "incomplete", "target_item_unknown", ledger, "target_item")
+    elif item["status"] == "known" and item["value"] == "bright-powder":
         if item.get("applicability") == "unknown": return _runtime_unavailable(base, "incomplete", "target_item_applicability_unknown", ledger, "target_item", "bright-powder")
         if item.get("applicability") not in {"applicable", "not_applicable"}: return _result("rejected", "invalid_target_item_applicability")
         if item["applicability"] == "applicable": ledger.append(_row("target_item", "applicable", rule_id="bright-powder-evasion-v1", source_value="bright-powder", effect={"kind": "accuracy_multiplier_q12", "numerator": 3686, "denominator": 4096, "ordering": "before_accuracy_evasion_stages"}))

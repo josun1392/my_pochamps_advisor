@@ -13,6 +13,7 @@ from llm.advisor_detached_target_condition_removal_validation import (
 )
 from llm.advisor_runtime_d0_fling_berry_eat_item_interaction_authority import (
     assess_fling_berry_target_eat_item_consequence_readiness,
+    assess_fling_berry_target_intrinsic_on_eat_readiness,
 )
 from llm.advisor_runtime_strategy_d0 import (
     freeze_runtime_current_condition_authority,
@@ -146,6 +147,33 @@ def freeze_runtime_d0_fling_lum_major_status_confusion_cure_target_effect_author
             readiness.get("reason", "fling_lum_target_eat_item_consequence_not_ready"),
             common,
         )
+    intrinsic = assess_fling_berry_target_intrinsic_on_eat_readiness(
+        berry_eat_item_interaction_authority,
+    )
+    common = {**common, "target_intrinsic_on_eat_readiness": deepcopy(intrinsic)}
+    if intrinsic.get("status") != "resolved":
+        status = intrinsic.get("status")
+        if status not in {"incomplete", "rejected"}:
+            status = "rejected"
+        return _result(
+            status,
+            intrinsic.get("reason", "fling_lum_target_intrinsic_on_eat_unavailable"),
+            common,
+        )
+    if intrinsic.get("readiness") == "suppressed_by_target_klutz":
+        return _terminal(
+            "not_applicable",
+            "fling_berry_intrinsic_on_eat_suppressed_by_target_klutz",
+            common,
+            condition_before="not_evaluated",
+            condition_after="not_evaluated",
+            confusion_before="not_evaluated",
+            confusion_after="not_evaluated",
+            confusion_progression_before=None,
+            confusion_progression_after=None,
+        )
+    if intrinsic.get("readiness") != "executes":
+        return _result("rejected", "fling_lum_target_intrinsic_on_eat_state_invalid", common)
 
     current_condition = freeze_runtime_current_condition_authority(
         strategy_d0=strategy_d0,

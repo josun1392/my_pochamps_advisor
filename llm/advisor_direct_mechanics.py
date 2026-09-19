@@ -26,6 +26,10 @@ from advisor.canonical_fling_persim_confusion_cure_berry import (
 from advisor.canonical_fling_lum_major_status_confusion_cure_berry import (
     resolve_canonical_fling_lum_major_status_confusion_cure_berry,
 )
+from advisor.canonical_fling_berry_target_intrinsic_on_eat_suppression import (
+    resolve_canonical_fling_berry_target_intrinsic_on_eat_suppression_contract,
+    resolve_canonical_target_item_ignore_klutz,
+)
 from advisor.damage.stats import StatBlock
 from advisor.damage.type_immunity import load_move_flags
 from advisor.damage.move_categories import load_move_flags as load_move_category_flags
@@ -317,14 +321,22 @@ def evaluate_direct_damage_mechanics(
         move_type=move_type, defender_types=defender["types"] if defender is not None else (),
         force_item_absent_for_damage=move_id == "fling" and isinstance(fling, Mapping) and fling.get("status") == "known",
     )
+    fling_berry_target_klutz = (
+        isinstance(fling, Mapping)
+        and fling.get("status") == "known"
+        and fling.get("supported_berry_effect") is True
+        and _current_ability_id(current, "opponent") == "klutz"
+    )
     defender_item_modifier = _defender_item_modifier_context(
         stat_provenance=stat_provenance, direct_defender=direct_defender, category=category,
         move_type=move_type, defender_types=defender["types"] if defender is not None else (), hit_count=hit_count, move_id=move_id,
+        suppress_for_fling_target_klutz=fling_berry_target_klutz,
     )
     defender_ability_modifier = _defender_ability_modifier_context(
         current=current, direct_defender=direct_defender, category=category, move_type=move_type,
         defender_types=defender["types"] if defender is not None else (),
         move_id=move_id, attacker_ability_id=_current_ability_id(current, "self"),
+        allow_fling_target_klutz=fling_berry_target_klutz,
     )
     stage_context = _relevant_stage_context(current=current, category=category, offensive_source=offensive_source, defensive_source=defensive_source)
     legacy_modifier_reason = _unsupported_modifier(
@@ -335,6 +347,7 @@ def evaluate_direct_damage_mechanics(
         allow_exact_detached_switch_entry_condition=_has_exact_detached_switch_entry_condition(current),
         allow_exact_detached_defender_condition=_has_exact_detached_sparkling_aria_pre_hit_burn(current),
         allow_fling_berry_defender_conditions=tuple(fling.get("target_condition_context_values", ())) if isinstance(fling, Mapping) else (),
+        allow_fling_target_klutz_item=fling_berry_target_klutz,
     )
     if legacy_modifier_reason is not None:
         return _unsupported(legacy_modifier_reason)
@@ -641,7 +654,7 @@ def _require_hp(value: Mapping[str, Any], side: str, missing: list[str]) -> None
     if _positive_int(current) and _positive_int(maximum) and current > maximum: missing.append(f"{side}.current_hp")
 
 
-def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_guts_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False, allow_exact_detached_defender_condition: bool = False, allow_champions_status_gate: bool = False, allow_fling_berry_defender_conditions: tuple[str, ...] = ()) -> str | None:
+def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, Any], field: Mapping[str, Any], *, allow_exact_detached_condition: bool = False, allow_exact_guts_condition: bool = False, allow_exact_detached_switch_entry_condition: bool = False, allow_exact_detached_defender_condition: bool = False, allow_champions_status_gate: bool = False, allow_fling_berry_defender_conditions: tuple[str, ...] = (), allow_fling_target_klutz_item: bool = False) -> str | None:
     for is_defender, side in ((False, attacker), (True, defender)):
         for key, reason in (("ability", "ability_modifier"), ("item", "item_modifier"), ("status", "major_status_modifier")):
             value = side.get(key)
@@ -649,6 +662,13 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
                 if key == "status" and value.get("value") in {"sleep", "freeze"} and allow_champions_status_gate:
                     continue
                 if key == "item" and value.get("value") in {"focus-sash", "quick-claw", "rocky-helmet", "sitrus-berry"}:
+                    continue
+                if (
+                    key == "item"
+                    and is_defender
+                    and allow_fling_target_klutz_item
+                    and resolve_canonical_target_item_ignore_klutz(value.get("value")).get("status") == "resolved"
+                ):
                     continue
                 # Detached intermediate major conditions are exact terminal
                 # consequences, not current-runtime observations.  They may
@@ -966,7 +986,7 @@ def _is_detached_intermediate_view(current: Mapping[str, Any]) -> bool:
     )
 
 
-def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str], move_id: str, attacker_ability_id: str | None = None) -> dict[str, Any]:
+def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any, move_type: Any, defender_types: tuple[str, ...] | list[str], move_id: str, attacker_ability_id: str | None = None, allow_fling_target_klutz: bool = False) -> dict[str, Any]:
     """Resolve only static, request-start target ability effects already owned by Q12."""
     result = {"ability_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None, "authority_explicit": False, "is_contact": False, "full_hp_defender_ability_applicability": None}
     context = current.get("ability_context")
@@ -993,6 +1013,8 @@ def _defender_ability_modifier_context(*, current: Mapping[str, Any], direct_def
         result["missing_inputs"].append("defender.ability")
         return result
     result["authority_explicit"] = True
+    if ability_id == "klutz" and allow_fling_target_klutz:
+        return result
     # Guts has no incoming-damage effect.  It is evaluated only when this
     # holder is the predictive attacker, after its exact condition is known.
     if ability_id == "guts" or ability_id in _ACTION_ORDER_ONLY_ABILITIES or ability_id in _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES:
@@ -1155,6 +1177,7 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
 def _defender_item_modifier_context(
     *, stat_provenance: Mapping[str, Any], direct_defender: Mapping[str, Any], category: Any,
     move_type: Any, defender_types: tuple[str, ...] | list[str], hit_count: int, move_id: Any = None,
+    suppress_for_fling_target_klutz: bool = False,
 ) -> dict[str, Any]:
     """Resolve exact defender-owned Q12 items for the one prospective direct hit.
 
@@ -1165,6 +1188,30 @@ def _defender_item_modifier_context(
     result = {"item_effect": None, "applied": [], "missing_inputs": [], "unsupported_reason": None}
     defender = _mapping(stat_provenance.get("defender"))
     item = _mapping(defender.get("known_item"))
+    if suppress_for_fling_target_klutz:
+        contract = resolve_canonical_fling_berry_target_intrinsic_on_eat_suppression_contract()
+        if contract.get("status") != "resolved":
+            result["unsupported_reason"] = "fling_target_klutz_item_suppression_contract"
+            return result
+        status = item.get("status")
+        if status == "known_absent":
+            return result
+        if status == "unknown":
+            result["missing_inputs"].append("defender.item")
+            return result
+        if status != "known" or not _nonempty_str(item.get("value")):
+            result["missing_inputs"].append("defender.item")
+            return result
+        classification = resolve_canonical_target_item_ignore_klutz(item.get("value"))
+        if classification.get("status") != "resolved":
+            result["missing_inputs"].append("defender.item")
+            return result
+        if classification.get("ignore_klutz") is False:
+            return result
+        if classification.get("showdown_item_id") == "abilityshield":
+            return result
+        result["unsupported_reason"] = "defender_item_modifier"
+        return result
     status = item.get("status")
     if status == "known_absent":
         return result
@@ -1319,6 +1366,12 @@ def _fling_power_context(current: Mapping[str, Any], move: Mapping[str, Any]) ->
         "type_resist_empty_intrinsic_berry": deepcopy(canonical_type_resist_berry) if type_resist_empty_intrinsic_berry else None,
         "persim_confusion_cure_berry": deepcopy(canonical_persim_berry) if persim_confusion_cure else None,
         "lum_major_status_confusion_cure_berry": deepcopy(canonical_lum_berry) if lum_major_status_confusion_cure else None,
+        "supported_berry_effect": bool(
+            berry_cure
+            or type_resist_empty_intrinsic_berry
+            or persim_confusion_cure
+            or lum_major_status_confusion_cure
+        ),
         "execution_authority": deepcopy(dict(authority)),
         "missing_inputs": [],
     }

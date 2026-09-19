@@ -37,6 +37,9 @@ from llm.advisor_detached_target_condition_removal_validation import (
     validate_detached_target_condition_removal,
 )
 from llm.advisor_detached_berry_eaten_transition import validate_detached_berry_eaten_transition
+from llm.advisor_runtime_d0_fling_berry_eat_item_interaction_authority import (
+    assess_fling_berry_target_intrinsic_on_eat_readiness,
+)
 from llm.advisor_runtime_d0_fling_type_resist_empty_intrinsic_berry_target_effect_authority import (
     validate_detached_fling_type_resist_empty_intrinsic_berry_target_effect,
 )
@@ -647,6 +650,9 @@ def _fling_berry_eaten_transition_leaf(leaf: Mapping[str, Any]) -> str | None:
     if len(interactions) > 1:
         return "fling_berry_eaten_transition_family_overlap"
     interaction = interactions[0] if interactions else None
+    if interaction is None and isinstance(transition, Mapping):
+        embedded = transition.get("berry_eat_item_interaction_authority")
+        interaction = embedded if isinstance(embedded, Mapping) else None
     eat_occurred = isinstance(interaction, Mapping) and interaction.get("status") == "resolved" and interaction.get("outcome") == "post_hit_target_eat_item_dispatched" and interaction.get("target_eat_occurred") is True and interaction.get("target_eat_item_dispatched") is True
     if eat_occurred:
         target = provenance.get("target") if isinstance(provenance, Mapping) else None
@@ -655,6 +661,40 @@ def _fling_berry_eaten_transition_leaf(leaf: Mapping[str, Any]) -> str | None:
     elif transition is not None:
         return "fling_berry_eaten_transition_without_authenticated_eat"
     return None
+
+
+def _fling_suppressed_intrinsic_eat(
+    *,
+    leaf: Mapping[str, Any],
+    execution: Mapping[str, Any],
+    transition: Any,
+    target: Mapping[str, Any],
+) -> dict[str, Any]:
+    if not validate_detached_berry_eaten_transition(
+        transition, leaf=leaf, target=target,
+    ):
+        return {"status": "rejected", "reason": "fling_suppressed_intrinsic_ateberry_invalid"}
+    interaction = transition.get("berry_eat_item_interaction_authority")
+    if (
+        not isinstance(interaction, Mapping)
+        or interaction.get("fling_execution_authority") != execution
+        or interaction.get("action_id") != leaf.get("candidate_id")
+        or interaction.get("target") != dict(target)
+        or interaction.get("source_hit", {}).get("source_leaf_id") != leaf.get("leaf_id")
+    ):
+        return {"status": "rejected", "reason": "fling_suppressed_intrinsic_interaction_binding_invalid"}
+    intrinsic = assess_fling_berry_target_intrinsic_on_eat_readiness(interaction)
+    if intrinsic.get("status") != "resolved":
+        return {
+            "status": "rejected",
+            "reason": intrinsic.get("reason", "fling_suppressed_intrinsic_readiness_invalid"),
+        }
+    return {
+        "status": "resolved",
+        "state": intrinsic.get("readiness"),
+        "interaction": interaction,
+        "readiness": intrinsic,
+    }
 
 
 def _fling_type_resist_empty_intrinsic_berry_target_effect_leaf(
@@ -760,6 +800,8 @@ def _fling_type_resist_empty_intrinsic_berry_target_effect_leaf(
         return "fling_type_resist_berry_target_effect_binding_invalid"
     interaction = authority.get("berry_eat_item_interaction_authority")
     readiness = authority.get("target_eat_item_consequence_readiness")
+    intrinsic = authority.get("target_intrinsic_on_eat_readiness")
+    computed_intrinsic = assess_fling_berry_target_intrinsic_on_eat_readiness(interaction)
     if (
         not isinstance(interaction, Mapping)
         or interaction.get("status") != "resolved"
@@ -771,6 +813,10 @@ def _fling_type_resist_empty_intrinsic_berry_target_effect_leaf(
         or not isinstance(readiness, Mapping)
         or readiness.get("status") != "resolved"
         or readiness.get("readiness") != "ready"
+        or not isinstance(intrinsic, Mapping)
+        or computed_intrinsic.get("status") != "resolved"
+        or computed_intrinsic.get("readiness") not in {"executes", "suppressed_by_target_klutz"}
+        or intrinsic != computed_intrinsic
     ):
         return "fling_type_resist_berry_eat_item_binding_invalid"
     if not validate_detached_berry_eaten_transition(
@@ -851,19 +897,29 @@ def _fling_persim_confusion_cure_target_effect_leaf(
         return None
 
     target = provenance.get("target") if isinstance(provenance, Mapping) else None
-    if (
-        not isinstance(payload, Mapping)
-        or not isinstance(target, Mapping)
-        or not validate_detached_fling_persim_confusion_cure_target_effect(
-            consequence=payload,
-            source_leaf=leaf,
-            expected_target=target,
+    if not isinstance(target, Mapping):
+        return "fling_persim_target_binding_invalid"
+    if not isinstance(payload, Mapping):
+        suppressed = _fling_suppressed_intrinsic_eat(
+            leaf=leaf, execution=execution, transition=transition, target=target,
         )
+        return (
+            None
+            if suppressed.get("status") == "resolved"
+            and suppressed.get("state") == "suppressed_by_target_klutz"
+            else "fling_persim_target_effect_missing"
+        )
+    if not validate_detached_fling_persim_confusion_cure_target_effect(
+        consequence=payload,
+        source_leaf=leaf,
+        expected_target=target,
     ):
         return "fling_persim_target_effect_invalid"
     authority = payload.get("authority")
     readiness = authority.get("target_eat_item_consequence_readiness") if isinstance(authority, Mapping) else None
     interaction = authority.get("berry_eat_item_interaction_authority") if isinstance(authority, Mapping) else None
+    intrinsic = authority.get("target_intrinsic_on_eat_readiness") if isinstance(authority, Mapping) else None
+    computed_intrinsic = assess_fling_berry_target_intrinsic_on_eat_readiness(interaction)
     if (
         not isinstance(authority, Mapping)
         or authority.get("fling_execution_authority") != execution
@@ -890,6 +946,10 @@ def _fling_persim_confusion_cure_target_effect_leaf(
         or not isinstance(readiness, Mapping)
         or readiness.get("status") != "resolved"
         or readiness.get("readiness") != "ready"
+        or not isinstance(intrinsic, Mapping)
+        or computed_intrinsic.get("status") != "resolved"
+        or computed_intrinsic.get("readiness") != "executes"
+        or intrinsic != computed_intrinsic
     ):
         return "fling_persim_target_effect_binding_invalid"
     if not validate_detached_berry_eaten_transition(
@@ -968,19 +1028,29 @@ def _fling_lum_major_status_confusion_cure_target_effect_leaf(
         return None
 
     target = provenance.get("target") if isinstance(provenance, Mapping) else None
-    if (
-        not isinstance(payload, Mapping)
-        or not isinstance(target, Mapping)
-        or not validate_detached_fling_lum_major_status_confusion_cure_target_effect(
-            consequence=payload,
-            source_leaf=leaf,
-            expected_target=target,
+    if not isinstance(target, Mapping):
+        return "fling_lum_target_binding_invalid"
+    if not isinstance(payload, Mapping):
+        suppressed = _fling_suppressed_intrinsic_eat(
+            leaf=leaf, execution=execution, transition=transition, target=target,
         )
+        return (
+            None
+            if suppressed.get("status") == "resolved"
+            and suppressed.get("state") == "suppressed_by_target_klutz"
+            else "fling_lum_target_effect_missing"
+        )
+    if not validate_detached_fling_lum_major_status_confusion_cure_target_effect(
+        consequence=payload,
+        source_leaf=leaf,
+        expected_target=target,
     ):
         return "fling_lum_target_effect_invalid"
     authority = payload.get("authority")
     interaction = authority.get("berry_eat_item_interaction_authority") if isinstance(authority, Mapping) else None
     readiness = authority.get("target_eat_item_consequence_readiness") if isinstance(authority, Mapping) else None
+    intrinsic = authority.get("target_intrinsic_on_eat_readiness") if isinstance(authority, Mapping) else None
+    computed_intrinsic = assess_fling_berry_target_intrinsic_on_eat_readiness(interaction)
     if (
         not isinstance(authority, Mapping)
         or authority.get("fling_execution_authority") != execution
@@ -1007,6 +1077,10 @@ def _fling_lum_major_status_confusion_cure_target_effect_leaf(
         or not isinstance(readiness, Mapping)
         or readiness.get("status") != "resolved"
         or readiness.get("readiness") != "ready"
+        or not isinstance(intrinsic, Mapping)
+        or computed_intrinsic.get("status") != "resolved"
+        or computed_intrinsic.get("readiness") != "executes"
+        or intrinsic != computed_intrinsic
     ):
         return "fling_lum_target_effect_binding_invalid"
     if not validate_detached_berry_eaten_transition(
@@ -1019,6 +1093,7 @@ def _fling_lum_major_status_confusion_cure_target_effect_leaf(
 def _fling_major_status_cure_berry_target_effect_leaf(leaf: Mapping[str, Any]) -> str | None:
     provenance, consequences = leaf.get("provenance"), leaf.get("consequences")
     payload = consequences.get("fling_major_status_cure_berry_target_effect") if isinstance(consequences, Mapping) else None
+    transition = consequences.get("fling_berry_eaten_transition") if isinstance(consequences, Mapping) else None
     move = provenance.get("move_id") if isinstance(provenance, Mapping) else None
     if move != "fling":
         return "unexpected_fling_status_cure_berry_payload" if payload is not None else None
@@ -1032,8 +1107,42 @@ def _fling_major_status_cure_berry_target_effect_leaf(leaf: Mapping[str, Any]) -
     canonical = resolve_canonical_fling_major_status_cure_berry(execution.get("user_item_before", {}).get("value"))
     if canonical.get("status") != "resolved" or family != canonical:
         return "fling_status_cure_berry_family_binding_invalid"
+    source_hit = consequences.get("source_hit_context") if isinstance(consequences, Mapping) else None
+    target_hp = consequences.get("target_final_hp") if isinstance(consequences, Mapping) else None
+    target_ko = consequences.get("target_ko") if isinstance(consequences, Mapping) else None
+    successful_eat = (
+        leaf.get("hit_state") == "hit"
+        and isinstance(source_hit, Mapping)
+        and source_hit.get("source_action_id") == leaf.get("candidate_id")
+        and source_hit.get("source_move_id") == "fling"
+        and source_hit.get("target_routing") == "target"
+        and isinstance(source_hit.get("actual_damage"), int)
+        and not isinstance(source_hit.get("actual_damage"), bool)
+        and source_hit.get("actual_damage") > 0
+        and isinstance(target_hp, int)
+        and not isinstance(target_hp, bool)
+        and target_hp > 0
+        and target_ko is not True
+    )
+    if not successful_eat:
+        if payload is not None:
+            return "fling_status_cure_berry_payload_without_authenticated_eat"
+        if transition is not None:
+            return "fling_status_cure_berry_transition_without_authenticated_eat"
+        return None
+    target = provenance.get("target") if isinstance(provenance, Mapping) else None
+    if not isinstance(target, Mapping):
+        return "fling_status_cure_berry_target_binding_invalid"
     if not isinstance(payload, Mapping):
-        return "fling_status_cure_berry_consequence_missing"
+        suppressed = _fling_suppressed_intrinsic_eat(
+            leaf=leaf, execution=execution, transition=transition, target=target,
+        )
+        return (
+            None
+            if suppressed.get("status") == "resolved"
+            and suppressed.get("state") == "suppressed_by_target_klutz"
+            else "fling_status_cure_berry_consequence_missing"
+        )
     authority = payload.get("authority")
     if (
         payload.get("schema_version") != "detached-fling-major-status-cure-berry-target-effect-v1"
@@ -1080,6 +1189,8 @@ def _fling_major_status_cure_berry_target_effect_leaf(leaf: Mapping[str, Any]) -
         return "fling_status_cure_berry_source_leaf_provenance_invalid"
 
     interaction = authority.get("berry_eat_item_interaction_authority")
+    intrinsic = authority.get("target_intrinsic_on_eat_readiness")
+    computed_intrinsic = assess_fling_berry_target_intrinsic_on_eat_readiness(interaction)
     if (
         not isinstance(interaction, Mapping)
         or interaction.get("schema_version") != "runtime-d0-fling-berry-eat-item-interaction-authority-v1"
@@ -1091,6 +1202,10 @@ def _fling_major_status_cure_berry_target_effect_leaf(leaf: Mapping[str, Any]) -
         or interaction.get("action_id") != authority.get("action_id")
         or interaction.get("fling_execution_authority") != execution
         or interaction.get("source_hit", {}).get("source_leaf_id") != leaf.get("leaf_id")
+        or not isinstance(intrinsic, Mapping)
+        or computed_intrinsic.get("status") != "resolved"
+        or computed_intrinsic.get("readiness") != "executes"
+        or intrinsic != computed_intrinsic
     ):
         return "fling_status_cure_berry_eat_item_binding_invalid"
 

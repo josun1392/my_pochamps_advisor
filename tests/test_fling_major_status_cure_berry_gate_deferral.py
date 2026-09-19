@@ -9,7 +9,17 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import _inputs
 
 
-def _case(*, item: str, target_condition: str, actor_condition: str = "none"):
+_TARGET_ITEM_UNSET = object()
+
+
+def _case(
+    *,
+    item: str,
+    target_condition: str,
+    actor_condition: str = "none",
+    target_ability: str = "pressure",
+    target_item=_TARGET_ITEM_UNSET,
+):
     state, snapshot, d0, _own, responses, _orders = _inputs()
     own_row = state["self_side"]["pokemon"][0]
     foe_row = state["opponent_side"]["pokemon"][0]
@@ -19,6 +29,32 @@ def _case(*, item: str, target_condition: str, actor_condition: str = "none"):
     own_row["condition_provenance"]["condition"] = actor_condition
     foe_row["condition"] = target_condition
     foe_row["condition_provenance"]["condition"] = target_condition
+    foe_row["current_ability"] = target_ability
+    foe_row["current_ability_provenance"] = {
+        "event_kind": "current_ability_observed",
+        "trust": "user_confirmed_observation",
+        "turn_number": 1,
+    }
+    if target_item is not _TARGET_ITEM_UNSET:
+        if target_item == "__unknown__":
+            foe_row["known_item"] = {"knowledge": "unknown"}
+            foe_row.pop("known_item_provenance", None)
+        elif target_item is None:
+            foe_row["known_item"] = None
+            foe_row["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known_absent",
+            }
+        else:
+            foe_row["known_item"] = target_item
+            foe_row["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known",
+            }
     state["field"]["magic_room_status"] = "inactive"
     state["field"]["magic_room_status_provenance"] = {
         "event_kind": "magic_room_field_observed",

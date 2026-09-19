@@ -5,6 +5,9 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from advisor.damage.crit import is_crit_blocked, move_crit_rule, resolve_crit_stage
+from advisor.canonical_fling_berry_target_intrinsic_on_eat_suppression import (
+    resolve_canonical_fling_berry_target_intrinsic_on_eat_suppression_contract,
+)
 
 
 SCHEMA_VERSION = "critical-hit-capability-resolution-v1"
@@ -83,7 +86,9 @@ def resolve_critical_hit_capabilities(*, move: Mapping[str, Any], source_authori
     ability = _attacker_ability(sources["attacker_ability"], sources["target_condition"], ledger)
     if ability["status"] != "resolved":
         return {**base, **ability, "ledger": tuple(ledger)}
-    defender = _defender_ability(sources["defender_ability"], ledger)
+    defender = _defender_ability(
+        sources["defender_ability"], ledger, move_id=context["move_id"],
+    )
     if defender["status"] != "resolved":
         return {**base, **defender, "ledger": tuple(ledger)}
     item = _attacker_item(sources["attacker_item"], ledger)
@@ -211,12 +216,28 @@ def _attacker_ability(source: Mapping[str, Any], condition: Mapping[str, Any], l
     return _resolved(ability, condition.get("value") if condition["status"] == "known" else None)
 
 
-def _defender_ability(source: Mapping[str, Any], ledger: list[dict[str, Any]]) -> dict[str, Any]:
+def _defender_ability(
+    source: Mapping[str, Any],
+    ledger: list[dict[str, Any]],
+    *,
+    move_id: str | None = None,
+) -> dict[str, Any]:
     if source["status"] == "unknown":
         ledger.append(_row("defender_ability", "unknown")); return _incomplete("defender_ability_unknown")
     if source["status"] == "known_absent":
         ledger.append(_row("defender_ability", "known_neutral", reason="proven_ability_absent")); return _resolved(None)
     ability = source["value"]
+    if (
+        ability == "klutz"
+        and move_id == "fling"
+        and resolve_canonical_fling_berry_target_intrinsic_on_eat_suppression_contract().get("status")
+        == "resolved"
+    ):
+        ledger.append(_row(
+            "defender_ability", "known_neutral", source_value=ability,
+            reason="fling_target_klutz_has_no_critical_hit_effect",
+        ))
+        return _resolved(ability)
     if ability not in _SUPPORTED_DEFENDER_ABILITIES:
         ledger.append(_row("defender_ability", "unsupported", source_value=ability)); return _unsupported("defender_ability_not_in_supported_critical_hit_catalog")
     ledger.append(_row("defender_ability", "applicable" if ability in {"battle-armor", "shell-armor"} else "known_neutral", source_value=ability))

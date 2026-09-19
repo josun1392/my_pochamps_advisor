@@ -12,7 +12,17 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from tests.test_detached_opponent_response_profile import _inputs
 
 
-def _fixture(*, item="cheri-berry", source_ability="pressure", target_ability="pressure"):
+_TARGET_ITEM_UNSET = object()
+
+
+def _fixture(
+    *,
+    item="cheri-berry",
+    source_ability="pressure",
+    target_ability="pressure",
+    target_item=_TARGET_ITEM_UNSET,
+    magic_room="inactive",
+):
     state, _snapshot, _d0, _own, _responses, _orders = _inputs()
     own = state["self_side"]["pokemon"][0]
     foe = state["opponent_side"]["pokemon"][0]
@@ -31,7 +41,31 @@ def _fixture(*, item="cheri-berry", source_ability="pressure", target_ability="p
                 "event_kind": "current_ability_observed", "trust": "user_confirmed_observation",
                 "turn_number": 1, "source_observation_id": f"{label}-ability", "source_sequence": 1,
             }
-    state["field"]["magic_room_status"] = "inactive"
+    if target_item is not _TARGET_ITEM_UNSET:
+        if target_item == "__unknown__":
+            foe["known_item"] = {"knowledge": "unknown"}
+            foe.pop("known_item_provenance", None)
+        elif target_item is None:
+            foe["known_item"] = None
+            foe["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known_absent",
+                "source_observation_id": "target-item",
+                "source_sequence": 1,
+            }
+        else:
+            foe["known_item"] = target_item
+            foe["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known",
+                "source_observation_id": "target-item",
+                "source_sequence": 1,
+            }
+    state["field"]["magic_room_status"] = magic_room
     state["field"]["magic_room_status_provenance"] = {
         "event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation",
         "source_observation_id": "mr", "source_sequence": 1,

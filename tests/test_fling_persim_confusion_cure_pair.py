@@ -42,6 +42,9 @@ def _set_confusion(raw, owner, state):
         raw["champions_confusion_progression"] = None
 
 
+_TARGET_ITEM_UNSET = object()
+
+
 def _pair(
     *,
     item="persim-berry",
@@ -50,7 +53,9 @@ def _pair(
     opponent_confusion="confused",
     own_move="fling",
     target_ability="pressure",
+    target_item=_TARGET_ITEM_UNSET,
     opponent_hp=100,
+    materialize_pair=True,
 ):
     state, snapshot, old_d0, old_own, responses, _orders = _inputs(
         opponent_hp=opponent_hp,
@@ -80,6 +85,26 @@ def _pair(
         "trust": "user_confirmed_observation",
         "turn_number": 1,
     }
+    if target_item is not _TARGET_ITEM_UNSET:
+        if target_item == "__unknown__":
+            foe_raw["known_item"] = {"knowledge": "unknown"}
+            foe_raw.pop("known_item_provenance", None)
+        elif target_item is None:
+            foe_raw["known_item"] = None
+            foe_raw["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known_absent",
+            }
+        else:
+            foe_raw["known_item"] = target_item
+            foe_raw["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known",
+            }
     own_raw["current_ability"] = "pressure"
     own_raw["current_ability_provenance"] = {
         "event_kind": "current_ability_observed",
@@ -145,6 +170,12 @@ def _pair(
         decision_owner=d0["decision_owner"],
     )
     order_authority = _order(d0, own, opponent, order)
+    if not materialize_pair:
+        return {
+            "state": state, "snapshot": snapshot, "d0": d0,
+            "own": own, "opponent": opponent, "order": order_authority,
+            "pair": None, "ledger": None,
+        }
     pair = materialize_immediate_move_vs_move_action_pair(
         strategy_d0=d0,
         runtime_snapshot=snapshot,

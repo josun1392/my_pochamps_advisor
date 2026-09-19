@@ -78,6 +78,9 @@ def _set_confusion(raw, owner, value):
         raw["champions_confusion_progression"] = None
 
 
+_TARGET_ITEM_UNSET = object()
+
+
 def _pair(
     *,
     item="lum-berry",
@@ -89,7 +92,9 @@ def _pair(
     own_move="fling",
     opponent_hp=100,
     target_ability="pressure",
+    target_item=_TARGET_ITEM_UNSET,
     toxic_progression=False,
+    materialize_pair=True,
 ):
     state, _snapshot, old_d0, old_own, responses, _orders = _inputs(
         opponent_hp=opponent_hp,
@@ -120,6 +125,26 @@ def _pair(
         "turn_number": 1,
         "status": "known",
     }
+    if target_item is not _TARGET_ITEM_UNSET:
+        if target_item == "__unknown__":
+            foe_raw["known_item"] = {"knowledge": "unknown"}
+            foe_raw.pop("known_item_provenance", None)
+        elif target_item is None:
+            foe_raw["known_item"] = None
+            foe_raw["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known_absent",
+            }
+        else:
+            foe_raw["known_item"] = target_item
+            foe_raw["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known",
+            }
     for raw, ability, label in (
         (own_raw, "pressure", "self"),
         (foe_raw, target_ability, "target"),
@@ -193,6 +218,17 @@ def _pair(
         decision_owner=d0["decision_owner"],
     )
     order_authority = _order(d0, own, opponent, order)
+    if not materialize_pair:
+        return {
+            "state": state,
+            "snapshot": snapshot,
+            "d0": d0,
+            "own": own,
+            "opponent": opponent,
+            "order": order_authority,
+            "pair": None,
+            "ledger": None,
+        }
     pair = materialize_immediate_move_vs_move_action_pair(
         strategy_d0=d0,
         runtime_snapshot=snapshot,

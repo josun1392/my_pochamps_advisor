@@ -9,6 +9,7 @@ from advisor.canonical_fling_type_resist_empty_intrinsic_berry import (
 )
 from llm.advisor_runtime_d0_fling_berry_eat_item_interaction_authority import (
     assess_fling_berry_target_eat_item_consequence_readiness,
+    assess_fling_berry_target_intrinsic_on_eat_readiness,
 )
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 
@@ -124,6 +125,33 @@ def freeze_runtime_d0_fling_type_resist_empty_intrinsic_berry_target_effect_auth
             readiness.get(
                 "reason", "fling_type_resist_berry_target_eat_item_consequence_not_ready"
             ),
+            common,
+        )
+    intrinsic = assess_fling_berry_target_intrinsic_on_eat_readiness(
+        berry_eat_item_interaction_authority,
+    )
+    common = {
+        **common,
+        "target_intrinsic_on_eat_readiness": deepcopy(intrinsic),
+    }
+    if intrinsic.get("status") != "resolved":
+        status = intrinsic.get("status")
+        if status not in {"incomplete", "rejected"}:
+            status = "rejected"
+        return _result(
+            status,
+            intrinsic.get(
+                "reason",
+                "fling_type_resist_berry_target_intrinsic_on_eat_unavailable",
+            ),
+            common,
+        )
+    if intrinsic.get("readiness") not in {
+        "executes", "suppressed_by_target_klutz",
+    }:
+        return _result(
+            "rejected",
+            "fling_type_resist_berry_target_intrinsic_on_eat_state_invalid",
             common,
         )
 
@@ -387,6 +415,9 @@ def _authority_shape(value: Any) -> bool:
     readiness = assess_fling_berry_target_eat_item_consequence_readiness(
         interaction
     )
+    intrinsic = assess_fling_berry_target_intrinsic_on_eat_readiness(
+        interaction
+    )
     execution = value.get("fling_execution_authority")
     leaf_binding = value.get("source_leaf_binding")
     expected = {
@@ -427,6 +458,9 @@ def _authority_shape(value: Any) -> bool:
         and readiness.get("status") == "resolved"
         and readiness.get("readiness") == "ready"
         and value.get("target_eat_item_consequence_readiness") == readiness
+        and intrinsic.get("status") == "resolved"
+        and intrinsic.get("readiness") in {"executes", "suppressed_by_target_klutz"}
+        and value.get("target_intrinsic_on_eat_readiness") == intrinsic
         and value.get("intrinsic_hp_change") == 0
         and value.get("intrinsic_major_condition_change") == "none"
         and value.get("intrinsic_stage_change") == "none"

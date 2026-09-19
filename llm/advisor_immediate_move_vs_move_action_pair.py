@@ -110,6 +110,7 @@ from llm.advisor_detached_fling_item_throw import materialize_detached_fling_ite
 from llm.advisor_runtime_d0_fling_item_bound_deterministic_target_effect_authority import freeze_runtime_d0_fling_item_bound_deterministic_target_effect_authority, materialize_detached_fling_item_bound_deterministic_target_effect
 from llm.advisor_runtime_d0_fling_berry_eat_item_interaction_authority import (
     freeze_runtime_d0_fling_berry_eat_item_interaction_authority,
+    freeze_runtime_d0_fling_berry_target_intrinsic_on_eat_execution_authority,
 )
 from llm.advisor_runtime_d0_fling_major_status_cure_berry_target_effect_authority import (
     freeze_runtime_d0_fling_major_status_cure_berry_target_effect_authority,
@@ -1336,6 +1337,7 @@ def _materialize_protection_response_pair(
             first = _attack_ledger(
                 strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
                 actor=base["own_actor"], target=base["opponent_actor"], metadata_authority=own_meta,
+                action=own_action,
             )
             if first.get("status") != "evaluable":
                 return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base)
@@ -1348,6 +1350,7 @@ def _materialize_protection_response_pair(
             first = _attack_ledger(
                 strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
                 actor=base["own_actor"], target=base["opponent_actor"], metadata_authority=own_meta,
+                action=own_action,
             )
             if first.get("status") != "evaluable":
                 return _result(_status(first), f"first_action_{first.get('reason', 'ledger_unavailable')}", base)
@@ -2710,6 +2713,13 @@ def _defer_confusion_gate_for_first_persim_cure(
         target=second_actor,
     )
     family = execution.get("fling_persim_confusion_cure_berry_authority")
+    intrinsic = freeze_runtime_d0_fling_berry_target_intrinsic_on_eat_execution_authority(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        fling_execution_authority=execution,
+        actor=first_actor,
+        target=second_actor,
+    )
     return (
         execution.get("status") == "resolved"
         and execution.get("outcome") == "ready_throw"
@@ -2718,6 +2728,8 @@ def _defer_confusion_gate_for_first_persim_cure(
         and isinstance(family, Mapping)
         and family.get("status") == "resolved"
         and family.get("item_id") == "persim-berry"
+        and intrinsic.get("status") == "resolved"
+        and intrinsic.get("state") == "executes"
     )
 
 
@@ -2828,6 +2840,13 @@ def _lum_gate_deferral_for_first_cure(
         target=second_actor,
     )
     family = execution.get("fling_lum_major_status_confusion_cure_berry_authority")
+    intrinsic = freeze_runtime_d0_fling_berry_target_intrinsic_on_eat_execution_authority(
+        strategy_d0=execution_d0,
+        runtime_snapshot=execution_snapshot,
+        fling_execution_authority=execution,
+        actor=first_actor,
+        target=second_actor,
+    )
     if (
         execution.get("status") != "resolved"
         or execution.get("outcome") != "ready_throw"
@@ -2837,6 +2856,8 @@ def _lum_gate_deferral_for_first_cure(
         or family.get("status") != "resolved"
         or execution.get("user_item_before", {}).get("value") != "lum-berry"
         or execution.get("resolved_base_power") != 10
+        or intrinsic.get("status") != "resolved"
+        or intrinsic.get("state") != "executes"
     ):
         return inactive
     return {
@@ -2977,6 +2998,13 @@ def _defer_sleep_freeze_gate_for_first_fling_cure(
         target=second_actor,
     )
     family = execution.get("fling_major_status_cure_berry_authority")
+    intrinsic = freeze_runtime_d0_fling_berry_target_intrinsic_on_eat_execution_authority(
+        strategy_d0=execution_d0,
+        runtime_snapshot=execution_snapshot,
+        fling_execution_authority=execution,
+        actor=first_actor,
+        target=second_actor,
+    )
     return (
         execution.get("status") == "resolved"
         and execution.get("outcome") == "ready_throw"
@@ -2985,6 +3013,8 @@ def _defer_sleep_freeze_gate_for_first_fling_cure(
         and isinstance(family, Mapping)
         and family.get("status") == "resolved"
         and second_value.get("condition") in set(family.get("removable_conditions", ()))
+        and intrinsic.get("status") == "resolved"
+        and intrinsic.get("state") == "executes"
     )
 
 
@@ -3165,6 +3195,29 @@ def _apply_fling_major_status_cure_berry_target_effect_to_ledger(
                 bound.get("reason", "fling_status_cure_berry_target_effect_unavailable"),
                 {},
             )
+        if bound.get("outcome") == "not_applicable":
+            eaten = materialize_detached_fling_berry_eaten_transition(
+                strategy_d0=strategy_d0,
+                source_leaf=leaf,
+                interaction_authority=interaction,
+                target=target,
+            )
+            if eaten.get("status") == "resolved":
+                row = deepcopy(dict(leaf))
+                row["consequences"] = {
+                    **deepcopy(dict(row.get("consequences", {}))),
+                    "fling_berry_eaten_transition": deepcopy(dict(eaten)),
+                }
+                rows.append(row)
+            elif eaten.get("status") == "not_applicable":
+                rows.append(deepcopy(dict(leaf)))
+            else:
+                return _result(
+                    _status(eaten),
+                    eaten.get("reason", "fling_berry_eaten_transition_unavailable"),
+                    {},
+                )
+            continue
         detached = materialize_detached_fling_major_status_cure_berry_target_effect(
             authority=bound,
         )
@@ -3381,7 +3434,27 @@ def _apply_fling_persim_confusion_cure_target_effect_to_ledger(
                 {},
             )
         if bound.get("outcome") == "not_applicable":
-            rows.append(deepcopy(dict(leaf)))
+            eaten = materialize_detached_fling_berry_eaten_transition(
+                strategy_d0=strategy_d0,
+                source_leaf=leaf,
+                interaction_authority=interaction,
+                target=target,
+            )
+            if eaten.get("status") == "resolved":
+                row = deepcopy(dict(leaf))
+                row["consequences"] = {
+                    **deepcopy(dict(row.get("consequences", {}))),
+                    "fling_berry_eaten_transition": deepcopy(dict(eaten)),
+                }
+                rows.append(row)
+            elif eaten.get("status") == "not_applicable":
+                rows.append(deepcopy(dict(leaf)))
+            else:
+                return _result(
+                    _status(eaten),
+                    eaten.get("reason", "fling_berry_eaten_transition_unavailable"),
+                    {},
+                )
             continue
         if bound.get("outcome") not in {
             "applied_confusion_cure", "no_transition_not_confused",
@@ -3494,7 +3567,27 @@ def _apply_fling_lum_major_status_confusion_cure_target_effect_to_ledger(
                 {},
             )
         if bound.get("outcome") == "not_applicable":
-            rows.append(deepcopy(dict(leaf)))
+            eaten = materialize_detached_fling_berry_eaten_transition(
+                strategy_d0=strategy_d0,
+                source_leaf=leaf,
+                interaction_authority=interaction,
+                target=target,
+            )
+            if eaten.get("status") == "resolved":
+                row = deepcopy(dict(leaf))
+                row["consequences"] = {
+                    **deepcopy(dict(row.get("consequences", {}))),
+                    "fling_berry_eaten_transition": deepcopy(dict(eaten)),
+                }
+                rows.append(row)
+            elif eaten.get("status") == "not_applicable":
+                rows.append(deepcopy(dict(leaf)))
+            else:
+                return _result(
+                    _status(eaten),
+                    eaten.get("reason", "fling_berry_eaten_transition_unavailable"),
+                    {},
+                )
             continue
         if bound.get("outcome") not in {
             "applied_major_status_and_confusion_cure",

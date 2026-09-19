@@ -10,6 +10,7 @@ from advisor.canonical_fling_persim_confusion_cure_berry import (
 from llm.advisor_champions_confusion_progression import valid_confusion_progression
 from llm.advisor_runtime_d0_fling_berry_eat_item_interaction_authority import (
     assess_fling_berry_target_eat_item_consequence_readiness,
+    assess_fling_berry_target_intrinsic_on_eat_readiness,
 )
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 
@@ -133,6 +134,31 @@ def freeze_runtime_d0_fling_persim_confusion_cure_target_effect_authority(
             ),
             common,
         )
+    intrinsic = assess_fling_berry_target_intrinsic_on_eat_readiness(
+        berry_eat_item_interaction_authority,
+    )
+    common = {**common, "target_intrinsic_on_eat_readiness": deepcopy(intrinsic)}
+    if intrinsic.get("status") != "resolved":
+        status = intrinsic.get("status")
+        if status not in {"incomplete", "rejected"}:
+            status = "rejected"
+        return _result(
+            status,
+            intrinsic.get("reason", "fling_persim_target_intrinsic_on_eat_unavailable"),
+            common,
+        )
+    if intrinsic.get("readiness") == "suppressed_by_target_klutz":
+        return _terminal(
+            "not_applicable",
+            "fling_berry_intrinsic_on_eat_suppressed_by_target_klutz",
+            common,
+            confusion_before="not_evaluated",
+            confusion_after="not_evaluated",
+            confusion_progression_before=None,
+            confusion_progression_after=None,
+        )
+    if intrinsic.get("readiness") != "executes":
+        return _result("rejected", "fling_persim_target_intrinsic_on_eat_state_invalid", common)
 
     current = _current_confusion(
         runtime_snapshot=runtime_snapshot,

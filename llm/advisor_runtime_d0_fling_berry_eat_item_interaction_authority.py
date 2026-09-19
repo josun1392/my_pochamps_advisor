@@ -14,9 +14,14 @@ from advisor.canonical_fling_berry_eat_item_interactions import (
     resolve_canonical_fling_berry_timing,
 )
 from advisor.canonical_fling_item_metadata import resolve_canonical_fling_item_metadata
+from advisor.canonical_fling_berry_target_intrinsic_on_eat_suppression import (
+    resolve_canonical_fling_berry_target_intrinsic_on_eat_suppression_contract,
+    resolve_canonical_target_item_ignore_klutz,
+)
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 
 SCHEMA_VERSION = "runtime-d0-fling-berry-eat-item-interaction-authority-v1"
+INTRINSIC_ON_EAT_SCHEMA_VERSION = "runtime-d0-fling-berry-target-intrinsic-on-eat-execution-authority-v1"
 _EXECUTION_SCHEMA = "runtime-d0-fling-item-execution-authority-v1"
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _PHASES = frozenset({"pre_hit_source_berry_interaction", "post_hit_target_berry_interaction"})
@@ -66,6 +71,17 @@ def freeze_runtime_d0_fling_berry_eat_item_interaction_authority(
     if phase == "pre_hit_source_berry_interaction":
         return _source_phase(fling_execution_authority, source_ability, target_ability, common)
 
+    intrinsic = freeze_runtime_d0_fling_berry_target_intrinsic_on_eat_execution_authority(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        fling_execution_authority=fling_execution_authority,
+        actor=actor,
+        target=target,
+    )
+    common = {
+        **common,
+        "target_intrinsic_berry_on_eat": deepcopy(intrinsic),
+    }
     return _target_phase(
         fling_execution_authority=fling_execution_authority,
         source_leaf=source_leaf,
@@ -73,6 +89,295 @@ def freeze_runtime_d0_fling_berry_eat_item_interaction_authority(
         target_ability=target_ability,
         common=common,
     )
+
+
+def freeze_runtime_d0_fling_berry_target_intrinsic_on_eat_execution_authority(
+    *,
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    fling_execution_authority: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Resolve only whether the thrown Berry's intrinsic onEat callback executes."""
+    base = _base(strategy_d0, fling_execution_authority, actor, target)
+    if isinstance(base, str):
+        return {
+            "status": "rejected",
+            "schema_version": INTRINSIC_ON_EAT_SCHEMA_VERSION,
+            "reason": base,
+        }
+    fresh = runtime_strategy_d0_freshness(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+    )
+    if fresh.get("status") != "current":
+        return {
+            "status": "rejected",
+            **deepcopy(base),
+            "schema_version": INTRINSIC_ON_EAT_SCHEMA_VERSION,
+            "reason": fresh.get("reason", "stale_runtime_d0"),
+        }
+    if (
+        fling_execution_authority.get("status") != "resolved"
+        or fling_execution_authority.get("outcome") != "ready_throw"
+    ):
+        return {
+            "status": "incomplete",
+            **deepcopy(base),
+            "schema_version": INTRINSIC_ON_EAT_SCHEMA_VERSION,
+            "reason": "fling_berry_intrinsic_on_eat_requires_ready_throw",
+        }
+
+    state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, Mapping) else None
+    actor_raw = _pokemon(state, actor)
+    target_raw = _pokemon(state, target)
+    if actor_raw is None or target_raw is None:
+        return {
+            "status": "rejected",
+            **deepcopy(base),
+            "schema_version": INTRINSIC_ON_EAT_SCHEMA_VERSION,
+            "reason": "fling_berry_intrinsic_on_eat_runtime_identity_mismatch",
+        }
+    source_ability = _trusted_ability(actor_raw, actor)
+    target_ability = _trusted_ability(target_raw, target)
+    contract = resolve_canonical_fling_berry_target_intrinsic_on_eat_suppression_contract()
+    common = {
+        **deepcopy(base),
+        "schema_version": INTRINSIC_ON_EAT_SCHEMA_VERSION,
+        "source_ability_authority": deepcopy(source_ability),
+        "target_ability_authority": deepcopy(target_ability),
+        "canonical_suppression_contract": deepcopy(contract),
+    }
+    if contract.get("status") != "resolved":
+        return {
+            "status": "rejected",
+            **common,
+            "reason": contract.get("reason", "fling_berry_target_intrinsic_source_contract_unavailable"),
+        }
+    if source_ability.get("status") != "resolved" or target_ability.get("status") != "resolved":
+        return {
+            "status": "incomplete",
+            **common,
+            "reason": "fling_berry_target_intrinsic_ability_context_unknown",
+        }
+
+    if target_ability.get("ability_id") != "klutz":
+        return {
+            "status": "resolved",
+            **common,
+            "state": "executes",
+            "target_item_authority": {"status": "not_required"},
+            "target_item_ignore_klutz_authority": {"status": "not_required"},
+            "reason": "target_ability_not_klutz",
+            "provenance": "strict_runtime_d0_fling_berry_target_intrinsic_on_eat_v1",
+        }
+
+    if source_ability.get("ability_id") == "neutralizing-gas":
+        return {
+            "status": "resolved",
+            **common,
+            "state": "executes",
+            "target_item_authority": {"status": "not_required_due_to_neutralizing_gas"},
+            "target_item_ignore_klutz_authority": {"status": "not_required_due_to_neutralizing_gas"},
+            "reason": "target_klutz_suppressed_by_source_neutralizing_gas",
+            "provenance": "strict_runtime_d0_fling_berry_target_intrinsic_on_eat_v1",
+        }
+
+    target_item = _trusted_item(target_raw, target, base)
+    common = {**common, "target_item_authority": deepcopy(target_item)}
+    if target_item.get("status") == "unknown":
+        return {
+            "status": "incomplete",
+            **common,
+            "reason": "target_klutz_current_held_item_unknown",
+        }
+    if target_item.get("status") == "known_absent":
+        return {
+            "status": "resolved",
+            **common,
+            "state": "suppressed_by_target_klutz",
+            "target_item_ignore_klutz_authority": {
+                "status": "resolved",
+                "ignore_klutz": False,
+                "basis": "exact_known_absent_current_item",
+            },
+            "reason": "target_klutz_with_known_absent_item_suppresses_intrinsic_on_eat",
+            "provenance": "strict_runtime_d0_fling_berry_target_intrinsic_on_eat_v1",
+        }
+    if target_item.get("status") != "known":
+        return {
+            "status": "rejected",
+            **common,
+            "reason": "target_klutz_current_held_item_authority_invalid",
+        }
+    item_class = resolve_canonical_target_item_ignore_klutz(target_item.get("value"))
+    common = {
+        **common,
+        "target_item_ignore_klutz_authority": deepcopy(item_class),
+    }
+    if item_class.get("status") != "resolved":
+        status = "incomplete" if item_class.get("status") == "incomplete" else "rejected"
+        return {
+            "status": status,
+            **common,
+            "reason": item_class.get("reason", "target_klutz_item_ignore_klutz_unavailable"),
+        }
+    executes = item_class.get("ignore_klutz") is True
+    return {
+        "status": "resolved",
+        **common,
+        "state": "executes" if executes else "suppressed_by_target_klutz",
+        "reason": (
+            "target_klutz_current_item_ignore_klutz_true"
+            if executes else "target_klutz_current_item_ignore_klutz_false"
+        ),
+        "provenance": "strict_runtime_d0_fling_berry_target_intrinsic_on_eat_v1",
+    }
+
+
+def assess_fling_berry_target_intrinsic_on_eat_readiness(
+    interaction_authority: Any,
+) -> dict[str, Any]:
+    """Validate the independent intrinsic-onEat execution/suppression axis."""
+    base = {
+        "schema_version": "fling-berry-target-intrinsic-on-eat-readiness-v1",
+    }
+    if (
+        not isinstance(interaction_authority, Mapping)
+        or interaction_authority.get("schema_version") != SCHEMA_VERSION
+        or interaction_authority.get("phase") != "post_hit_target_berry_interaction"
+        or interaction_authority.get("outcome") != "post_hit_target_eat_item_dispatched"
+        or interaction_authority.get("target_eat_occurred") is not True
+        or interaction_authority.get("target_eat_item_dispatched") is not True
+    ):
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_intrinsic_on_eat_interaction_invalid",
+        }
+    authority = interaction_authority.get("target_intrinsic_berry_on_eat")
+    if not isinstance(authority, Mapping) or authority.get("schema_version") != INTRINSIC_ON_EAT_SCHEMA_VERSION:
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_intrinsic_on_eat_authority_missing",
+        }
+    if any(
+        authority.get(key) != interaction_authority.get(key)
+        for key in (
+            "session_id", "source_runtime_fingerprint",
+            "source_branch_fingerprint", "decision_owner",
+            "actor", "target", "action_id", "item_id",
+        )
+    ):
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_intrinsic_on_eat_binding_mismatch",
+        }
+    if authority.get("fling_execution_authority") != interaction_authority.get("fling_execution_authority"):
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_intrinsic_on_eat_execution_binding_mismatch",
+        }
+    if not _intrinsic_on_eat_semantics_valid(authority):
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_intrinsic_on_eat_semantics_invalid",
+        }
+    if authority.get("status") == "incomplete":
+        return {
+            "status": "incomplete", **base,
+            "readiness": "incomplete",
+            "reason": authority.get("reason", "fling_berry_target_intrinsic_on_eat_incomplete"),
+            "authority": deepcopy(dict(authority)),
+        }
+    if authority.get("status") != "resolved" or authority.get("state") not in {
+        "executes", "suppressed_by_target_klutz",
+    }:
+        return {
+            "status": "rejected", **base,
+            "reason": "fling_berry_target_intrinsic_on_eat_authority_invalid",
+        }
+    return {
+        "status": "resolved", **base,
+        "readiness": authority["state"],
+        "reason": authority.get("reason"),
+        "authority": deepcopy(dict(authority)),
+    }
+
+
+def _intrinsic_on_eat_semantics_valid(authority: Mapping[str, Any]) -> bool:
+    contract = resolve_canonical_fling_berry_target_intrinsic_on_eat_suppression_contract()
+    if (
+        contract.get("status") != "resolved"
+        or authority.get("canonical_suppression_contract") != contract
+    ):
+        return False
+    source = authority.get("source_ability_authority")
+    target = authority.get("target_ability_authority")
+    if (
+        not isinstance(source, Mapping)
+        or not isinstance(target, Mapping)
+        or source.get("status") != "resolved"
+        or target.get("status") != "resolved"
+        or source.get("owner") != authority.get("actor")
+        or target.get("owner") != authority.get("target")
+    ):
+        return False
+    target_ability = target.get("ability_id")
+    if target_ability != "klutz":
+        return (
+            authority.get("status") == "resolved"
+            and authority.get("state") == "executes"
+            and authority.get("target_item_authority") == {"status": "not_required"}
+            and authority.get("target_item_ignore_klutz_authority") == {"status": "not_required"}
+        )
+    if source.get("ability_id") == "neutralizing-gas":
+        return (
+            authority.get("status") == "resolved"
+            and authority.get("state") == "executes"
+            and authority.get("target_item_authority")
+            == {"status": "not_required_due_to_neutralizing_gas"}
+            and authority.get("target_item_ignore_klutz_authority")
+            == {"status": "not_required_due_to_neutralizing_gas"}
+        )
+    item = authority.get("target_item_authority")
+    if not isinstance(item, Mapping) or item.get("owner") != authority.get("target"):
+        return False
+    if any(
+        item.get(key) != authority.get(key)
+        for key in (
+            "session_id", "source_runtime_fingerprint",
+            "source_branch_fingerprint",
+        )
+    ):
+        return False
+    if item.get("status") == "unknown":
+        return (
+            authority.get("status") == "incomplete"
+            and authority.get("reason") == "target_klutz_current_held_item_unknown"
+            and authority.get("state") is None
+        )
+    if item.get("status") == "known_absent":
+        return (
+            item.get("value") is None
+            and authority.get("status") == "resolved"
+            and authority.get("state") == "suppressed_by_target_klutz"
+            and authority.get("target_item_ignore_klutz_authority") == {
+                "status": "resolved",
+                "ignore_klutz": False,
+                "basis": "exact_known_absent_current_item",
+            }
+        )
+    if item.get("status") != "known" or not isinstance(item.get("value"), str):
+        return False
+    canonical_item = resolve_canonical_target_item_ignore_klutz(item["value"])
+    if (
+        canonical_item.get("status") != "resolved"
+        or authority.get("target_item_ignore_klutz_authority") != canonical_item
+        or authority.get("status") != "resolved"
+    ):
+        return False
+    expected = "executes" if canonical_item.get("ignore_klutz") is True else "suppressed_by_target_klutz"
+    return authority.get("state") == expected
 
 
 def _source_phase(
@@ -410,6 +715,38 @@ def _trusted_ability(raw: Mapping[str, Any], owner: Mapping[str, Any]) -> dict[s
             "runtime_ability_provenance": deepcopy(dict(provenance)),
         }
     return {"status": "incomplete", "owner": deepcopy(dict(owner)), "reason": "current_ability_unknown"}
+
+
+def _trusted_item(
+    raw: Mapping[str, Any],
+    owner: Mapping[str, Any],
+    base: Mapping[str, Any],
+) -> dict[str, Any]:
+    value = raw.get("known_item")
+    provenance = raw.get("known_item_provenance")
+    common = {
+        "owner": deepcopy(dict(owner)),
+        "session_id": base["session_id"],
+        "source_runtime_fingerprint": base["source_runtime_fingerprint"],
+        "source_branch_fingerprint": base["source_branch_fingerprint"],
+        "runtime_item_provenance": deepcopy(provenance) if isinstance(provenance, Mapping) else None,
+    }
+    if not isinstance(provenance, Mapping):
+        return {"status": "unknown", "value": None, **common}
+    if provenance.get("trust") != "user_confirmed_observation":
+        return {"status": "unknown", "value": None, **common}
+    if provenance.get("event_kind") not in {
+        "current_item_observed",
+        "current_opponent_switch_target_combat_observed",
+        "item_consumption_observed",
+        "item_removed_observed",
+    }:
+        return {"status": "unknown", "value": None, **common}
+    if provenance.get("status") == "known_absent" and value is None:
+        return {"status": "known_absent", "value": None, **common}
+    if provenance.get("status") == "known" and isinstance(value, str) and value:
+        return {"status": "known", "value": value, **common}
+    return {"status": "unknown", "value": None, **common}
 
 
 def _neutralizing_gas_state(source: Mapping[str, Any], target: Mapping[str, Any]) -> bool:

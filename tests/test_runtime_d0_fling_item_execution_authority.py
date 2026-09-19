@@ -79,18 +79,44 @@ def test_throw_materialization_consumes_only_after_prepare_hit_boundary() -> Non
     assert materialize_detached_fling_item_throw(authority=authority, source_leaf={**leaf, "hit_state": "not_applicable"})["status"] == "rejected"
 
 
+_TARGET_ITEM_UNSET = object()
+
+
 def _production_fling_pair(
     *,
     item: str = "abomasite",
     target_ability: str = "pressure",
+    target_item=_TARGET_ITEM_UNSET,
     opponent_hp: int = 100,
     target_condition: str = "none",
+    opponent_move: str = "water-gun",
 ) -> tuple[dict, dict]:
     """Build the existing ordinary physical pair fixture with Fling selected."""
     state, snapshot, d0, _own, responses, _orders = _inputs(opponent_hp=opponent_hp)
     state["self_side"]["pokemon"][0]["known_item"] = item
     state["self_side"]["pokemon"][0]["known_item_provenance"]["status"] = "known"
     state["opponent_side"]["pokemon"][0]["current_ability"] = target_ability
+    if target_item is not _TARGET_ITEM_UNSET:
+        target_row = state["opponent_side"]["pokemon"][0]
+        if target_item == "__unknown__":
+            target_row["known_item"] = {"knowledge": "unknown"}
+            target_row.pop("known_item_provenance", None)
+        elif target_item is None:
+            target_row["known_item"] = None
+            target_row["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known_absent",
+            }
+        else:
+            target_row["known_item"] = target_item
+            target_row["known_item_provenance"] = {
+                "event_kind": "current_item_observed",
+                "trust": "user_confirmed_observation",
+                "turn_number": 1,
+                "status": "known",
+            }
     state["opponent_side"]["pokemon"][0]["condition"] = target_condition
     state["opponent_side"]["pokemon"][0]["condition_provenance"]["condition"] = target_condition
     state["field"]["magic_room_status"] = "inactive"
@@ -108,13 +134,43 @@ def _production_fling_pair(
         "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
         "move_id": "fling", "metadata": metadata,
     }}
-    opponent = deepcopy(next(row for row in responses["actions"] if row["action_id"] == "opponent_attack:water-gun"))
-    opponent.update(session_id=d0["session_id"], source_runtime_fingerprint=d0["source_runtime_fingerprint"], source_branch_fingerprint=d0["strategy_preview_fingerprint"], decision_owner=d0["decision_owner"])
+    if opponent_move == "water-gun":
+        opponent = deepcopy(next(row for row in responses["actions"] if row["action_id"] == "opponent_attack:water-gun"))
+        opponent.update(session_id=d0["session_id"], source_runtime_fingerprint=d0["source_runtime_fingerprint"], source_branch_fingerprint=d0["strategy_preview_fingerprint"], decision_owner=d0["decision_owner"])
+    elif opponent_move == "protect":
+        protect_metadata = {
+            "move_id": "protect", "category": "status", "target": "user",
+            "priority": 4, "accuracy": None, "power": None,
+        }
+        opponent = {
+            "status": "resolved",
+            "schema_version": "runtime-d0-opponent-known-move-action-authority-v1",
+            "action_id": "opponent_attack:protect",
+            "action_type": "attack",
+            "move_id": "protect",
+            "opponent_actor": target,
+            "target_owner": actor,
+            "session_id": d0["session_id"],
+            "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
+            "source_branch_fingerprint": d0["strategy_preview_fingerprint"],
+            "decision_owner": d0["decision_owner"],
+            "metadata_authority": {
+                "status": "resolved", "move_id": "protect",
+                "metadata": protect_metadata,
+            },
+            "usability": {"status": "known_usable"},
+            "selectability": "selectable",
+        }
+    else:
+        raise AssertionError(f"unsupported test opponent move: {opponent_move}")
     order = {"status": "resolved", "schema_version": "runtime-d0-action-order-authority-v1", "order": "own_first",
         "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
         "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"],
         "own_action_id": own["action_id"], "opponent_action_id": opponent["action_id"], "own_actor": actor, "opponent_actor": target}
-    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent, action_order_authority=order)
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot, own_action=own,
+        opponent_action=opponent, action_order_authority=order,
+    )
     return pair, normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
 
 
