@@ -16,9 +16,13 @@ from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_detached_predictive_intermediate_state import freeze_detached_actor_neutral_root_predictive_authority
 from llm.advisor_runtime_d0_endure_turn_survival_authority import materialize_detached_endure_turn_context
 from llm.advisor_champions_sleep_application import materialize_champions_rest, validate_champions_rest
+from llm.advisor_detached_standard_charge_start import (
+    materialize_detached_standard_charge_start,
+)
 
 SCHEMA_VERSION = "detached-selected-action-execution-result-v1"
 _GRAPH_MOVES = frozenset({"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"})
+_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn"})
 
 
 def materialize_detached_selected_action_execution_result(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any], family_authorities: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -33,6 +37,11 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
     metadata = move_metadata
     move_id = metadata["move_id"]
     authorities = family_authorities if isinstance(family_authorities, Mapping) else {}
+    if move_id in _STANDARD_CHARGE_MOVES:
+        return _standard_charge_start(
+            base, strategy_d0, runtime_snapshot, action, actor, target,
+            authorities.get("standard_charge_start_readiness_authority"),
+        )
     if move_id in _GRAPH_MOVES:
         return _graph(base, strategy_d0, runtime_snapshot, action, actor, target, metadata, authorities)
     if move_id in {"recover", "slack-off", "soft-boiled"}:
@@ -65,6 +74,57 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
         if state.get("status") != "resolved": return _result(state.get("status", "incomplete"), state.get("reason", "ordinary_post_action_state_unavailable"), base)
         paths.append({"probability":deepcopy(leaf["probability"]), "action_leaf":deepcopy(leaf), "post_action_state":deepcopy(state)})
     return {"status":"resolved", "schema_version":SCHEMA_VERSION, **base, "execution_family":"ordinary_attack", "probability_owner":"selected_action_only", "paths":tuple(paths), "provenance":"selected_action_to_existing_predictive_attack_ledger_v1"}
+
+
+def _standard_charge_start(
+    base: Mapping[str, Any],
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    action: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+    readiness: Any,
+) -> dict[str, Any]:
+    if not isinstance(readiness, Mapping):
+        return _result("incomplete", "standard_charge_start_readiness_authority_missing", base)
+    materialized = materialize_detached_standard_charge_start(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        action=action,
+        actor=actor,
+        target=target,
+        readiness_authority=readiness,
+    )
+    if materialized.get("status") != "resolved":
+        return _result(
+            materialized.get("status", "incomplete"),
+            materialized.get("reason", "standard_charge_start_unavailable"),
+            base,
+        )
+    for key in (
+        "session_id", "source_runtime_fingerprint", "source_branch_fingerprint",
+        "decision_owner", "actor", "action_id", "move_id",
+    ):
+        if materialized.get(key) != base.get(key):
+            return _result("rejected", "standard_charge_start_binding_mismatch", base)
+    if materialized.get("source_target_owner") != base["target"]:
+        return _result("rejected", "standard_charge_start_target_binding_mismatch", base)
+    return {
+        "status": "resolved",
+        "schema_version": SCHEMA_VERSION,
+        **deepcopy(dict(base)),
+        "execution_family": "standard_charge_start",
+        "probability_owner": "selected_action_only",
+        "paths": ({
+            "probability": deepcopy(materialized["probability"]),
+            "action_leaf": deepcopy(materialized["action_leaf"]),
+            "post_action_runtime_snapshot": deepcopy(materialized["post_action_runtime_snapshot"]),
+            "detached_charge_lifecycle_context": deepcopy(materialized["detached_charge_lifecycle_context"]),
+            "standard_charge_start_result": deepcopy(materialized),
+            "pending_action_executed": False,
+        },),
+        "provenance": "selected_action_to_detached_standard_charge_start_v1",
+    }
 
 
 def _endure(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority: Any) -> dict[str, Any]:

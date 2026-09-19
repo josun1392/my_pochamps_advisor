@@ -10,6 +10,9 @@ from typing import Any, Mapping
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from llm.advisor_detached_selected_action_execution_result import materialize_detached_selected_action_execution_result
+from llm.advisor_runtime_d0_standard_charge_start_readiness_authority import (
+    freeze_runtime_d0_standard_charge_start_readiness_authority,
+)
 
 
 def execute_gated_selected_action(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
@@ -27,7 +30,11 @@ def execute_gated_selected_action(*, strategy_d0: Mapping[str, Any], runtime_sna
     metadata = metadata_authority.get("metadata") if isinstance(metadata_authority, Mapping) else None
     if not isinstance(metadata, Mapping):
         return {"status": "rejected", "reason": "gated_selected_action_metadata_invalid"}
-    family = _family_authorities(strategy_d0, runtime_snapshot, action, actor, target, metadata, extension_authorities, pending_action, pending_metadata_authority, turn_local_endure_context)
+    family = _family_authorities(
+        strategy_d0, runtime_snapshot, action, actor, target, metadata,
+        metadata_authority, extension_authorities, pending_action,
+        pending_metadata_authority, turn_local_endure_context,
+    )
     result = materialize_detached_selected_action_execution_result(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
         actor=actor, target=target, move_metadata=metadata, family_authorities=family,
@@ -75,7 +82,19 @@ def preceding_endure_turn_context(events: Any) -> Mapping[str, Any] | None:
     return None
 
 
-def _family_authorities(strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], ext: Mapping[str, Any] | None, pending_action: Mapping[str, Any] | None, pending_metadata_authority: Mapping[str, Any] | None, turn_local_endure_context: Mapping[str, Any] | None) -> dict[str, Any]:
+def _family_authorities(
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    action: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+    metadata: Mapping[str, Any],
+    metadata_authority: Mapping[str, Any],
+    ext: Mapping[str, Any] | None,
+    pending_action: Mapping[str, Any] | None,
+    pending_metadata_authority: Mapping[str, Any] | None,
+    turn_local_endure_context: Mapping[str, Any] | None,
+) -> dict[str, Any]:
     ext = ext if isinstance(ext, Mapping) else {}
     action_id = action.get("action_id")
     move_id = metadata.get("move_id")
@@ -88,6 +107,25 @@ def _family_authorities(strategy_d0: Mapping[str, Any], runtime_snapshot: Mappin
         "sturdy_survival_authority": pick("first_action_sturdy_survival_authority"),
         "focus_sash_survival_authority": pick("first_action_focus_sash_survival_authority"),
     }
+    if move_id in {"sky-attack", "razor-wind", "freeze-shock", "ice-burn"}:
+        branch_action = _branch_bound_selected_action(
+            strategy_d0=strategy_d0,
+            action=action,
+            metadata=metadata,
+            metadata_authority=metadata_authority,
+        )
+        if isinstance(branch_action, Mapping) and branch_action.get("status") == "rejected":
+            out["standard_charge_start_readiness_authority"] = branch_action
+        else:
+            out["standard_charge_start_readiness_authority"] = (
+                freeze_runtime_d0_standard_charge_start_readiness_authority(
+                    strategy_d0=strategy_d0,
+                    runtime_snapshot=runtime_snapshot,
+                    action=branch_action,
+                    actor=actor,
+                    target=target,
+                )
+            )
     if turn_local_endure_context is not None:
         if not isinstance(turn_local_endure_context, Mapping):
             out["endure_turn_context"] = {"status": "rejected", "reason": "gated_endure_turn_context_invalid"}
@@ -134,6 +172,42 @@ def _family_authorities(strategy_d0: Mapping[str, Any], runtime_snapshot: Mappin
         )
     return {key: value for key, value in out.items() if value is not None}
 
+
+
+def _branch_bound_selected_action(
+    *,
+    strategy_d0: Mapping[str, Any],
+    action: Mapping[str, Any],
+    metadata: Mapping[str, Any],
+    metadata_authority: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Rebind immutable selected move metadata to this exact gated branch."""
+    if (
+        not isinstance(action, Mapping)
+        or not isinstance(metadata, Mapping)
+        or not isinstance(metadata_authority, Mapping)
+        or metadata_authority.get("status") != "resolved"
+        or metadata_authority.get("metadata") != metadata
+        or action.get("identity") != metadata.get("move_id")
+        or not isinstance(action.get("action_id"), str)
+    ):
+        return {"status": "rejected", "reason": "gated_standard_charge_move_metadata_invalid"}
+    rebound = deepcopy(dict(metadata_authority))
+    rebound.update({
+        "status": "resolved",
+        "candidate_id": action["action_id"],
+        "move_id": metadata["move_id"],
+        "session_id": strategy_d0.get("session_id"),
+        "source_runtime_fingerprint": strategy_d0.get("source_runtime_fingerprint"),
+        "source_branch_fingerprint": strategy_d0.get("strategy_preview_fingerprint"),
+        "decision_owner": deepcopy(strategy_d0.get("decision_owner")),
+        "active_attacker": deepcopy(strategy_d0.get("decision_owner")),
+        "metadata": deepcopy(dict(metadata)),
+        "branch_rebound_from_gated_selected_action": True,
+    })
+    rebound_action = deepcopy(dict(action))
+    rebound_action["move_metadata_authority"] = rebound
+    return rebound_action
 
 
 def _protection_setup(*, strategy_d0: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata: Mapping[str, Any], pending_action: Mapping[str, Any] | None, pending_metadata_authority: Mapping[str, Any] | None, ext: Mapping[str, Any]) -> dict[str, Any]:
