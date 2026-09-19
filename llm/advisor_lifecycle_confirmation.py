@@ -32,6 +32,7 @@ CURRENT_TYPE_SOURCE = "ui_current_type_confirmation"
 CURRENT_WEATHER_SOURCE = "ui_current_weather_confirmation"
 CURRENT_ABILITY_SOURCE = "ui_current_ability_confirmation"
 CURRENT_ITEM_SOURCE = "ui_current_item_confirmation"
+BERRY_EATEN_STATE_SOURCE = "ui_berry_eaten_state_confirmation"
 CURRENT_TERRAIN_SOURCE = "ui_current_terrain_confirmation"
 CURRENT_SIDE_CONDITIONS_SOURCE = "ui_current_side_conditions_confirmation"
 CURRENT_BATTLE_FORMAT_SOURCE = "ui_current_battle_format_confirmation"
@@ -57,6 +58,7 @@ _KINDS = {"direct_move_damage_observed": "production_ready", "used_move_observed
 _KINDS["mat_block_active_entry_eligibility_observed"] = "production_ready"
 _KINDS["fake_out_active_entry_eligibility_observed"] = "production_ready"
 _KINDS["supreme_overlord_initial_active_observed"] = "production_ready"
+_KINDS["berry_eaten_state_observed"] = "production_ready"
 _KINDS["executed_move_observed"] = "production_ready"
 _KINDS["previous_action_result_observed"] = "production_ready"
 _KINDS["contact_reactive_status_result_observed"] = "production_ready"
@@ -94,6 +96,8 @@ class LifecycleConfirmationBoundary:
         if event_kind in {"current_type_observed", "current_condition_observed", "current_healing_prevented_observed", "pending_status_action_execution_observed", "mat_block_active_entry_eligibility_observed", "fake_out_active_entry_eligibility_observed", "supreme_overlord_initial_active_observed", "doubles_active_topology_observed", "selected_action_targeting_observed", "current_level_observed", "current_final_combat_stat_observed", "current_opponent_response_set_observed", "current_opponent_switch_response_set_observed", "substitute_state_observed", "current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed", "current_confusion_state_observed", "champions_confusion_progression_observed", "champions_status_progression_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind in {"current_weather_observed", "current_ability_observed", "current_item_observed", "current_terrain_observed", "current_side_conditions_observed", "current_battle_format_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "condition_applied_observed" and payload.get("condition") == "toxic" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
+        if event_kind == "berry_eaten_state_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
+        if event_kind == "berry_eaten_state_observed" and payload.get("state") == "known_false" and turn_number != 1: return _result("invalid_provenance", "fresh_battle_berry_eaten_false_requires_turn_one", readiness)
         if event_kind == "same_turn_event_observed" and not _owner_matches(self._owners, payload.get("target_side"), payload.get("target_slot_index"), payload.get("target_pokemon_id")): return _result("invalid_provenance", "target_owner_mismatch", readiness)
         if event_kind == "contact_reactive_status_result_observed":
             defender = (payload.get("defender_side"), payload.get("defender_slot_index"), payload.get("defender_pokemon_id"))
@@ -173,6 +177,7 @@ def _production_source_matches(kind, source):
     if kind == "mat_block_active_entry_eligibility_observed": return source == MAT_BLOCK_ACTIVE_ENTRY_ELIGIBILITY_SOURCE
     if kind == "fake_out_active_entry_eligibility_observed": return source == FAKE_OUT_ACTIVE_ENTRY_ELIGIBILITY_SOURCE
     if kind == "supreme_overlord_initial_active_observed": return source == SUPREME_OVERLORD_INITIAL_ACTIVE_SOURCE
+    if kind == "berry_eaten_state_observed": return source == BERRY_EATEN_STATE_SOURCE
     if kind == "executed_move_observed": return source == EXECUTED_MOVE_SOURCE
     if kind == "previous_action_result_observed": return source == PREVIOUS_ACTION_RESULT_SOURCE
     if kind == "contact_reactive_status_result_observed": return source == CONTACT_REACTIVE_STATUS_RESULT_SOURCE
@@ -256,6 +261,13 @@ def _valid_payload(kind, payload):
         return set(payload) == {"ability"} and isinstance(ability, str) and bool(ability.strip()) and all(token not in ability for token in (",", "/", ";", "|"))
     if kind == "current_item_observed":
         return (set(payload) == {"status", "item"} and payload.get("status") == "known" and isinstance(payload.get("item"), str) and bool(payload["item"].strip())) or (payload == {"status": "known_absent"})
+    if kind == "berry_eaten_state_observed":
+        state, basis = payload.get("state"), payload.get("basis")
+        if state == "known_false":
+            return set(payload) == {"state", "basis"} and basis == "fresh_battle_initialization"
+        if state == "known_true":
+            return set(payload) == {"state", "basis", "item_id"} and basis == "observed_berry_consumption" and isinstance(payload.get("item_id"), str) and bool(payload["item_id"])
+        return False
     if kind == "current_terrain_observed": return set(payload) == {"terrain"} and payload.get("terrain") in {"none", "electric", "grassy", "misty", "psychic"}
     if kind == "current_side_conditions_observed":
         values = payload.get("side_conditions")

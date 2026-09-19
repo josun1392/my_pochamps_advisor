@@ -104,6 +104,8 @@ from llm.advisor_runtime_d0_contact_reactive_status_authority import (
 from llm.advisor_runtime_d0_life_orb_immediate_authority import apply_life_orb_recoil_to_consequences
 from llm.advisor_detached_knock_off_item_removal import materialize_detached_knock_off_item_removal
 from llm.advisor_runtime_d0_fling_item_execution_authority import freeze_runtime_d0_fling_item_execution_authority
+from llm.advisor_runtime_d0_belch_eligibility_authority import freeze_runtime_d0_belch_eligibility_authority
+from llm.advisor_detached_berry_eaten_transition import materialize_detached_fling_berry_eaten_transition
 from llm.advisor_detached_fling_item_throw import materialize_detached_fling_item_throw
 from llm.advisor_runtime_d0_fling_item_bound_deterministic_target_effect_authority import freeze_runtime_d0_fling_item_bound_deterministic_target_effect_authority, materialize_detached_fling_item_bound_deterministic_target_effect
 from llm.advisor_runtime_d0_fling_berry_eat_item_interaction_authority import (
@@ -234,6 +236,18 @@ def materialize_immediate_move_vs_move_action_pair(
     own_meta = resolve_runtime_d0_selectable_move_metadata_authority(strategy_d0=strategy_d0, action=own_action)
     if own_meta.get("status") != "resolved": return _result(_status(own_meta), own_meta.get("reason", "own_move_metadata_unavailable"), base)
     if isinstance(opponent_meta, tuple): return _result(*opponent_meta, base)
+    for role, action, actor, metadata, observed in (
+        ("own", own_action, base["own_actor"], own_meta.get("metadata"), None),
+        ("opponent", opponent_action, base["opponent_actor"], opponent_meta.get("metadata"), opponent_action.get("opponent_move_usability_authority")),
+    ):
+        if isinstance(metadata, Mapping) and metadata.get("move_id") == "belch":
+            gate = freeze_runtime_d0_belch_eligibility_authority(
+                strategy_d0=strategy_d0, action=action, actor=actor, observed_usability=observed,
+            )
+            if gate.get("status") != "resolved":
+                return _result(_status(gate), gate.get("reason", "belch_eligibility_unknown"), base, guarded_action=role, belch_eligibility_authority=gate)
+            if gate.get("eligibility") != "eligible":
+                return _result("incomplete", gate.get("reason", "belch_not_eligible"), base, guarded_action=role, belch_eligibility_authority=gate)
     for role, metadata in (("own", own_meta.get("metadata")), ("opponent", opponent_meta.get("metadata"))):
         guard = _CHARGE_MOVES.immediate_execution_guard(metadata.get("move_id") if isinstance(metadata, Mapping) else None)
         if guard is not None:
@@ -2767,10 +2781,23 @@ def _apply_fling_major_status_cure_berry_target_effect_to_ledger(
                 detached.get("reason", "fling_status_cure_berry_materialization_unavailable"),
                 {},
             )
+        eaten = materialize_detached_fling_berry_eaten_transition(
+            strategy_d0=strategy_d0,
+            source_leaf=leaf,
+            interaction_authority=interaction,
+            target=target,
+        )
+        if eaten.get("status") not in {"resolved", "not_applicable"}:
+            return _result(
+                _status(eaten),
+                eaten.get("reason", "fling_berry_eaten_transition_unavailable"),
+                {},
+            )
         row = deepcopy(dict(leaf))
         row["consequences"] = {
             **deepcopy(dict(row.get("consequences", {}))),
             "fling_major_status_cure_berry_target_effect": detached,
+            **({"fling_berry_eaten_transition": deepcopy(dict(eaten))} if eaten.get("status") == "resolved" else {}),
         }
         rows.append(row)
     out = deepcopy(dict(ledger))
@@ -2778,6 +2805,7 @@ def _apply_fling_major_status_cure_berry_target_effect_to_ledger(
     out["component_manifest"] = {
         **deepcopy(dict(out.get("component_manifest", {}))),
         "fling_major_status_cure_berry_target_effect": {"status": "resolved"},
+        "fling_berry_eaten_transition": {"status": "conditional_on_authenticated_target_eat"},
     }
     return out
 

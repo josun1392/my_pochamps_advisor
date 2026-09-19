@@ -30,6 +30,7 @@ _TARGETS = {**_TARGETS, "set_current_opponent_response_set": "pokemon.current_op
 _TARGETS["set_mat_block_active_entry_eligibility"] = "state.mat_block_active_entry_eligibility_context"
 _TARGETS["set_fake_out_active_entry_eligibility"] = "state.fake_out_active_entry_eligibility_context"
 _TARGETS["initialize_supreme_overlord_active_entry"] = "state.supreme_overlord_faint_history_context"
+_TARGETS["set_berry_eaten_state"] = "pokemon.berry_eaten_state"
 _TARGETS["apply_taunt_restriction"] = "state.current_taunt_restrictions"
 _TARGETS["complete_restricted_active_turn"] = "state.current_taunt_restrictions"
 _TARGETS["record_executed_move"] = "pokemon.last_executed_move"
@@ -83,7 +84,7 @@ def validate_battle_state_unknown_markers(state):
         for slot, pokemon in roster.items():
             if not isinstance(pokemon, dict):
                 return False
-            if any(not _valid_fact_marker(pokemon.get(field)) for field in ("current_level", "current_hp", "max_hp", "fainted", "condition", "known_item")) or not _valid_current_condition_state(pokemon.get("condition"), pokemon.get("condition_provenance")) or not _valid_current_healing_prevented_state(pokemon.get("healing_prevented_status", make_unknown_battle_fact()), pokemon.get("healing_prevented_status_provenance")) or not _valid_current_item_state(pokemon.get("known_item"), pokemon.get("known_item_provenance")) or not _valid_current_level_state(pokemon.get("current_level"), pokemon.get("current_level_provenance")) or not _valid_current_final_stats(pokemon.get("current_final_stats")) or not _valid_current_type_state(pokemon.get("current_type"), pokemon.get("current_type_provenance")) or not _valid_current_ability_state(pokemon.get("current_ability"), pokemon.get("current_ability_provenance")) or not _valid_toxic_progression_state(pokemon.get("toxic_progression")):
+            if any(not _valid_fact_marker(pokemon.get(field)) for field in ("current_level", "current_hp", "max_hp", "fainted", "condition", "known_item")) or not _valid_current_condition_state(pokemon.get("condition"), pokemon.get("condition_provenance")) or not _valid_current_healing_prevented_state(pokemon.get("healing_prevented_status", make_unknown_battle_fact()), pokemon.get("healing_prevented_status_provenance")) or not _valid_current_item_state(pokemon.get("known_item"), pokemon.get("known_item_provenance")) or not _valid_current_level_state(pokemon.get("current_level"), pokemon.get("current_level_provenance")) or not _valid_current_final_stats(pokemon.get("current_final_stats")) or not _valid_current_type_state(pokemon.get("current_type"), pokemon.get("current_type_provenance")) or not _valid_current_ability_state(pokemon.get("current_ability"), pokemon.get("current_ability_provenance")) or not _valid_toxic_progression_state(pokemon.get("toxic_progression")) or not _valid_berry_eaten_state(pokemon.get("berry_eaten_state", make_unknown_battle_fact()), pokemon.get("berry_eaten_state_provenance")):
                 return False
             known_moves = pokemon.get("known_move_ids", [])
             if not isinstance(known_moves, list) or len(known_moves) > 4 or any(not _canonical_move_id(move) for move in known_moves) or len(set(known_moves)) != len(known_moves) or not _valid_known_move_provenance(pokemon.get("known_move_ids_provenance"), known_moves):
@@ -93,7 +94,7 @@ def validate_battle_state_unknown_markers(state):
             expected_owner = {"session_id": state.get("session_id"), "side": "self" if side_name == "self_side" else "opponent", "slot_index": slot, "pokemon_id": pokemon.get("pokemon_id", pokemon.get("name_en"))} if isinstance(slot, int) and not isinstance(slot, bool) else None
             if not _valid_last_executed_move(state, pokemon.get("last_executed_move"), expected_owner) or not _valid_previous_action_result(state, pokemon.get("previous_action_result"), expected_owner):
                 return False
-            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "known_move_ids_provenance", "current_move_usability", "toxic_progression", "condition", "condition_provenance", "healing_prevented_status", "healing_prevented_status_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance", "last_executed_move", "previous_action_result", "rage_fist_hit_count"}):
+            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "known_move_ids_provenance", "current_move_usability", "toxic_progression", "condition", "condition_provenance", "healing_prevented_status", "healing_prevented_status_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance", "last_executed_move", "previous_action_result", "rage_fist_hit_count", "berry_eaten_state", "berry_eaten_state_provenance"}):
                 return False
     field = state.get("field")
     if not isinstance(field, dict) or not all(_valid_fact_marker(field.get(name)) for name in ("weather", "terrain", "battle_format")) or not _valid_current_weather_state(field.get("weather"), field.get("weather_provenance")) or not _valid_current_terrain_state(field.get("terrain"), field.get("terrain_provenance")) or not _valid_current_battle_format_state(field.get("battle_format"), field.get("battle_format_provenance")):
@@ -206,6 +207,22 @@ def _valid_current_persistent_effect_source(state, owner, source):
 
 def _valid_current_persistent_effect_provenance(value):
     return isinstance(value, dict) and isinstance(value.get("source_observation_id"), str) and bool(value["source_observation_id"]) and isinstance(value.get("source_sequence"), int) and not isinstance(value["source_sequence"], bool) and value["source_sequence"] >= 1 and value.get("trust") == "user_confirmed_observation" and not _contains_marker(value)
+
+
+def _valid_berry_eaten_state(value, provenance):
+    if is_unknown_battle_fact(value):
+        return provenance is None
+    if value not in {"known_true", "known_false"} or not isinstance(provenance, dict):
+        return False
+    if provenance.get("event_kind") != "berry_eaten_state_observed" or provenance.get("trust") != "user_confirmed_observation":
+        return False
+    if not isinstance(provenance.get("source_observation_id"), str) or not provenance["source_observation_id"]:
+        return False
+    if not isinstance(provenance.get("source_sequence"), int) or isinstance(provenance["source_sequence"], bool) or provenance["source_sequence"] < 1:
+        return False
+    if value == "known_false":
+        return provenance.get("basis") == "fresh_battle_initialization" and provenance.get("turn_number") == 1
+    return provenance.get("basis") == "observed_berry_consumption" and isinstance(provenance.get("item_id"), str) and bool(provenance["item_id"])
 
 
 def _valid_fact_marker(value):
@@ -966,7 +983,7 @@ def _has_target_identity(event):
     effect = event["planned_effect"]
     if effect in {"record_champions_status_progression", "advance_champions_status_progression", "clear_champions_status_condition", "record_champions_confusion_progression", "set_current_confusion_state", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_confusion_state" or (_value(event, "confusion_state") in {"confused", "none"} and _value(event, "trust") == "user_confirmed_observation"))
-    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_mat_block_active_entry_eligibility", "set_fake_out_active_entry_eligibility", "set_current_ability", "set_switch_entry_trace_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry"}:
+    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_mat_block_active_entry_eligibility", "set_fake_out_active_entry_eligibility", "set_current_ability", "set_switch_entry_trace_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry", "set_berry_eaten_state"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect in {"set_current_aqua_ring_state", "set_current_ingrain_state", "set_current_leech_seed_state"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and _value(event, "persistent_state") in {"active", "inactive"} and _value(event, "trust") == "user_confirmed_observation" and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_leech_seed_state" or _value(event, "persistent_state") != "active" or (_value(event, "source_side") in {"self", "opponent"} and isinstance(_value(event, "source_slot_index"), int) and not isinstance(_value(event, "source_slot_index"), bool)))
@@ -1107,6 +1124,8 @@ def _apply(state, event):
         return _set_current_persistent_effect_state(state, event)
     if effect == "initialize_supreme_overlord_active_entry":
         return _initialize_supreme_overlord_active_entry(state, event)
+    if effect == "set_berry_eaten_state":
+        return _set_berry_eaten_state(state, event)
     if effect == "set_current_weather":
         return _set_current_weather(state, event)
     if effect == "set_current_ability":
@@ -1707,6 +1726,44 @@ def _set_switch_entry_trace_ability(state, event):
         "ability_after": ability,
         "copied_from": deepcopy(copied_from),
         "source_switch_observation_id": source_switch.get("observation_id"),
+    }
+    return None
+
+
+def _set_berry_eaten_state(state, event):
+    """Persist exact Berry-eaten truth for one Pokémon identity."""
+    from advisor.canonical_fling_berry_eat_item_interactions import resolve_canonical_fling_berry_item_identity
+
+    pokemon = _pokemon(state, event)
+    desired, basis, turn_number = _value(event, "state"), _value(event, "basis"), _value(event, "turn_number")
+    if pokemon is None or desired not in {"known_true", "known_false"}:
+        return _conflict(event, "invalid_berry_eaten_state_owner")
+    current = pokemon.get("berry_eaten_state", make_unknown_battle_fact())
+    if desired == "known_false":
+        if basis != "fresh_battle_initialization" or turn_number != 1:
+            return _conflict(event, "berry_eaten_false_requires_fresh_battle_initialization")
+        if current == "known_true":
+            return _conflict(event, "berry_eaten_true_cannot_reset_false")
+        if current == "known_false":
+            return None
+        if not is_unknown_battle_fact(current):
+            return _conflict(event, "berry_eaten_current_state_invalid")
+    else:
+        item_id = _value(event, "item_id")
+        identity = resolve_canonical_fling_berry_item_identity(item_id)
+        if basis != "observed_berry_consumption" or identity.get("status") != "resolved":
+            return _conflict(event, "berry_eaten_true_requires_exact_berry_consumption")
+        if current == "known_true":
+            return None
+        if current != "known_false" and not is_unknown_battle_fact(current):
+            return _conflict(event, "berry_eaten_current_state_invalid")
+    pokemon["berry_eaten_state"] = desired
+    pokemon["berry_eaten_state_provenance"] = _provenance(event) | {
+        "event_kind": "berry_eaten_state_observed",
+        "trust": _value(event, "trust"),
+        "basis": basis,
+        "turn_number": turn_number,
+        **({"item_id": _value(event, "item_id")} if desired == "known_true" else {}),
     }
     return None
 

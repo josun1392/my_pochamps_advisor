@@ -16,6 +16,7 @@ from llm.advisor_detached_target_condition_removal_validation import (
 from llm.advisor_runtime_d0_fling_major_status_cure_berry_target_effect_authority import (
     validate_detached_fling_major_status_cure_berry_no_transition,
 )
+from llm.advisor_detached_berry_eaten_transition import validate_detached_berry_eaten_transition
 
 
 SCHEMA_VERSION = "detached-predictive-intermediate-state-v1"
@@ -136,6 +137,26 @@ def _participant(d0: Mapping[str, Any], leaf: Mapping[str, Any], owner: Mapping[
         "current_condition_authority": deepcopy(current_condition),
         "hypothetical_condition": _condition(current_condition, effects, role),
         "hypothetical_healing_prevented": healing_prevented,
+        "hypothetical_berry_eaten": _berry_eaten(d0, leaf, owner, role),
+    }
+
+
+def _berry_eaten(d0: Mapping[str, Any], leaf: Mapping[str, Any], owner: Mapping[str, Any], role: str) -> dict[str, Any]:
+    current = d0.get("current_berry_eaten_authority", {}).get(owner["side"])
+    baseline = (
+        {"status": "known", "state": current.get("state"), "source": "frozen_current_berry_eaten_authority"}
+        if isinstance(current, Mapping) and current.get("status") == "resolved"
+        else {"status": "unknown", "source": "frozen_current_berry_eaten_authority"}
+    )
+    transition = leaf.get("consequences", {}).get("fling_berry_eaten_transition")
+    if transition is None or role != "target":
+        return baseline
+    if not validate_detached_berry_eaten_transition(transition, leaf=leaf, target=owner):
+        return {"status": "invalid", "reason": "terminal_leaf_berry_eaten_transition_invalid"}
+    return {
+        "status": "known", "state": "known_true",
+        "source": "exact_terminal_leaf_fling_berry_eaten_transition",
+        "effect": deepcopy(dict(transition)),
     }
 
 

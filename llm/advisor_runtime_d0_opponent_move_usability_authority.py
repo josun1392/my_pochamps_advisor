@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
+from llm.advisor_runtime_d0_belch_eligibility_authority import freeze_runtime_d0_belch_eligibility_authority
 
 
 SCHEMA_VERSION = "runtime-d0-opponent-move-usability-authority-v1"
@@ -47,9 +48,31 @@ def freeze_runtime_d0_opponent_move_usability_authority(
     if record["provenance"]["source_sequence"] != state.get("last_applied_observation_sequence"):
         return _unknown(base, "opponent_move_usability_observation_not_current", record)
     selectability = "selectable" if record["status"] == "known_usable" else "not_selectable"
+    provisional = {
+        "status": "resolved", "schema_version": SCHEMA_VERSION, **deepcopy(dict(base)),
+        "usability": deepcopy(dict(record)), "selectability": selectability,
+        "provenance": "runtime_reducer_current_opponent_move_usability_v1",
+    }
+    belch_gate = None
+    if base["move_id"] == "belch":
+        belch_gate = freeze_runtime_d0_belch_eligibility_authority(
+            strategy_d0=strategy_d0,
+            action=opponent_action,
+            actor=base["opponent_actor"],
+            observed_usability=provisional,
+        )
+        if belch_gate.get("status") == "rejected":
+            return _result("rejected", belch_gate.get("reason", "belch_eligibility_rejected"), base)
+        if record["status"] == "known_usable":
+            if belch_gate.get("status") != "resolved" or belch_gate.get("eligibility") != "eligible":
+                return _unknown(base, belch_gate.get("reason", "belch_eligibility_unknown"), record)
+            selectability = "selectable"
+        elif belch_gate.get("status") == "resolved" and belch_gate.get("eligibility") == "eligible":
+            selectability = "not_selectable"
     return {
         "status": "resolved", "schema_version": SCHEMA_VERSION, **base,
         "usability": deepcopy(dict(record)), "selectability": selectability,
+        **({"belch_eligibility_authority": deepcopy(dict(belch_gate))} if isinstance(belch_gate, Mapping) else {}),
         "provenance": "runtime_reducer_current_opponent_move_usability_v1",
     }
 

@@ -120,6 +120,7 @@ def compose_runtime_d0_opponent_move_usability(
     action["usability"] = deepcopy(dict(usage))
     action["selectability"] = "selectable" if usage["status"] == "known_usable" else "not_selectable"
     action["selectability_reason"] = usage.get("reason")
+    action["opponent_move_usability_authority"] = deepcopy(dict(usability_authority))
     return action
 
 

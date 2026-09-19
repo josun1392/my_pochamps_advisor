@@ -27,6 +27,7 @@ from advisor.canonical_fling_major_status_cure_berry import (
 from llm.advisor_detached_target_condition_removal_validation import (
     validate_detached_target_condition_removal,
 )
+from llm.advisor_detached_berry_eaten_transition import validate_detached_berry_eaten_transition
 
 
 SCHEMA_VERSION = "exact-immediate-action-pair-outcome-ledger-v1"
@@ -142,6 +143,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if fling_effect_error is not None: return fling_effect_error
     fling_berry_cure_error = _fling_major_status_cure_berry_target_effect_leaf(first)
     if fling_berry_cure_error is not None: return fling_berry_cure_error
+    berry_eaten_error = _fling_berry_eaten_transition_leaf(first)
+    if berry_eaten_error is not None: return berry_eaten_error
     steal_error = validate_ability_item_steal_leaf(first, pair_base=base, first_action=True)
     if steal_error is not None: return steal_error
     transfer_error = _item_transfer_leaf(first)
@@ -240,6 +243,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if fling_effect_error is not None: return fling_effect_error
         fling_berry_cure_error = _fling_major_status_cure_berry_target_effect_leaf(second_leaf)
         if fling_berry_cure_error is not None: return fling_berry_cure_error
+        berry_eaten_error = _fling_berry_eaten_transition_leaf(second_leaf)
+        if berry_eaten_error is not None: return berry_eaten_error
         steal_error = validate_ability_item_steal_leaf(second_leaf, pair_base=base)
         if steal_error is not None: return steal_error
         transfer_error = _item_transfer_leaf(second_leaf)
@@ -552,6 +557,26 @@ def _fling_item_bound_target_effect_leaf(leaf: Mapping[str, Any]) -> str | None:
         if outcome=="applied_flinch_pending_action" and not isinstance(effect.get("hypothetical_target_flinch"),Mapping):return "fling_target_effect_flinch_materialization_invalid"
     else:return "fling_target_effect_kind_invalid"
     return None
+
+def _fling_berry_eaten_transition_leaf(leaf: Mapping[str, Any]) -> str | None:
+    provenance, consequences = leaf.get("provenance"), leaf.get("consequences")
+    transition = consequences.get("fling_berry_eaten_transition") if isinstance(consequences, Mapping) else None
+    cure = consequences.get("fling_major_status_cure_berry_target_effect") if isinstance(consequences, Mapping) else None
+    move = provenance.get("move_id") if isinstance(provenance, Mapping) else None
+    if transition is not None and move != "fling":
+        return "unexpected_fling_berry_eaten_transition"
+    if move != "fling":
+        return None
+    interaction = cure.get("authority", {}).get("berry_eat_item_interaction_authority") if isinstance(cure, Mapping) else None
+    eat_occurred = isinstance(interaction, Mapping) and interaction.get("status") == "resolved" and interaction.get("outcome") == "post_hit_target_eat_item_dispatched" and interaction.get("target_eat_occurred") is True and interaction.get("target_eat_item_dispatched") is True
+    if eat_occurred:
+        target = provenance.get("target") if isinstance(provenance, Mapping) else None
+        if not isinstance(target, Mapping) or not validate_detached_berry_eaten_transition(transition, leaf=leaf, target=target):
+            return "fling_berry_eaten_transition_invalid"
+    elif transition is not None:
+        return "fling_berry_eaten_transition_without_authenticated_eat"
+    return None
+
 
 def _fling_major_status_cure_berry_target_effect_leaf(leaf: Mapping[str, Any]) -> str | None:
     provenance, consequences = leaf.get("provenance"), leaf.get("consequences")

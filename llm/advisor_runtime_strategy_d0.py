@@ -48,6 +48,7 @@ from advisor.strict_critical_hit_probability import assess_strict_critical_hit_p
 from advisor.strict_hit_probability import assess_strict_deterministic_hit_probability
 from llm.advisor_direct_mechanics import evaluate_direct_damage_mechanics
 from llm.advisor_predictive_normal_formula_interval import normal_formula_eligibility
+from llm.advisor_runtime_d0_current_berry_eaten_authority import project_current_berry_eaten_authority
 from llm.advisor_reducer_state_model import (
     STATE_MODEL_VERSION,
     is_unknown_battle_fact,
@@ -124,6 +125,14 @@ def freeze_runtime_strategy_d0(*, runtime_snapshot: Mapping[str, Any], decision_
             source_branch_fingerprint=preview_fingerprint, owner=owner,
             current_condition=_roster(state, side).get(owner["slot_index"], {}).get("condition"),
             current_condition_provenance=_roster(state, side).get(owner["slot_index"], {}).get("condition_provenance"),
+        ) for side, owner in owners.items()
+    }
+    result["current_berry_eaten_authority"] = {
+        side: project_current_berry_eaten_authority(
+            session_id=session_id, source_runtime_fingerprint=runtime_fingerprint,
+            source_branch_fingerprint=preview_fingerprint, owner=owner,
+            state=_roster(state, side).get(owner["slot_index"], {}).get("berry_eaten_state"),
+            provenance=_roster(state, side).get(owner["slot_index"], {}).get("berry_eaten_state_provenance"),
         ) for side, owner in owners.items()
     }
     result["current_healing_prevented_authority"] = {
@@ -1723,10 +1732,19 @@ def freeze_runtime_strategy_selection_authority(*, strategy_d0: Mapping[str, Any
     metadata_authorities = selection_projection.get("move_metadata_authorities")
     if metadata_authorities is not None and not isinstance(metadata_authorities, Mapping):
         return _result("rejected", "invalid_selectable_move_metadata_authorities")
+    def selection_for(row):
+        selection = row["selection"]
+        if row["move_id"] != "belch" or selection != "selectable":
+            return selection
+        berry = strategy_d0.get("current_berry_eaten_authority", {}).get(owner["side"])
+        if isinstance(berry, Mapping) and berry.get("status") == "resolved":
+            return "selectable" if berry.get("state") == "known_true" else "not_selectable"
+        return "selection_unknown"
+
     frozen_moves = [
         {
             "owner": deepcopy(owner), "source_branch_fingerprint": fingerprint,
-            "move_id": row["move_id"], "selection": row["selection"],
+            "move_id": row["move_id"], "selection": selection_for(row),
             **({"move_metadata_authority": deepcopy(metadata_authorities.get(row["move_id"]))}
                if isinstance(metadata_authorities, Mapping) and isinstance(metadata_authorities.get(row["move_id"]), Mapping) else {}),
         }
@@ -1950,7 +1968,7 @@ def _fact_summary(value: Any) -> Any:
         return {
             key: _fact_summary(item)
             for key, item in value.items()
-            if key in {"current_level", "current_final_stats", "current_hp", "max_hp", "fainted", "condition", "known_item", "current_type", "current_ability", "stat_stages", "weather", "terrain", "battle_format", "side_conditions"}
+            if key in {"current_level", "current_final_stats", "current_hp", "max_hp", "fainted", "condition", "known_item", "current_type", "current_ability", "stat_stages", "berry_eaten_state", "weather", "terrain", "battle_format", "side_conditions"}
         }
     return deepcopy(value)
 

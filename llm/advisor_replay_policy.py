@@ -11,6 +11,7 @@ _EFFECTS = {"exact_hp_transition_observed":"apply_exact_hp_transition","exact_hp
 _EFFECTS["mat_block_active_entry_eligibility_observed"] = "set_mat_block_active_entry_eligibility"
 _EFFECTS["fake_out_active_entry_eligibility_observed"] = "set_fake_out_active_entry_eligibility"
 _EFFECTS["supreme_overlord_initial_active_observed"] = "initialize_supreme_overlord_active_entry"
+_EFFECTS["berry_eaten_state_observed"] = "set_berry_eaten_state"
 _EFFECTS["executed_move_observed"] = "record_executed_move"
 _EFFECTS["previous_action_result_observed"] = "record_previous_action_result"
 _EFFECTS.update({"current_aqua_ring_state_observed":"set_current_aqua_ring_state", "current_ingrain_state_observed":"set_current_ingrain_state", "current_leech_seed_state_observed":"set_current_leech_seed_state"})
@@ -114,6 +115,8 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
         elif event.get("event_kind") == "doubles_active_topology_observed":
             step.update(**deepcopy(event.get("payload", {})))
         elif event.get("event_kind") == "supreme_overlord_initial_active_observed":
+            step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
+        elif event.get("event_kind") == "berry_eaten_state_observed":
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
         elif event.get("event_kind") == "selected_action_targeting_observed":
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
