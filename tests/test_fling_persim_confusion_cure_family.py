@@ -37,7 +37,7 @@ def test_exact_persim_is_admitted_as_10_bp_ready_throw_only_by_persim_support():
 
 
 def test_remaining_bounded_berries_stay_unsupported():
-    for item in ("oran-berry", "sitrus-berry", "leppa-berry"):
+    for item in ("leppa-berry",):
         _state, _snapshot, _d0, _actor, _target, execution = _fixture(item=item)
         assert execution["status"] == "unsupported"
         assert execution["outcome"] == "unsupported_mandatory_item_effect"

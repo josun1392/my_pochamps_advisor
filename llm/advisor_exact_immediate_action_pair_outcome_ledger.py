@@ -33,6 +33,9 @@ from advisor.canonical_fling_persim_confusion_cure_berry import (
 from advisor.canonical_fling_lum_major_status_confusion_cure_berry import (
     resolve_canonical_fling_lum_major_status_confusion_cure_berry,
 )
+from advisor.canonical_fling_hp_restore_berry import (
+    resolve_canonical_fling_hp_restore_berry,
+)
 from llm.advisor_detached_target_condition_removal_validation import (
     validate_detached_target_condition_removal,
 )
@@ -48,6 +51,10 @@ from llm.advisor_runtime_d0_fling_persim_confusion_cure_target_effect_authority 
 )
 from llm.advisor_runtime_d0_fling_lum_major_status_confusion_cure_target_effect_authority import (
     validate_detached_fling_lum_major_status_confusion_cure_target_effect,
+)
+from llm.advisor_runtime_d0_fling_hp_restore_berry_target_effect_authority import (
+    validate_detached_fling_hp_restore_berry_target_effect,
+    validate_fling_hp_restore_berry_target_effect_authority,
 )
 
 
@@ -170,6 +177,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
     if fling_persim_error is not None: return fling_persim_error
     fling_lum_error = _fling_lum_major_status_confusion_cure_target_effect_leaf(first)
     if fling_lum_error is not None: return fling_lum_error
+    fling_hp_restore_error = _fling_hp_restore_berry_target_effect_leaf(first)
+    if fling_hp_restore_error is not None: return fling_hp_restore_error
     berry_eaten_error = _fling_berry_eaten_transition_leaf(first)
     if berry_eaten_error is not None: return berry_eaten_error
     steal_error = validate_ability_item_steal_leaf(first, pair_base=base, first_action=True)
@@ -276,6 +285,8 @@ def _leaf(value: Any, base: Mapping[str, Any]) -> dict[str, Any] | str:
         if fling_persim_error is not None: return fling_persim_error
         fling_lum_error = _fling_lum_major_status_confusion_cure_target_effect_leaf(second_leaf)
         if fling_lum_error is not None: return fling_lum_error
+        fling_hp_restore_error = _fling_hp_restore_berry_target_effect_leaf(second_leaf)
+        if fling_hp_restore_error is not None: return fling_hp_restore_error
         berry_eaten_error = _fling_berry_eaten_transition_leaf(second_leaf)
         if berry_eaten_error is not None: return berry_eaten_error
         steal_error = validate_ability_item_steal_leaf(second_leaf, pair_base=base)
@@ -606,7 +617,19 @@ def _fling_item_throw_leaf(leaf: Mapping[str, Any]) -> str | None:
         == canonical_lum
         and effect.get("kind") == "berry_effect"
     )
-    if not isinstance(item, Mapping) or item.get("status") != "known" or payload.get("item_before") != item.get("value") or payload.get("item_after") is not None or payload.get("outcome") != "thrown" or payload.get("timing") != "prepare_hit_before_accuracy_protection_immunity_damage" or leaf.get("hit_state") not in {"hit", "miss"} or not isinstance(metadata, Mapping) or not (ordinary or supported or berry_supported or type_resist_supported or persim_supported or lum_supported) or metadata.get("provenance") != "frozen_pinned_showdown_fling_metadata_v1" or authority.get("resolved_base_power") != metadata.get("base_power") or authority.get("item_after") != {"state": "known_absent", "item": None} or not isinstance(field, Mapping) or field.get("status") != "resolved" or field.get("state") != "known_absent" or not isinstance(abilities, Mapping) or abilities.get("status") != "resolved" or abilities.get("klutz_active") is not False:
+    canonical_hp_restore = (
+        resolve_canonical_fling_hp_restore_berry(item.get("value"))
+        if isinstance(item, Mapping) else {"status": "not_applicable"}
+    )
+    hp_restore_supported = (
+        authority.get("fling_hp_restore_berry_support")
+        == "fling_hp_restore_berry_target_effect_v1"
+        and canonical_hp_restore.get("status") == "resolved"
+        and authority.get("fling_hp_restore_berry_authority")
+        == canonical_hp_restore
+        and effect.get("kind") == "berry_effect"
+    )
+    if not isinstance(item, Mapping) or item.get("status") != "known" or payload.get("item_before") != item.get("value") or payload.get("item_after") is not None or payload.get("outcome") != "thrown" or payload.get("timing") != "prepare_hit_before_accuracy_protection_immunity_damage" or leaf.get("hit_state") not in {"hit", "miss"} or not isinstance(metadata, Mapping) or not (ordinary or supported or berry_supported or type_resist_supported or persim_supported or lum_supported or hp_restore_supported) or metadata.get("provenance") != "frozen_pinned_showdown_fling_metadata_v1" or authority.get("resolved_base_power") != metadata.get("base_power") or authority.get("item_after") != {"state": "known_absent", "item": None} or not isinstance(field, Mapping) or field.get("status") != "resolved" or field.get("state") != "known_absent" or not isinstance(abilities, Mapping) or abilities.get("status") != "resolved" or abilities.get("klutz_active") is not False:
         return "fling_item_throw_transition_invalid"
     return None
 
@@ -634,6 +657,7 @@ def _fling_berry_eaten_transition_leaf(leaf: Mapping[str, Any]) -> str | None:
     type_resist = consequences.get("fling_type_resist_empty_intrinsic_berry_target_effect") if isinstance(consequences, Mapping) else None
     persim = consequences.get("fling_persim_confusion_cure_target_effect") if isinstance(consequences, Mapping) else None
     lum = consequences.get("fling_lum_major_status_confusion_cure_target_effect") if isinstance(consequences, Mapping) else None
+    hp_restore = consequences.get("fling_hp_restore_berry_target_effect") if isinstance(consequences, Mapping) else None
     move = provenance.get("move_id") if isinstance(provenance, Mapping) else None
     if transition is not None and move != "fling":
         return "unexpected_fling_berry_eaten_transition"
@@ -643,8 +667,9 @@ def _fling_berry_eaten_transition_leaf(leaf: Mapping[str, Any]) -> str | None:
     type_resist_interaction = type_resist.get("authority", {}).get("berry_eat_item_interaction_authority") if isinstance(type_resist, Mapping) else None
     persim_interaction = persim.get("authority", {}).get("berry_eat_item_interaction_authority") if isinstance(persim, Mapping) else None
     lum_interaction = lum.get("authority", {}).get("berry_eat_item_interaction_authority") if isinstance(lum, Mapping) else None
+    hp_restore_interaction = hp_restore.get("authority", {}).get("berry_eat_item_interaction_authority") if isinstance(hp_restore, Mapping) else None
     interactions = [
-        value for value in (cure_interaction, type_resist_interaction, persim_interaction, lum_interaction)
+        value for value in (cure_interaction, type_resist_interaction, persim_interaction, lum_interaction, hp_restore_interaction)
         if isinstance(value, Mapping)
     ]
     if len(interactions) > 1:
@@ -1087,6 +1112,83 @@ def _fling_lum_major_status_confusion_cure_target_effect_leaf(
         transition, leaf=leaf, target=target,
     ):
         return "fling_lum_ateberry_transition_invalid"
+    return None
+
+
+def _fling_hp_restore_berry_target_effect_leaf(leaf: Mapping[str, Any]) -> str | None:
+    provenance, consequences = leaf.get("provenance"), leaf.get("consequences")
+    payload = consequences.get("fling_hp_restore_berry_target_effect") if isinstance(consequences, Mapping) else None
+    transition = consequences.get("fling_berry_eaten_transition") if isinstance(consequences, Mapping) else None
+    move = provenance.get("move_id") if isinstance(provenance, Mapping) else None
+    if move != "fling":
+        return "unexpected_fling_hp_restore_berry_payload" if payload is not None else None
+    execution = provenance.get("fling_execution_authority") if isinstance(provenance, Mapping) else None
+    if not isinstance(execution, Mapping):
+        return "fling_hp_restore_berry_execution_authority_missing"
+    supported = (
+        execution.get("fling_hp_restore_berry_support")
+        == "fling_hp_restore_berry_target_effect_v1"
+    )
+    if not supported:
+        return "unexpected_fling_hp_restore_berry_payload" if payload is not None else None
+    source_hit = consequences.get("source_hit_context") if isinstance(consequences, Mapping) else None
+    target_hp = consequences.get("target_final_hp") if isinstance(consequences, Mapping) else None
+    target_ko = consequences.get("target_ko") if isinstance(consequences, Mapping) else None
+    successful_eat = (
+        leaf.get("hit_state") == "hit"
+        and isinstance(source_hit, Mapping)
+        and source_hit.get("source_action_id") == leaf.get("candidate_id")
+        and source_hit.get("source_move_id") == "fling"
+        and source_hit.get("target_routing") == "target"
+        and isinstance(source_hit.get("actual_damage"), int)
+        and not isinstance(source_hit.get("actual_damage"), bool)
+        and source_hit.get("actual_damage") > 0
+        and isinstance(target_hp, int)
+        and not isinstance(target_hp, bool)
+        and target_hp > 0
+        and target_ko is not True
+    )
+    if not successful_eat:
+        if payload is not None:
+            return "fling_hp_restore_payload_without_authenticated_eat"
+        if transition is not None:
+            return "fling_hp_restore_transition_without_authenticated_eat"
+        return None
+    target = provenance.get("target") if isinstance(provenance, Mapping) else None
+    if not isinstance(target, Mapping):
+        return "fling_hp_restore_target_binding_invalid"
+    if not isinstance(payload, Mapping):
+        return "fling_hp_restore_target_effect_missing"
+    if not validate_detached_fling_hp_restore_berry_target_effect(
+        consequence=payload,
+        source_leaf=leaf,
+        expected_target=target,
+    ):
+        return "fling_hp_restore_target_effect_invalid"
+    authority = payload.get("authority")
+    if not validate_fling_hp_restore_berry_target_effect_authority(authority):
+        return "fling_hp_restore_target_effect_authority_invalid"
+    if (
+        authority.get("fling_execution_authority") != execution
+        or authority.get("actor") != provenance.get("attacker")
+        or authority.get("target") != target
+        or authority.get("action_id") != leaf.get("candidate_id")
+        or authority.get("source_leaf_id") != leaf.get("leaf_id")
+        or any(
+            authority.get(key) != provenance.get(key)
+            for key in (
+                "session_id", "source_runtime_fingerprint",
+                "source_branch_fingerprint", "decision_owner",
+            )
+        )
+        or payload.get("final_hp") != consequences.get("target_final_hp")
+        or consequences.get("target_ko") is not False
+    ):
+        return "fling_hp_restore_target_effect_binding_invalid"
+    if not validate_detached_berry_eaten_transition(
+        transition, leaf=leaf, target=target,
+    ):
+        return "fling_hp_restore_ateberry_transition_invalid"
     return None
 
 

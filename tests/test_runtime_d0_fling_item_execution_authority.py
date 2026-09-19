@@ -52,7 +52,7 @@ def test_catalog_and_supported_throw_bind_exact_manifest_power() -> None:
 def test_unknown_absent_unsupported_magic_room_and_klutz_fail_closed() -> None:
     assert _authority(_state(item=None))["outcome"] == "failed_no_item"
     assert _authority(_state(item={"knowledge": "unknown"}))["status"] == "incomplete"
-    assert _authority(_state(item="oran-berry"))["status"] == "unsupported"
+    assert _authority(_state(item="leppa-berry"))["status"] == "unsupported"
     assert _authority(_state(magic_room="active"))["outcome"] == "failed_item_suppressed"
     unknown_field = _state(); unknown_field["field"]["magic_room_status"] = {"knowledge": "unknown"}; unknown_field["field"].pop("magic_room_status_provenance")
     assert _authority(unknown_field)["status"] == "incomplete"
@@ -80,6 +80,7 @@ def test_throw_materialization_consumes_only_after_prepare_hit_boundary() -> Non
 
 
 _TARGET_ITEM_UNSET = object()
+_TARGET_HEALING_UNSET = object()
 
 
 def _production_fling_pair(
@@ -88,7 +89,9 @@ def _production_fling_pair(
     target_ability: str = "pressure",
     target_item=_TARGET_ITEM_UNSET,
     opponent_hp: int = 100,
+    target_max_hp: int | None = None,
     target_condition: str = "none",
+    target_healing_prevented=_TARGET_HEALING_UNSET,
     opponent_move: str = "water-gun",
 ) -> tuple[dict, dict]:
     """Build the existing ordinary physical pair fixture with Fling selected."""
@@ -117,8 +120,25 @@ def _production_fling_pair(
                 "turn_number": 1,
                 "status": "known",
             }
+    target_row = state["opponent_side"]["pokemon"][0]
+    if target_max_hp is not None:
+        target_row["max_hp"] = target_max_hp
     state["opponent_side"]["pokemon"][0]["condition"] = target_condition
     state["opponent_side"]["pokemon"][0]["condition_provenance"]["condition"] = target_condition
+    if target_healing_prevented is not _TARGET_HEALING_UNSET:
+        if target_healing_prevented == "__unknown__":
+            target_row["healing_prevented_status"] = {"knowledge": "unknown"}
+            target_row.pop("healing_prevented_status_provenance", None)
+        else:
+            target_row["healing_prevented_status"] = target_healing_prevented
+            target_row["healing_prevented_status_provenance"] = {
+                "event_kind": "current_healing_prevented_observed",
+                "trust": "user_confirmed_observation",
+                "status": target_healing_prevented,
+                "turn_number": 1,
+                "source_observation_id": "fling-target-healing-prevented",
+                "source_sequence": 1,
+            }
     state["field"]["magic_room_status"] = "inactive"
     state["field"]["magic_room_status_provenance"] = {
         "event_kind": "magic_room_field_observed", "trust": "user_confirmed_observation",

@@ -128,6 +128,10 @@ from llm.advisor_runtime_d0_fling_lum_major_status_confusion_cure_target_effect_
     freeze_runtime_d0_fling_lum_major_status_confusion_cure_target_effect_authority,
     materialize_detached_fling_lum_major_status_confusion_cure_target_effect,
 )
+from llm.advisor_runtime_d0_fling_hp_restore_berry_target_effect_authority import (
+    freeze_runtime_d0_fling_hp_restore_berry_target_effect_authority,
+    materialize_detached_fling_hp_restore_berry_target_effect,
+)
 from llm.advisor_champions_confusion_progression import valid_confusion_progression
 from llm.advisor_detached_item_transfer_after_hit import materialize_detached_item_transfer_after_hit
 from advisor.canonical_knock_off_item_power_and_removal import resolve_knock_off_target_item
@@ -2077,8 +2081,16 @@ def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runti
             actor=actor,
             target=target,
         )
-        return _apply_fling_lum_major_status_confusion_cure_target_effect_to_ledger(
+        lum = _apply_fling_lum_major_status_confusion_cure_target_effect_to_ledger(
             ledger=persim,
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            authority=fling_execution,
+            actor=actor,
+            target=target,
+        )
+        return _apply_fling_hp_restore_berry_target_effect_to_ledger(
+            ledger=lum,
             strategy_d0=strategy_d0,
             runtime_snapshot=runtime_snapshot,
             authority=fling_execution,
@@ -3630,6 +3642,114 @@ def _apply_fling_lum_major_status_confusion_cure_target_effect_to_ledger(
     out["component_manifest"] = {
         **deepcopy(dict(out.get("component_manifest", {}))),
         "fling_lum_major_status_confusion_cure_target_effect": {
+            "status": "conditional_on_authenticated_target_eat",
+        },
+        "fling_berry_eaten_transition": {
+            "status": "conditional_on_authenticated_target_eat",
+        },
+    }
+    return out
+
+
+def _apply_fling_hp_restore_berry_target_effect_to_ledger(
+    *,
+    ledger: Mapping[str, Any],
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    authority: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+) -> dict[str, Any]:
+    supported = (
+        authority.get("fling_hp_restore_berry_support")
+        == "fling_hp_restore_berry_target_effect_v1"
+    )
+    if not supported:
+        return ledger
+    if any(
+        authority.get(key) is not None
+        for key in (
+            "fling_major_status_cure_berry_support",
+            "fling_type_resist_empty_intrinsic_berry_support",
+            "fling_persim_confusion_cure_berry_support",
+            "fling_lum_major_status_confusion_cure_support",
+        )
+    ):
+        return _result("rejected", "fling_berry_family_support_overlap", {})
+    if ledger.get("status") != "evaluable" or not isinstance(
+        ledger.get("terminal_leaves"), tuple
+    ):
+        return deepcopy(dict(ledger))
+
+    rows = []
+    for leaf in ledger["terminal_leaves"]:
+        interaction = freeze_runtime_d0_fling_berry_eat_item_interaction_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            fling_execution_authority=authority,
+            actor=actor,
+            target=target,
+            phase="post_hit_target_berry_interaction",
+            source_leaf=leaf,
+        )
+        if interaction.get("status") != "resolved":
+            return _result(
+                _status(interaction),
+                interaction.get("reason", "fling_berry_eat_item_interaction_unavailable"),
+                {},
+            )
+        bound = freeze_runtime_d0_fling_hp_restore_berry_target_effect_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            fling_execution_authority=authority,
+            source_leaf=leaf,
+            berry_eat_item_interaction_authority=interaction,
+            actor=actor,
+            target=target,
+        )
+        if bound.get("status") != "resolved":
+            return _result(
+                _status(bound),
+                bound.get("reason", "fling_hp_restore_berry_target_effect_unavailable"),
+                {},
+            )
+        if bound.get("outcome") == "not_applicable":
+            rows.append(deepcopy(dict(leaf)))
+            continue
+        detached = materialize_detached_fling_hp_restore_berry_target_effect(
+            authority=bound,
+            source_leaf=leaf,
+        )
+        if detached.get("status") != "resolved":
+            return _result(
+                _status(detached),
+                detached.get("reason", "fling_hp_restore_berry_materialization_unavailable"),
+                {},
+            )
+        eaten = materialize_detached_fling_berry_eaten_transition(
+            strategy_d0=strategy_d0,
+            source_leaf=leaf,
+            interaction_authority=interaction,
+            target=target,
+        )
+        if eaten.get("status") != "resolved":
+            return _result(
+                _status(eaten),
+                eaten.get("reason", "fling_berry_eaten_transition_unavailable"),
+                {},
+            )
+        row = deepcopy(dict(detached["leaf"]))
+        row["consequences"] = {
+            **deepcopy(dict(row.get("consequences", {}))),
+            "fling_berry_eaten_transition": deepcopy(dict(eaten)),
+        }
+        rows.append(row)
+
+    out = deepcopy(dict(ledger))
+    out["terminal_leaves"] = tuple(rows)
+    out["component_manifest"] = {
+        **deepcopy(dict(out.get("component_manifest", {}))),
+        "fling_hp_restore_berry_target_effect": {
             "status": "conditional_on_authenticated_target_eat",
         },
         "fling_berry_eaten_transition": {
