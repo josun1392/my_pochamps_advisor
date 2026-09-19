@@ -5,6 +5,10 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from llm.advisor_standard_charge_lifecycle_transport import (
+    validate_post_eot_standard_charge_authorities_against_active,
+    materialize_next_turn_standard_charge_continuation_authorities,
+)
 
 
 # These records justify an already-completed turn; they must never become
@@ -44,8 +48,27 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
     lifecycle_error = _validate_predicted_lifecycle(state, owners)
     if lifecycle_error is not None:
         return _result("rejected", lifecycle_error)
+    if "next_turn_standard_charge_continuation_authorities" in state:
+        return _result("rejected", "preexisting_next_turn_standard_charge_authority")
+    post_eot_charge = state.get("post_eot_standard_charge_lifecycle_authorities")
+    if post_eot_charge is not None:
+        charge_error = validate_post_eot_standard_charge_authorities_against_active(
+            authorities=post_eot_charge,
+            active_states=state["active"],
+        )
+        if charge_error is not None:
+            return _result("rejected", charge_error)
 
     excluded = _exclude_turn_scoped_authority(state)
+    if post_eot_charge is not None:
+        next_charge = materialize_next_turn_standard_charge_continuation_authorities(
+            post_eot_authorities=post_eot_charge,
+            active_states=state["active"],
+            source_post_eot_fingerprint=source_fp,
+        )
+        if isinstance(next_charge, str):
+            return _result("rejected", next_charge)
+        state["next_turn_standard_charge_continuation_authorities"] = next_charge
     aqua_ring = state.get("aqua_ring_persistent_effect_context")
     if isinstance(aqua_ring, dict) and aqua_ring.get("schema_version") == "detached-aqua-ring-persistent-effect-v1":
         # The typed persistent effect remains with the same active owner, but
@@ -82,6 +105,7 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
         "source_end_of_turn_fingerprint": source_fp,
         "resulting_branch_fingerprint": resulting_fp,
         "next_state": state,
+        **({"next_turn_standard_charge_continuation_authorities": deepcopy(state["next_turn_standard_charge_continuation_authorities"])} if "next_turn_standard_charge_continuation_authorities" in state else {}),
         "lifecycle_trace": [{
             "sequence": 1,
             "event": "end_of_turn_to_next_turn_start",

@@ -16,6 +16,9 @@ from llm.advisor_solar_power_residual_core import evaluate_solar_power_residual
 from llm.advisor_aqua_ring_persistent_effect import evaluate_aqua_ring_recovery
 from llm.advisor_ingrain_persistent_effect import evaluate_ingrain_recovery
 from llm.advisor_black_sludge_end_of_turn import evaluate_black_sludge_residual
+from llm.advisor_standard_charge_lifecycle_transport import (
+    validate_standard_charge_lifecycle_transport_authorities,
+)
 
 
 PHASE_INPUT_SCHEMA = "detached-end-of-turn-phase-input-v1"
@@ -93,7 +96,7 @@ def materialize_detached_leech_seed_transfer(*, trace: Mapping[str, Any]) -> dic
     return {"status": "resolved", "event_kind": "leech_seed", "order_class": END_OF_TURN_EVENT_ORDER["leech_seed"], "linked_transfer": deepcopy(dict(trace)), "provenance": "canonical_detached_leech_seed_transfer_adapter_v1"}
 
 
-def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None, leech_seed_transfers: tuple[Mapping[str, Any], ...] = (), switch_hazard_authorities: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None, leech_seed_transfers: tuple[Mapping[str, Any], ...] = (), switch_hazard_authorities: Mapping[str, Any] | None = None, standard_charge_lifecycle_authorities: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Bind two exact detached active states to one normalized pair leaf.
 
     ``terminal_ledger`` is intentionally the output of the immediate-pair
@@ -115,12 +118,21 @@ def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], termin
     if isinstance(weather, str): return _result("incomplete" if weather.endswith("_unknown") else "rejected", weather, base)
     transfers = tuple(materialize_detached_leech_seed_transfer(trace=row) for row in leech_seed_transfers)
     if any(row.get("status") != "resolved" for row in transfers): return _result("rejected", "end_of_turn_leech_seed_transfer_invalid", base)
+    if standard_charge_lifecycle_authorities is not None:
+        charge_error = validate_standard_charge_lifecycle_transport_authorities(
+            authorities=standard_charge_lifecycle_authorities,
+            terminal_ledger=terminal_ledger,
+            terminal_leaf_id=terminal_leaf_id,
+        )
+        if charge_error is not None:
+            return _result("rejected", charge_error, base)
     return {
         "status": "resolved", "schema_version": PHASE_INPUT_SCHEMA, "horizon": HORIZON,
         **base, "terminal_leaf_id": terminal_leaf_id,
         "terminal_probability_mass": deepcopy(terminal_ledger["terminal_probability_mass"]),
         "terminal_branch": deepcopy(dict(leaf)), "active_states": rows, "weather_authority": weather, "leech_seed_transfers": transfers,
         **({"switch_hazard_authorities": deepcopy(dict(switch_hazard_authorities))} if switch_hazard_authorities is not None else {}),
+        **({"standard_charge_lifecycle_authorities": deepcopy(dict(standard_charge_lifecycle_authorities))} if standard_charge_lifecycle_authorities is not None else {}),
         "provenance": "strict_detached_immediate_terminal_to_end_of_turn_phase_input_v1",
     }
 
@@ -520,6 +532,24 @@ def _valid_input(value: Any) -> str | None:
         if isinstance(_active_state(value["active_states"].get(side), base, side, hp, value["terminal_leaf_id"]), str): return "end_of_turn_phase_input_invalid"
     hazards = value.get("switch_hazard_authorities")
     if hazards is not None and not _valid_switch_hazard_authorities(hazards, base, value["terminal_leaf_id"]): return "end_of_turn_phase_input_invalid"
+    charge = value.get("standard_charge_lifecycle_authorities")
+    if charge is not None:
+        terminal_ledger = {
+            "status": "evaluable",
+            "schema_version": "exact-immediate-action-pair-outcome-ledger-v1",
+            **{key: value.get(key) for key in (
+                "pair_id", "session_id", "source_runtime_fingerprint",
+                "source_branch_fingerprint", "decision_owner", "own_actor",
+                "opponent_actor", "terminal_probability_mass",
+            )},
+            "terminal_leaves": (value.get("terminal_branch"),),
+        }
+        if validate_standard_charge_lifecycle_transport_authorities(
+            authorities=charge,
+            terminal_ledger=terminal_ledger,
+            terminal_leaf_id=value["terminal_leaf_id"],
+        ) is not None:
+            return "end_of_turn_phase_input_invalid"
     return None
 
 

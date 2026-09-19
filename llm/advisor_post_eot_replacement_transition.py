@@ -16,6 +16,10 @@ from llm.advisor_executable_switch_transition import (
 from llm.advisor_incoming_active_materialization import materialize_incoming_active_branch
 from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
 from llm.advisor_transition_preview import fingerprint_transition_preview_state as fingerprint
+from llm.advisor_standard_charge_lifecycle_transport import (
+    validate_post_eot_standard_charge_lifecycle_authorities,
+    retire_standard_charge_lifecycle_for_replacement,
+)
 
 SCHEMA = "detached-post-eot-replacement-transition-v1"
 SIDES = ("self", "opponent")
@@ -62,6 +66,20 @@ def _freeze(eot, source_fp, branch, teams):
     weather = eot["phase_input"].get("weather_authority", {})
     if weather.get("status") == "known" and state["current_state"].get("field_state_context", {}).get("current_field", {}).get("weather") != weather["weather"]:
         return _error("rejected", "post_eot_weather_mismatch")
+    charge_transport = eot["phase_input"].get("standard_charge_lifecycle_authorities")
+    post_charge = state.get("post_eot_standard_charge_lifecycle_authorities")
+    if charge_transport is None:
+        if post_charge is not None:
+            return _error("rejected", "unexpected_post_eot_standard_charge_authority")
+    else:
+        charge_error = validate_post_eot_standard_charge_lifecycle_authorities(
+            authorities=post_charge,
+            transport_authorities=charge_transport,
+            post_end_of_turn_active_states=eot["post_end_of_turn_active_states"],
+            source_eot_fingerprint=source_fp,
+        )
+        if charge_error is not None:
+            return _error("rejected", charge_error)
     if not isinstance(teams, Mapping) or set(teams) - set(SIDES):
         return _error("rejected", "team_authorities_invalid")
     for side, team in teams.items():
@@ -257,7 +275,9 @@ def _prepare(transition, intents, tie_order, command):
         materialized = materialize_incoming_active_branch(source_branch=state, source_branch_fingerprint=fingerprint(state), incoming_authority=incoming)
         if materialized.get("status") != "resolved": return materialized
         next_state = materialized["next_state"]
-        _carry_lifecycle(state, next_state, side, incoming["owner"])
+        lifecycle_error = _carry_lifecycle(state, next_state, side, incoming["owner"])
+        if lifecycle_error is not None:
+            return _error("rejected", lifecycle_error)
         retired.append({"outgoing_active": outgoing, "condition_context": deepcopy(state["current_state"].get("condition_context")),
                         "historical_toxic_lifecycle": deepcopy(state.get("predicted_toxic_lifecycle")),
                         "toxic_progression": {"status": "unknown", "reason": "switch_retirement"},
@@ -405,6 +425,19 @@ def _carry_lifecycle(source, destination, side, incoming_owner):
                 row["source_slot"] = {k: incoming_owner[k] for k in ("session_id", "side", "slot_index")}
         copied["source_branch_fingerprint"] = fingerprint(source)
         destination[key] = copied
+    charge = source.get("post_eot_standard_charge_lifecycle_authorities")
+    if charge is not None:
+        carried = retire_standard_charge_lifecycle_for_replacement(
+            authorities=charge,
+            active_states=source["active"],
+            replaced_side=side,
+            incoming_owner=incoming_owner,
+            source_state_fingerprint=fingerprint(source),
+        )
+        if isinstance(carried, str):
+            return carried
+        destination["post_eot_standard_charge_lifecycle_authorities"] = carried
+    return None
 
 
 def _check_entry(mechanics, state, side, member):

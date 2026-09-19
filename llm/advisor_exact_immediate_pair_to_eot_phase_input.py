@@ -5,6 +5,9 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from llm.advisor_end_of_turn_residual_phase import freeze_end_of_turn_phase_input
+from llm.advisor_standard_charge_lifecycle_transport import (
+    derive_standard_charge_lifecycle_transport_authorities,
+)
 
 
 SCHEMA_VERSION = "detached-immediate-pair-terminal-eot-active-authority-v1"
@@ -48,11 +51,18 @@ def materialize_exact_immediate_pair_to_eot_phase_input(
     hazards = _switch_hazard_authorities(switch_hazard_authorities, base, leaf)
     if isinstance(hazards, str):
         return _result("incomplete" if hazards.endswith("_unknown") or hazards.endswith("_unrepresented") else "rejected", hazards, base)
+    charge = derive_standard_charge_lifecycle_transport_authorities(
+        terminal_ledger=terminal_ledger,
+        terminal_leaf_id=terminal_leaf_id,
+    )
+    if isinstance(charge, str):
+        return _result("rejected", charge, base)
     frozen = freeze_end_of_turn_phase_input(
         terminal_ledger=terminal_ledger, terminal_leaf_id=terminal_leaf_id,
         active_states=rows, weather_authority=weather_authority,
         leech_seed_transfers=leech_seed_transfers,
         switch_hazard_authorities=hazards,
+        standard_charge_lifecycle_authorities=charge,
     )
     if frozen.get("status") != "resolved":
         return deepcopy(dict(frozen))

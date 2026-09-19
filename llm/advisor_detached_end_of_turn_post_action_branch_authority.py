@@ -7,6 +7,9 @@ from typing import Any, Mapping
 from llm.advisor_end_of_turn_residual_phase import validate_end_of_turn_residual_phase_ledger
 from llm.advisor_post_eot_replacement_transition import post_eot_source_binding
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from llm.advisor_standard_charge_lifecycle_transport import (
+    project_post_eot_standard_charge_lifecycle_authorities,
+)
 
 
 SCHEMA_VERSION = "detached-end-of-turn-post-action-branch-authority-v1"
@@ -31,6 +34,16 @@ def materialize_detached_end_of_turn_post_action_branch_authority(
         return _result(ledger.get("status", "rejected"), ledger.get("reason", "invalid_end_of_turn_residual_ledger"))
     try:
         state = _post_action_state(ledger)
+        charge = ledger.get("phase_input", {}).get("standard_charge_lifecycle_authorities")
+        if charge is not None:
+            post_charge = project_post_eot_standard_charge_lifecycle_authorities(
+                transport_authorities=charge,
+                post_end_of_turn_active_states=ledger["post_end_of_turn_active_states"],
+                source_eot_fingerprint=source_eot_fingerprint,
+            )
+            if isinstance(post_charge, str):
+                raise _Rejected(post_charge)
+            state["post_eot_standard_charge_lifecycle_authorities"] = post_charge
     except _Incomplete as error:
         return _result("incomplete", error.reason)
     except _Rejected as error:
