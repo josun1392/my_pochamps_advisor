@@ -25,6 +25,10 @@ from llm.advisor_next_turn_predictive_mechanics_authority import validate_forced
 from llm.advisor_champions_sleep_freeze_action_gate import classify_status_move, resolve_gate_branches
 from llm.advisor_champions_confusion_action_gate import resolve_confusion_branches
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from llm.advisor_detached_next_turn_held_item_effect_applicability import materialize_detached_next_turn_held_item_effect_applicability
+from llm.advisor_detached_next_turn_sturdy_survival_authority import materialize_detached_next_turn_sturdy_survival_authority
+from llm.advisor_detached_next_turn_focus_sash_survival_authority import materialize_detached_next_turn_focus_sash_survival_authority, apply_detached_focus_sash_single_hit
+from llm.advisor_detached_next_turn_life_orb_immediate_authority import materialize_detached_next_turn_life_orb_immediate_authority
 
 
 AUTHORITY_SCHEMA_VERSION = "detached-standard-charge-turn-two-execution-authority-v1"
@@ -52,7 +56,7 @@ def materialize_detached_standard_charge_turn_two_execution_authority(*, next_de
         if isinstance(row, str):
             return _result("rejected", row)
         rows[side] = row
-    return {"status": "resolved", "schema_version": AUTHORITY_SCHEMA_VERSION, "source_next_decision_fingerprint": next_decision_fingerprint, "forced_continuation": deepcopy(dict(forced_continuation)), "predictive_mechanics": deepcopy(dict(predictive_mechanics)), "actions": rows, "provenance": "authenticated_forced_continuation_to_detached_turn_two_execution_authority_v1"}
+    return {"status": "resolved", "schema_version": AUTHORITY_SCHEMA_VERSION, "source_next_decision_fingerprint": next_decision_fingerprint, "next_decision_state": deepcopy(dict(next_decision_state)), "forced_continuation": deepcopy(dict(forced_continuation)), "predictive_mechanics": deepcopy(dict(predictive_mechanics)), "actions": rows, "provenance": "authenticated_forced_continuation_to_detached_turn_two_execution_authority_v1"}
 
 
 def execute_detached_standard_charge_turn_two_attacks(*, execution_authority: Mapping[str, Any]) -> dict[str, Any]:
@@ -70,7 +74,7 @@ def execute_detached_standard_charge_turn_two_attacks(*, execution_authority: Ma
     for side, row in execution_authority.get("actions", {}).items():
         if row.get("status") == "not_applicable":
             out[side] = deepcopy(dict(row)); continue
-        out[side] = _execute_one(row)
+        out[side] = _execute_one(row, execution_authority)
     return {"status": "resolved" if all(x.get("status") in {"resolved", "not_applicable"} for x in out.values()) else "incomplete", "schema_version": SCHEMA_VERSION, "source_next_decision_fingerprint": execution_authority["source_next_decision_fingerprint"], "execution_authority": deepcopy(dict(execution_authority)), "actions": out, "unordered": True, "provenance": "detached_standard_charge_turn_two_attack_attempt_v1"}
 
 
@@ -85,12 +89,15 @@ def _authority_row(side: str, action: Mapping[str, Any], bound: Mapping[str, Any
     return {"status": "resolved", "schema_version": AUTHORITY_SCHEMA_VERSION, "side": side, "source_next_decision_fingerprint": fingerprint, "actor": deepcopy(action["actor"]), "target": deepcopy(action["resolved_target_owner"]), "move_id": action["move_id"], "continuation_action_id": action["continuation_action_id"], "original_charge_action_id": action["original_charge_action_id"], "continuation_target_locator": deepcopy(action["continuation_target_locator"]), "original_charge_lifecycle": deepcopy(action["original_charge_provenance"]), "canonical_terminal_effect": effect, "predictive_actor_mechanics": deepcopy(bound["actor_mechanics"]), "predictive_target_mechanics": deepcopy(bound["target_mechanics"]), "execution_grant": "authenticated_standard_charge_turn_two_only", "provenance": "forced_continuation_and_predictive_mechanics_bound_execution_authority_v1"}
 
 
-def _execute_one(row: Mapping[str, Any]) -> dict[str, Any]:
+def _execute_one(row: Mapping[str, Any], execution_authority: Mapping[str, Any]) -> dict[str, Any]:
     actor, target = row["predictive_actor_mechanics"], row["predictive_target_mechanics"]
     missing = _required_missing(actor) + _required_missing(target)
     if missing:
         return {"status": "incomplete", "schema_version": SCHEMA_VERSION, "reason": "detached_damage_mechanics_incomplete", "missing_authority": tuple(sorted(set(missing))), "execution_authority": deepcopy(dict(row))}
     effect = row["canonical_terminal_effect"]; move = effect["move"]
+    terminal = _terminal_authorities(row, execution_authority, move)
+    if terminal.get("status") != "resolved":
+        return _incomplete(row, terminal.get("reason", "detached_terminal_authority_unavailable"))
     gate = _pre_action_gate(actor, target, row["move_id"])
     if gate["status"] == "incomplete":
         return {"status": "incomplete", "schema_version": SCHEMA_VERSION, "reason": gate["reason"], "execution_authority": deepcopy(dict(row)), "pre_action_gate": gate}
@@ -122,24 +129,55 @@ def _execute_one(row: Mapping[str, Any]) -> dict[str, Any]:
       for critical, cp in ((False, 1 - crit), (True, crit)):
         if not cp:
             continue
-        rolls = _damage_rolls(row, critical)
+        rolls = _damage_rolls(row, critical, terminal["attacker_item"]["effective_item_id"], terminal["target_item"]["effective_item_id"])
         if rolls is None:
             return _incomplete(row, "detached_damage_context_unavailable")
         for index, damage in enumerate(rolls):
-            event = _hit_event(row, actor, target, critical, index, damage, root * accuracy * cp * Fraction(1, 16)); event["branch_path"] = ("pre_action", opportunity["kind"], *event["branch_path"])
+            event = _hit_event(row, actor, target, critical, index, damage, root * accuracy * cp * Fraction(1, 16), terminal); event["branch_path"] = ("pre_action", opportunity["kind"], *event["branch_path"])
             secondary = _secondary_branches(row, actor, target, event)
             if secondary is None:
                 return _incomplete(row, "detached_secondary_capability_unavailable")
-            leaves.extend(secondary)
+            leaves.extend(_apply_life_orb(secondary, terminal["life_orb"], damage > 0))
     total = sum((_fraction(leaf["probability"]) for leaf in leaves), Fraction())
     if total != 1:
         return _incomplete(row, "detached_attack_ledger_probability_not_normalized")
-    return {"status": "resolved", "schema_version": SCHEMA_VERSION, "execution_authority": deepcopy(dict(row)), "pre_action_gate": gate, "hit_probability": _fd(accuracy), "critical_probability": _fd(crit), "terminal_leaves": tuple(leaves), "terminal_probability_mass": _fd(total), "component_manifest": {"accuracy": {"status": "resolved"}, "critical": {"status": "resolved", "stage": crit_stage}, "damage_roll": {"status": "resolved", "roll_count_per_critical_context": 16}, "secondary": {"status": "resolved"}}, "provenance": "authenticated_detached_standard_charge_turn_two_exact_attack_ledger_v1"}
+    return {"status": "resolved", "schema_version": SCHEMA_VERSION, "execution_authority": deepcopy(dict(row)), "terminal_authorities": deepcopy(terminal), "pre_action_gate": gate, "hit_probability": _fd(accuracy), "critical_probability": _fd(crit), "terminal_leaves": tuple(leaves), "terminal_probability_mass": _fd(total), "component_manifest": {"accuracy": {"status": "resolved"}, "critical": {"status": "resolved", "stage": crit_stage}, "damage_roll": {"status": "resolved", "roll_count_per_critical_context": 16}, "secondary": {"status": "resolved"}}, "provenance": "authenticated_detached_standard_charge_turn_two_exact_attack_ledger_v1"}
 
 
 def _required_missing(row: Mapping[str, Any]) -> list[str]:
     required = ("current_level", "current_final_stats", "current_hp", "current_stages", "condition", "item", "ability", "types", "substitute", "critical_hit_volatiles", "lucky_chant", "field", "side_conditions", "direct_mechanics")
     return [key for key in required if not isinstance(row.get(key), Mapping) or row[key].get("status") not in {"known", "known_none", "known_present", "known_absent", "known_active", "known_inactive"}]
+
+
+def _terminal_authorities(row: Mapping[str, Any], execution: Mapping[str, Any], move: Mapping[str, Any]) -> dict[str, Any]:
+    state, fingerprint, predictive = execution.get("next_decision_state"), execution.get("source_next_decision_fingerprint"), execution.get("predictive_mechanics")
+    action = {"action_type": "attack", "action_id": row["continuation_action_id"], "identity": row["move_id"]}
+    attacker_item = materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, holder=row["actor"])
+    target_item = materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, holder=row["target"])
+    if attacker_item.get("status") != "resolved" or target_item.get("status") != "resolved": return {"status": "incomplete", "reason": "detached_held_item_effect_applicability_unavailable"}
+    if attacker_item.get("terminal_consumption") == "required_unrepresented" or target_item.get("terminal_consumption") == "required_unrepresented": return {"status": "incomplete", "reason": "detached_terminal_consumable_item_consequence_unrepresented"}
+    sturdy = materialize_detached_next_turn_sturdy_survival_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, defender=row["target"], attacker=row["actor"], action=action, move_metadata=move)
+    sash = materialize_detached_next_turn_focus_sash_survival_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, holder=row["target"], attacker=row["actor"], action=action, move_metadata=move, held_item_effect_applicability=target_item)
+    life = materialize_detached_next_turn_life_orb_immediate_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, attacker=row["actor"], target=row["target"], action=action, move_metadata=move, qualifying_damage=True, held_item_effect_applicability=attacker_item)
+    if sturdy.get("status") in {"incomplete", "rejected"}: return {"status": "incomplete", "reason": "detached_sturdy_survival_authority_unavailable"}
+    if sash.get("status") in {"incomplete", "rejected"}: return {"status": "incomplete", "reason": "detached_focus_sash_survival_authority_unavailable"}
+    if life.get("status") in {"incomplete", "rejected"}: return {"status": "incomplete", "reason": "detached_life_orb_authority_unavailable"}
+    return {"status": "resolved", "attacker_item": attacker_item, "target_item": target_item, "sturdy": sturdy, "focus_sash": sash, "life_orb": life}
+
+
+def _apply_life_orb(leaves: list[dict[str, Any]], authority: Mapping[str, Any], qualifying_damage: bool) -> list[dict[str, Any]]:
+    if not qualifying_damage:
+        return leaves
+    recoil = authority.get("recoil", {})
+    if not isinstance(recoil, Mapping): return leaves
+    out=[]
+    for leaf in leaves:
+        updated=deepcopy(leaf); consequence=updated["consequences"]
+        consequence["life_orb"] = deepcopy(dict(authority))
+        consequence["own_final_hp"] = recoil.get("post_hp", consequence.get("own_final_hp"))
+        consequence["self_fainted"] = recoil.get("fainted", consequence.get("self_fainted"))
+        out.append(updated)
+    return out
 
 
 def _authority_is_self_consistent(authority: Mapping[str, Any]) -> bool:
@@ -149,8 +187,8 @@ def _authority_is_self_consistent(authority: Mapping[str, Any]) -> bool:
     decision state exists); this local check prevents an altered bound row from
     silently becoming executable after that authentication boundary.
     """
-    forced, predictive, actions = authority.get("forced_continuation"), authority.get("predictive_mechanics"), authority.get("actions")
-    if not isinstance(forced, Mapping) or not isinstance(predictive, Mapping) or not isinstance(actions, Mapping):
+    forced, predictive, actions, state = authority.get("forced_continuation"), authority.get("predictive_mechanics"), authority.get("actions"), authority.get("next_decision_state")
+    if not isinstance(forced, Mapping) or not isinstance(predictive, Mapping) or not isinstance(actions, Mapping) or not isinstance(state, Mapping) or fingerprint_transition_preview_state(state) != authority.get("source_next_decision_fingerprint"):
         return False
     source_actions, source_sides = forced.get("forced_continuation_actions"), predictive.get("sides")
     if not isinstance(source_actions, Mapping) or not isinstance(source_sides, Mapping):
@@ -172,7 +210,7 @@ def _authority_is_self_consistent(authority: Mapping[str, Any]) -> bool:
     return True
 
 
-def _damage_rolls(row: Mapping[str, Any], critical: bool) -> list[int] | None:
+def _damage_rolls(row: Mapping[str, Any], critical: bool, attacker_item: str | None, defender_item: str | None) -> list[int] | None:
     a, t, move = row["predictive_actor_mechanics"], row["predictive_target_mechanics"], row["canonical_terminal_effect"]["move"]
     av, tv = a["current_final_stats"]["values"], t["current_final_stats"]["values"]
     ast, tst = a["current_stages"]["values"], t["current_stages"]["values"]
@@ -180,19 +218,28 @@ def _damage_rolls(row: Mapping[str, Any], critical: bool) -> list[int] | None:
     os, ds = select_critical_damage_stages(ast[offense], tst[defense], is_critical=critical)
     try:
         field = _field(a["field"], t["side_conditions"])
-        ctx = DamageContext(attacker_level=a["current_level"]["value"], move_power=move["power"], attack_stat=apply_boosts(av[offense], os), defense_stat=apply_boosts(tv[defense], ds), move_type=move["type"], move_id=move["move_id"], attacker_types=tuple(a["types"]["value"]), defender_types=tuple(t["types"]["value"]), is_physical=move["category"] == "physical", is_critical=critical, is_spread=False, field=field, attacker_ability=get_ability(_value(a["ability"])), defender_ability=get_ability(_value(t["ability"])), attacker_item=get_item(_value(a["item"])), defender_item=get_item(_value(t["item"])), attacker_hp_current=a["current_hp"]["current_hp"], attacker_hp_max=a["current_hp"]["maximum_hp"], defender_hp_current=t["current_hp"]["current_hp"], defender_hp_max=t["current_hp"]["maximum_hp"], attacker_condition=_condition(a["condition"]) or "none")
+        ctx = DamageContext(attacker_level=a["current_level"]["value"], move_power=move["power"], attack_stat=apply_boosts(av[offense], os), defense_stat=apply_boosts(tv[defense], ds), move_type=move["type"], move_id=move["move_id"], attacker_types=tuple(a["types"]["value"]), defender_types=tuple(t["types"]["value"]), is_physical=move["category"] == "physical", is_critical=critical, is_spread=False, field=field, attacker_ability=get_ability(_value(a["ability"])), defender_ability=get_ability(_value(t["ability"])), attacker_item=get_item(attacker_item), defender_item=get_item(defender_item), attacker_hp_current=a["current_hp"]["current_hp"], attacker_hp_max=a["current_hp"]["maximum_hp"], defender_hp_current=t["current_hp"]["current_hp"], defender_hp_max=t["current_hp"]["maximum_hp"], attacker_condition=_condition(a["condition"]) or "none")
         return calc_damage_rolls(ctx)
     except (KeyError, TypeError, ValueError):
         return None
 
 
-def _hit_event(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], critical: bool, index: int, damage: int, probability: Fraction) -> dict[str, Any]:
+def _hit_event(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], critical: bool, index: int, damage: int, probability: Fraction, terminal: Mapping[str, Any]) -> dict[str, Any]:
     hp = target["current_hp"]["current_hp"]; actual = min(hp, damage); post = hp - actual
-    return {"leaf_id": f"{row['continuation_action_id']}:hit:{'critical' if critical else 'noncritical'}:roll:{index}", "candidate_id": row["continuation_action_id"], "action_type": "attack", "branch_path": ("hit", "critical" if critical else "noncritical", f"damage_roll:{index}"), "probability": _fd(probability), "hit_state": "hit", "critical_state": "critical" if critical else "non_critical", "damage_roll": {"roll_index": index, "random_factor_percent": 85 + index}, "consequences": {"damage": actual, "raw_damage": damage, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": post, "target_ko": post == 0, "self_fainted": False, "secondary": None}, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(row))}}
+    consequence = {"damage": actual, "raw_damage": damage, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": post, "target_ko": post == 0, "self_fainted": False, "secondary": None, "sturdy_survival": {"outcome": "not_activated"}, "focus_sash_survival": {"outcome": "not_activated"}}
+    if post == 0 and terminal["sturdy"].get("status") == "ready":
+        consequence.update({"target_final_hp": 1, "target_ko": False, "sturdy_survival": {"outcome": "activated", "authority": deepcopy(terminal["sturdy"]), "final_hp": 1}})
+    elif post == 0:
+        sash = apply_detached_focus_sash_single_hit(authority=terminal["focus_sash"], damage=damage, source_action_id=row["continuation_action_id"], source_hit_id=f"roll:{index}")
+        if sash.get("status") != "resolved":
+            consequence["focus_sash_survival"] = sash
+        elif sash.get("outcome") == "activated":
+            consequence.update({"target_final_hp": 1, "target_ko": False, "focus_sash_survival": sash, "target_item_after": deepcopy(sash["item_after"])})
+    return {"leaf_id": f"{row['continuation_action_id']}:hit:{'critical' if critical else 'noncritical'}:roll:{index}", "candidate_id": row["continuation_action_id"], "action_type": "attack", "branch_path": ("hit", "critical" if critical else "noncritical", f"damage_roll:{index}"), "probability": _fd(probability), "hit_state": "hit", "critical_state": "critical" if critical else "non_critical", "damage_roll": {"roll_index": index, "random_factor_percent": 85 + index}, "consequences": consequence, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(row))}}
 
 
 def _miss_leaf(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], probability: Fraction) -> dict[str, Any]:
-    return {"leaf_id": f"{row['continuation_action_id']}:miss", "candidate_id": row["continuation_action_id"], "action_type": "attack", "branch_path": ("miss",), "probability": _fd(probability), "hit_state": "miss", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": target["current_hp"]["current_hp"], "target_ko": False, "self_fainted": False, "secondary": None}, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(row))}}
+    return {"leaf_id": f"{row['continuation_action_id']}:miss", "candidate_id": row["continuation_action_id"], "action_type": "attack", "branch_path": ("miss",), "probability": _fd(probability), "hit_state": "miss", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": target["current_hp"]["current_hp"], "target_ko": False, "self_fainted": False, "secondary": None, "sturdy_survival": {"outcome": "not_activated"}, "focus_sash_survival": {"outcome": "not_activated"}, "life_orb": {"outcome": "not_triggered"}}, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(row))}}
 
 
 def _secondary_branches(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], event: Mapping[str, Any]) -> list[dict[str, Any]] | None:

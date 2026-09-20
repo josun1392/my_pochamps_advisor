@@ -44,3 +44,24 @@ def test_mutated_bound_target_cannot_execute():
     forged = deepcopy(authority)
     forged["actions"]["self"]["target"]["pokemon_id"] = "forged"
     assert execute_detached_standard_charge_turn_two_attacks(execution_authority=forged)["status"] == "rejected"
+
+
+def test_terminal_authorities_and_path_local_consequences_are_exposed():
+    result = _execution()
+    for ledger in result["actions"].values():
+        assert set(ledger["terminal_authorities"]) >= {"attacker_item", "target_item", "sturdy", "focus_sash", "life_orb"}
+        for leaf in ledger["terminal_leaves"]:
+            if leaf["hit_state"] == "hit":
+                consequences = leaf["consequences"]
+                assert {"own_final_hp", "target_final_hp", "target_ko", "self_fainted", "sturdy_survival", "focus_sash_survival"} <= set(consequences)
+
+
+def test_mutated_next_decision_source_cannot_execute():
+    _, _, _, phase = _rich_flow()
+    _, _, handoff = _next_from_phase(phase)
+    state, fingerprint = handoff["next_state"], handoff["resulting_branch_fingerprint"]
+    forced = materialize_detached_standard_charge_forced_continuation(next_decision_state=state, next_decision_fingerprint=fingerprint)
+    authority = materialize_detached_standard_charge_turn_two_execution_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, forced_continuation=forced, predictive_mechanics=handoff["next_turn_predictive_mechanics_authority"])
+    forged = deepcopy(authority)
+    forged["next_decision_state"]["active"]["self"]["current_hp"] = 1
+    assert execute_detached_standard_charge_turn_two_attacks(execution_authority=forged)["status"] == "rejected"
