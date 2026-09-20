@@ -21,6 +21,8 @@ from llm.advisor_next_turn_predictive_mechanics_authority import (
     normalize_terminal_predictive_mechanics_authority,
     validate_forced_continuation_predictive_mechanics_binding,
     validate_next_turn_predictive_mechanics_authority,
+    _status_progression_fact,
+    _confusion_facts,
 )
 from llm.advisor_transition_preview import fingerprint_transition_preview_state as fp
 from tests.test_detached_sitrus_berry_immediate_consumption import (
@@ -55,6 +57,28 @@ STAGES = {
 }
 
 
+def test_active_progression_requires_exact_observation_binding():
+    owner = {"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "p"}
+    observation = {"event_kind": "current_condition_observed", "trust": "user_confirmed_observation", "condition": "sleep", "turn_number": 1}
+    progression = {"schema_version": "champions-sleep-freeze-progression-v1", "owner": owner, "condition": "sleep", "origin_id": "sleep-1", "established_turn": 1, "prior_attempts": 0, "sleep_duration": 2, "condition_observation": observation}
+    known, error = _status_progression_fact(progression, owner, {"status": "known_present", "condition": "sleep"}, observation)
+    assert error is None and known["status"] == "known"
+    missing, error = _status_progression_fact(progression, owner, {"status": "known_present", "condition": "sleep"}, None)
+    assert error is None and missing["status"] == "unknown"
+    bad, error = _status_progression_fact(progression, owner, {"status": "known_present", "condition": "sleep"}, {**observation, "turn_number": 2})
+    assert bad == {} and error == "champions_status_progression_condition_observation_mismatch"
+
+
+def test_confused_progression_requires_exact_observation_binding():
+    owner = {"session_id": "s", "side": "self", "slot_index": 0, "pokemon_id": "p"}
+    observation = {"event_kind": "current_confusion_observed", "trust": "user_confirmed_observation", "state": "confused", "turn_number": 1}
+    progression = {"schema_version": "champions-confusion-progression-v1", "owner": owner, "state": "confused", "origin_id": "confusion-1", "established_turn": 1, "prior_opportunities": 0, "duration": 3, "confusion_observation": observation}
+    state, known, error = _confusion_facts({"status": "known_confused"}, progression, owner, observation)
+    assert error is None and state["status"] == "known_confused" and known["status"] == "known"
+    _, missing, error = _confusion_facts({"status": "known_confused"}, progression, owner, None)
+    assert error is None and missing["status"] == "unknown"
+
+
 def _binding(ledger, leaf, owner):
     return {
         "pair_id": ledger["pair_id"],
@@ -86,6 +110,7 @@ def _predictive(
     side_conditions=None,
     direct=True,
     hp_unknown=False,
+    confusion_state=None,
 ):
     owner = terminal_row["owner"]
     hp = leaf["final_consequences"][
@@ -161,6 +186,9 @@ def _predictive(
         "field": deepcopy(field),
         "side_conditions": deepcopy(side_conditions),
         "direct_mechanics": direct_fact,
+        "status_progression": {"status": "not_applicable"},
+        "confusion_state": confusion_state if confusion_state is not None else {"status": "known_none"},
+        "confusion_progression": {"status": "not_applicable"},
     }
 
 

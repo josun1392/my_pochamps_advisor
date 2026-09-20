@@ -27,6 +27,10 @@ _HIGH_CRIT_MOVES = {
     "air-cutter",
     "attack-order",
     "spacial-rend",
+    # These standard charge moves only reach this native classification after
+    # their detached continuation authority has authenticated execution.
+    "sky-attack",
+    "razor-wind",
 }
 
 _ALWAYS_CRIT_MOVES = {

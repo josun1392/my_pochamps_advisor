@@ -50,7 +50,7 @@ _ROWS: dict[str, dict[str, Any]] = {
         "protection_bypass_later_execution": False,
         "weather_sensitive_charge_skip": False,
         "weak_weather_damage_modifier_present": False,
-        "tokens": (),
+        "tokens": ("accuracy: 90", "basePower: 140", "category: \"Physical\"", "type: \"Flying\"", "critRatio: 2", "chance: 30", "volatileStatus: 'flinch'"),
     },
     "solar-beam": {
         "showdown_id": "solarbeam",
@@ -188,7 +188,7 @@ _ROWS: dict[str, dict[str, Any]] = {
         "protection_bypass_later_execution": False,
         "weather_sensitive_charge_skip": False,
         "weak_weather_damage_modifier_present": False,
-        "tokens": (),
+        "tokens": ("accuracy: 100", "basePower: 80", "category: \"Special\"", "type: \"Normal\"", "critRatio: 2"),
     },
     "freeze-shock": {
         "showdown_id": "freezeshock",
@@ -201,7 +201,7 @@ _ROWS: dict[str, dict[str, Any]] = {
         "protection_bypass_later_execution": False,
         "weather_sensitive_charge_skip": False,
         "weak_weather_damage_modifier_present": False,
-        "tokens": (),
+        "tokens": ("accuracy: 90", "basePower: 140", "category: \"Physical\"", "type: \"Ice\"", "chance: 30", "status: 'par'"),
     },
     "ice-burn": {
         "showdown_id": "iceburn",
@@ -214,7 +214,7 @@ _ROWS: dict[str, dict[str, Any]] = {
         "protection_bypass_later_execution": False,
         "weather_sensitive_charge_skip": False,
         "weak_weather_damage_modifier_present": False,
-        "tokens": (),
+        "tokens": ("accuracy: 90", "basePower: 140", "category: \"Special\"", "type: \"Ice\"", "chance: 30", "status: 'brn'"),
     },
     "geomancy": {
         "showdown_id": "geomancy",

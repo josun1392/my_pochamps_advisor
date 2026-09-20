@@ -13,6 +13,8 @@ from typing import Any, Mapping
 
 from llm.advisor_substitute import update_substitute_state_context
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from llm.advisor_champions_status_progression import valid_progression
+from llm.advisor_champions_confusion_progression import valid_confusion_progression
 
 
 TERMINAL_SCHEMA_VERSION = "detached-exact-pair-terminal-predictive-mechanics-authority-v1"
@@ -216,6 +218,12 @@ def normalize_terminal_predictive_mechanics_authority(
         return _rejected(error)
     if direct["status"] == "unknown":
         reasons.append("direct_mechanics_unknown")
+    status_progression, error = _status_progression_fact(value.get("status_progression"), owner, normalized_condition, value.get("condition_observation"))
+    if error: return _rejected(error)
+    if status_progression["status"] == "unknown": reasons.append("status_progression_unknown")
+    confusion_state, confusion_progression, error = _confusion_facts(value.get("confusion_state"), value.get("confusion_progression"), owner, value.get("confusion_observation"))
+    if error: return _rejected(error)
+    if confusion_state["status"] == "unknown" or confusion_progression["status"] == "unknown": reasons.append("confusion_progression_unknown")
 
     return {
         "status": "incomplete" if reasons else "resolved",
@@ -243,6 +251,9 @@ def normalize_terminal_predictive_mechanics_authority(
         "field": field,
         "side_conditions": side_conditions,
         "direct_mechanics": direct,
+        "status_progression": status_progression,
+        "confusion_state": confusion_state,
+        "confusion_progression": confusion_progression,
         "incomplete_reasons": tuple(sorted(set(reasons))),
         "provenance": "authenticated_exact_pair_terminal_predictive_mechanics_v1",
     }
@@ -831,6 +842,9 @@ def _derive_replacement_row(
         "field": field,
         "side_conditions": side_conditions,
         "direct_mechanics": direct,
+        "status_progression": {"status": "unknown"},
+        "confusion_state": {"status": "unknown"},
+        "confusion_progression": {"status": "unknown"},
         "incomplete_reasons": tuple(sorted(set(reasons))),
         "source_replacement_state_fingerprint": source_state_fingerprint,
         "provenance": "replacement_rebound_predictive_mechanics_v1",
@@ -1003,6 +1017,38 @@ def _known_active_fact(value: Any, label: str) -> tuple[dict[str, Any], str | No
     if not isinstance(value, Mapping) or value.get("status") not in {"known_active", "known_inactive", "unknown"}:
         return {}, f"terminal_predictive_mechanics_{label}_invalid"
     return deepcopy(dict(value)), None
+
+
+def _status_progression_fact(value: Any, owner: Mapping[str, Any], condition: Mapping[str, Any], observation: Any) -> tuple[dict[str, Any], str | None]:
+    active = condition.get("condition") if condition.get("status") == "known_present" else None
+    if active not in {"sleep", "freeze"}:
+        return {"status": "not_applicable"}, None
+    if value is None or observation is None:
+        return {"status": "unknown"}, None
+    if not isinstance(value, Mapping) or not valid_progression(value, owner) or value.get("condition") != active:
+        return {}, "champions_status_progression_foreign_or_stale"
+    if not _valid_condition_observation(observation, active) or value.get("condition_observation") != observation:
+        return {}, "champions_status_progression_condition_observation_mismatch"
+    return {"status": "known", "value": deepcopy(dict(value))}, None
+
+
+def _confusion_facts(state: Any, progression: Any, owner: Mapping[str, Any], observation: Any) -> tuple[dict[str, Any], dict[str, Any], str | None]:
+    if state is None: return {"status": "unknown"}, {"status": "unknown"}, None
+    if not isinstance(state, Mapping) or state.get("status") not in {"known_none", "known_confused", "unknown"}: return {}, {}, "champions_confusion_state_invalid"
+    if state["status"] == "unknown": return {"status": "unknown"}, {"status": "unknown"}, None
+    if state["status"] == "known_none": return {"status": "known_none"}, {"status": "not_applicable"}, None
+    if progression is None or observation is None: return {"status": "known_confused"}, {"status": "unknown"}, None
+    if not isinstance(progression, Mapping) or not valid_confusion_progression(progression, owner): return {}, {}, "champions_confusion_progression_foreign_or_stale"
+    if not _valid_confusion_observation(observation) or progression.get("confusion_observation") != observation: return {}, {}, "champions_confusion_progression_observation_mismatch"
+    return {"status": "known_confused"}, {"status": "known", "value": deepcopy(dict(progression))}, None
+
+
+def _valid_condition_observation(value: Any, condition: str) -> bool:
+    return isinstance(value, Mapping) and value.get("event_kind") == "current_condition_observed" and value.get("trust") == "user_confirmed_observation" and value.get("condition") == condition and isinstance(value.get("turn_number"), int)
+
+
+def _valid_confusion_observation(value: Any) -> bool:
+    return isinstance(value, Mapping) and value.get("event_kind") == "current_confusion_observed" and value.get("trust") == "user_confirmed_observation" and value.get("state") == "confused" and isinstance(value.get("turn_number"), int)
 
 
 def _field_fact(value: Any) -> tuple[dict[str, Any], str | None]:
