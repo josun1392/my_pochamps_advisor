@@ -17,7 +17,7 @@ def materialize_detached_next_turn_action_intents(*,next_decision_state:Mapping[
     if not isinstance(forced,Mapping) or forced.get("status")!="resolved":return _result(forced.get("status","rejected"),forced.get("reason","forced_continuation_unavailable"))
     supplied=hypothetical_actions or {}; rows={}
     for side in _SIDES:
-        owner=next_decision_state.get("active",{}).get(side); target=next_decision_state.get("active",{}).get("opponent" if side=="self" else "self")
+        owner=_owner(next_decision_state.get("active",{}).get(side)); target=_owner(next_decision_state.get("active",{}).get("opponent" if side=="self" else "self"))
         source=forced.get("forced_continuation_actions",{}).get(side)
         if not isinstance(owner,Mapping) or not isinstance(target,Mapping):return _result("rejected","next_turn_action_intent_active_identity_invalid")
         if isinstance(source,Mapping) and source.get("status")=="resolved":
@@ -51,3 +51,6 @@ def _row(fp,actor,target,action_id,move_id,metadata,origin,source):
     if metadata.get("triage_healing","omitted") not in {"omitted","eligible","non_eligible","unknown"}:return "next_turn_action_intent_triage_metadata_invalid"
     return {"status":"resolved","schema_version":SCHEMA_VERSION,"source_next_decision_fingerprint":fp,"actor":deepcopy(dict(actor)),"target":deepcopy(dict(target)),"action_id":action_id,"move_id":move_id,"action_origin":origin,"canonical_move_metadata_authority":deepcopy(dict(metadata)),"action_selection_probability":"not_modeled" if origin=="hypothetical_selected_action" else "not_applicable","source_forced_continuation":deepcopy(dict(source)) if origin.startswith("forced") else None,"execution_grant":False,"provenance":"detached_next_turn_hypothetical_action_intent_v1" if origin.startswith("hypothetical") else "detached_next_turn_forced_continuation_action_intent_v1"}
 def _result(status,reason):return {"status":status,"schema_version":SET_SCHEMA_VERSION,"reason":reason}
+def _owner(value):
+    keys=("session_id","side","slot_index","pokemon_id")
+    return {key:value[key] for key in keys} if isinstance(value,Mapping) and all(key in value for key in keys) else None
