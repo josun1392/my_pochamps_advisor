@@ -9,6 +9,10 @@ from llm.advisor_standard_charge_lifecycle_transport import (
     validate_post_eot_standard_charge_authorities_against_active,
     materialize_next_turn_standard_charge_continuation_authorities,
 )
+from llm.advisor_next_turn_predictive_mechanics_authority import (
+    materialize_next_turn_predictive_mechanics_authority,
+    validate_post_eot_predictive_mechanics_authorities,
+)
 
 
 # These records justify an already-completed turn; they must never become
@@ -50,6 +54,14 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
         return _result("rejected", lifecycle_error)
     if "next_turn_standard_charge_continuation_authorities" in state:
         return _result("rejected", "preexisting_next_turn_standard_charge_authority")
+    post_eot_predictive = state.get("post_eot_predictive_mechanics_authorities")
+    if post_eot_predictive is not None:
+        predictive_error = validate_post_eot_predictive_mechanics_authorities(
+            authorities=post_eot_predictive,
+            active_states=state["active"],
+        )
+        if predictive_error is not None:
+            return _result("rejected", predictive_error)
     post_eot_charge = state.get("post_eot_standard_charge_lifecycle_authorities")
     if post_eot_charge is not None:
         charge_error = validate_post_eot_standard_charge_authorities_against_active(
@@ -99,6 +111,16 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
     resulting_fp = fingerprint_transition_preview_state(state)
     if resulting_fp is None:
         return _result("rejected", "unserializable_next_turn_start_state")
+    predictive = materialize_next_turn_predictive_mechanics_authority(
+        next_decision_state=state,
+        next_decision_fingerprint=resulting_fp,
+        source_post_eot_fingerprint=source_fp,
+    )
+    if isinstance(predictive, Mapping) and predictive.get("status") == "rejected":
+        return _result(
+            "rejected",
+            predictive.get("reason", "next_turn_predictive_mechanics_unavailable"),
+        )
     requires_replacement = [side for side, active in state["active"].items() if active["fainted"]]
     return {
         "status": "resolved",
@@ -106,6 +128,7 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
         "resulting_branch_fingerprint": resulting_fp,
         "next_state": state,
         **({"next_turn_standard_charge_continuation_authorities": deepcopy(state["next_turn_standard_charge_continuation_authorities"])} if "next_turn_standard_charge_continuation_authorities" in state else {}),
+        **({"next_turn_predictive_mechanics_authority": deepcopy(predictive)} if predictive is not None else {}),
         "lifecycle_trace": [{
             "sequence": 1,
             "event": "end_of_turn_to_next_turn_start",

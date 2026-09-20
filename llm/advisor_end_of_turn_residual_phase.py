@@ -19,6 +19,9 @@ from llm.advisor_black_sludge_end_of_turn import evaluate_black_sludge_residual
 from llm.advisor_standard_charge_lifecycle_transport import (
     validate_standard_charge_lifecycle_transport_authorities,
 )
+from llm.advisor_next_turn_predictive_mechanics_authority import (
+    validate_eot_terminal_predictive_mechanics,
+)
 
 
 PHASE_INPUT_SCHEMA = "detached-end-of-turn-phase-input-v1"
@@ -110,7 +113,14 @@ def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], termin
         return _result("rejected", "end_of_turn_active_states_invalid", base)
     rows: dict[str, dict[str, Any]] = {}
     for side, expected_hp in (("self", leaf["final_consequences"]["own_final_hp"]), ("opponent", leaf["final_consequences"]["opponent_final_hp"])):
-        row = _active_state(active_states.get(side), base, side, expected_hp, terminal_leaf_id)
+        row = _active_state(
+            active_states.get(side),
+            base,
+            side,
+            expected_hp,
+            terminal_leaf_id,
+            terminal_leaf=leaf,
+        )
         if isinstance(row, str):
             return _result("incomplete" if row.endswith("_unknown") else "rejected", row, base)
         rows[side] = row
@@ -305,9 +315,23 @@ def _terminal_leaf(ledger: Any, leaf_id: Any) -> tuple[dict[str, Any] | None, di
     return ({key: deepcopy(ledger[key]) for key in required}, deepcopy(dict(leaf)))
 
 
-def _active_state(value: Any, base: Mapping[str, Any], side: str, expected_hp: int, leaf_id: str) -> dict[str, Any] | str:
-    allowed = {"owner", "hp", "fainted", "condition", "item", "toxic_progression", "speed", "ability", "persistent_effects", "types"}
-    if not isinstance(value, Mapping) or set(value) not in (allowed - {"types"}, allowed): return "end_of_turn_active_state_invalid"
+def _active_state(
+    value: Any,
+    base: Mapping[str, Any],
+    side: str,
+    expected_hp: int,
+    leaf_id: str,
+    *,
+    terminal_leaf: Mapping[str, Any] | None = None,
+) -> dict[str, Any] | str:
+    required = {"owner", "hp", "fainted", "condition", "item", "toxic_progression", "speed", "ability", "persistent_effects"}
+    optional = {"types", "predictive_mechanics"}
+    if (
+        not isinstance(value, Mapping)
+        or not required <= set(value)
+        or set(value) - required - optional
+    ):
+        return "end_of_turn_active_state_invalid"
     owner = value["owner"]
     expected_owner = base["own_actor"] if side == "self" else base["opponent_actor"]
     if not _owner(owner, base["session_id"]) or owner != expected_owner: return "end_of_turn_active_identity_mismatch"
@@ -330,7 +354,22 @@ def _active_state(value: Any, base: Mapping[str, Any], side: str, expected_hp: i
     if isinstance(persistent, str): return persistent
     types = value.get("types")
     if types is not None and (not isinstance(types, Mapping) or types.get("status") not in {"known", "unknown"} or not _bound_to_base(types, base, owner) or (types.get("status") == "known" and (not isinstance(types.get("value"), list) or not types["value"]))): return "end_of_turn_type_authority_invalid"
-    return {"owner": deepcopy(dict(owner)), "hp": deepcopy(dict(hp)), "fainted": deepcopy(dict(fainted)), "condition": condition, "item": deepcopy(dict(item)), "toxic_progression": deepcopy(dict(toxic)), "speed": deepcopy(dict(speed)), "ability": deepcopy(dict(ability)), "persistent_effects": persistent, **({"types": deepcopy(dict(types))} if types is not None else {})}
+    normalized = {"owner": deepcopy(dict(owner)), "hp": deepcopy(dict(hp)), "fainted": deepcopy(dict(fainted)), "condition": condition, "item": deepcopy(dict(item)), "toxic_progression": deepcopy(dict(toxic)), "speed": deepcopy(dict(speed)), "ability": deepcopy(dict(ability)), "persistent_effects": persistent, **({"types": deepcopy(dict(types))} if types is not None else {})}
+    predictive = value.get("predictive_mechanics")
+    if predictive is not None:
+        if terminal_leaf is None:
+            return "end_of_turn_predictive_mechanics_terminal_leaf_missing"
+        predictive_error = validate_eot_terminal_predictive_mechanics(
+            value=predictive,
+            base=base,
+            terminal_leaf=terminal_leaf,
+            owner=owner,
+            resolved_active=normalized,
+        )
+        if predictive_error is not None:
+            return predictive_error
+        normalized["predictive_mechanics"] = deepcopy(dict(predictive))
+    return normalized
 
 
 def _persistent_effects(value: Any, base: Mapping[str, Any], owner: Mapping[str, Any], leaf_id: str) -> dict[str, dict[str, Any]] | str:
@@ -529,7 +568,14 @@ def _valid_input(value: Any) -> str | None:
     base, leaf = _terminal_leaf({"status": "evaluable", "schema_version": "exact-immediate-action-pair-outcome-ledger-v1", **{key: value.get(key) for key in ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_actor", "opponent_actor", "terminal_probability_mass")}, "terminal_leaves": (value.get("terminal_branch"),)}, value.get("terminal_leaf_id"))
     if base is None or not isinstance(value.get("active_states"), Mapping): return "end_of_turn_phase_input_invalid"
     for side, hp in (("self", leaf["final_consequences"]["own_final_hp"]), ("opponent", leaf["final_consequences"]["opponent_final_hp"])):
-        if isinstance(_active_state(value["active_states"].get(side), base, side, hp, value["terminal_leaf_id"]), str): return "end_of_turn_phase_input_invalid"
+        if isinstance(_active_state(
+            value["active_states"].get(side),
+            base,
+            side,
+            hp,
+            value["terminal_leaf_id"],
+            terminal_leaf=leaf,
+        ), str): return "end_of_turn_phase_input_invalid"
     hazards = value.get("switch_hazard_authorities")
     if hazards is not None and not _valid_switch_hazard_authorities(hazards, base, value["terminal_leaf_id"]): return "end_of_turn_phase_input_invalid"
     charge = value.get("standard_charge_lifecycle_authorities")

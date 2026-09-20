@@ -20,6 +20,12 @@ from llm.advisor_standard_charge_lifecycle_transport import (
     validate_post_eot_standard_charge_lifecycle_authorities,
     retire_standard_charge_lifecycle_for_replacement,
 )
+from llm.advisor_next_turn_predictive_mechanics_authority import (
+    materialize_next_turn_predictive_mechanics_authority,
+    rebind_post_eot_predictive_mechanics_after_replacement,
+    validate_post_eot_predictive_mechanics_authorities,
+)
+from llm.advisor_substitute import rebind_substitute_after_switch
 
 SCHEMA = "detached-post-eot-replacement-transition-v1"
 SIDES = ("self", "opponent")
@@ -66,6 +72,21 @@ def _freeze(eot, source_fp, branch, teams):
     weather = eot["phase_input"].get("weather_authority", {})
     if weather.get("status") == "known" and state["current_state"].get("field_state_context", {}).get("current_field", {}).get("weather") != weather["weather"]:
         return _error("rejected", "post_eot_weather_mismatch")
+    predictive_supplied = any(
+        isinstance(eot["phase_input"].get("active_states", {}).get(side), Mapping)
+        and "predictive_mechanics" in eot["phase_input"]["active_states"][side]
+        for side in SIDES
+    )
+    post_predictive = state.get("post_eot_predictive_mechanics_authorities")
+    if predictive_supplied:
+        predictive_error = validate_post_eot_predictive_mechanics_authorities(
+            authorities=post_predictive,
+            active_states=state["active"],
+        )
+        if predictive_error is not None:
+            return _error("rejected", predictive_error)
+    elif post_predictive is not None:
+        return _error("rejected", "unexpected_post_eot_predictive_mechanics_authority")
     charge_transport = eot["phase_input"].get("standard_charge_lifecycle_authorities")
     post_charge = state.get("post_eot_standard_charge_lifecycle_authorities")
     if charge_transport is None:
@@ -134,8 +155,21 @@ def _request(source, state, teams, history, generation):
             "source_post_eot_state_fingerprint": fingerprint(state),
             "source_replacement_request_id": request_id,
             "provenance": "detached_post_eot_replacement_handoff_v1"}
+        next_fingerprint = fingerprint(next_state)
+        predictive = materialize_next_turn_predictive_mechanics_authority(
+            next_decision_state=next_state,
+            next_decision_fingerprint=next_fingerprint,
+            source_post_eot_fingerprint=fingerprint(state),
+        )
+        if isinstance(predictive, Mapping) and predictive.get("status") == "rejected":
+            return _error(
+                "rejected",
+                predictive.get("reason", "next_turn_predictive_mechanics_unavailable"),
+            )
         result["detached_next_decision_state"] = next_state
-        result["next_decision_fingerprint"] = fingerprint(next_state)
+        result["next_decision_fingerprint"] = next_fingerprint
+        if predictive is not None:
+            result["next_turn_predictive_mechanics_authority"] = deepcopy(predictive)
     return result
 
 
@@ -368,8 +402,16 @@ def _advance(transition, authority, command):
     return _request(result["source"], result["state"], teams, result["history"], result["generation"] + 1)
 
 
-_SIDE_CONTEXTS = {"current_hp_context": "current_hp", "condition_context": "current_conditions", "ability_context": "current_abilities",
-                  "item_context": "current_items", "stat_stage_context": "current_stages", "current_type_context": "current_types"}
+_SIDE_CONTEXTS = {
+    "current_hp_context": "current_hp",
+    "condition_context": "current_conditions",
+    "ability_context": "current_abilities",
+    "item_context": "current_items",
+    "stat_stage_context": "current_stages",
+    "current_type_context": "current_types",
+    "trusted_level_context": "current_levels",
+    "final_stat_context": "current_final_stats",
+}
 
 
 def _merge_current(current, incoming, side):
@@ -425,6 +467,27 @@ def _carry_lifecycle(source, destination, side, incoming_owner):
                 row["source_slot"] = {k: incoming_owner[k] for k in ("session_id", "side", "slot_index")}
         copied["source_branch_fingerprint"] = fingerprint(source)
         destination[key] = copied
+    if "substitute_state_context" in source:
+        rebind_substitute_after_switch(
+            source_branch=source,
+            state=destination,
+            outgoing_owner=_owner(source["active"][side]),
+            incoming_owner=incoming_owner,
+            source_branch_fingerprint=fingerprint(source),
+        )
+    predictive = source.get("post_eot_predictive_mechanics_authorities")
+    if predictive is not None:
+        rebound_predictive = rebind_post_eot_predictive_mechanics_after_replacement(
+            authorities=predictive,
+            source_state=source,
+            next_state=destination,
+            replaced_side=side,
+            incoming_owner=incoming_owner,
+            source_state_fingerprint=fingerprint(source),
+        )
+        if isinstance(rebound_predictive, str):
+            return rebound_predictive
+        destination["post_eot_predictive_mechanics_authorities"] = rebound_predictive
     charge = source.get("post_eot_standard_charge_lifecycle_authorities")
     if charge is not None:
         carried = retire_standard_charge_lifecycle_for_replacement(

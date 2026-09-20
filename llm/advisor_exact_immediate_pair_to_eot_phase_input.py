@@ -8,12 +8,16 @@ from llm.advisor_end_of_turn_residual_phase import freeze_end_of_turn_phase_inpu
 from llm.advisor_standard_charge_lifecycle_transport import (
     derive_standard_charge_lifecycle_transport_authorities,
 )
+from llm.advisor_next_turn_predictive_mechanics_authority import (
+    normalize_terminal_predictive_mechanics_authority,
+)
 
 
 SCHEMA_VERSION = "detached-immediate-pair-terminal-eot-active-authority-v1"
 SWITCH_HAZARD_SCHEMA_VERSION = "detached-exact-pair-terminal-switch-hazard-authority-v1"
 _SIDES = ("self", "opponent")
 _BASE = ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")
+_ACTION_BINDING_KEYS = ("session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner")
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 
 
@@ -47,7 +51,23 @@ def materialize_exact_immediate_pair_to_eot_phase_input(
         condition = _path_local_condition(leaf, row["owner"], base)
         if isinstance(condition, str):
             return _result("incomplete", condition, base)
-        rows[side] = {**row, "item": item if item is not None else row["item"], "condition": condition if condition is not None else row["condition"]}
+        resolved = {
+            **row,
+            "item": item if item is not None else row["item"],
+            "condition": condition if condition is not None else row["condition"],
+        }
+        predictive = normalize_terminal_predictive_mechanics_authority(
+            value=terminal_active_authorities[side].get("predictive_mechanics"),
+            base=base,
+            terminal_leaf=leaf,
+            owner=row["owner"],
+            resolved_active=resolved,
+        )
+        if isinstance(predictive, Mapping) and predictive.get("status") == "rejected":
+            return _result("rejected", predictive.get("reason", "terminal_predictive_mechanics_rejected"), base)
+        if predictive is not None:
+            resolved["predictive_mechanics"] = predictive
+        rows[side] = resolved
     hazards = _switch_hazard_authorities(switch_hazard_authorities, base, leaf)
     if isinstance(hazards, str):
         return _result("incomplete" if hazards.endswith("_unknown") or hazards.endswith("_unrepresented") else "rejected", hazards, base)
@@ -192,7 +212,14 @@ def _path_local_item(leaf: Mapping[str, Any], owner: Mapping[str, Any], base: Ma
                 continue
             if sitrus.get("item_after") != {"status": "known_absent", "value": None, "consumption_cause": "sitrus_berry"}:
                 return "exact_eot_terminal_sitrus_item_consequence_invalid"
-            if not _bound_action(action, base) or sitrus.get("source_leaf_id") != action.get("leaf_id") or any(sitrus.get(key) != base[key] for key in _BASE):
+            if (
+                not _bound_action(action, base)
+                or sitrus.get("source_leaf_id") != action.get("leaf_id")
+                or any(
+                    sitrus.get(key) != action["provenance"].get(key)
+                    for key in _ACTION_BINDING_KEYS
+                )
+            ):
                 return "exact_eot_terminal_sitrus_item_binding_invalid"
             result = {"status": "known_absent", "source_binding": {"session_id": base["session_id"], "source_runtime_fingerprint": base["source_runtime_fingerprint"], "source_branch_fingerprint": base["source_branch_fingerprint"], "owner": deepcopy(dict(owner))}, "source_terminal_leaf_id": leaf["pair_leaf_id"], "provenance": "exact_terminal_sitrus_consumption"}
         elif any(key in consequences for key in ("knock_off_item_removal", "item_transfer_after_hit", "atomic_item_swap")):
@@ -234,5 +261,15 @@ def _owner(value: Any, session: Any) -> bool:
 def _hp(value: Any) -> bool: return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 def _positive(value: Any) -> bool: return _hp(value) and value > 0
 def _bound_action(action: Any, base: Mapping[str, Any]) -> bool:
-    return isinstance(action, Mapping) and isinstance(action.get("leaf_id"), str) and bool(action["leaf_id"]) and isinstance(action.get("provenance"), Mapping) and all(action["provenance"].get(key) == base[key] for key in _BASE)
+    return (
+        isinstance(action, Mapping)
+        and isinstance(action.get("leaf_id"), str)
+        and bool(action["leaf_id"])
+        and isinstance(action.get("provenance"), Mapping)
+        and action["provenance"].get("session_id") == base["session_id"]
+        and all(
+            action["provenance"].get(key) is not None
+            for key in _ACTION_BINDING_KEYS
+        )
+    )
 def _result(status: str, reason: str, base: Mapping[str, Any] | None = None) -> dict[str, Any]: return {"status": status, "schema_version": SCHEMA_VERSION, **(deepcopy(dict(base)) if base else {}), "reason": reason}

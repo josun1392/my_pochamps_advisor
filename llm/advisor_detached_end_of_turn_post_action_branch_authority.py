@@ -10,6 +10,10 @@ from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_standard_charge_lifecycle_transport import (
     project_post_eot_standard_charge_lifecycle_authorities,
 )
+from llm.advisor_next_turn_predictive_mechanics_authority import (
+    apply_post_eot_predictive_mechanics_contexts,
+    project_post_eot_predictive_mechanics_authorities,
+)
 
 
 SCHEMA_VERSION = "detached-end-of-turn-post-action-branch-authority-v1"
@@ -34,6 +38,21 @@ def materialize_detached_end_of_turn_post_action_branch_authority(
         return _result(ledger.get("status", "rejected"), ledger.get("reason", "invalid_end_of_turn_residual_ledger"))
     try:
         state = _post_action_state(ledger)
+        predictive = project_post_eot_predictive_mechanics_authorities(
+            phase_input=ledger["phase_input"],
+            post_end_of_turn_active_states=ledger["post_end_of_turn_active_states"],
+            source_eot_fingerprint=source_eot_fingerprint,
+        )
+        if isinstance(predictive, str):
+            raise _Rejected(predictive)
+        if predictive is not None:
+            projected = apply_post_eot_predictive_mechanics_contexts(
+                state=state,
+                authorities=predictive,
+            )
+            if isinstance(projected, str):
+                raise _Rejected(projected)
+            state = projected
         charge = ledger.get("phase_input", {}).get("standard_charge_lifecycle_authorities")
         if charge is not None:
             post_charge = project_post_eot_standard_charge_lifecycle_authorities(
