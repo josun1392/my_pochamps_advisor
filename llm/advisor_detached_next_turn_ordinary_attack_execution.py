@@ -29,7 +29,9 @@ def materialize_detached_next_turn_ordinary_attack_execution_authority(*,next_de
     if not isinstance(actor,Mapping) or not isinstance(target,Mapping) or intent.get("actor")!=actor.get("owner") or intent.get("target")!=target.get("owner"):return _result("rejected","ordinary_attack_intent_predictive_identity_mismatch")
     move=_move(intent.get("canonical_move_metadata_authority"),intent.get("move_id"))
     if isinstance(move,str):return _result("unsupported",move)
-    row={"status":"resolved","schema_version":AUTHORITY_SCHEMA_VERSION,"side":side,"source_next_decision_fingerprint":next_decision_fingerprint,"actor":deepcopy(dict(intent["actor"])),"target":deepcopy(dict(intent["target"])),"move_id":intent["move_id"],"continuation_action_id":intent["action_id"],"canonical_terminal_effect":{"move":move,"secondary":{"kind":"none"}},"predictive_actor_mechanics":deepcopy(dict(actor)),"predictive_target_mechanics":deepcopy(dict(target)),"action_intent":deepcopy(dict(intent)),"execution_grant":"authenticated_hypothetical_ordinary_attack_only"}
+    secondary=_secondary(move)
+    if isinstance(secondary,str):return _result("unsupported",secondary)
+    row={"status":"resolved","schema_version":AUTHORITY_SCHEMA_VERSION,"side":side,"source_next_decision_fingerprint":next_decision_fingerprint,"actor":deepcopy(dict(intent["actor"])),"target":deepcopy(dict(intent["target"])),"move_id":intent["move_id"],"continuation_action_id":intent["action_id"],"canonical_terminal_effect":{"move":move,"secondary":secondary},"predictive_actor_mechanics":deepcopy(dict(actor)),"predictive_target_mechanics":deepcopy(dict(target)),"action_intent":deepcopy(dict(intent)),"execution_grant":"authenticated_hypothetical_ordinary_attack_only"}
     return {"status":"resolved","schema_version":AUTHORITY_SCHEMA_VERSION,"source_next_decision_fingerprint":next_decision_fingerprint,"next_decision_state":deepcopy(dict(next_decision_state)),"predictive_mechanics":deepcopy(dict(predictive_mechanics)),"action_intents":deepcopy(dict(action_intents)),"side":side,"action":row,"provenance":"detached_next_turn_hypothetical_ordinary_attack_authority_v1"}
 
 def validate_detached_next_turn_ordinary_attack_execution_authority(*,authority:Any,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,**kwargs:Any)->str|None:
@@ -53,7 +55,14 @@ def _move(metadata:Any,move_id:Any)->dict[str,Any]|str:
     if value.get("category") not in {"physical","special"} or not isinstance(value.get("power"),int) or isinstance(value["power"],bool) or value["power"]<=0:return "ordinary_attack_non_normal_formula_family_unsupported"
     if not isinstance(value.get("accuracy"),int) or isinstance(value["accuracy"],bool) or not 1<=value["accuracy"]<=100:return "ordinary_attack_accuracy_unsupported"
     if value.get("min_hits",1)!=1 or value.get("max_hits",1)!=1 or value.get("charge") is True or value.get("drain") or value.get("recoil"):return "ordinary_attack_special_family_unsupported"
-    if value.get("secondary") not in {None,"none"}:return "ordinary_attack_secondary_unowned"
+    if value.get("stat_changes") not in (None, [], ()) :return "ordinary_attack_secondary_unowned"
     if not isinstance(value.get("type"),str) or not value["type"] or not isinstance(value.get("priority"),int):return "ordinary_attack_metadata_invalid"
-    return {"move_id":move_id,"power":value["power"],"accuracy":value["accuracy"],"category":value["category"],"type":value["type"],"priority":value["priority"]}
+    return {"move_id":move_id,"power":value["power"],"accuracy":value["accuracy"],"category":value["category"],"type":value["type"],"priority":value["priority"],"target":value.get("target"),"effect_chance":value.get("effect_chance"),"ailment":value.get("ailment","none")}
+def _secondary(move):
+    ailment,chance=move.get("ailment"),move.get("effect_chance")
+    if ailment in {None,"none"} and chance in {None,0}:return {"kind":"none"}
+    if not isinstance(chance,int) or isinstance(chance,bool) or not 1<=chance<=99:return "ordinary_attack_secondary_metadata_invalid"
+    if ailment=="flinch":return {"kind":"flinch","chance":chance}
+    if ailment in {"paralysis","burn"}:return {"kind":"status","condition":ailment,"chance":chance}
+    return "ordinary_attack_secondary_unowned"
 def _result(status,reason):return {"status":status,"schema_version":AUTHORITY_SCHEMA_VERSION,"reason":reason}
