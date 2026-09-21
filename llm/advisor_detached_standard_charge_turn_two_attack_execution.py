@@ -20,6 +20,7 @@ from llm.advisor_detached_next_turn_life_orb_immediate_authority import material
 from llm.advisor_standard_charge_terminal_execution import (
     CALLER_AUTH_SCHEMA_VERSION,
     FORCED_TURN_TWO_EXECUTION_MODE,
+    execute_authenticated_terminal_mechanics_compatibility,
     execute_standard_charge_terminal_attack,
     materialize_standard_charge_terminal_execution_contract,
     standard_charge_terminal_missing_authority,
@@ -195,6 +196,37 @@ def validate_detached_standard_charge_turn_two_terminal_execution_contract(
 
 
 def _execute_one(row: Mapping[str, Any], execution_authority: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    # Backward-compatible private entry used by detached ordinary attacks.
+    if execution_authority.get("schema_version") != AUTHORITY_SCHEMA_VERSION:
+        actor, target = row["predictive_actor_mechanics"], row["predictive_target_mechanics"]
+        if pair_local_predictive_mechanics is not None:
+            from llm.advisor_detached_next_turn_pair_local_predictive_mechanics import validate_detached_next_turn_pair_local_predictive_mechanics
+            if validate_detached_next_turn_pair_local_predictive_mechanics(
+                authority=pair_local_predictive_mechanics,
+                next_decision_state=execution_authority.get("next_decision_state"),
+                next_decision_fingerprint=execution_authority.get("source_next_decision_fingerprint"),
+            ) is not None:
+                return {"status": "incomplete", "schema_version": SCHEMA_VERSION, "reason": "pair_local_predictive_mechanics_invalid", "execution_authority": deepcopy(dict(row))}
+            sides = pair_local_predictive_mechanics.get("sides", {})
+            actor, target = sides.get(row["actor"]["side"]), sides.get(row["target"]["side"])
+            if not isinstance(actor, Mapping) or not isinstance(target, Mapping) or actor.get("owner") != row["actor"] or target.get("owner") != row["target"]:
+                return {"status": "incomplete", "schema_version": SCHEMA_VERSION, "reason": "pair_local_execution_identity_mismatch", "execution_authority": deepcopy(dict(row))}
+        missing = standard_charge_terminal_missing_authority(actor) + standard_charge_terminal_missing_authority(target)
+        if missing:
+            return {"status": "incomplete", "schema_version": SCHEMA_VERSION, "reason": "detached_damage_mechanics_incomplete", "missing_authority": tuple(sorted(set(missing))), "execution_authority": deepcopy(dict(row))}
+        terminal = _terminal_authorities(row, execution_authority, row["canonical_terminal_effect"]["move"], pair_local_predictive_mechanics)
+        if terminal.get("status") != "resolved":
+            return {"status": "incomplete", "schema_version": SCHEMA_VERSION, "reason": terminal.get("reason", "detached_terminal_authority_unavailable"), "execution_authority": deepcopy(dict(row))}
+        result = execute_authenticated_terminal_mechanics_compatibility(
+            row=row,
+            actor_mechanics=actor,
+            target_mechanics=target,
+            terminal_authorities=terminal,
+        )
+        result = deepcopy(dict(result))
+        result["schema_version"] = SCHEMA_VERSION
+        return result
+
     contract = materialize_detached_standard_charge_turn_two_terminal_execution_contract(
         execution_authority=execution_authority,
         side=row["side"],

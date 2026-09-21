@@ -169,36 +169,85 @@ def validate_standard_charge_terminal_execution_contract(contract: Any) -> str |
 
 
 def execute_standard_charge_terminal_attack(*, execution_contract: Mapping[str, Any]) -> dict[str, Any]:
-    """Execute only D-K terminal mechanics from one authenticated contract."""
+    """Execute D-K terminal mechanics from one authenticated charge contract."""
     error = validate_standard_charge_terminal_execution_contract(execution_contract)
     if error is not None:
         return _result("rejected", error)
-    row = execution_contract
-    actor, target = row["actor_mechanics"], row["target_mechanics"]
     terminal = {
         "status": "resolved",
-        "attacker_item": deepcopy(dict(row["attacker_held_item_effect_authority"])),
-        "target_item": deepcopy(dict(row["target_held_item_effect_authority"])),
-        "sturdy": deepcopy(dict(row["target_sturdy_authority"])),
-        "focus_sash": deepcopy(dict(row["target_focus_sash_authority"])),
-        "life_orb": deepcopy(dict(row["attacker_life_orb_authority"])),
+        "attacker_item": deepcopy(dict(execution_contract["attacker_held_item_effect_authority"])),
+        "target_item": deepcopy(dict(execution_contract["target_held_item_effect_authority"])),
+        "sturdy": deepcopy(dict(execution_contract["target_sturdy_authority"])),
+        "focus_sash": deepcopy(dict(execution_contract["target_focus_sash_authority"])),
+        "life_orb": deepcopy(dict(execution_contract["attacker_life_orb_authority"])),
     }
+    return _execute_authenticated_terminal_mechanics(
+        row=execution_contract,
+        actor=execution_contract["actor_mechanics"],
+        target=execution_contract["target_mechanics"],
+        terminal=terminal,
+        caller_action_authority=execution_contract["caller_action_authority"],
+    )
+
+
+def execute_authenticated_terminal_mechanics_compatibility(
+    *,
+    row: Mapping[str, Any],
+    actor_mechanics: Mapping[str, Any],
+    target_mechanics: Mapping[str, Any],
+    terminal_authorities: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Legacy ordinary-action compatibility over the single D-K mechanics engine.
+
+    This is not a standard-charge execution grant and does not accept a
+    mechanics-only current-D0 bundle. Caller-specific code must authenticate
+    identity/state and materialize terminal supports before invoking it.
+    """
+    if not isinstance(row, Mapping) or not isinstance(actor_mechanics, Mapping) or not isinstance(target_mechanics, Mapping):
+        return _result("rejected", "terminal_mechanics_compatibility_input_invalid")
+    if not isinstance(terminal_authorities, Mapping) or terminal_authorities.get("status") != "resolved":
+        return _result("rejected", "terminal_mechanics_compatibility_support_invalid")
+    normalized = {
+        **deepcopy(dict(row)),
+        "action_id": row.get("continuation_action_id", row.get("action_id")),
+        "actor_mechanics": deepcopy(dict(actor_mechanics)),
+        "target_mechanics": deepcopy(dict(target_mechanics)),
+    }
+    if not isinstance(normalized.get("action_id"), str) or not normalized["action_id"]:
+        return _result("rejected", "terminal_mechanics_compatibility_action_invalid")
+    return _execute_authenticated_terminal_mechanics(
+        row=normalized,
+        actor=actor_mechanics,
+        target=target_mechanics,
+        terminal=terminal_authorities,
+        caller_action_authority=row,
+    )
+
+
+def _execute_authenticated_terminal_mechanics(
+    *,
+    row: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+    terminal: Mapping[str, Any],
+    caller_action_authority: Mapping[str, Any],
+) -> dict[str, Any]:
     gate = _pre_action_gate(actor, target, row["move_id"])
     if gate["status"] == "incomplete":
         return {
             "status": "incomplete", "schema_version": KERNEL_SCHEMA_VERSION,
             "reason": gate["reason"],
-            "execution_authority": deepcopy(dict(row["caller_action_authority"])),
+            "execution_authority": deepcopy(dict(caller_action_authority)),
             "pre_action_gate": gate,
         }
     if gate["outcome"] == "cancelled":
-        return _cancelled(row, gate)
+        return _cancelled(row, gate, caller_action_authority)
     opportunities = gate.get("branches", ({"kind": "executes", "executes": True, "probability": _fd(Fraction(1))},))
     actor_stages, target_stages = actor["current_stages"]["values"], target["current_stages"]["values"]
     move = row["canonical_terminal_effect"]["move"]
     accuracy = _accuracy(move["accuracy"], actor_stages["accuracy"], target_stages["evasion"])
     if accuracy is None:
-        return _incomplete(row, "detached_accuracy_stage_adapter_unavailable")
+        return _incomplete(row, "detached_accuracy_stage_adapter_unavailable", caller_action_authority)
     crit_stage = resolve_crit_stage(
         {"ability": _value(actor["ability"]), "item": _value(actor["item"]), "types": tuple(actor["types"]["value"]), "volatiles": _volatiles(actor["critical_hit_volatiles"])},
         {"move_id": move["move_id"]},
@@ -213,15 +262,15 @@ def execute_standard_charge_terminal_attack(*, execution_contract: Mapping[str, 
         root = _fraction(opportunity["probability"])
         if not opportunity.get("executes"):
             if opportunity.get("kind", "").endswith("confusion_self_hit"):
-                self_hits = _confusion_self_hit_leaves(row, actor, opportunity)
+                self_hits = _confusion_self_hit_leaves(row, actor, opportunity, caller_action_authority)
                 if self_hits is None:
-                    return _incomplete(row, "confusion_self_hit_exact_identity_unavailable")
+                    return _incomplete(row, "confusion_self_hit_exact_identity_unavailable", caller_action_authority)
                 leaves.extend(self_hits)
                 continue
-            leaves.append(_gate_cancelled_leaf(row, opportunity))
+            leaves.append(_gate_cancelled_leaf(row, opportunity, caller_action_authority))
             continue
         if accuracy < 1:
-            miss = _miss_leaf(row, actor, target, root * (1 - accuracy))
+            miss = _miss_leaf(row, actor, target, root * (1 - accuracy), caller_action_authority)
             miss["branch_path"] = ("pre_action", opportunity["kind"], *miss["branch_path"])
             leaves.append(miss)
         for critical, cp in ((False, 1 - crit), (True, crit)):
@@ -234,22 +283,26 @@ def execute_standard_charge_terminal_attack(*, execution_contract: Mapping[str, 
                 actor, target,
             )
             if rolls is None:
-                return _incomplete(row, "detached_damage_context_unavailable")
+                return _incomplete(row, "detached_damage_context_unavailable", caller_action_authority)
             for index, damage in enumerate(rolls):
-                event = _hit_event(row, actor, target, critical, index, damage, root * accuracy * cp * Fraction(1, 16), terminal)
+                event = _hit_event(
+                    row, actor, target, critical, index, damage,
+                    root * accuracy * cp * Fraction(1, 16), terminal,
+                    caller_action_authority,
+                )
                 event["branch_path"] = ("pre_action", opportunity["kind"], *event["branch_path"])
                 secondary = _secondary_branches(row, actor, target, event)
                 if secondary is None:
-                    return _incomplete(row, "detached_secondary_capability_unavailable")
+                    return _incomplete(row, "detached_secondary_capability_unavailable", caller_action_authority)
                 leaves.extend(_apply_life_orb(secondary, terminal["life_orb"], damage > 0))
     total = sum((_fraction(leaf["probability"]) for leaf in leaves), Fraction())
     if total != 1:
-        return _incomplete(row, "detached_attack_ledger_probability_not_normalized")
+        return _incomplete(row, "detached_attack_ledger_probability_not_normalized", caller_action_authority)
     return {
         "status": "resolved",
         "schema_version": KERNEL_SCHEMA_VERSION,
-        "execution_authority": deepcopy(dict(row["caller_action_authority"])),
-        "terminal_authorities": deepcopy(terminal),
+        "execution_authority": deepcopy(dict(caller_action_authority)),
+        "terminal_authorities": deepcopy(dict(terminal)),
         "pre_action_gate": gate,
         "hit_probability": _fd(accuracy),
         "critical_probability": _fd(crit),
@@ -355,7 +408,7 @@ def _damage_rolls(row: Mapping[str, Any], critical: bool, attacker_item: str | N
         return None
 
 
-def _hit_event(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], critical: bool, index: int, damage: int, probability: Fraction, terminal: Mapping[str, Any]) -> dict[str, Any]:
+def _hit_event(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], critical: bool, index: int, damage: int, probability: Fraction, terminal: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
     hp = target["current_hp"]["current_hp"]; actual = min(hp, damage); post = hp - actual
     consequence = {"damage": actual, "raw_damage": damage, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": post, "target_ko": post == 0, "self_fainted": False, "secondary": None, "sturdy_survival": {"outcome": "not_activated"}, "focus_sash_survival": {"outcome": "not_activated"}}
     if post == 0 and terminal["sturdy"].get("status") == "ready":
@@ -366,11 +419,11 @@ def _hit_event(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping
             consequence["focus_sash_survival"] = sash
         elif sash.get("outcome") == "activated":
             consequence.update({"target_final_hp": 1, "target_ko": False, "focus_sash_survival": sash, "target_item_after": deepcopy(sash["item_after"])})
-    return {"leaf_id": f"{row['action_id']}:hit:{'critical' if critical else 'noncritical'}:roll:{index}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("hit", "critical" if critical else "noncritical", f"damage_roll:{index}"), "probability": _fd(probability), "hit_state": "hit", "critical_state": "critical" if critical else "non_critical", "damage_roll": {"roll_index": index, "random_factor_percent": 85 + index}, "consequences": consequence, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(row["caller_action_authority"]))}}
+    return {"leaf_id": f"{row['action_id']}:hit:{'critical' if critical else 'noncritical'}:roll:{index}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("hit", "critical" if critical else "noncritical", f"damage_roll:{index}"), "probability": _fd(probability), "hit_state": "hit", "critical_state": "critical" if critical else "non_critical", "damage_roll": {"roll_index": index, "random_factor_percent": 85 + index}, "consequences": consequence, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(caller_action_authority))}}
 
 
-def _miss_leaf(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], probability: Fraction) -> dict[str, Any]:
-    return {"leaf_id": f"{row['action_id']}:miss", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("miss",), "probability": _fd(probability), "hit_state": "miss", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": target["current_hp"]["current_hp"], "target_ko": False, "self_fainted": False, "secondary": None, "sturdy_survival": {"outcome": "not_activated"}, "focus_sash_survival": {"outcome": "not_activated"}, "life_orb": {"outcome": "not_triggered"}}, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(row["caller_action_authority"]))}}
+def _miss_leaf(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], probability: Fraction, caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
+    return {"leaf_id": f"{row['action_id']}:miss", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("miss",), "probability": _fd(probability), "hit_state": "miss", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": target["current_hp"]["current_hp"], "target_ko": False, "self_fainted": False, "secondary": None, "sturdy_survival": {"outcome": "not_activated"}, "focus_sash_survival": {"outcome": "not_activated"}, "life_orb": {"outcome": "not_triggered"}}, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(caller_action_authority))}}
 
 
 def _secondary_branches(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], event: Mapping[str, Any]) -> list[dict[str, Any]] | None:
@@ -450,11 +503,11 @@ def _confusion_ability(actor: Mapping[str, Any], target: Mapping[str, Any]) -> d
     base = _gate_ability(actor, target); base["own_tempo_active"] = base["status"] == "resolved" and base["ability_id"] == "own-tempo" and not base["suppressed"]; return base
 
 
-def _gate_cancelled_leaf(row: Mapping[str, Any], branch: Mapping[str, Any]) -> dict[str, Any]:
+def _gate_cancelled_leaf(row: Mapping[str, Any], branch: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
     return {"leaf_id": f"{row['action_id']}:cancelled:{branch['kind']}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("pre_action", branch["kind"]), "probability": deepcopy(branch["probability"]), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "secondary": None, "execution_failure": branch["kind"]}, "provenance": {"execution_authority": deepcopy(dict(row["caller_action_authority"]))}}
 
 
-def _confusion_self_hit_leaves(row: Mapping[str, Any], actor: Mapping[str, Any], branch: Mapping[str, Any]) -> list[dict[str, Any]] | None:
+def _confusion_self_hit_leaves(row: Mapping[str, Any], actor: Mapping[str, Any], branch: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> list[dict[str, Any]] | None:
     direct = actor["direct_mechanics"].get("combatant", {})
     species, disguise = direct.get("species_id"), direct.get("disguise_state")
     if not isinstance(species, str) or disguise not in {None, "intact", "broken"}: return None
@@ -471,7 +524,7 @@ def _confusion_self_hit_leaves(row: Mapping[str, Any], actor: Mapping[str, Any],
     return leaves
 
 
-def _cancelled(row: Mapping[str, Any], gate: Mapping[str, Any]) -> dict[str, Any]:
+def _cancelled(row: Mapping[str, Any], gate: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
     leaf = {"leaf_id": f"{row['action_id']}:cancelled:{gate['reason']}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("pre_action_cancelled", gate["reason"]), "probability": _fd(Fraction(1, 1)), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "secondary": None, "execution_failure": gate["reason"]}, "provenance": {"execution_authority": deepcopy(dict(row["caller_action_authority"]))}}
     return {"status": "resolved", "schema_version": KERNEL_SCHEMA_VERSION, "execution_authority": deepcopy(dict(row["caller_action_authority"])), "pre_action_gate": deepcopy(dict(gate)), "terminal_leaves": (leaf,), "terminal_probability_mass": _fd(Fraction(1, 1)), "provenance": "authenticated_standard_charge_shared_terminal_pre_action_cancellation_v1"}
 
@@ -498,7 +551,7 @@ def _volatiles(fact: Mapping[str, Any]) -> tuple[str, ...]:
 
 def _fd(value: Fraction) -> dict[str, int]: return {"numerator": value.numerator, "denominator": value.denominator}
 def _fraction(value: Mapping[str, Any]) -> Fraction: return Fraction(value["numerator"], value["denominator"])
-def _incomplete(row: Mapping[str, Any], reason: str) -> dict[str, Any]: return {"status": "incomplete", "schema_version": KERNEL_SCHEMA_VERSION, "reason": reason, "execution_authority": deepcopy(dict(row["caller_action_authority"]))}
+def _incomplete(row: Mapping[str, Any], reason: str, caller_action_authority: Mapping[str, Any]) -> dict[str, Any]: return {"status": "incomplete", "schema_version": KERNEL_SCHEMA_VERSION, "reason": reason, "execution_authority": deepcopy(dict(caller_action_authority))}
 def _value(value: Mapping[str, Any]) -> str | None: return value.get("value") if value.get("status") == "known" else None
 def _condition(value: Mapping[str, Any]) -> str | None: return value.get("condition") if value.get("status") == "known_present" else None
 
