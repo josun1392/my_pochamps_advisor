@@ -12,6 +12,7 @@ from llm.advisor_immediate_move_vs_move_action_pair import (
     materialize_immediate_move_vs_move_action_pair,
 )
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from llm.advisor_substitute import update_substitute_state_context
 from tests.test_detached_opponent_response_profile import (
     _complete_state,
     _equal_speed_order,
@@ -117,6 +118,46 @@ def _order(d0, own_action, opponent_action, order: str) -> dict:
             "status": "speed_tie" if order == "tie" else order,
         },
     }
+
+
+def _with_terminal_mechanics_facts(state):
+    for side in ("self", "opponent"):
+        pokemon = state[f"{side}_side"]["pokemon"][0]
+        pokemon["stat_stages"].update(accuracy=0, evasion=0)
+        pokemon["condition_provenance"] = {
+            "event_kind": "current_condition_observed",
+            "trust": "user_confirmed_observation",
+            "condition": "none",
+            "turn_number": 1,
+        }
+        state[f"{side}_side"]["side_conditions"] = []
+        state[f"{side}_side"]["side_conditions_provenance"] = {
+            "event_kind": "current_side_conditions_observed",
+            "trust": "user_confirmed_observation",
+        }
+        pokemon["current_confusion"] = "none"
+        pokemon["confusion_provenance"] = {
+            "event_kind": "current_confusion_observed",
+            "trust": "user_confirmed_observation",
+            "turn_number": 1,
+            "state": "none",
+        }
+        owner = _owner(state, side)
+        state["substitute_state_context"] = update_substitute_state_context(
+            context=state.get("substitute_state_context"),
+            session_id=state["session_id"],
+            owner=owner,
+            state="known_inactive",
+            substitute_hp=None,
+            provenance="runtime_observed_substitute_state_v1",
+        )
+    state["field"]["terrain"] = "none"
+    state["field"]["terrain_provenance"] = {
+        "event_kind": "current_terrain_observed",
+        "trust": "user_confirmed_observation",
+        "turn_number": 1,
+    }
+    return state
 
 
 def _case(
@@ -364,8 +405,8 @@ def test_thunderbolt_paralysis_cancel_branch_has_no_charge_and_execute_branch_ch
     assert normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)["status"] == "evaluable"
 
 
-def test_active_power_herb_charge_pair_propagates_unimplemented_skip_boundary():
-    state = _complete_state(_state())
+def test_active_power_herb_charge_pair_executes_same_turn_without_charge_context():
+    state = _with_terminal_mechanics_facts(_complete_state(_state()))
     actor_raw = state["self_side"]["pokemon"][0]
     actor_raw["known_item"] = "power-herb"
     actor_raw["known_item_provenance"] = {
@@ -392,9 +433,15 @@ def test_active_power_herb_charge_pair_propagates_unimplemented_skip_boundary():
         opponent_action=opponent,
         action_order_authority=_order(d0, own, opponent, "own_first"),
     )
-    assert pair["status"] == "unsupported"
-    assert pair["reason"] == "power_herb_charge_skip_execution_unrepresented"
-    assert "terminal_branches" not in pair
+    assert pair["status"] == "evaluable", (pair.get("status"), pair.get("reason"))
+    assert pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert pair["terminal_branches"]
+    first_leaves = [branch["first_action_leaf"] for branch in pair["terminal_branches"]]
+    assert all(leaf["provenance"]["move_id"] == "sky-attack" for leaf in first_leaves)
+    assert all("detached_standard_charge_lifecycle_context" not in leaf["consequences"] for leaf in first_leaves)
+    executing = [leaf for leaf in first_leaves if "power_herb_consumption" in leaf["consequences"]]
+    assert executing
+    assert all(leaf["consequences"]["actor_item_after"] == {"status": "known_absent", "value": None} for leaf in executing)
 
 
 def _event_charge_context(event):

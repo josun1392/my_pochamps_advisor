@@ -19,6 +19,10 @@ from llm.advisor_champions_sleep_application import materialize_champions_rest, 
 from llm.advisor_detached_standard_charge_start import (
     materialize_detached_standard_charge_start,
 )
+from llm.advisor_runtime_d0_standard_charge_power_herb_skip_execution import (
+    freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority,
+    execute_runtime_d0_standard_charge_power_herb_skip,
+)
 
 SCHEMA_VERSION = "detached-selected-action-execution-result-v1"
 _GRAPH_MOVES = frozenset({"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"})
@@ -38,9 +42,15 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
     move_id = metadata["move_id"]
     authorities = family_authorities if isinstance(family_authorities, Mapping) else {}
     if move_id in _STANDARD_CHARGE_MOVES:
+        readiness = authorities.get("standard_charge_start_readiness_authority")
+        if isinstance(readiness, Mapping) and readiness.get("outcome") == "power_herb_charge_skip_ready":
+            return _standard_charge_power_herb_skip(
+                base, strategy_d0, runtime_snapshot, action, actor, target,
+                move_metadata, readiness,
+            )
         return _standard_charge_start(
             base, strategy_d0, runtime_snapshot, action, actor, target,
-            authorities.get("standard_charge_start_readiness_authority"),
+            readiness,
         )
     if move_id in _GRAPH_MOVES:
         return _graph(base, strategy_d0, runtime_snapshot, action, actor, target, metadata, authorities)
@@ -74,6 +84,65 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
         if state.get("status") != "resolved": return _result(state.get("status", "incomplete"), state.get("reason", "ordinary_post_action_state_unavailable"), base)
         paths.append({"probability":deepcopy(leaf["probability"]), "action_leaf":deepcopy(leaf), "post_action_state":deepcopy(state)})
     return {"status":"resolved", "schema_version":SCHEMA_VERSION, **base, "execution_family":"ordinary_attack", "probability_owner":"selected_action_only", "paths":tuple(paths), "provenance":"selected_action_to_existing_predictive_attack_ledger_v1"}
+
+
+def _standard_charge_power_herb_skip(
+    base: Mapping[str, Any],
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    action: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+    move_metadata: Mapping[str, Any],
+    readiness: Mapping[str, Any],
+) -> dict[str, Any]:
+    execution = freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        action=action,
+        actor=actor,
+        target=target,
+        move_metadata=move_metadata,
+        readiness_authority=readiness,
+    )
+    if execution.get("status") != "resolved":
+        return _result(execution.get("status", "incomplete"), execution.get("reason", "power_herb_skip_execution_authority_unavailable"), base)
+    kernel = execute_runtime_d0_standard_charge_power_herb_skip(execution_authority=execution)
+    if kernel.get("status") != "resolved":
+        return _result(kernel.get("status", "incomplete"), kernel.get("reason", "power_herb_terminal_execution_unavailable"), base)
+    if kernel.get("terminal_probability_mass") != {"numerator": 1, "denominator": 1}:
+        return _result("rejected", "power_herb_terminal_probability_mass_invalid", base)
+    leaves = kernel.get("terminal_leaves")
+    if not isinstance(leaves, tuple) or not leaves:
+        return _result("rejected", "power_herb_terminal_leaves_missing", base)
+    paths = []
+    for leaf in leaves:
+        if not isinstance(leaf, Mapping):
+            return _result("rejected", "power_herb_terminal_leaf_invalid", base)
+        state = materialize_detached_predictive_intermediate_state(
+            strategy_d0=strategy_d0,
+            terminal_leaf=leaf,
+        )
+        if state.get("status") != "resolved":
+            return _result(state.get("status", "incomplete"), state.get("reason", "power_herb_post_action_state_unavailable"), base)
+        paths.append({
+            "probability": deepcopy(leaf["probability"]),
+            "action_leaf": deepcopy(dict(leaf)),
+            "post_action_state": state,
+            "power_herb_skip_execution_authority": deepcopy(dict(execution)),
+            "pending_action_executed": False,
+        })
+    return {
+        "status": "resolved",
+        "schema_version": SCHEMA_VERSION,
+        **deepcopy(dict(base)),
+        "execution_family": "standard_charge_power_herb_skip",
+        "probability_owner": "selected_action_only",
+        "paths": tuple(paths),
+        "terminal_probability_mass": deepcopy(kernel["terminal_probability_mass"]),
+        "shared_terminal_execution": deepcopy(dict(kernel)),
+        "provenance": "selected_action_to_authenticated_power_herb_standard_charge_terminal_v1",
+    }
 
 
 def _standard_charge_start(

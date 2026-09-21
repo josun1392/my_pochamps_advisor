@@ -181,11 +181,14 @@ def test_shared_kernel_preserves_fainted_and_paralysis_pre_action_gates():
     assert result["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
 
 
-def test_power_herb_execution_mode_is_reserved_but_not_enabled():
+def test_power_herb_execution_mode_cannot_be_forged_from_turn_two_caller():
     _state, _fingerprint, _authority, contract = _forced_case()
     rejected = _recontract(contract, execution_mode=POWER_HERB_CURRENT_TURN_SKIP_MODE)
     assert rejected["status"] == "rejected"
-    assert rejected["reason"] == "standard_charge_terminal_execution_mode_not_enabled"
+    assert rejected["reason"] in {
+        "standard_charge_terminal_power_herb_consumption_authority_required",
+        "standard_charge_terminal_caller_authentication_mismatch",
+    }
 
 
 def test_execution_mode_and_nested_contract_tampering_reject():

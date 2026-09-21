@@ -1860,31 +1860,55 @@ def _pair_action_ledger(
             selected.get("reason", "standard_charge_selected_action_execution_unavailable"),
             {},
         )
-    if selected.get("execution_family") != "standard_charge_start":
-        return _result("rejected", "standard_charge_selected_action_family_mismatch", {})
+    family = selected.get("execution_family")
     paths = selected.get("paths")
-    if not isinstance(paths, tuple) or len(paths) != 1:
-        return _result("rejected", "standard_charge_selected_action_paths_invalid", {})
-    path = paths[0]
-    leaf = path.get("action_leaf") if isinstance(path, Mapping) else None
-    if (
-        not isinstance(leaf, Mapping)
-        or path.get("probability") != {"numerator": 1, "denominator": 1}
-        or leaf.get("probability") != {"numerator": 1, "denominator": 1}
-    ):
-        return _result("rejected", "standard_charge_action_leaf_invalid", {})
-    return {
-        "status": "evaluable",
-        "terminal_leaves": (deepcopy(dict(leaf)),),
-        "terminal_probability_mass": {"numerator": 1, "denominator": 1},
-        "component_manifest": {
-            "standard_charge_start": {
-                "status": "resolved",
-                "readiness_authority": deepcopy(dict(readiness)),
+    if family == "standard_charge_start":
+        if not isinstance(paths, tuple) or len(paths) != 1:
+            return _result("rejected", "standard_charge_selected_action_paths_invalid", {})
+        path = paths[0]
+        leaf = path.get("action_leaf") if isinstance(path, Mapping) else None
+        if (
+            not isinstance(leaf, Mapping)
+            or path.get("probability") != {"numerator": 1, "denominator": 1}
+            or leaf.get("probability") != {"numerator": 1, "denominator": 1}
+        ):
+            return _result("rejected", "standard_charge_action_leaf_invalid", {})
+        return {
+            "status": "evaluable",
+            "terminal_leaves": (deepcopy(dict(leaf)),),
+            "terminal_probability_mass": {"numerator": 1, "denominator": 1},
+            "component_manifest": {
+                "standard_charge_start": {
+                    "status": "resolved",
+                    "readiness_authority": deepcopy(dict(readiness)),
+                },
             },
-        },
-        "provenance": "selected_action_standard_charge_start_to_pair_action_ledger_v1",
-    }
+            "provenance": "selected_action_standard_charge_start_to_pair_action_ledger_v1",
+        }
+    if family == "standard_charge_power_herb_skip":
+        if not isinstance(paths, tuple) or not paths:
+            return _result("rejected", "power_herb_selected_action_paths_invalid", {})
+        leaves = tuple(
+            deepcopy(dict(path["action_leaf"]))
+            for path in paths
+            if isinstance(path, Mapping) and isinstance(path.get("action_leaf"), Mapping)
+        )
+        if len(leaves) != len(paths) or selected.get("terminal_probability_mass") != {"numerator": 1, "denominator": 1}:
+            return _result("rejected", "power_herb_selected_action_terminal_ledger_invalid", {})
+        return {
+            "status": "evaluable",
+            "terminal_leaves": leaves,
+            "terminal_probability_mass": {"numerator": 1, "denominator": 1},
+            "component_manifest": {
+                "standard_charge_power_herb_skip": {
+                    "status": "resolved",
+                    "readiness_authority": deepcopy(dict(readiness)),
+                    "shared_terminal_execution": deepcopy(dict(selected.get("shared_terminal_execution", {}))),
+                },
+            },
+            "provenance": "selected_action_power_herb_standard_charge_to_pair_action_ledger_v1",
+        }
+    return _result("rejected", "standard_charge_selected_action_family_mismatch", {})
 
 
 def _materialize_order(
@@ -4138,7 +4162,7 @@ def _pending_second_action_flinch(state: Mapping[str, Any], actor: Mapping[str, 
     if not isinstance(flinch, Mapping) or flinch.get("status") != "resolved" or flinch.get("affected_owner") != actor:
         return "intermediate_flinch_cancellation_authority_invalid"
     if flinch.get("state") == "not_flinched": return False
-    if flinch.get("state") == "flinched" and flinch.get("provenance") in {"exact_terminal_leaf_iron_head_flinch_secondary", "exact_terminal_leaf_fake_out_flinch_secondary", "exact_terminal_leaf_fling_item_bound_flinch"}: return True
+    if flinch.get("state") == "flinched" and flinch.get("provenance") in {"exact_terminal_leaf_iron_head_flinch_secondary", "exact_terminal_leaf_fake_out_flinch_secondary", "exact_terminal_leaf_fling_item_bound_flinch", "exact_terminal_leaf_standard_charge_flinch_secondary"}: return True
     return "intermediate_flinch_cancellation_state_invalid"
 def _branch(base: Mapping[str, Any], order: str, first: Mapping[str, Any], intermediate: Mapping[str, Any], second: Mapping[str, Any] | None, second_actor: Mapping[str, Any], order_plan: Mapping[str, Any], execution_branch: Mapping[str, Any] | None = None, pivot_transition: Mapping[str, Any] | None = None) -> dict[str, Any]:
     first_p = _fraction(first["probability"]); second_p = Fraction(1, 1) if second is None else _fraction(second["probability"])

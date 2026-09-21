@@ -30,7 +30,7 @@ CALLER_AUTH_SCHEMA_VERSION = "standard-charge-terminal-caller-authentication-v1"
 KERNEL_SCHEMA_VERSION = "standard-charge-terminal-attack-kernel-v1"
 FORCED_TURN_TWO_EXECUTION_MODE = "forced_turn_two_continuation"
 POWER_HERB_CURRENT_TURN_SKIP_MODE = "power_herb_current_turn_skip"
-_PRODUCTION_EXECUTION_MODES = {FORCED_TURN_TWO_EXECUTION_MODE}
+_PRODUCTION_EXECUTION_MODES = {FORCED_TURN_TWO_EXECUTION_MODE, POWER_HERB_CURRENT_TURN_SKIP_MODE}
 _SUPPORTED_MOVES = {"sky-attack", "razor-wind", "freeze-shock", "ice-burn"}
 _OWNER_KEYS = {"session_id", "side", "slot_index", "pokemon_id"}
 
@@ -77,8 +77,9 @@ def materialize_standard_charge_terminal_execution_contract(
     attacker_life_orb_authority: Mapping[str, Any],
     caller_action_authority: Mapping[str, Any],
     caller_authentication: Mapping[str, Any],
+    power_herb_consumption_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Create the typed execution boundary. Power Herb mode is reserved only."""
+    """Create the typed execution boundary for one authenticated caller mode."""
     if execution_mode not in _PRODUCTION_EXECUTION_MODES:
         return _result("rejected", "standard_charge_terminal_execution_mode_not_enabled")
     if not _owner(actor) or not _owner(target) or not _owner(decision_owner) or actor["session_id"] != target["session_id"] or actor["session_id"] != decision_owner["session_id"]:
@@ -127,6 +128,7 @@ def materialize_standard_charge_terminal_execution_contract(
         "attacker_life_orb_authority": deepcopy(dict(attacker_life_orb_authority)),
         "caller_action_authority": deepcopy(dict(caller_action_authority)),
         "caller_authentication": deepcopy(dict(caller_authentication)),
+        "power_herb_consumption_authority": deepcopy(dict(power_herb_consumption_authority)) if isinstance(power_herb_consumption_authority, Mapping) else None,
         "provenance": "authenticated_standard_charge_terminal_execution_contract_v1",
     }
     error = validate_standard_charge_terminal_execution_contract(contract)
@@ -137,8 +139,14 @@ def validate_standard_charge_terminal_execution_contract(contract: Any) -> str |
     """Self-consistency validation; caller evidence is duplicated and bound."""
     if not isinstance(contract, Mapping) or contract.get("status") != "resolved" or contract.get("schema_version") != CONTRACT_SCHEMA_VERSION:
         return "standard_charge_terminal_execution_contract_invalid"
-    if contract.get("execution_mode") != FORCED_TURN_TWO_EXECUTION_MODE:
+    execution_mode = contract.get("execution_mode")
+    if execution_mode not in _PRODUCTION_EXECUTION_MODES:
         return "standard_charge_terminal_execution_mode_invalid"
+    consumption = contract.get("power_herb_consumption_authority")
+    if execution_mode == FORCED_TURN_TWO_EXECUTION_MODE and consumption is not None:
+        return "standard_charge_terminal_turn_two_consumption_authority_forbidden"
+    if execution_mode == POWER_HERB_CURRENT_TURN_SKIP_MODE and not isinstance(consumption, Mapping):
+        return "standard_charge_terminal_power_herb_consumption_authority_required"
     actor, target, decision_owner = contract.get("actor"), contract.get("target"), contract.get("decision_owner")
     if not _owner(actor) or not _owner(target) or not _owner(decision_owner):
         return "standard_charge_terminal_contract_owner_invalid"
@@ -187,6 +195,7 @@ def execute_standard_charge_terminal_attack(*, execution_contract: Mapping[str, 
         target=execution_contract["target_mechanics"],
         terminal=terminal,
         caller_action_authority=execution_contract["caller_action_authority"],
+        power_herb_consumption_authority=execution_contract.get("power_herb_consumption_authority"),
     )
 
 
@@ -231,6 +240,7 @@ def _execute_authenticated_terminal_mechanics(
     target: Mapping[str, Any],
     terminal: Mapping[str, Any],
     caller_action_authority: Mapping[str, Any],
+    power_herb_consumption_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     gate = _pre_action_gate(actor, target, row["move_id"])
     if gate["status"] == "incomplete":
@@ -243,13 +253,16 @@ def _execute_authenticated_terminal_mechanics(
     if gate["outcome"] == "cancelled":
         return _cancelled(row, gate, caller_action_authority)
     opportunities = gate.get("branches", ({"kind": "executes", "executes": True, "probability": _fd(Fraction(1))},))
-    actor_stages, target_stages = actor["current_stages"]["values"], target["current_stages"]["values"]
+    attack_actor = _actor_after_execution_boundary(actor, power_herb_consumption_authority)
+    if attack_actor is None:
+        return _incomplete(row, "power_herb_consumption_authority_invalid", caller_action_authority)
+    actor_stages, target_stages = attack_actor["current_stages"]["values"], target["current_stages"]["values"]
     move = row["canonical_terminal_effect"]["move"]
     accuracy = _accuracy(move["accuracy"], actor_stages["accuracy"], target_stages["evasion"])
     if accuracy is None:
         return _incomplete(row, "detached_accuracy_stage_adapter_unavailable", caller_action_authority)
     crit_stage = resolve_crit_stage(
-        {"ability": _value(actor["ability"]), "item": _value(actor["item"]), "types": tuple(actor["types"]["value"]), "volatiles": _volatiles(actor["critical_hit_volatiles"])},
+        {"ability": _value(attack_actor["ability"]), "item": _value(attack_actor["item"]), "types": tuple(attack_actor["types"]["value"]), "volatiles": _volatiles(attack_actor["critical_hit_volatiles"])},
         {"move_id": move["move_id"]},
         {"ability": _value(target["ability"]), "status": _condition(target["condition"])},
     )
@@ -262,15 +275,17 @@ def _execute_authenticated_terminal_mechanics(
         root = _fraction(opportunity["probability"])
         if not opportunity.get("executes"):
             if opportunity.get("kind", "").endswith("confusion_self_hit"):
-                self_hits = _confusion_self_hit_leaves(row, actor, opportunity, caller_action_authority)
+                self_hits = _confusion_self_hit_leaves(row, actor, target, opportunity, caller_action_authority)
                 if self_hits is None:
                     return _incomplete(row, "confusion_self_hit_exact_identity_unavailable", caller_action_authority)
                 leaves.extend(self_hits)
                 continue
-            leaves.append(_gate_cancelled_leaf(row, opportunity, caller_action_authority))
+            leaves.append(_gate_cancelled_leaf(row, actor, target, opportunity, caller_action_authority))
             continue
+        execution_actor = attack_actor
         if accuracy < 1:
-            miss = _miss_leaf(row, actor, target, root * (1 - accuracy), caller_action_authority)
+            miss = _miss_leaf(row, execution_actor, target, root * (1 - accuracy), caller_action_authority)
+            _attach_power_herb_consumption(miss, power_herb_consumption_authority)
             miss["branch_path"] = ("pre_action", opportunity["kind"], *miss["branch_path"])
             leaves.append(miss)
         for critical, cp in ((False, 1 - crit), (True, crit)):
@@ -280,18 +295,25 @@ def _execute_authenticated_terminal_mechanics(
                 row, critical,
                 terminal["attacker_item"]["effective_item_id"],
                 terminal["target_item"]["effective_item_id"],
-                actor, target,
+                execution_actor, target,
             )
             if rolls is None:
                 return _incomplete(row, "detached_damage_context_unavailable", caller_action_authority)
             for index, damage in enumerate(rolls):
                 event = _hit_event(
-                    row, actor, target, critical, index, damage,
+                    row, execution_actor, target, critical, index, damage,
                     root * accuracy * cp * Fraction(1, 16), terminal,
                     caller_action_authority,
                 )
+                _attach_power_herb_consumption(event, power_herb_consumption_authority)
                 event["branch_path"] = ("pre_action", opportunity["kind"], *event["branch_path"])
-                secondary = _secondary_branches(row, actor, target, event)
+                secondary = _secondary_branches(row, execution_actor, target, event)
+                if isinstance(secondary, Mapping):
+                    return _incomplete(
+                        row,
+                        secondary.get("reason", "detached_secondary_capability_unavailable"),
+                        caller_action_authority,
+                    )
                 if secondary is None:
                     return _incomplete(row, "detached_secondary_capability_unavailable", caller_action_authority)
                 leaves.extend(_apply_life_orb(secondary, terminal["life_orb"], damage > 0))
@@ -327,23 +349,76 @@ def _caller_authentication_matches(contract: Mapping[str, Any], auth: Any) -> bo
         "actor_mechanics", "target_mechanics", "attacker_held_item_effect_authority",
         "target_held_item_effect_authority", "target_sturdy_authority",
         "target_focus_sash_authority", "attacker_life_orb_authority",
-        "caller_action_authority",
+        "caller_action_authority", "power_herb_consumption_authority",
     )
     if any(auth.get(key) != contract.get(key) for key in expected_keys):
         return False
-    if auth.get("caller_kind") != "forced_turn_two_continuation":
-        return False
     source = auth.get("source_execution_authority")
     caller = contract.get("caller_action_authority")
-    side = contract.get("actor", {}).get("side")
+    mode = contract.get("execution_mode")
+    if mode == FORCED_TURN_TWO_EXECUTION_MODE:
+        side = contract.get("actor", {}).get("side")
+        return (
+            auth.get("caller_kind") == "forced_turn_two_continuation"
+            and isinstance(source, Mapping)
+            and source.get("schema_version") == "detached-standard-charge-turn-two-execution-authority-v1"
+            and source.get("source_next_decision_fingerprint") == contract.get("source_state_fingerprint")
+            and isinstance(source.get("actions"), Mapping)
+            and source["actions"].get(side) == caller
+            and contract.get("power_herb_consumption_authority") is None
+            and auth.get("provenance") == "forced_turn_two_standard_charge_terminal_caller_authentication_v1"
+        )
+    consumption = contract.get("power_herb_consumption_authority")
     return (
-        isinstance(source, Mapping)
-        and source.get("schema_version") == "detached-standard-charge-turn-two-execution-authority-v1"
-        and source.get("source_next_decision_fingerprint") == contract.get("source_state_fingerprint")
-        and isinstance(source.get("actions"), Mapping)
-        and source["actions"].get(side) == caller
-        and auth.get("provenance") == "forced_turn_two_standard_charge_terminal_caller_authentication_v1"
+        mode == POWER_HERB_CURRENT_TURN_SKIP_MODE
+        and auth.get("caller_kind") == "power_herb_current_turn_skip"
+        and isinstance(source, Mapping)
+        and source.get("schema_version") == "runtime-d0-standard-charge-power-herb-skip-execution-authority-v1"
+        and source.get("source_runtime_fingerprint") == contract.get("source_state_fingerprint")
+        and source == caller
+        and isinstance(consumption, Mapping)
+        and consumption.get("schema_version") == "detached-standard-charge-power-herb-consumption-authority-v1"
+        and consumption.get("source_execution_authority") == source
+        and consumption.get("phase") == "after_pre_action_gate_before_accuracy"
+        and consumption.get("item_before") == "power-herb"
+        and consumption.get("item_after") == {"status": "known_absent", "value": None}
+        and auth.get("provenance") == "power_herb_current_turn_standard_charge_terminal_caller_authentication_v1"
     )
+
+
+def _actor_after_execution_boundary(actor: Mapping[str, Any], consumption: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if consumption is None:
+        return deepcopy(dict(actor))
+    if (
+        consumption.get("schema_version") != "detached-standard-charge-power-herb-consumption-authority-v1"
+        or consumption.get("status") != "resolved"
+        or consumption.get("phase") != "after_pre_action_gate_before_accuracy"
+        or consumption.get("item_before") != "power-herb"
+        or consumption.get("item_after") != {"status": "known_absent", "value": None}
+    ):
+        return None
+    result = deepcopy(dict(actor))
+    result["item"] = {"status": "known_absent", "value": None}
+    direct = result.get("direct_mechanics")
+    combatant = direct.get("combatant") if isinstance(direct, Mapping) else None
+    if isinstance(combatant, Mapping):
+        direct = deepcopy(dict(direct))
+        direct["combatant"] = {**deepcopy(dict(combatant)), "item": None}
+        result["direct_mechanics"] = direct
+    return result
+
+
+def _attach_power_herb_consumption(leaf: dict[str, Any], consumption: Mapping[str, Any] | None) -> None:
+    if consumption is None:
+        return
+    consequences = leaf.setdefault("consequences", {})
+    consequences["power_herb_consumption"] = deepcopy(dict(consumption))
+    consequences["actor_item_after"] = {"status": "known_absent", "value": None}
+    consequences["hypothetical_self_item"] = {
+        "status": "known_absent", "value": None,
+        "source": "exact_terminal_leaf_power_herb_consumption",
+        "effect": deepcopy(dict(consumption)),
+    }
 
 
 def _required_missing(row: Mapping[str, Any]) -> list[str]:
@@ -419,11 +494,11 @@ def _hit_event(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping
             consequence["focus_sash_survival"] = sash
         elif sash.get("outcome") == "activated":
             consequence.update({"target_final_hp": 1, "target_ko": False, "focus_sash_survival": sash, "target_item_after": deepcopy(sash["item_after"])})
-    return {"leaf_id": f"{row['action_id']}:hit:{'critical' if critical else 'noncritical'}:roll:{index}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("hit", "critical" if critical else "noncritical", f"damage_roll:{index}"), "probability": _fd(probability), "hit_state": "hit", "critical_state": "critical" if critical else "non_critical", "damage_roll": {"roll_index": index, "random_factor_percent": 85 + index}, "consequences": consequence, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(caller_action_authority))}}
+    return {"leaf_id": f"{row['action_id']}:hit:{'critical' if critical else 'noncritical'}:roll:{index}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("hit", "critical" if critical else "noncritical", f"damage_roll:{index}"), "probability": _fd(probability), "hit_state": "hit", "critical_state": "critical" if critical else "non_critical", "damage_roll": {"roll_index": index, "random_factor_percent": 85 + index}, "consequences": consequence, "provenance": _leaf_provenance(row, caller_action_authority)}
 
 
 def _miss_leaf(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], probability: Fraction, caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
-    return {"leaf_id": f"{row['action_id']}:miss", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("miss",), "probability": _fd(probability), "hit_state": "miss", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": target["current_hp"]["current_hp"], "target_ko": False, "self_fainted": False, "secondary": None, "sturdy_survival": {"outcome": "not_activated"}, "focus_sash_survival": {"outcome": "not_activated"}, "life_orb": {"outcome": "not_triggered"}}, "provenance": {"attacker": deepcopy(row["actor"]), "target": deepcopy(row["target"]), "move_id": row["move_id"], "execution_authority": deepcopy(dict(caller_action_authority))}}
+    return {"leaf_id": f"{row['action_id']}:miss", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("miss",), "probability": _fd(probability), "hit_state": "miss", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": target["current_hp"]["current_hp"], "target_ko": False, "self_fainted": False, "secondary": None, "sturdy_survival": {"outcome": "not_activated"}, "focus_sash_survival": {"outcome": "not_activated"}, "life_orb": {"outcome": "not_triggered"}}, "provenance": _leaf_provenance(row, caller_action_authority)}
 
 
 def _secondary_branches(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], event: Mapping[str, Any]) -> list[dict[str, Any]] | None:
@@ -439,27 +514,63 @@ def _secondary_branches(row: Mapping[str, Any], actor: Mapping[str, Any], target
     else:
         cap = resolve_probabilistic_target_status_effect_capability(move=row["canonical_terminal_effect"]["move"], source_authority=source)
     if cap.get("status") != "resolved":
-        return None
+        return {
+            "status": cap.get("status", "incomplete"),
+            "reason": cap.get("reason", "detached_secondary_capability_unavailable"),
+            "capability_resolution": deepcopy(dict(cap)),
+        }
     chance = _fraction(cap["probability"])
     no = deepcopy(dict(event)); no["leaf_id"] += ":secondary:none"; no["branch_path"] += ("secondary:none",); no["probability"] = _fd(_fraction(event["probability"]) * (1 - chance))
     yes = deepcopy(dict(event)); yes["leaf_id"] += f":secondary:{secondary.get('condition', 'flinch')}"; yes["branch_path"] += (f"secondary:{secondary.get('condition', 'flinch')}",); yes["probability"] = _fd(_fraction(event["probability"]) * chance)
     if secondary["kind"] == "flinch":
-        yes["consequences"]["secondary"] = {"state": "flinched", "hypothetical_target_flinch": {"schema_version": "detached-hypothetical-immediate-flinch-v1", "state": "flinched", "provenance": "standard_charge_successful_damage_roll_secondary_v1"}, "authority": cap}
+        yes["consequences"]["secondary"] = {"branch": "effect", "state": "flinched", "hypothetical_target_flinch": {"schema_version": "detached-hypothetical-immediate-flinch-v1", "state": "flinched", "provenance": "standard_charge_successful_damage_roll_secondary_v1"}, "authority": cap}
     else:
-        yes["consequences"]["secondary"] = {"state": "status_applied", "condition": secondary["condition"], "authority": cap, "provenance": "standard_charge_successful_damage_roll_target_status_secondary_v1"}
+        yes["consequences"]["secondary"] = {
+            "branch": "effect",
+            "state": "status_applied",
+            "condition": secondary["condition"],
+            "hypothetical_target_condition": {
+                "schema_version": "detached-hypothetical-current-condition-v1",
+                "resulting_condition": secondary["condition"],
+                "source_move_id": row["move_id"],
+                "provenance": "standard_charge_successful_damage_roll_target_status_secondary_v1",
+            },
+            "authority": cap,
+            "provenance": "standard_charge_successful_damage_roll_target_status_secondary_v1",
+        }
     return [no, yes]
 
 
 def _secondary_source(actor: Mapping[str, Any], target: Mapping[str, Any]) -> dict[str, Any]:
     terrain = actor["field"]
-    direct = target["direct_mechanics"].get("combatant", {})
-    grounded = direct.get("grounded")
-    groundedness = (
-        {"status": "known", "value": "grounded"}
-        if grounded is True else {"status": "known", "value": "ungrounded"}
-        if grounded is False else {"status": "unknown"}
+    exact_groundedness = target.get("groundedness")
+    if isinstance(exact_groundedness, Mapping) and exact_groundedness.get("status") == "known" and exact_groundedness.get("value") in {"grounded", "ungrounded"}:
+        groundedness = deepcopy(dict(exact_groundedness))
+    else:
+        direct = target["direct_mechanics"].get("combatant", {})
+        grounded = direct.get("grounded")
+        groundedness = (
+            {"status": "known", "value": "grounded"}
+            if grounded is True else {"status": "known", "value": "ungrounded"}
+            if grounded is False else {"status": "unknown"}
+        )
+    target_item = target["item"]
+    item_source = (
+        {"status": "known_absent"}
+        if isinstance(target_item, Mapping) and target_item.get("status") == "known_absent"
+        else {"status": "known", "value": target_item.get("value")}
+        if isinstance(target_item, Mapping) and target_item.get("status") == "known" and isinstance(target_item.get("value"), str)
+        else {"status": "unknown"}
     )
-    return {"target_condition": deepcopy(target["condition"]), "target_types": {"status": "known", "values": tuple(target["types"]["value"])}, "attacker_ability": deepcopy(actor["ability"]), "target_ability": deepcopy(target["ability"]), "target_item": deepcopy(target["item"]), "terrain": {"status": "known", "value": terrain.get("terrain", "none")}, "target_groundedness": groundedness}
+    target_condition = target["condition"]
+    condition_source = (
+        {"status": "known_none"}
+        if isinstance(target_condition, Mapping) and target_condition.get("status") == "known_none"
+        else {"status": "known_present", "condition": target_condition.get("condition")}
+        if isinstance(target_condition, Mapping) and target_condition.get("status") == "known_present" and isinstance(target_condition.get("condition"), str)
+        else {"status": "unknown"}
+    )
+    return {"target_condition": condition_source, "target_types": {"status": "known", "values": tuple(target["types"]["value"])}, "attacker_ability": deepcopy(actor["ability"]), "target_ability": deepcopy(target["ability"]), "target_item": item_source, "terrain": {"status": "known", "value": terrain.get("terrain", "none")}, "target_groundedness": groundedness}
 
 
 def _pre_action_gate(actor: Mapping[str, Any], target: Mapping[str, Any], move_id: str) -> dict[str, Any]:
@@ -503,11 +614,11 @@ def _confusion_ability(actor: Mapping[str, Any], target: Mapping[str, Any]) -> d
     base = _gate_ability(actor, target); base["own_tempo_active"] = base["status"] == "resolved" and base["ability_id"] == "own-tempo" and not base["suppressed"]; return base
 
 
-def _gate_cancelled_leaf(row: Mapping[str, Any], branch: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
-    return {"leaf_id": f"{row['action_id']}:cancelled:{branch['kind']}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("pre_action", branch["kind"]), "probability": deepcopy(branch["probability"]), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "secondary": None, "execution_failure": branch["kind"]}, "provenance": {"execution_authority": deepcopy(dict(caller_action_authority))}}
+def _gate_cancelled_leaf(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], branch: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
+    return {"leaf_id": f"{row['action_id']}:cancelled:{branch['kind']}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("pre_action", branch["kind"]), "probability": deepcopy(branch["probability"]), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": target["current_hp"]["current_hp"], "target_ko": target["current_hp"]["current_hp"] == 0, "self_fainted": actor["current_hp"]["current_hp"] == 0, "secondary": None, "execution_failure": branch["kind"]}, "provenance": _leaf_provenance(row, caller_action_authority)}
 
 
-def _confusion_self_hit_leaves(row: Mapping[str, Any], actor: Mapping[str, Any], branch: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> list[dict[str, Any]] | None:
+def _confusion_self_hit_leaves(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], branch: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> list[dict[str, Any]] | None:
     direct = actor["direct_mechanics"].get("combatant", {})
     species, disguise = direct.get("species_id"), direct.get("disguise_state")
     if not isinstance(species, str) or disguise not in {None, "intact", "broken"}: return None
@@ -520,13 +631,34 @@ def _confusion_self_hit_leaves(row: Mapping[str, Any], actor: Mapping[str, Any],
     leaves=[]
     for index, factor in enumerate(range(85, 101)):
         raw = (base * factor) // 100; damage = 0 if mimikyu and disguise == "intact" else min(hp, raw); post = hp - damage
-        leaves.append({"leaf_id": f"{row['action_id']}:confusion-self-hit:{index}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("pre_action", branch["kind"], f"self_hit_roll:{index}"), "probability": _fd(_fraction(branch["probability"]) * Fraction(1, 16)), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": {"roll_index": index, "random_factor_percent": factor}, "consequences": {"damage": damage, "raw_damage": raw, "own_final_hp": post, "target_final_hp": actor["current_hp"]["current_hp"], "self_fainted": post == 0, "target_ko": False, "secondary": None, "selected_move_does_not_execute": True, "confusion_self_hit": {"base_power": 40, "type": "typeless", "category": "physical", "contact": False, "disguise_before": disguise, "disguise_after": "broken" if mimikyu and disguise == "intact" else disguise}}, "provenance": {"execution_authority": deepcopy(dict(caller_action_authority)), "provenance": "canonical_detached_confusion_self_hit_v1"}})
+        leaves.append({"leaf_id": f"{row['action_id']}:confusion-self-hit:{index}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("pre_action", branch["kind"], f"self_hit_roll:{index}"), "probability": _fd(_fraction(branch["probability"]) * Fraction(1, 16)), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": {"roll_index": index, "random_factor_percent": factor}, "consequences": {"damage": damage, "raw_damage": raw, "own_final_hp": post, "target_final_hp": target["current_hp"]["current_hp"], "self_fainted": post == 0, "target_ko": target["current_hp"]["current_hp"] == 0, "secondary": None, "selected_move_does_not_execute": True, "confusion_self_hit": {"base_power": 40, "type": "typeless", "category": "physical", "contact": False, "disguise_before": disguise, "disguise_after": "broken" if mimikyu and disguise == "intact" else disguise}}, "provenance": {**_leaf_provenance(row, caller_action_authority), "provenance": "canonical_detached_confusion_self_hit_v1"}})
     return leaves
 
 
 def _cancelled(row: Mapping[str, Any], gate: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
-    leaf = {"leaf_id": f"{row['action_id']}:cancelled:{gate['reason']}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("pre_action_cancelled", gate["reason"]), "probability": _fd(Fraction(1, 1)), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "secondary": None, "execution_failure": gate["reason"]}, "provenance": {"execution_authority": deepcopy(dict(caller_action_authority))}}
+    actor = row["actor_mechanics"]; target = row["target_mechanics"]
+    leaf = {"leaf_id": f"{row['action_id']}:cancelled:{gate['reason']}", "candidate_id": row["action_id"], "action_type": "attack", "branch_path": ("pre_action_cancelled", gate["reason"]), "probability": _fd(Fraction(1, 1)), "hit_state": "not_applicable", "critical_state": "not_applicable", "damage_roll": "not_applicable", "consequences": {"damage": 0, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": target["current_hp"]["current_hp"], "target_ko": target["current_hp"]["current_hp"] == 0, "self_fainted": actor["current_hp"]["current_hp"] == 0, "secondary": None, "execution_failure": gate["reason"]}, "provenance": _leaf_provenance(row, caller_action_authority)}
     return {"status": "resolved", "schema_version": KERNEL_SCHEMA_VERSION, "execution_authority": deepcopy(dict(caller_action_authority)), "pre_action_gate": deepcopy(dict(gate)), "terminal_leaves": (leaf,), "terminal_probability_mass": _fd(Fraction(1, 1)), "provenance": "authenticated_standard_charge_shared_terminal_pre_action_cancellation_v1"}
+
+
+def _leaf_provenance(row: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
+    value = {
+        "attacker": deepcopy(row["actor"]),
+        "target": deepcopy(row["target"]),
+        "move_id": row["move_id"],
+        "execution_authority": deepcopy(dict(caller_action_authority)),
+    }
+    source = caller_action_authority
+    bindings = (
+        ("session_id", "session_id"),
+        ("source_runtime_fingerprint", "source_runtime_fingerprint"),
+        ("source_branch_fingerprint", "source_branch_fingerprint"),
+        ("decision_owner", "decision_owner"),
+    )
+    for output_key, source_key in bindings:
+        if source_key in source:
+            value[output_key] = deepcopy(source[source_key])
+    return value
 
 
 def _accuracy(base: int, accuracy_stage: int, evasion_stage: int) -> Fraction | None:

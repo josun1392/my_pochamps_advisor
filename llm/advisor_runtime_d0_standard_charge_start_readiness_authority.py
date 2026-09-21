@@ -130,18 +130,12 @@ def freeze_runtime_d0_standard_charge_start_readiness_authority(
         return _result(status, reason, common)
 
     if applicability.get("item_effects_active") is True:
-        return _result(
-            "unsupported",
-            "power_herb_charge_skip_execution_unrepresented",
-            {
-                **common,
-                "power_herb_applicability_state": {
-                    "status": "active",
-                    "outcome": applicability.get("outcome"),
-                    "reason": applicability.get("reason"),
-                },
-                "action_execution_confirmed": False,
-                "immediate_damage_execution_grant": False,
+        return _power_herb_skip_ready(
+            common,
+            power_herb_applicability_state={
+                "status": "active",
+                "outcome": applicability.get("outcome"),
+                "reason": applicability.get("reason"),
             },
         )
     if applicability.get("item_effects_active") is False:
@@ -396,6 +390,26 @@ def _ready(
         "charge_turn_state_materialized": False,
         "pp_consumed": False,
         "provenance": "strict_runtime_d0_standard_charge_start_readiness_v1",
+    }
+
+
+def _power_herb_skip_ready(
+    base: Mapping[str, Any],
+    *,
+    power_herb_applicability_state: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "status": "resolved",
+        "schema_version": SCHEMA_VERSION,
+        **deepcopy(dict(base)),
+        "outcome": "power_herb_charge_skip_ready",
+        "next_semantic_phase": "current_turn_charge_skip_terminal_execution",
+        "power_herb_applicability_state": deepcopy(dict(power_herb_applicability_state)),
+        "action_execution_confirmed": False,
+        "immediate_damage_execution_grant": False,
+        "charge_turn_state_materialized": False,
+        "pp_consumed": False,
+        "provenance": "strict_runtime_d0_standard_charge_power_herb_skip_readiness_v1",
     }
 
 

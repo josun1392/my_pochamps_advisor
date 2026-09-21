@@ -163,7 +163,7 @@ def test_supported_standard_charge_moves_materialize_exact_charge_start(move_id)
     assert state["opponent_side"]["pokemon"][0]["current_hp"] == 73
 
 
-def test_power_herb_active_readiness_cannot_materialize_charge_start():
+def test_power_herb_active_readiness_bypasses_charge_start_materializer():
     _state0, snapshot, d0, action, actor, target, readiness = _inputs(
         "sky-attack",
         item_mode="known",
@@ -172,8 +172,9 @@ def test_power_herb_active_readiness_cannot_materialize_charge_start():
         target_ability="static",
         magic_room="inactive",
     )
-    assert readiness["status"] == "unsupported"
-    assert readiness["reason"] == "power_herb_charge_skip_execution_unrepresented"
+    assert readiness["status"] == "resolved"
+    assert readiness["outcome"] == "power_herb_charge_skip_ready"
+    assert readiness["next_semantic_phase"] == "current_turn_charge_skip_terminal_execution"
     result = materialize_detached_standard_charge_start(
         strategy_d0=d0,
         runtime_snapshot=snapshot,
@@ -182,8 +183,8 @@ def test_power_herb_active_readiness_cannot_materialize_charge_start():
         target=target,
         readiness_authority=readiness,
     )
-    assert result["status"] == "unsupported"
-    assert result["reason"] == "power_herb_charge_skip_execution_unrepresented"
+    assert result["status"] == "rejected"
+    assert result["reason"] == "standard_charge_start_readiness_semantics_invalid"
 
 
 @pytest.mark.parametrize("move_id", ("solar-beam", "meteor-beam", "fly", "geomancy"))

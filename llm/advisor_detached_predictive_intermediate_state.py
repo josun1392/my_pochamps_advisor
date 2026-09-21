@@ -361,8 +361,20 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
             result.append({"owner": "target", "hypothetical_target_condition_removal": removal})
     focus = consequences.get("focus_sash_survival")
     item_after = focus.get("item_after") if isinstance(focus, Mapping) else None
-    if isinstance(focus, Mapping) and focus.get("outcome") == "applied" and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent":
+    if isinstance(focus, Mapping) and focus.get("outcome") in {"applied", "activated"} and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent":
         result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_focus_sash_consumption", "effect": deepcopy(dict(focus))}})
+    power_herb = consequences.get("power_herb_consumption")
+    actor_item_after = consequences.get("actor_item_after")
+    if (
+        isinstance(power_herb, Mapping)
+        and power_herb.get("status") == "resolved"
+        and power_herb.get("schema_version") == "detached-standard-charge-power-herb-consumption-authority-v1"
+        and power_herb.get("phase") == "after_pre_action_gate_before_accuracy"
+        and power_herb.get("item_before") == "power-herb"
+        and power_herb.get("item_after") == {"status": "known_absent", "value": None}
+        and actor_item_after == {"status": "known_absent", "value": None}
+    ):
+        result.append({"owner": "self", "hypothetical_self_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_power_herb_consumption", "effect": deepcopy(dict(power_herb))}})
     sitrus = consequences.get("sitrus_berry_immediate_consumption")
     item_after = sitrus.get("item_after") if isinstance(sitrus, Mapping) else None
     if isinstance(sitrus, Mapping) and sitrus.get("status") == "resolved" and sitrus.get("outcome") == "activated" and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent" and item_after.get("value") is None:
@@ -498,8 +510,14 @@ def _flinch_cancellation_consequence(consequences: Mapping[str, Any], target: Ma
     provenance = marker.get("provenance") if isinstance(marker, Mapping) else None
     if secondary.get("branch") != "effect" or not isinstance(marker, Mapping) or marker.get("schema_version") != "detached-hypothetical-immediate-flinch-v1" or marker.get("state") != "flinched":
         return "terminal_leaf_flinch_consequence_invalid"
-    if provenance in {"iron_head_successful_damage_roll_secondary_v1", "fake_out_successful_damage_roll_secondary_v1"}:
-        source = "exact_terminal_leaf_iron_head_flinch_secondary" if provenance == "iron_head_successful_damage_roll_secondary_v1" else "exact_terminal_leaf_fake_out_flinch_secondary"
+    if provenance in {"iron_head_successful_damage_roll_secondary_v1", "fake_out_successful_damage_roll_secondary_v1", "standard_charge_successful_damage_roll_secondary_v1"}:
+        source = (
+            "exact_terminal_leaf_iron_head_flinch_secondary"
+            if provenance == "iron_head_successful_damage_roll_secondary_v1"
+            else "exact_terminal_leaf_fake_out_flinch_secondary"
+            if provenance == "fake_out_successful_damage_roll_secondary_v1"
+            else "exact_terminal_leaf_standard_charge_flinch_secondary"
+        )
         return {"status": "resolved", "affected_owner": deepcopy(dict(target)), "state": "flinched", "provenance": source}
     authority = secondary.get("fling_item_bound_target_effect_authority")
     if provenance != "fling_item_bound_deterministic_flinch_v1" or not isinstance(authority, Mapping) or authority.get("schema_version") != "runtime-d0-fling-item-bound-deterministic-target-effect-authority-v1" or authority.get("status") != "resolved" or authority.get("outcome") != "applied_flinch_pending_action" or authority.get("target") != target or marker.get("source_fling_item") != authority.get("item_id") or marker.get("pending_action_id") != authority.get("pending_target_action", {}).get("action_id"):

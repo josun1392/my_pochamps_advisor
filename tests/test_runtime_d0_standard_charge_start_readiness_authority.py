@@ -155,7 +155,7 @@ def test_unknown_item_is_incomplete():
     assert result["immediate_damage_execution_grant"] is False
 
 
-def test_active_power_herb_is_explicit_unimplemented_skip_boundary():
+def test_active_power_herb_is_strict_same_turn_skip_readiness():
     *_rest, result = _inputs(
         "sky-attack",
         item="power-herb",
@@ -164,12 +164,14 @@ def test_active_power_herb_is_explicit_unimplemented_skip_boundary():
         target_ability="static",
         magic_room="inactive",
     )
-    assert result["status"] == "unsupported"
-    assert result["reason"] == "power_herb_charge_skip_execution_unrepresented"
+    assert result["status"] == "resolved"
+    assert result["outcome"] == "power_herb_charge_skip_ready"
+    assert result["next_semantic_phase"] == "current_turn_charge_skip_terminal_execution"
     assert result["power_herb_applicability_state"]["status"] == "active"
     assert result["power_herb_applicability_authority"]["item_effects_active"] is True
     assert result["action_execution_confirmed"] is False
     assert result["immediate_damage_execution_grant"] is False
+    assert result["charge_turn_state_materialized"] is False
     assert "item_after" not in result
 
 
@@ -203,7 +205,7 @@ def test_power_herb_unsuppressed_klutz_allows_normal_charge_readiness():
     assert result["power_herb_applicability_authority"]["reason"] == "klutz_item_effects_suppressed"
 
 
-def test_power_herb_klutz_suppressed_by_neutralizing_gas_stays_skip_boundary():
+def test_power_herb_klutz_suppressed_by_neutralizing_gas_enables_skip_readiness():
     *_rest, result = _inputs(
         "ice-burn",
         item="power-herb",
@@ -212,8 +214,9 @@ def test_power_herb_klutz_suppressed_by_neutralizing_gas_stays_skip_boundary():
         target_ability="neutralizing-gas",
         magic_room="inactive",
     )
-    assert result["status"] == "unsupported"
-    assert result["reason"] == "power_herb_charge_skip_execution_unrepresented"
+    assert result["status"] == "resolved"
+    assert result["outcome"] == "power_herb_charge_skip_ready"
+    assert result["power_herb_applicability_state"]["status"] == "active"
     assert result["power_herb_applicability_authority"]["reason"] == "klutz_suppressed_by_neutralizing_gas"
     assert result["power_herb_applicability_authority"]["item_effects_active"] is True
 
