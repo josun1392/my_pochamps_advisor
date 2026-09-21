@@ -40,8 +40,11 @@ def resolve_runtime_d0_held_item_effect_applicability_authority(
     if item["status"] == "unknown":
         return _result("incomplete", "held_item_effect_current_item_unknown", common)
     if item["status"] == "known_absent":
-        return _resolved(common, outcome="known_no_item", item_effects_active=False,
-                         reason="current_held_item_known_absent")
+        return _resolved(
+            common, outcome="known_no_item", item_effects_active=False,
+            reason="current_held_item_known_absent",
+            ability_suppression_authority={"status": "not_required", "reason": "current_item_known_absent"},
+        )
 
     field = resolve_runtime_d0_item_suppression_field_authority(
         strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,

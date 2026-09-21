@@ -24,6 +24,7 @@ from llm.advisor_runtime_strategy_d0 import (
     runtime_strategy_d0_freshness,
 )
 from llm.advisor_substitute import substitute_state
+from llm.advisor_identity_groundedness import project_identity_groundedness
 
 
 PARTICIPANT_SCHEMA_VERSION = "runtime-d0-standard-charge-participant-mechanics-authority-v1"
@@ -75,6 +76,19 @@ def freeze_runtime_d0_standard_charge_participant_mechanics_authority(*, strateg
     if crit_volatiles["status"] == "unknown" or lucky_chant["status"] == "unknown": missing.append("critical_state")
     field_raw = _native_field_state(state); side_effects = _native_side_effects(state)
     field = {"status": "known", "weather": field_raw.get("weather"), "terrain": field_raw.get("terrain")} if field_raw.get("weather") != "unknown" and field_raw.get("terrain") != "unknown" else {"status": "unknown"}
+    try:
+        grounded_row = project_identity_groundedness(state, side=owner["side"])
+    except (TypeError, ValueError):
+        grounded_row = {}
+    groundedness = (
+        {"status": "known", "value": grounded_row["status"]}
+        if grounded_row.get("session_id") == owner["session_id"]
+        and grounded_row.get("side") == owner["side"]
+        and grounded_row.get("slot_index") == owner["slot_index"]
+        and grounded_row.get("pokemon_id") == owner["pokemon_id"]
+        and grounded_row.get("status") in {"grounded", "ungrounded"}
+        else {"status": "unknown"}
+    )
     if field["status"] == "unknown": missing.append("field")
     if not isinstance(side_effects, list): missing.append("side_conditions")
     status_progression = _status_progression(raw, owner, cond)
@@ -88,7 +102,7 @@ def freeze_runtime_d0_standard_charge_participant_mechanics_authority(*, strateg
         "current_level": _known(level) if isinstance(level, int) and not isinstance(level, bool) and level > 0 else {"status": "unknown"}, "current_final_stats": {"status": "known", "values": final_stats} if isinstance(final_stats, Mapping) else {"status": "incomplete", "values": values}, "current_hp": {"status": "known", **hp} if not "current_hp" in missing else {"status": "unknown"}, "fainted": raw.get("fainted") if isinstance(raw.get("fainted"), bool) else None,
         "current_stages": {"status": "known", "values": dict(stages)} if isinstance(stages, Mapping) else {"status": "unknown"}, "condition": deepcopy(cond) if isinstance(cond, Mapping) else {"status": "unknown"}, "item": item, "ability": ability, "types": _known(list(types)) if isinstance(types, list) else {"status": "unknown"},
         "substitute": {"status": sub.get("state"), **({"substitute_hp": sub["substitute_hp"]} if "substitute_hp" in sub else {})} if sub.get("state") in {"known_active", "known_inactive"} else {"status": "unknown"}, "critical_hit_volatiles": crit_volatiles, "lucky_chant": lucky_chant,
-        "field": field, "side_conditions": _known({effect: True for side_row in side_effects if side_row.get("side") == owner["side"] for effect in [side_row.get("effect")]}) if isinstance(side_effects, list) else {"status": "unknown"}, "direct_mechanics": direct_mechanics,
+        "field": field, "groundedness": groundedness, "side_conditions": _known({effect: True for side_row in side_effects if side_row.get("side") == owner["side"] for effect in [side_row.get("effect")]}) if isinstance(side_effects, list) else {"status": "unknown"}, "direct_mechanics": direct_mechanics,
         "status_progression": status_progression, "confusion_state": confusion_state, "confusion_progression": confusion_progression,
         "provenance": "runtime_d0_current_standard_charge_participant_mechanics_v1"}
     if missing:
