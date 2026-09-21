@@ -138,7 +138,14 @@ def freeze_runtime_d0_standard_charge_terminal_mechanics_authority(*, strategy_d
     target_item = resolve_runtime_d0_held_item_effect_applicability_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, holder=target)
     supports = (sturdy, sash, life, actor_item, target_item)
     support_statuses = tuple(row.get("status") if isinstance(row, Mapping) else None for row in supports)
-    status = "resolved" if actor_row.get("status") == target_row.get("status") == "resolved" and all(value == "resolved" for value in support_statuses) else "incomplete"
+    support_complete = (
+        sturdy.get("status") in {"resolved", "ready"}
+        and sash.get("status") in {"resolved", "ready"}
+        and life.get("status") == "resolved"
+        and actor_item.get("status") == "resolved"
+        and target_item.get("status") == "resolved"
+    )
+    status = "resolved" if actor_row.get("status") == target_row.get("status") == "resolved" and support_complete else "incomplete"
     result = {"status": status, "schema_version": TERMINAL_SCHEMA_VERSION, **base, "move_metadata": deepcopy(dict(effect["move"])), "authenticated_move_metadata": deepcopy(dict(effect["move"])), "canonical_terminal_effect": effect, "actor_participant_mechanics_authority": deepcopy(dict(actor_row)), "target_participant_mechanics_authority": deepcopy(dict(target_row)), "target_sturdy_authority": sturdy, "target_focus_sash_authority": sash, "attacker_life_orb_authority": life, "actor_held_item_effect_applicability_authority": actor_item, "target_held_item_effect_applicability_authority": target_item, "mechanics_only": True, "execution_grant": False, "provenance": "runtime_d0_standard_charge_terminal_mechanics_bundle_v1"}
     if result["status"] == "incomplete":
         result["reason"] = "standard_charge_participant_mechanics_incomplete" if actor_row.get("status") != "resolved" or target_row.get("status") != "resolved" else "standard_charge_support_authority_incomplete"

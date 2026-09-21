@@ -212,7 +212,7 @@ SCHEMA_VERSION = "immediate-move-vs-move-action-pair-v1"
 HORIZON = "immediate_action_pair"
 _STATUSES = {"incomplete", "unsupported", "rejected"}
 _CHARGE_MOVES = ChargeMoveRepository()
-_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn"})
+_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
 _STANDARD_CHARGE_EXCLUDED_COUNTERPARTS = frozenset({
     "fling", "u-turn", "volt-switch", "flip-turn", "sucker-punch",
     "seismic-toss", "night-shade", "dragon-rage", "sonic-boom",
@@ -1885,28 +1885,32 @@ def _pair_action_ledger(
             },
             "provenance": "selected_action_standard_charge_start_to_pair_action_ledger_v1",
         }
-    if family == "standard_charge_power_herb_skip":
+    if family in {"standard_charge_power_herb_skip", "standard_charge_weather_skip"}:
         if not isinstance(paths, tuple) or not paths:
-            return _result("rejected", "power_herb_selected_action_paths_invalid", {})
+            return _result("rejected", "instant_charge_skip_selected_action_paths_invalid", {})
         leaves = tuple(
             deepcopy(dict(path["action_leaf"]))
             for path in paths
             if isinstance(path, Mapping) and isinstance(path.get("action_leaf"), Mapping)
         )
         if len(leaves) != len(paths) or selected.get("terminal_probability_mass") != {"numerator": 1, "denominator": 1}:
-            return _result("rejected", "power_herb_selected_action_terminal_ledger_invalid", {})
+            return _result("rejected", "instant_charge_skip_selected_action_terminal_ledger_invalid", {})
         return {
             "status": "evaluable",
             "terminal_leaves": leaves,
             "terminal_probability_mass": {"numerator": 1, "denominator": 1},
             "component_manifest": {
-                "standard_charge_power_herb_skip": {
+                family: {
                     "status": "resolved",
                     "readiness_authority": deepcopy(dict(readiness)),
                     "shared_terminal_execution": deepcopy(dict(selected.get("shared_terminal_execution", {}))),
                 },
             },
-            "provenance": "selected_action_power_herb_standard_charge_to_pair_action_ledger_v1",
+            "provenance": (
+                "selected_action_power_herb_standard_charge_to_pair_action_ledger_v1"
+                if family == "standard_charge_power_herb_skip"
+                else "selected_action_solar_weather_skip_to_pair_action_ledger_v1"
+            ),
         }
     return _result("rejected", "standard_charge_selected_action_family_mismatch", {})
 

@@ -26,12 +26,15 @@ ACTION_SCHEMA_VERSION = "detached-standard-charge-forced-continuation-action-v1"
 METADATA_SCHEMA_VERSION = "detached-standard-charge-continuation-move-metadata-authority-v1"
 _SIDES = ("self", "opponent")
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _EXPECTED_CATEGORY = {
     "sky-attack": "physical",
     "razor-wind": "special",
     "freeze-shock": "physical",
     "ice-burn": "special",
+    "solar-beam": "special",
+    "solar-blade": "physical",
 }
 
 
@@ -252,7 +255,7 @@ def _present_source_error(
         or context.get("actor") != charger
         or context.get("move_id") != move_id
         or context.get("action_id") != action_id
-        or context.get("canonical_lifecycle_family") != "ordinary_charge_then_damage"
+        or context.get("canonical_lifecycle_family") != _expected_family(move_id)
         or context.get("execution_model") != "charge_then_execute"
         or context.get("turn_two_continuation_required") is not True
         or context.get("immediate_damage_executed") is not False
@@ -285,7 +288,7 @@ def _present_source_error(
         or canonical != expected_canonical
         or canonical.get("status") != "resolved"
         or canonical.get("move_id") != move_id
-        or canonical.get("lifecycle_family") != "ordinary_charge_then_damage"
+        or canonical.get("lifecycle_family") != _expected_family(move_id)
         or canonical.get("execution_model") != "charge_then_execute"
     ):
         return "standard_charge_next_turn_canonical_lifecycle_invalid"
@@ -417,6 +420,10 @@ def _metadata_error(
     ):
         return "standard_charge_continuation_move_metadata_invalid"
     return None
+
+
+def _expected_family(move_id: str) -> str:
+    return "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES else "ordinary_charge_then_damage"
 
 
 def _locator_error(

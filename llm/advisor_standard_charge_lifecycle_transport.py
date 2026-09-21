@@ -19,7 +19,8 @@ TRANSPORT_SCHEMA_VERSION = "detached-standard-charge-lifecycle-transport-authori
 POST_EOT_SCHEMA_VERSION = "detached-standard-charge-post-eot-lifecycle-authority-v1"
 NEXT_TURN_SCHEMA_VERSION = "detached-standard-charge-next-turn-continuation-authority-v1"
 _SIDES = ("self", "opponent")
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 
 
@@ -585,7 +586,7 @@ def _transport_row_shape(row: Any, side: str) -> str | None:
         or row.get("move_id") not in _SUPPORTED_MOVES
         or not isinstance(row.get("action_id"), str)
         or not row["action_id"]
-        or row.get("canonical_lifecycle_family") != "ordinary_charge_then_damage"
+        or row.get("canonical_lifecycle_family") != _expected_family(row.get("move_id"))
         or row.get("execution_model") != "charge_then_execute"
         or not _locator(row.get("continuation_target_locator"), opposite_of=side)
         or row.get("pp_consumption_materialized") is not False
@@ -599,6 +600,10 @@ def _transport_row_shape(row: Any, side: str) -> str | None:
 
 def _active_owner(active: Mapping[str, Any]) -> dict[str, Any]:
     return {key: active[key] for key in _OWNER_KEYS}
+
+
+def _expected_family(move_id: Any) -> str:
+    return "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES else "ordinary_charge_then_damage"
 
 
 def _owner(value: Any, *, side: str) -> bool:

@@ -363,6 +363,21 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
     item_after = focus.get("item_after") if isinstance(focus, Mapping) else None
     if isinstance(focus, Mapping) and focus.get("outcome") in {"applied", "activated"} and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent":
         result.append({"owner": "target", "hypothetical_target_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_focus_sash_consumption", "effect": deepcopy(dict(focus))}})
+    retained = consequences.get("solar_weather_skip_item_retention")
+    if (
+        isinstance(retained, Mapping)
+        and retained.get("status") == "resolved"
+        and retained.get("schema_version") == "solar-weather-skip-item-retention-v1"
+        and isinstance(retained.get("item_after"), Mapping)
+        and retained.get("provenance") == "authenticated_solar_weather_skip_item_retention_v1"
+    ):
+        item_after = retained["item_after"]
+        if item_after.get("status") == "known":
+            result.append({"owner": "self", "hypothetical_self_item": {"status": "known", "value": item_after.get("value"), "source": "exact_terminal_leaf_solar_weather_skip_item_retention", "effect": deepcopy(dict(retained))}})
+        elif item_after.get("status") == "known_absent":
+            result.append({"owner": "self", "hypothetical_self_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_solar_weather_skip_item_retention", "effect": deepcopy(dict(retained))}})
+        else:
+            return "solar_weather_skip_item_retention_invalid"
     power_herb = consequences.get("power_herb_consumption")
     actor_item_after = consequences.get("actor_item_after")
     if (

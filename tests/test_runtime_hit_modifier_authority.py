@@ -54,6 +54,41 @@ def test_runtime_hustle_unknowns_and_known_non_hustle_remain_fail_closed():
     assert unsupported["status"]=="unsupported"
 
 
+def test_runtime_power_herb_target_is_catalogued_as_known_accuracy_neutral() -> None:
+    state = _state()
+    attacker = state["self_side"]["pokemon"][0]
+    attacker.update(
+        current_ability="pressure",
+        current_ability_provenance={
+            "event_kind": "current_ability_observed",
+            "trust": "user_confirmed_observation",
+            "turn_number": 1,
+        },
+    )
+    target = state["opponent_side"]["pokemon"][0]
+    target.update(
+        known_item="power-herb",
+        known_item_provenance={
+            "event_kind": "current_item_observed",
+            "trust": "user_confirmed_observation",
+            "turn_number": 1,
+            "status": "known",
+        },
+    )
+    snapshot, d0 = _d0(state)
+    result = freeze_runtime_d0_hit_modifier_authority(
+        strategy_d0=d0, runtime_snapshot=snapshot, attacker=_owner(state),
+        target=_owner(state, "opponent"), move_metadata=_move(),
+    )
+    assert result["status"] == "resolved"
+    assert next(row for row in result["capability_resolution"]["ledger"] if row["slot"] == "target_item") == {
+        "slot": "target_item",
+        "state": "known_neutral",
+        "source_value": "power-herb",
+        "reason": "catalog_known_no_accuracy_effect",
+    }
+
+
 def test_runtime_pressure_is_catalogued_as_known_accuracy_neutral() -> None:
     state = _state()
     pokemon = state["self_side"]["pokemon"][0]

@@ -223,7 +223,7 @@ def test_power_herb_klutz_suppressed_by_neutralizing_gas_enables_skip_readiness(
 
 @pytest.mark.parametrize(
     "move_id",
-    ("solar-beam", "meteor-beam", "fly", "geomancy"),
+    ("meteor-beam", "fly", "geomancy"),
 )
 def test_non_standard_charge_families_are_outside_this_owner(move_id):
     *_rest, result = _inputs(move_id, item_mode="absent")

@@ -14,11 +14,15 @@ from llm.advisor_runtime_strategy_d0 import (
     resolve_runtime_d0_selectable_move_metadata_authority,
     runtime_strategy_d0_freshness,
 )
+from llm.advisor_runtime_d0_solar_charge_weather_authority import (
+    freeze_runtime_d0_solar_charge_weather_decision_authority,
+)
 
 
 SCHEMA_VERSION = "runtime-d0-standard-charge-start-readiness-authority-v1"
-_SUPPORTED_FAMILY = "ordinary_charge_then_damage"
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn"})
+_SUPPORTED_FAMILIES = frozenset({"ordinary_charge_then_damage", "weather_sensitive_charge_then_damage"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _TRUSTED_ITEM_EVENTS = frozenset({
     "current_item_observed", "item_consumption_observed", "item_removed_observed",
@@ -99,55 +103,86 @@ def freeze_runtime_d0_standard_charge_start_readiness_authority(
     if item["status"] == "unknown":
         return _result("incomplete", "standard_charge_current_item_unknown", common)
 
+    power_state: dict[str, Any]
     if item["status"] == "known_absent":
-        return _ready(
-            common,
-            power_herb_applicability_state={
-                "status": "not_required",
-                "reason": "current_item_known_absent",
-            },
+        power_state = {
+            "status": "not_required",
+            "reason": "current_item_known_absent",
+        }
+    elif item.get("item_id") != "power-herb":
+        power_state = {
+            "status": "not_required",
+            "reason": "current_item_not_power_herb",
+            "item_id": item.get("item_id"),
+        }
+    else:
+        applicability = resolve_runtime_d0_held_item_effect_applicability_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            holder=actor,
         )
-
-    if item.get("item_id") != "power-herb":
-        return _ready(
-            common,
-            power_herb_applicability_state={
-                "status": "not_required",
-                "reason": "current_item_not_power_herb",
-                "item_id": item.get("item_id"),
-            },
-        )
-
-    applicability = resolve_runtime_d0_held_item_effect_applicability_authority(
-        strategy_d0=strategy_d0,
-        runtime_snapshot=runtime_snapshot,
-        holder=actor,
-    )
-    common["power_herb_applicability_authority"] = deepcopy(applicability)
-    applicability_error = _power_herb_applicability_error(applicability, base, item)
-    if applicability_error is not None:
-        status, reason = applicability_error
-        return _result(status, reason, common)
-
-    if applicability.get("item_effects_active") is True:
-        return _power_herb_skip_ready(
-            common,
-            power_herb_applicability_state={
+        common["power_herb_applicability_authority"] = deepcopy(applicability)
+        applicability_error = _power_herb_applicability_error(applicability, base, item)
+        if applicability_error is not None:
+            status, reason = applicability_error
+            return _result(status, reason, common)
+        if applicability.get("item_effects_active") is True:
+            power_state = {
                 "status": "active",
                 "outcome": applicability.get("outcome"),
                 "reason": applicability.get("reason"),
-            },
-        )
-    if applicability.get("item_effects_active") is False:
-        return _ready(
-            common,
-            power_herb_applicability_state={
+            }
+        elif applicability.get("item_effects_active") is False:
+            power_state = {
                 "status": "suppressed",
                 "outcome": applicability.get("outcome"),
                 "reason": applicability.get("reason"),
-            },
+            }
+        else:
+            return _result("rejected", "power_herb_applicability_result_invalid", common)
+
+    if base["move_id"] in _SOLAR_MOVES:
+        weather = freeze_runtime_d0_solar_charge_weather_decision_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            action=action,
+            actor=actor,
+            target=target,
         )
-    return _result("rejected", "power_herb_applicability_result_invalid", common)
+        common["solar_weather_decision_authority"] = deepcopy(weather)
+        if weather.get("status") != "resolved":
+            return _result(
+                "rejected" if weather.get("status") == "rejected" else "incomplete",
+                weather.get("reason", "solar_weather_decision_unavailable"),
+                common,
+            )
+        if weather.get("outcome") == "sunny_skip":
+            return _weather_skip_ready(
+                common,
+                power_herb_applicability_state=power_state,
+                solar_weather_decision_authority=weather,
+            )
+        if power_state.get("status") == "active":
+            return _power_herb_skip_ready(
+                common,
+                power_herb_applicability_state=power_state,
+                solar_weather_decision_authority=weather,
+            )
+        return _ready(
+            common,
+            power_herb_applicability_state=power_state,
+            solar_weather_decision_authority=weather,
+        )
+
+    if power_state.get("status") == "active":
+        return _power_herb_skip_ready(
+            common,
+            power_herb_applicability_state=power_state,
+        )
+    return _ready(
+        common,
+        power_herb_applicability_state=power_state,
+    )
 
 
 def _base(
@@ -207,11 +242,12 @@ def _base(
 
 
 def _canonical_error(canonical: Mapping[str, Any], move_id: str) -> str | None:
+    expected_family = "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES else "ordinary_charge_then_damage"
     expected = {
         "move_id": move_id,
         "is_charge_move": True,
         "charge_flag_confirmed": True,
-        "lifecycle_family": _SUPPORTED_FAMILY,
+        "lifecycle_family": expected_family,
         "execution_model": "charge_then_execute",
         "charge_move_event_participation": True,
         "twoturnmove_state_usage": True,
@@ -377,6 +413,7 @@ def _ready(
     base: Mapping[str, Any],
     *,
     power_herb_applicability_state: Mapping[str, Any],
+    solar_weather_decision_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "status": "resolved",
@@ -385,6 +422,7 @@ def _ready(
         "outcome": "charge_start_ready",
         "next_semantic_phase": "charge_turn_start",
         "power_herb_applicability_state": deepcopy(dict(power_herb_applicability_state)),
+        **({"solar_weather_decision_authority": deepcopy(dict(solar_weather_decision_authority)), "skip_reason": "ordinary_charge"} if isinstance(solar_weather_decision_authority, Mapping) else {}),
         "action_execution_confirmed": False,
         "immediate_damage_execution_grant": False,
         "charge_turn_state_materialized": False,
@@ -397,6 +435,7 @@ def _power_herb_skip_ready(
     base: Mapping[str, Any],
     *,
     power_herb_applicability_state: Mapping[str, Any],
+    solar_weather_decision_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "status": "resolved",
@@ -405,11 +444,35 @@ def _power_herb_skip_ready(
         "outcome": "power_herb_charge_skip_ready",
         "next_semantic_phase": "current_turn_charge_skip_terminal_execution",
         "power_herb_applicability_state": deepcopy(dict(power_herb_applicability_state)),
+        **({"solar_weather_decision_authority": deepcopy(dict(solar_weather_decision_authority)), "skip_reason": "power_herb_skip"} if isinstance(solar_weather_decision_authority, Mapping) else {}),
         "action_execution_confirmed": False,
         "immediate_damage_execution_grant": False,
         "charge_turn_state_materialized": False,
         "pp_consumed": False,
         "provenance": "strict_runtime_d0_standard_charge_power_herb_skip_readiness_v1",
+    }
+
+
+def _weather_skip_ready(
+    base: Mapping[str, Any],
+    *,
+    power_herb_applicability_state: Mapping[str, Any],
+    solar_weather_decision_authority: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "status": "resolved",
+        "schema_version": SCHEMA_VERSION,
+        **deepcopy(dict(base)),
+        "outcome": "weather_charge_skip_ready",
+        "next_semantic_phase": "current_turn_charge_skip_terminal_execution",
+        "skip_reason": "weather_skip",
+        "power_herb_applicability_state": deepcopy(dict(power_herb_applicability_state)),
+        "solar_weather_decision_authority": deepcopy(dict(solar_weather_decision_authority)),
+        "action_execution_confirmed": False,
+        "immediate_damage_execution_grant": False,
+        "charge_turn_state_materialized": False,
+        "pp_consumed": False,
+        "provenance": "strict_runtime_d0_solar_weather_skip_readiness_v1",
     }
 
 

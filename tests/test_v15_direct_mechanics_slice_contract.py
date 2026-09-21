@@ -884,6 +884,45 @@ def test_static_ability_modifier_composes_with_known_weather_burn_screens_and_fi
     assert fixed_hit["applied_damage_modifiers"] == ["ability_technician_boost"]
 
 
+def test_power_herb_is_direct_damage_neutral_but_not_a_generic_item_bypass():
+    baseline = _modifier_result()
+    attacker = _modifier_result(item="power-herb")
+    defender = _modifier_result(defender_item="power-herb")
+    unknown = _modifier_result(item="unknown")
+    arbitrary = _modifier_result(item="leftovers")
+
+    assert attacker["status"] == "known"
+    assert defender["status"] == "known"
+    assert attacker["damage_range"] == baseline["damage_range"]
+    assert defender["damage_range"] == baseline["damage_range"]
+    assert "item_" not in " ".join(attacker.get("applied_damage_modifiers", []))
+    assert "item_" not in " ".join(defender.get("applied_damage_modifiers", []))
+    assert unknown["status"] == "insufficient_context"
+    assert "attacker.item" in unknown["missing_inputs"]
+    assert arbitrary["status"] == "unsupported_mechanic"
+    assert arbitrary["unsupported_reason"] == "item_modifier"
+
+
+def test_power_herb_does_not_open_generic_standard_charge_execution():
+    for move_id, category, power, move_type in (
+        ("sky-attack", "physical", 140, "flying"),
+        ("razor-wind", "special", 80, "normal"),
+        ("freeze-shock", "physical", 140, "ice"),
+        ("ice-burn", "special", 140, "ice"),
+        ("solar-beam", "special", 120, "grass"),
+        ("solar-blade", "physical", 125, "grass"),
+    ):
+        result = _modifier_result(
+            move_id=move_id,
+            category=category,
+            power=power,
+            move_type=move_type,
+            item="power-herb",
+        )
+        assert result["status"] == "unsupported_mechanic"
+        assert result["unsupported_reason"] == "two_turn_execution_unrepresented"
+
+
 def test_static_self_item_boosts_use_only_current_user_confirmed_item_authority():
     baseline = _modifier_result()
     life_orb = _modifier_result(item="life-orb")

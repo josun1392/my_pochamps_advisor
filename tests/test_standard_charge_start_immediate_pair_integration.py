@@ -24,29 +24,33 @@ from tests.test_detached_opponent_response_profile import (
 )
 
 
-STANDARD = ("sky-attack", "razor-wind", "freeze-shock", "ice-burn")
+STANDARD = ("sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade")
 
 
 def _charge_metadata(move_id: str) -> dict:
-    category = "special" if move_id in {"razor-wind", "ice-burn"} else "physical"
+    category = "special" if move_id in {"razor-wind", "ice-burn", "solar-beam"} else "physical"
     power = {
         "sky-attack": 140,
         "razor-wind": 80,
         "freeze-shock": 140,
         "ice-burn": 140,
+        "solar-beam": 120,
+        "solar-blade": 125,
     }[move_id]
     move_type = {
         "sky-attack": "flying",
         "razor-wind": "normal",
         "freeze-shock": "ice",
         "ice-burn": "ice",
+        "solar-beam": "grass",
+        "solar-blade": "grass",
     }[move_id]
     return {
         "move_id": move_id,
         "category": category,
         "power": power,
         "type": move_type,
-        "accuracy": 90,
+        "accuracy": 100 if move_id in {"solar-beam", "solar-blade", "razor-wind"} else 90,
         "priority": 0,
         "target": "selected-pokemon",
     }
@@ -325,7 +329,7 @@ def test_standard_charge_excluded_counterpart_families_fail_closed_before_specia
 
 
 def test_nonstandard_charge_moves_keep_global_guard():
-    for move_id in ("solar-beam", "fly", "meteor-beam", "geomancy"):
+    for move_id in ("fly", "meteor-beam", "geomancy"):
         state = _complete_state(_state())
         snapshot = _snapshot(state)
         d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))

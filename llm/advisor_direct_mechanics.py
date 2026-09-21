@@ -667,7 +667,7 @@ def _unsupported_modifier(attacker: Mapping[str, Any], defender: Mapping[str, An
             if isinstance(value, Mapping) and value.get("status") == "known" and _nonempty_str(value.get("value")):
                 if key == "status" and value.get("value") in {"sleep", "freeze"} and allow_champions_status_gate:
                     continue
-                if key == "item" and value.get("value") in {"focus-sash", "quick-claw", "rocky-helmet", "sitrus-berry"}:
+                if key == "item" and value.get("value") in {"focus-sash", "quick-claw", "rocky-helmet", "sitrus-berry", "power-herb"}:
                     continue
                 if (
                     key == "item"
@@ -1141,7 +1141,7 @@ def _attacker_item_modifier_context(*, stat_provenance: Mapping[str, Any], direc
     # Loaded Dice only alters the multi-hit count.  The count modifier owner
     # supplies that effect separately, so it has no direct single-hit damage
     # modifier to apply here.
-    if item_id in {"focus-sash", "loaded-dice", "quick-claw", "safety-goggles"}:
+    if item_id in {"focus-sash", "loaded-dice", "quick-claw", "safety-goggles", "power-herb"}:
         return result
     type_boost_effect = get_champions_supported_type_boost_item(item_id)
     if type_boost_effect is not None:
@@ -1238,7 +1238,7 @@ def _defender_item_modifier_context(
     # These items have no pre-hit modifier in this direct formula.  Their
     # post-hit/later-action consequences are separately owned by detached
     # predictive seams, so their exact known presence is neutral here.
-    if item_id in {"focus-sash", "quick-claw", "rocky-helmet", "sitrus-berry"}:
+    if item_id in {"focus-sash", "quick-claw", "rocky-helmet", "sitrus-berry", "power-herb"}:
         return result
     effect = get_item(item_id)
     if effect is None:

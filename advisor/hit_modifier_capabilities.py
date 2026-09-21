@@ -28,7 +28,7 @@ _APPLICABILITY = frozenset({"applicable", "not_applicable", "unknown"})
 # effect.  Every other known target item stays unsupported until catalogued.
 _KNOWN_NEUTRAL_TARGET_ITEM_IDS = frozenset({
     "black-belt", "choice-scarf", "focus-sash", "life-orb", "quick-claw",
-    "rocky-helmet", "sitrus-berry",
+    "rocky-helmet", "sitrus-berry", "power-herb",
 })
 
 _KNOWN_NEUTRAL_ABILITY_IDS = frozenset({

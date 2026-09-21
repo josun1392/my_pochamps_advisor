@@ -14,6 +14,9 @@ from advisor.canonical_standard_charge_turn_two_effects import resolve_canonical
 from advisor.damage.crit import crit_probability, resolve_crit_stage
 from advisor.damage.crit import is_crit_blocked, select_critical_damage_stages
 from advisor.damage.formula import DamageContext, calc_damage_rolls
+from llm.advisor_solar_terminal_weather_damage_modifier import (
+    validate_solar_terminal_weather_damage_modifier_authority,
+)
 from advisor.damage.field import Field, SideField
 from advisor.damage.stats import apply_boosts
 from advisor.damage.abilities import get_ability
@@ -30,8 +33,10 @@ CALLER_AUTH_SCHEMA_VERSION = "standard-charge-terminal-caller-authentication-v1"
 KERNEL_SCHEMA_VERSION = "standard-charge-terminal-attack-kernel-v1"
 FORCED_TURN_TWO_EXECUTION_MODE = "forced_turn_two_continuation"
 POWER_HERB_CURRENT_TURN_SKIP_MODE = "power_herb_current_turn_skip"
-_PRODUCTION_EXECUTION_MODES = {FORCED_TURN_TWO_EXECUTION_MODE, POWER_HERB_CURRENT_TURN_SKIP_MODE}
-_SUPPORTED_MOVES = {"sky-attack", "razor-wind", "freeze-shock", "ice-burn"}
+WEATHER_CURRENT_TURN_SKIP_MODE = "weather_current_turn_skip"
+_PRODUCTION_EXECUTION_MODES = {FORCED_TURN_TWO_EXECUTION_MODE, POWER_HERB_CURRENT_TURN_SKIP_MODE, WEATHER_CURRENT_TURN_SKIP_MODE}
+_SUPPORTED_MOVES = {"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"}
+_SOLAR_MOVES = {"solar-beam", "solar-blade"}
 _OWNER_KEYS = {"session_id", "side", "slot_index", "pokemon_id"}
 
 
@@ -78,6 +83,7 @@ def materialize_standard_charge_terminal_execution_contract(
     caller_action_authority: Mapping[str, Any],
     caller_authentication: Mapping[str, Any],
     power_herb_consumption_authority: Mapping[str, Any] | None = None,
+    solar_terminal_weather_damage_modifier_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create the typed execution boundary for one authenticated caller mode."""
     if execution_mode not in _PRODUCTION_EXECUTION_MODES:
@@ -131,6 +137,12 @@ def materialize_standard_charge_terminal_execution_contract(
         "power_herb_consumption_authority": deepcopy(dict(power_herb_consumption_authority)) if isinstance(power_herb_consumption_authority, Mapping) else None,
         "provenance": "authenticated_standard_charge_terminal_execution_contract_v1",
     }
+    if move_id in _SOLAR_MOVES:
+        if not isinstance(solar_terminal_weather_damage_modifier_authority, Mapping):
+            return _result("incomplete", "solar_terminal_weather_damage_modifier_authority_required")
+        contract["solar_terminal_weather_damage_modifier_authority"] = deepcopy(dict(solar_terminal_weather_damage_modifier_authority))
+    elif solar_terminal_weather_damage_modifier_authority is not None:
+        return _result("rejected", "non_solar_terminal_weather_damage_modifier_forbidden")
     error = validate_standard_charge_terminal_execution_contract(contract)
     return contract if error is None else _result("rejected", error)
 
@@ -143,8 +155,8 @@ def validate_standard_charge_terminal_execution_contract(contract: Any) -> str |
     if execution_mode not in _PRODUCTION_EXECUTION_MODES:
         return "standard_charge_terminal_execution_mode_invalid"
     consumption = contract.get("power_herb_consumption_authority")
-    if execution_mode == FORCED_TURN_TWO_EXECUTION_MODE and consumption is not None:
-        return "standard_charge_terminal_turn_two_consumption_authority_forbidden"
+    if execution_mode in {FORCED_TURN_TWO_EXECUTION_MODE, WEATHER_CURRENT_TURN_SKIP_MODE} and consumption is not None:
+        return "standard_charge_terminal_consumption_authority_forbidden"
     if execution_mode == POWER_HERB_CURRENT_TURN_SKIP_MODE and not isinstance(consumption, Mapping):
         return "standard_charge_terminal_power_herb_consumption_authority_required"
     actor, target, decision_owner = contract.get("actor"), contract.get("target"), contract.get("decision_owner")
@@ -170,6 +182,22 @@ def validate_standard_charge_terminal_execution_contract(contract: Any) -> str |
     )
     if shape_error is not None:
         return shape_error
+    solar_modifier = contract.get("solar_terminal_weather_damage_modifier_authority")
+    if move_id in _SOLAR_MOVES:
+        if not isinstance(solar_modifier, Mapping):
+            return "solar_terminal_weather_damage_modifier_authority_required"
+        if validate_solar_terminal_weather_damage_modifier_authority(
+            authority=solar_modifier,
+            move_id=move_id,
+            actor=actor,
+            target=target,
+            action_id=contract["action_id"],
+            source_state_fingerprint=contract["source_state_fingerprint"],
+            actor_mechanics=contract["actor_mechanics"],
+        ) is not None:
+            return "solar_terminal_weather_damage_modifier_authority_invalid"
+    elif solar_modifier is not None:
+        return "non_solar_terminal_weather_damage_modifier_forbidden"
     auth = contract.get("caller_authentication")
     if not _caller_authentication_matches(contract, auth):
         return "standard_charge_terminal_caller_authentication_mismatch"
@@ -188,6 +216,7 @@ def execute_standard_charge_terminal_attack(*, execution_contract: Mapping[str, 
         "sturdy": deepcopy(dict(execution_contract["target_sturdy_authority"])),
         "focus_sash": deepcopy(dict(execution_contract["target_focus_sash_authority"])),
         "life_orb": deepcopy(dict(execution_contract["attacker_life_orb_authority"])),
+        "solar_weather_modifier": deepcopy(dict(execution_contract["solar_terminal_weather_damage_modifier_authority"])) if isinstance(execution_contract.get("solar_terminal_weather_damage_modifier_authority"), Mapping) else None,
     }
     return _execute_authenticated_terminal_mechanics(
         row=execution_contract,
@@ -296,6 +325,7 @@ def _execute_authenticated_terminal_mechanics(
                 terminal["attacker_item"]["effective_item_id"],
                 terminal["target_item"]["effective_item_id"],
                 execution_actor, target,
+                terminal.get("solar_weather_modifier"),
             )
             if rolls is None:
                 return _incomplete(row, "detached_damage_context_unavailable", caller_action_authority)
@@ -343,14 +373,16 @@ def _execute_authenticated_terminal_mechanics(
 def _caller_authentication_matches(contract: Mapping[str, Any], auth: Any) -> bool:
     if not isinstance(auth, Mapping) or auth.get("schema_version") != CALLER_AUTH_SCHEMA_VERSION:
         return False
-    expected_keys = (
+    expected_keys = [
         "execution_mode", "session_id", "source_state_fingerprint", "decision_owner",
         "actor", "target", "action_id", "move_id", "canonical_terminal_effect",
         "actor_mechanics", "target_mechanics", "attacker_held_item_effect_authority",
         "target_held_item_effect_authority", "target_sturdy_authority",
         "target_focus_sash_authority", "attacker_life_orb_authority",
         "caller_action_authority", "power_herb_consumption_authority",
-    )
+    ]
+    if contract.get("move_id") in _SOLAR_MOVES:
+        expected_keys.append("solar_terminal_weather_damage_modifier_authority")
     if any(auth.get(key) != contract.get(key) for key in expected_keys):
         return False
     source = auth.get("source_execution_authority")
@@ -367,6 +399,16 @@ def _caller_authentication_matches(contract: Mapping[str, Any], auth: Any) -> bo
             and source["actions"].get(side) == caller
             and contract.get("power_herb_consumption_authority") is None
             and auth.get("provenance") == "forced_turn_two_standard_charge_terminal_caller_authentication_v1"
+        )
+    if mode == WEATHER_CURRENT_TURN_SKIP_MODE:
+        return (
+            auth.get("caller_kind") == "weather_current_turn_skip"
+            and isinstance(source, Mapping)
+            and source.get("schema_version") == "runtime-d0-solar-weather-skip-execution-authority-v1"
+            and source.get("source_runtime_fingerprint") == contract.get("source_state_fingerprint")
+            and source == caller
+            and contract.get("power_herb_consumption_authority") is None
+            and auth.get("provenance") == "solar_weather_current_turn_terminal_caller_authentication_v1"
         )
     consumption = contract.get("power_herb_consumption_authority")
     return (
@@ -469,7 +511,7 @@ def _apply_life_orb(leaves: list[dict[str, Any]], authority: Mapping[str, Any], 
 
 
 
-def _damage_rolls(row: Mapping[str, Any], critical: bool, attacker_item: str | None, defender_item: str | None, actor: Mapping[str, Any] | None = None, target: Mapping[str, Any] | None = None) -> list[int] | None:
+def _damage_rolls(row: Mapping[str, Any], critical: bool, attacker_item: str | None, defender_item: str | None, actor: Mapping[str, Any] | None = None, target: Mapping[str, Any] | None = None, solar_weather_modifier: Mapping[str, Any] | None = None) -> list[int] | None:
     a, t, move = actor or row["actor_mechanics"], target or row["target_mechanics"], row["canonical_terminal_effect"]["move"]
     av, tv = a["current_final_stats"]["values"], t["current_final_stats"]["values"]
     ast, tst = a["current_stages"]["values"], t["current_stages"]["values"]
@@ -477,7 +519,10 @@ def _damage_rolls(row: Mapping[str, Any], critical: bool, attacker_item: str | N
     os, ds = select_critical_damage_stages(ast[offense], tst[defense], is_critical=critical)
     try:
         field = _field(a["field"], t["side_conditions"])
-        ctx = DamageContext(attacker_level=a["current_level"]["value"], move_power=move["power"], attack_stat=apply_boosts(av[offense], os), defense_stat=apply_boosts(tv[defense], ds), move_type=move["type"], move_id=move["move_id"], attacker_types=tuple(a["types"]["value"]), defender_types=tuple(t["types"]["value"]), is_physical=move["category"] == "physical", is_critical=critical, is_spread=False, field=field, attacker_ability=get_ability(_value(a["ability"])), defender_ability=get_ability(_value(t["ability"])), attacker_item=get_item(attacker_item), defender_item=get_item(defender_item), attacker_hp_current=a["current_hp"]["current_hp"], attacker_hp_max=a["current_hp"]["maximum_hp"], defender_hp_current=t["current_hp"]["current_hp"], defender_hp_max=t["current_hp"]["maximum_hp"], attacker_condition=_condition(a["condition"]) or "none")
+        weather_mod_q12 = solar_weather_modifier.get("modifier_q12") if isinstance(solar_weather_modifier, Mapping) else 4096
+        if not isinstance(weather_mod_q12, int):
+            return None
+        ctx = DamageContext(attacker_level=a["current_level"]["value"], move_power=move["power"], attack_stat=apply_boosts(av[offense], os), defense_stat=apply_boosts(tv[defense], ds), move_type=move["type"], move_id=move["move_id"], attacker_types=tuple(a["types"]["value"]), defender_types=tuple(t["types"]["value"]), is_physical=move["category"] == "physical", is_critical=critical, is_spread=False, field=field, weather_mod_q12=weather_mod_q12, attacker_ability=get_ability(_value(a["ability"])), defender_ability=get_ability(_value(t["ability"])), attacker_item=get_item(attacker_item), defender_item=get_item(defender_item), attacker_hp_current=a["current_hp"]["current_hp"], attacker_hp_max=a["current_hp"]["maximum_hp"], defender_hp_current=t["current_hp"]["current_hp"], defender_hp_max=t["current_hp"]["maximum_hp"], attacker_condition=_condition(a["condition"]) or "none")
         return calc_damage_rolls(ctx)
     except (KeyError, TypeError, ValueError):
         return None
@@ -673,7 +718,8 @@ def _accuracy(base: int, accuracy_stage: int, evasion_stage: int) -> Fraction | 
 def _field(field_fact: Mapping[str, Any], side_fact: Mapping[str, Any]) -> Field:
     value = side_fact.get("value", {})
     defender = SideField(reflect=bool(value.get("reflect", False)), light_screen=bool(value.get("light_screen", False)), aurora_veil=bool(value.get("aurora_veil", False)))
-    return Field(weather=field_fact.get("weather", "none"), terrain=field_fact.get("terrain", "none"), is_doubles=False, defender_side=defender)
+    weather = {"sandstorm": "sand"}.get(field_fact.get("weather"), field_fact.get("weather", "none"))
+    return Field(weather=weather, terrain=field_fact.get("terrain", "none"), is_doubles=False, defender_side=defender)
 
 
 def _volatiles(fact: Mapping[str, Any]) -> tuple[str, ...]:

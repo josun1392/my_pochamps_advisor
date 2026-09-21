@@ -25,10 +25,14 @@ from llm.advisor_standard_charge_terminal_execution import (
     execute_standard_charge_terminal_attack,
     materialize_standard_charge_terminal_execution_contract,
 )
+from llm.advisor_solar_terminal_weather_damage_modifier import (
+    materialize_solar_terminal_weather_damage_modifier_authority,
+)
 
 AUTHORITY_SCHEMA_VERSION = "runtime-d0-standard-charge-power-herb-skip-execution-authority-v1"
 CONSUMPTION_SCHEMA_VERSION = "detached-standard-charge-power-herb-consumption-authority-v1"
-_SUPPORTED = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn"})
+_SUPPORTED = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_SOLAR = frozenset({"solar-beam", "solar-blade"})
 
 
 def freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(
@@ -75,7 +79,7 @@ def freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(
         move_id not in _SUPPORTED
         or effect.get("status") != "resolved"
         or not isinstance(lifecycle, Mapping)
-        or lifecycle.get("lifecycle_family") != "ordinary_charge_then_damage"
+        or lifecycle.get("lifecycle_family") != ("weather_sensitive_charge_then_damage" if move_id in _SOLAR else "ordinary_charge_then_damage")
         or lifecycle.get("power_herb_charge_skip_possible") is not True
     ):
         return _result("rejected", "power_herb_skip_move_not_supported")
@@ -188,6 +192,19 @@ def materialize_runtime_d0_standard_charge_power_herb_terminal_execution_contrac
         return consumption
     actor_mechanics = terminal["actor_participant_mechanics_authority"]
     target_mechanics = terminal["target_participant_mechanics_authority"]
+    solar_modifier = materialize_solar_terminal_weather_damage_modifier_authority(
+        move_id=execution_authority["move_id"],
+        actor=execution_authority["actor"],
+        target=execution_authority["target"],
+        action_id=execution_authority["action_id"],
+        source_state_fingerprint=execution_authority["source_runtime_fingerprint"],
+        actor_mechanics=actor_mechanics,
+    )
+    if execution_authority["move_id"] in _SOLAR and (
+        not isinstance(solar_modifier, Mapping) or solar_modifier.get("status") != "resolved"
+    ):
+        return _result("incomplete", "power_herb_solar_terminal_weather_modifier_unavailable")
+
     caller_authentication = {
         "schema_version": CALLER_AUTH_SCHEMA_VERSION,
         "caller_kind": "power_herb_current_turn_skip",
@@ -209,6 +226,7 @@ def materialize_runtime_d0_standard_charge_power_herb_terminal_execution_contrac
         "attacker_life_orb_authority": deepcopy(dict(supports["life_orb"])),
         "caller_action_authority": deepcopy(dict(execution_authority)),
         "power_herb_consumption_authority": deepcopy(dict(consumption)),
+        **({"solar_terminal_weather_damage_modifier_authority": deepcopy(dict(solar_modifier))} if isinstance(solar_modifier, Mapping) else {}),
         "source_execution_authority": deepcopy(dict(execution_authority)),
         "provenance": "power_herb_current_turn_standard_charge_terminal_caller_authentication_v1",
     }
@@ -231,6 +249,7 @@ def materialize_runtime_d0_standard_charge_power_herb_terminal_execution_contrac
         caller_action_authority=execution_authority,
         caller_authentication=caller_authentication,
         power_herb_consumption_authority=consumption,
+        solar_terminal_weather_damage_modifier_authority=solar_modifier,
     )
 
 

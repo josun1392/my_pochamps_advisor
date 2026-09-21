@@ -25,11 +25,15 @@ from llm.advisor_standard_charge_terminal_execution import (
     materialize_standard_charge_terminal_execution_contract,
     standard_charge_terminal_missing_authority,
 )
+from llm.advisor_solar_terminal_weather_damage_modifier import (
+    materialize_solar_terminal_weather_damage_modifier_authority,
+)
 
 
 AUTHORITY_SCHEMA_VERSION = "detached-standard-charge-turn-two-execution-authority-v1"
 SCHEMA_VERSION = "detached-standard-charge-turn-two-attack-execution-v1"
 _SIDES = ("self", "opponent")
+_SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 
 
 def materialize_detached_standard_charge_turn_two_execution_authority(*, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, forced_continuation: Mapping[str, Any], predictive_mechanics: Mapping[str, Any]) -> dict[str, Any]:
@@ -88,7 +92,8 @@ def _authority_row(side: str, action: Mapping[str, Any], bound: Mapping[str, Any
     effect = resolve_canonical_standard_charge_turn_two_effect(action.get("move_id"))
     if effect.get("status") != "resolved": return "canonical_terminal_effect_unavailable"
     lifecycle = effect["lifecycle"]
-    if lifecycle.get("lifecycle_family") != "ordinary_charge_then_damage" or action.get("actor") != bound.get("actor") or action.get("resolved_target_owner") != bound.get("target"):
+    expected_family = "weather_sensitive_charge_then_damage" if action.get("move_id") in _SOLAR_MOVES else "ordinary_charge_then_damage"
+    if lifecycle.get("lifecycle_family") != expected_family or action.get("actor") != bound.get("actor") or action.get("resolved_target_owner") != bound.get("target"):
         return "forced_continuation_execution_identity_mismatch"
     return {"status": "resolved", "schema_version": AUTHORITY_SCHEMA_VERSION, "side": side, "source_next_decision_fingerprint": fingerprint, "actor": deepcopy(action["actor"]), "target": deepcopy(action["resolved_target_owner"]), "move_id": action["move_id"], "continuation_action_id": action["continuation_action_id"], "original_charge_action_id": action["original_charge_action_id"], "continuation_target_locator": deepcopy(action["continuation_target_locator"]), "original_charge_lifecycle": deepcopy(action["original_charge_provenance"]), "canonical_terminal_effect": effect, "predictive_actor_mechanics": deepcopy(bound["actor_mechanics"]), "predictive_target_mechanics": deepcopy(bound["target_mechanics"]), "execution_grant": "authenticated_standard_charge_turn_two_only", "provenance": "forced_continuation_and_predictive_mechanics_bound_execution_authority_v1"}
 
@@ -147,12 +152,26 @@ def materialize_detached_standard_charge_turn_two_terminal_execution_contract(
     if terminal.get("status") != "resolved":
         return {"status": "incomplete", "reason": terminal.get("reason", "detached_terminal_authority_unavailable")}
 
+    solar_modifier = materialize_solar_terminal_weather_damage_modifier_authority(
+        move_id=row["move_id"],
+        actor=row["actor"],
+        target=row["target"],
+        action_id=row["continuation_action_id"],
+        source_state_fingerprint=execution_authority["source_next_decision_fingerprint"],
+        actor_mechanics=actor,
+    )
+    if row["move_id"] in _SOLAR_MOVES and (
+        not isinstance(solar_modifier, Mapping) or solar_modifier.get("status") != "resolved"
+    ):
+        return {"status": "incomplete", "reason": "solar_turn_two_terminal_weather_modifier_unavailable"}
+
     caller_authentication = _forced_turn_two_caller_authentication(
         execution_authority=execution_authority,
         row=row,
         actor_mechanics=actor,
         target_mechanics=target,
         terminal=terminal,
+        solar_modifier=solar_modifier,
     )
     return materialize_standard_charge_terminal_execution_contract(
         execution_mode=FORCED_TURN_TWO_EXECUTION_MODE,
@@ -172,6 +191,7 @@ def materialize_detached_standard_charge_turn_two_terminal_execution_contract(
         attacker_life_orb_authority=terminal["life_orb"],
         caller_action_authority=row,
         caller_authentication=caller_authentication,
+        solar_terminal_weather_damage_modifier_authority=solar_modifier,
     )
 
 
@@ -265,6 +285,7 @@ def _forced_turn_two_caller_authentication(
     actor_mechanics: Mapping[str, Any],
     target_mechanics: Mapping[str, Any],
     terminal: Mapping[str, Any],
+    solar_modifier: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "schema_version": CALLER_AUTH_SCHEMA_VERSION,
@@ -286,6 +307,8 @@ def _forced_turn_two_caller_authentication(
         "target_focus_sash_authority": deepcopy(dict(terminal["focus_sash"])),
         "attacker_life_orb_authority": deepcopy(dict(terminal["life_orb"])),
         "caller_action_authority": deepcopy(dict(row)),
+        "power_herb_consumption_authority": None,
+        **({"solar_terminal_weather_damage_modifier_authority": deepcopy(dict(solar_modifier))} if isinstance(solar_modifier, Mapping) else {}),
         "source_execution_authority": deepcopy(dict(execution_authority)),
         "provenance": "forced_turn_two_standard_charge_terminal_caller_authentication_v1",
     }

@@ -14,7 +14,8 @@ from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
 SCHEMA_VERSION = "detached-standard-charge-start-v1"
 CONTEXT_SCHEMA_VERSION = "detached-standard-charge-lifecycle-context-v1"
 _READINESS_SCHEMA = "runtime-d0-standard-charge-start-readiness-authority-v1"
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 
 
 def materialize_detached_standard_charge_start(
@@ -201,7 +202,7 @@ def validate_detached_standard_charge_start(
         or context.get("actor") != actor
         or context.get("action_id") != base["action_id"]
         or context.get("move_id") != base["move_id"]
-        or context.get("canonical_lifecycle_family") != "ordinary_charge_then_damage"
+        or context.get("canonical_lifecycle_family") != _expected_family(base["move_id"])
         or context.get("execution_model") != "charge_then_execute"
         or context.get("source_target_owner") != target
         or context.get("continuation_target_locator")
@@ -341,7 +342,7 @@ def validate_pair_compatible_standard_charge_leaf(leaf: Any) -> str | None:
     if (
         not isinstance(canonical, Mapping)
         or canonical.get("move_id") != move_id
-        or canonical.get("lifecycle_family") != "ordinary_charge_then_damage"
+        or canonical.get("lifecycle_family") != _expected_family(move_id)
         or canonical.get("execution_model") != "charge_then_execute"
     ):
         return "standard_charge_leaf_canonical_lifecycle_invalid"
@@ -354,7 +355,7 @@ def validate_pair_compatible_standard_charge_leaf(leaf: Any) -> str | None:
         or context.get("actor") != actor
         or context.get("action_id") != action_id
         or context.get("move_id") != move_id
-        or context.get("canonical_lifecycle_family") != "ordinary_charge_then_damage"
+        or context.get("canonical_lifecycle_family") != _expected_family(move_id)
         or context.get("execution_model") != "charge_then_execute"
         or context.get("source_target_owner") != target
         or not isinstance(locator, Mapping)
@@ -507,7 +508,7 @@ def _readiness_error(
     if (
         canonical.get("status") != "resolved"
         or value.get("canonical_charge_lifecycle_authority") != canonical
-        or canonical.get("lifecycle_family") != "ordinary_charge_then_damage"
+        or canonical.get("lifecycle_family") != _expected_family(base["move_id"])
         or canonical.get("execution_model") != "charge_then_execute"
         or canonical.get("terminal_effect_class") != "damaging_move"
         or canonical.get("canonical_recognition_grants_immediate_execution") is not False
@@ -517,6 +518,10 @@ def _readiness_error(
     if not isinstance(power, Mapping) or power.get("status") not in {"not_required", "suppressed"}:
         return "rejected", "standard_charge_start_power_herb_state_invalid"
     return None
+
+
+def _expected_family(move_id: str) -> str:
+    return "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES else "ordinary_charge_then_damage"
 
 
 def _pokemon(

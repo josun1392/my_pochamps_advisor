@@ -297,10 +297,10 @@ def test_generic_native_damage_guard_still_blocks_raw_charge_execution(move):
 def test_unsupported_charge_move_rejects_and_stale_runtime_rejects():
     state, snapshot, d0 = _ready()
     actor, target = _owner(state, "self"), _owner(state, "opponent")
-    action = {"action_type": "attack", "action_id": "a:solar-beam", "identity": "solar-beam"}
+    action = {"action_type": "attack", "action_id": "a:meteor-beam", "identity": "meteor-beam"}
     assert freeze_runtime_d0_standard_charge_terminal_mechanics_authority(
         strategy_d0=d0, runtime_snapshot=snapshot, action=action, actor=actor, target=target,
-        move_metadata={"move_id": "solar-beam"},
+        move_metadata={"move_id": "meteor-beam"},
     )["status"] == "rejected"
 
     stale = deepcopy(state)

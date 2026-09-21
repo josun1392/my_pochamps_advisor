@@ -23,10 +23,14 @@ from llm.advisor_runtime_d0_standard_charge_power_herb_skip_execution import (
     freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority,
     execute_runtime_d0_standard_charge_power_herb_skip,
 )
+from llm.advisor_runtime_d0_solar_weather_skip_execution import (
+    freeze_runtime_d0_solar_weather_skip_execution_authority,
+    execute_runtime_d0_solar_weather_skip,
+)
 
 SCHEMA_VERSION = "detached-selected-action-execution-result-v1"
 _GRAPH_MOVES = frozenset({"bullet-seed", "rock-blast", "population-bomb", "triple-axel", "triple-kick"})
-_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn"})
+_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
 
 
 def materialize_detached_selected_action_execution_result(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], action: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], move_metadata: Mapping[str, Any], family_authorities: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -43,6 +47,11 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
     authorities = family_authorities if isinstance(family_authorities, Mapping) else {}
     if move_id in _STANDARD_CHARGE_MOVES:
         readiness = authorities.get("standard_charge_start_readiness_authority")
+        if isinstance(readiness, Mapping) and readiness.get("outcome") == "weather_charge_skip_ready":
+            return _standard_charge_weather_skip(
+                base, strategy_d0, runtime_snapshot, action, actor, target,
+                move_metadata, readiness,
+            )
         if isinstance(readiness, Mapping) and readiness.get("outcome") == "power_herb_charge_skip_ready":
             return _standard_charge_power_herb_skip(
                 base, strategy_d0, runtime_snapshot, action, actor, target,
@@ -84,6 +93,91 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
         if state.get("status") != "resolved": return _result(state.get("status", "incomplete"), state.get("reason", "ordinary_post_action_state_unavailable"), base)
         paths.append({"probability":deepcopy(leaf["probability"]), "action_leaf":deepcopy(leaf), "post_action_state":deepcopy(state)})
     return {"status":"resolved", "schema_version":SCHEMA_VERSION, **base, "execution_family":"ordinary_attack", "probability_owner":"selected_action_only", "paths":tuple(paths), "provenance":"selected_action_to_existing_predictive_attack_ledger_v1"}
+
+
+def _standard_charge_weather_skip(
+    base: Mapping[str, Any],
+    strategy_d0: Mapping[str, Any],
+    runtime_snapshot: Mapping[str, Any],
+    action: Mapping[str, Any],
+    actor: Mapping[str, Any],
+    target: Mapping[str, Any],
+    move_metadata: Mapping[str, Any],
+    readiness: Mapping[str, Any],
+) -> dict[str, Any]:
+    execution = freeze_runtime_d0_solar_weather_skip_execution_authority(
+        strategy_d0=strategy_d0,
+        runtime_snapshot=runtime_snapshot,
+        action=action,
+        actor=actor,
+        target=target,
+        move_metadata=move_metadata,
+        readiness_authority=readiness,
+    )
+    if execution.get("status") != "resolved":
+        return _result(execution.get("status", "incomplete"), execution.get("reason", "solar_weather_skip_execution_authority_unavailable"), base)
+    kernel = execute_runtime_d0_solar_weather_skip(execution_authority=execution)
+    if kernel.get("status") != "resolved":
+        return _result(kernel.get("status", "incomplete"), kernel.get("reason", "solar_weather_terminal_execution_unavailable"), base)
+    if kernel.get("terminal_probability_mass") != {"numerator": 1, "denominator": 1}:
+        return _result("rejected", "solar_weather_terminal_probability_mass_invalid", base)
+    leaves = kernel.get("terminal_leaves")
+    if not isinstance(leaves, tuple) or not leaves:
+        return _result("rejected", "solar_weather_terminal_leaves_missing", base)
+    actor_item = execution["terminal_mechanics_authority"]["actor_participant_mechanics_authority"].get("item")
+    retained = _solar_weather_retained_item(actor_item, execution)
+    if retained is None:
+        return _result("incomplete", "solar_weather_retained_item_authority_unavailable", base)
+    paths = []
+    for leaf in leaves:
+        if not isinstance(leaf, Mapping):
+            return _result("rejected", "solar_weather_terminal_leaf_invalid", base)
+        leaf = deepcopy(dict(leaf))
+        consequences = leaf.setdefault("consequences", {})
+        consequences["solar_weather_skip_item_retention"] = deepcopy(dict(retained))
+        state = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=leaf)
+        if state.get("status") != "resolved":
+            return _result(state.get("status", "incomplete"), state.get("reason", "solar_weather_post_action_state_unavailable"), base)
+        paths.append({
+            "probability": deepcopy(leaf["probability"]),
+            "action_leaf": deepcopy(dict(leaf)),
+            "post_action_state": state,
+            "solar_weather_skip_execution_authority": deepcopy(dict(execution)),
+            "pending_action_executed": False,
+        })
+    return {
+        "status": "resolved",
+        "schema_version": SCHEMA_VERSION,
+        **deepcopy(dict(base)),
+        "execution_family": "standard_charge_weather_skip",
+        "probability_owner": "selected_action_only",
+        "paths": tuple(paths),
+        "terminal_probability_mass": deepcopy(kernel["terminal_probability_mass"]),
+        "shared_terminal_execution": deepcopy(dict(kernel)),
+        "provenance": "selected_action_to_authenticated_solar_weather_skip_terminal_v1",
+    }
+
+
+def _solar_weather_retained_item(item: Any, execution: Mapping[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(item, Mapping):
+        return None
+    status = item.get("status")
+    if status == "known" and isinstance(item.get("value"), str) and item["value"]:
+        item_after = {"status": "known", "value": item["value"]}
+    elif status == "known_absent":
+        item_after = {"status": "known_absent", "value": None}
+    else:
+        return None
+    return {
+        "status": "resolved",
+        "schema_version": "solar-weather-skip-item-retention-v1",
+        "actor": deepcopy(dict(execution["actor"])),
+        "action_id": execution["action_id"],
+        "move_id": execution["move_id"],
+        "item_after": item_after,
+        "source_execution_authority": deepcopy(dict(execution)),
+        "provenance": "authenticated_solar_weather_skip_item_retention_v1",
+    }
 
 
 def _standard_charge_power_herb_skip(

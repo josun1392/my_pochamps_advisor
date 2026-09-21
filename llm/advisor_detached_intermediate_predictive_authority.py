@@ -61,7 +61,7 @@ def freeze_detached_intermediate_predictive_authority(
         raw["current_hp"] = values["hp"]
         raw["fainted"] = values["fainted"]
         raw["stat_stages"] = deepcopy(values["stages"])
-        if values["item"].get("source") in {"exact_terminal_leaf_focus_sash_consumption", "exact_terminal_leaf_sitrus_berry_consumption", "exact_terminal_leaf_knock_off_item_removal", "exact_terminal_leaf_fling_item_throw", "exact_terminal_leaf_item_transfer", "exact_terminal_leaf_atomic_item_swap_status", "exact_terminal_leaf_power_herb_consumption"}:
+        if values["item"].get("source") in {"exact_terminal_leaf_focus_sash_consumption", "exact_terminal_leaf_sitrus_berry_consumption", "exact_terminal_leaf_knock_off_item_removal", "exact_terminal_leaf_fling_item_throw", "exact_terminal_leaf_item_transfer", "exact_terminal_leaf_atomic_item_swap_status", "exact_terminal_leaf_power_herb_consumption", "exact_terminal_leaf_solar_weather_skip_item_retention"}:
             raw["known_item"] = values["item"].get("value")
             raw["known_item_provenance"] = {
                 "event_kind": "current_item_observed",

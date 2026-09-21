@@ -21,9 +21,19 @@ from tests.test_standard_charge_start_immediate_pair_integration import _opponen
 from tests.test_standard_charge_turn_two_ordered_pair_core import _runtime_fixture
 
 
-def _production_temporal_handoff(*, own_move="sky-attack", opponent_move="ice-burn", opponent_ability=None, opponent_grounded=None, self_final_stats=None, opponent_final_stats=None):
-    """Confirmation/reducer → D0 pair → EOT → handoff, with no field patch."""
+def _production_temporal_handoff(*, own_move="sky-attack", opponent_move="ice-burn", opponent_ability=None, opponent_grounded=None, self_final_stats=None, opponent_final_stats=None, weather=None):
+    """Confirmation/reducer → D0 pair → EOT → handoff, with optional exact weather."""
     snapshot, d0, _old_own, _old_opponent, _old_order, _charge = _runtime_fixture()
+    if weather is not None:
+        state = snapshot["state"]
+        state["field"]["weather"] = weather
+        state["field"]["weather_provenance"] = {
+            "event_kind": "current_weather_observed",
+            "trust": "user_confirmed_observation",
+            "turn_number": 1,
+        }
+        snapshot["state_fingerprint"] = state_fingerprint(state)
+        d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=d0["active_owners"]["self"])
     if opponent_grounded is not None:
         state = snapshot["state"]
         opponent_owner = d0["active_owners"]["opponent"]
