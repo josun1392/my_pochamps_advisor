@@ -263,6 +263,35 @@ def test_turn_two_adapter_honors_pair_local_mechanics_and_rejects_tampering():
     assert rejected["reason"] == "pair_local_predictive_mechanics_invalid"
 
 
+def test_shared_kernel_cancellation_paths_preserve_caller_action_provenance():
+    _state, _fingerprint, _authority, contract = _forced_case()
+
+    fainted = deepcopy(contract)
+    fainted["actor_mechanics"]["current_hp"]["current_hp"] = 0
+    fainted["actor_mechanics"]["fainted"] = True
+    fainted["caller_authentication"]["actor_mechanics"] = deepcopy(fainted["actor_mechanics"])
+    cancelled = execute_standard_charge_terminal_attack(execution_contract=fainted)
+    assert cancelled["status"] == "resolved"
+    assert cancelled["pre_action_gate"]["reason"] == "fainted_actor"
+    assert cancelled["execution_authority"] == contract["caller_action_authority"]
+    assert cancelled["terminal_leaves"][0]["provenance"]["execution_authority"] == contract["caller_action_authority"]
+
+    paralyzed = deepcopy(contract)
+    paralyzed["actor_mechanics"]["condition"] = {"status": "known_present", "condition": "paralysis"}
+    paralyzed["caller_authentication"]["actor_mechanics"] = deepcopy(paralyzed["actor_mechanics"])
+    branched = execute_standard_charge_terminal_attack(execution_contract=paralyzed)
+    assert branched["status"] == "resolved"
+    cancelled_leaves = [
+        leaf for leaf in branched["terminal_leaves"]
+        if leaf["consequences"].get("execution_failure") == "cancelled_due_to_paralysis"
+    ]
+    assert cancelled_leaves
+    assert all(
+        leaf["provenance"]["execution_authority"] == contract["caller_action_authority"]
+        for leaf in cancelled_leaves
+    )
+
+
 def test_current_d0_mechanics_are_shape_compatible_but_remain_non_executable():
     state, snapshot, d0 = _ready()
     actor, target = _owner(state, "self"), _owner(state, "opponent")
