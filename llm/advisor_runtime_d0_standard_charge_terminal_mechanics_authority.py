@@ -74,18 +74,19 @@ def freeze_runtime_d0_standard_charge_participant_mechanics_authority(*, strateg
     crit_volatiles, lucky_chant = _critical(critical)
     if crit_volatiles["status"] == "unknown" or lucky_chant["status"] == "unknown": missing.append("critical_state")
     field_raw = _native_field_state(state); side_effects = _native_side_effects(state)
-    field = _known({"weather": field_raw.get("weather"), "terrain": field_raw.get("terrain")}) if field_raw.get("weather") != "unknown" and field_raw.get("terrain") != "unknown" else {"status": "unknown"}
+    field = {"status": "known", "weather": field_raw.get("weather"), "terrain": field_raw.get("terrain")} if field_raw.get("weather") != "unknown" and field_raw.get("terrain") != "unknown" else {"status": "unknown"}
     if field["status"] == "unknown": missing.append("field")
     if not isinstance(side_effects, list): missing.append("side_conditions")
     status_progression = _status_progression(raw, owner, cond)
     confusion_state, confusion_progression = _confusion(raw, owner)
     if status_progression["status"] == "unknown": missing.append("status_progression")
     if confusion_state["status"] == "unknown" or confusion_progression["status"] == "unknown": missing.append("confusion_progression")
-    direct_mechanics = _direct_mechanics_from_facts(hp=hp, stages=stages, condition=cond, item=item, ability=ability, field=field)
+    final_stats = {"hp": hp["maximum_hp"], **values} if len(values) == len(_STATS) and isinstance(hp.get("maximum_hp"), int) and not isinstance(hp.get("maximum_hp"), bool) and hp["maximum_hp"] > 0 else None
+    direct_mechanics = _direct_mechanics_from_facts(level=level, hp=hp, final_stats=final_stats, stages=stages, condition=cond, item=item, ability=ability, types=types, field=field)
     if direct_mechanics["status"] == "unknown": missing.append("direct_mechanics")
     row = {**base, "schema_version": PARTICIPANT_SCHEMA_VERSION, "owner": deepcopy(dict(owner)), "participant_role": participant_role, "mechanics_only": True, "execution_grant": False,
-        "current_level": _known(level), "current_final_stats": {"status": "known", "values": values} if len(values) == len(_STATS) else {"status": "unknown"}, "current_hp": {"status": "known", **hp} if not "current_hp" in missing else {"status": "unknown"}, "fainted": raw.get("fainted") if isinstance(raw.get("fainted"), bool) else None,
-        "current_stages": {"status": "known", "values": dict(stages)} if isinstance(stages, Mapping) else {"status": "unknown"}, "condition": deepcopy(cond) if isinstance(cond, Mapping) else {"status": "unknown"}, "item": item, "ability": ability, "types": _known(tuple(types)) if isinstance(types, list) else {"status": "unknown"},
+        "current_level": _known(level) if isinstance(level, int) and not isinstance(level, bool) and level > 0 else {"status": "unknown"}, "current_final_stats": {"status": "known", "values": final_stats} if isinstance(final_stats, Mapping) else {"status": "incomplete", "values": values}, "current_hp": {"status": "known", **hp} if not "current_hp" in missing else {"status": "unknown"}, "fainted": raw.get("fainted") if isinstance(raw.get("fainted"), bool) else None,
+        "current_stages": {"status": "known", "values": dict(stages)} if isinstance(stages, Mapping) else {"status": "unknown"}, "condition": deepcopy(cond) if isinstance(cond, Mapping) else {"status": "unknown"}, "item": item, "ability": ability, "types": _known(list(types)) if isinstance(types, list) else {"status": "unknown"},
         "substitute": {"status": sub.get("state"), **({"substitute_hp": sub["substitute_hp"]} if "substitute_hp" in sub else {})} if sub.get("state") in {"known_active", "known_inactive"} else {"status": "unknown"}, "critical_hit_volatiles": crit_volatiles, "lucky_chant": lucky_chant,
         "field": field, "side_conditions": _known({effect: True for side_row in side_effects if side_row.get("side") == owner["side"] for effect in [side_row.get("effect")]}) if isinstance(side_effects, list) else {"status": "unknown"}, "direct_mechanics": direct_mechanics,
         "status_progression": status_progression, "confusion_state": confusion_state, "confusion_progression": confusion_progression,
@@ -172,31 +173,33 @@ def validate_runtime_d0_standard_charge_terminal_mechanics_authority(*, authorit
     return {"status": "resolved", "schema_version": "runtime-d0-standard-charge-terminal-mechanics-replay-v1", "authority": deepcopy(dict(expected)), "provenance": "runtime_d0_standard_charge_terminal_mechanics_replay_v1"}
 
 
-def _direct_mechanics_from_facts(*, hp: Mapping[str, Any], stages: Mapping[str, Any] | None, condition: Mapping[str, Any] | None, item: Mapping[str, Any], ability: Mapping[str, Any], field: Mapping[str, Any]) -> dict[str, Any]:
+def _direct_mechanics_from_facts(*, level: Any, hp: Mapping[str, Any], final_stats: Mapping[str, Any] | None, stages: Mapping[str, Any] | None, condition: Mapping[str, Any] | None, item: Mapping[str, Any], ability: Mapping[str, Any], types: Any, field: Mapping[str, Any]) -> dict[str, Any]:
     if (
-        not isinstance(stages, Mapping)
+        not isinstance(level, int) or isinstance(level, bool) or not 1 <= level <= 100
+        or not isinstance(final_stats, Mapping)
+        or not isinstance(stages, Mapping)
         or not isinstance(condition, Mapping) or condition.get("status") not in {"known_none", "known_present"}
         or item.get("status") not in {"known", "known_absent"}
         or ability.get("status") != "known"
+        or not isinstance(types, list) or not types
         or field.get("status") != "known"
         or not isinstance(hp.get("current_hp"), int) or isinstance(hp.get("current_hp"), bool)
         or not isinstance(hp.get("maximum_hp"), int) or isinstance(hp.get("maximum_hp"), bool)
     ):
         return {"status": "unknown"}
     condition_value = condition.get("condition") if condition.get("status") == "known_present" else None
-    combatant = {
-        "ability": {"status": "known", "value": ability["value"]},
-        "item": {"status": item["status"], **({"value": item["value"]} if item["status"] == "known" else {})},
-        "boosts": {key: 0 for key in _STATS},
-        "current_hp": hp["current_hp"], "max_hp": hp["maximum_hp"], "hp_source": "runtime_strategy_d0_v1",
-        "status": {"status": "known", "value": condition_value} if condition_value is not None else {"status": "known_absent"},
-    }
     return {
         "status": "known",
-        "combatant": combatant,
-        "field": {
-            "weather": {"status": "known", "value": field["value"]["weather"]},
-            "terrain": {"status": "known", "value": field["value"]["terrain"]},
+        "combatant": {
+            "level": level,
+            "current_hp": hp["current_hp"],
+            "max_hp": hp["maximum_hp"],
+            "stats": deepcopy(dict(final_stats)),
+            "boosts": {key: stages[key] for key in _STATS},
+            "status": condition_value,
+            "item": item.get("value") if item["status"] == "known" else None,
+            "ability": ability["value"],
+            "types": deepcopy(list(types)),
         },
     }
 
@@ -215,7 +218,7 @@ def _item(raw: Mapping[str, Any]) -> dict[str, Any]:
 
 def _status_progression(raw: Mapping[str, Any], owner: Mapping[str, Any], condition: Mapping[str, Any] | None) -> dict[str, Any]:
     current = condition.get("condition") if isinstance(condition, Mapping) and condition.get("status") == "known_present" else None
-    if current not in {"sleep", "freeze"}: return {"status": "known_none", "value": None}
+    if current not in {"sleep", "freeze"}: return {"status": "not_applicable"}
     row = raw.get("champions_status_progression")
     return {"status": "known", "value": deepcopy(dict(row))} if valid_progression(row, dict(owner)) and row.get("condition") == current else {"status": "unknown"}
 
@@ -223,7 +226,7 @@ def _status_progression(raw: Mapping[str, Any], owner: Mapping[str, Any], condit
 def _confusion(raw: Mapping[str, Any], owner: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     state = raw.get("current_confusion"); provenance = raw.get("confusion_provenance")
     trusted = isinstance(provenance, Mapping) and provenance.get("event_kind") == "current_confusion_observed" and provenance.get("trust") == "user_confirmed_observation"
-    if state == "none" and trusted: return {"status": "known_none", "value": "none"}, {"status": "known_none", "value": None}
+    if state == "none" and trusted: return {"status": "known_none"}, {"status": "not_applicable"}
     row = raw.get("champions_confusion_progression")
     if state == "confused" and trusted and valid_confusion_progression(row, dict(owner)):
         return {"status": "known_confused", "value": "confused"}, {"status": "known", "value": deepcopy(dict(row))}
@@ -236,6 +239,6 @@ def _critical(authority: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, A
     lucky = authority.get("lucky_chant", {}).get("lucky_chant") if isinstance(authority.get("lucky_chant"), Mapping) else None
     if not isinstance(volatiles, Mapping) or any(row.get("status") == "unknown" for row in volatiles.values() if isinstance(row, Mapping)) or not isinstance(lucky, Mapping) or lucky.get("status") == "unknown": return {"status": "unknown"}, {"status": "unknown"}
     present = tuple(key for key, row in volatiles.items() if isinstance(row, Mapping) and row.get("status") == "known_present")
-    return _known(present), {"status": "known_active" if lucky.get("status") == "known_present" else "known_inactive"}
+    return _known(list(present)), {"status": "known_active" if lucky.get("status") == "known_present" else "known_inactive"}
 def _owner(value: Any) -> bool: return isinstance(value, Mapping) and set(value) == {"session_id", "side", "slot_index", "pokemon_id"} and value.get("side") in {"self", "opponent"}
 def _result(status: str, reason: str) -> dict[str, Any]: return {"status": status, "schema_version": TERMINAL_SCHEMA_VERSION, "reason": reason}

@@ -45,6 +45,13 @@ def test_current_d0_terminal_bundle_is_mechanics_only_for_each_supported_move(mo
     target_row = freeze_runtime_d0_standard_charge_participant_mechanics_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action, actor=actor, target=target, owner=target, participant_role="target", move_metadata={"move_id": move_id})
     assert actor_row["status"] == target_row["status"] == "resolved"
     assert {"owner", "current_level", "current_final_stats", "current_hp", "current_stages", "condition", "item", "ability", "types", "substitute", "critical_hit_volatiles", "lucky_chant", "field", "side_conditions", "direct_mechanics", "status_progression", "confusion_state", "confusion_progression"} <= set(actor_row)
+    assert actor_row["current_final_stats"]["values"]["hp"] == actor_row["current_hp"]["maximum_hp"]
+    assert actor_row["field"] == {"status": "known", "weather": "none", "terrain": "none"}
+    assert isinstance(actor_row["types"]["value"], list)
+    direct = actor_row["direct_mechanics"]["combatant"]
+    assert direct["stats"] == actor_row["current_final_stats"]["values"]
+    assert direct["boosts"] == {key: actor_row["current_stages"]["values"][key] for key in ("attack", "defense", "special-attack", "special-defense", "speed")}
+    assert direct["item"] == actor_row["item"]["value"] and direct["ability"] == actor_row["ability"]["value"]
     bundle = freeze_runtime_d0_standard_charge_terminal_mechanics_authority(strategy_d0=d0, runtime_snapshot=snapshot, action=action, actor=actor, target=target, move_metadata={"move_id": move_id})
     assert bundle["status"] == "resolved", {key: bundle[key].get("status") for key in ("target_sturdy_authority", "target_focus_sash_authority", "attacker_life_orb_authority", "actor_held_item_effect_applicability_authority", "target_held_item_effect_applicability_authority")}
     assert bundle["mechanics_only"] is True and bundle["execution_grant"] is False
@@ -147,7 +154,7 @@ def test_exact_no_critical_volatiles_and_lucky_chant_inactive_are_transported():
     state, _snapshot0, _d00 = _ready()
     _, _, _, _, _, row = _participant(state)
     assert row["status"] == "resolved"
-    assert row["critical_hit_volatiles"] == {"status": "known", "value": ()}
+    assert row["critical_hit_volatiles"] == {"status": "known", "value": []}
     assert row["lucky_chant"] == {"status": "known_inactive"}
 
 
@@ -158,7 +165,7 @@ def test_exact_critical_volatiles_and_lucky_chant_are_transported_and_unknown_fa
     state["self_side"]["side_conditions"] = ["lucky-chant"]
     _, _, _, _, _, row = _participant(state)
     assert row["status"] == "resolved"
-    assert row["critical_hit_volatiles"] == {"status": "known", "value": ("focus-energy",)}
+    assert row["critical_hit_volatiles"] == {"status": "known", "value": ["focus-energy"]}
     assert row["lucky_chant"] == {"status": "known_active"}
 
     unknown = deepcopy(state)
@@ -197,8 +204,8 @@ def test_sleep_freeze_progression_requires_exact_valid_row(condition):
 def test_confusion_exact_none_and_confused_progression_are_distinct():
     state, _snapshot0, _d00 = _ready()
     _, _, _, _, _, none_row = _participant(state)
-    assert none_row["confusion_state"] == {"status": "known_none", "value": "none"}
-    assert none_row["confusion_progression"] == {"status": "known_none", "value": None}
+    assert none_row["confusion_state"] == {"status": "known_none"}
+    assert none_row["confusion_progression"] == {"status": "not_applicable"}
 
     confused = deepcopy(state)
     owner = _owner(confused, "self")
@@ -324,7 +331,8 @@ def test_participant_replay_rejects_binding_and_mechanics_tampering():
         "actor", "target", "owner", "participant_role", "action_id", "move_id",
         "current_hp", "current_final_stats", "current_stages", "condition", "item", "ability",
         "types", "substitute", "critical_hit_volatiles", "lucky_chant", "field", "side_conditions",
-        "status_progression", "confusion_state", "confusion_progression",
+        "direct_mechanics", "status_progression", "confusion_state", "confusion_progression",
+        "fainted", "source_action_id", "source_move_id",
     ):
         tampered = deepcopy(row)
         tampered[key] = {"tampered": True}
