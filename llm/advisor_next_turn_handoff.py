@@ -121,6 +121,15 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
             "rejected",
             predictive.get("reason", "next_turn_predictive_mechanics_unavailable"),
         )
+    temporal = state.get("post_eot_action_order_temporal_source_authority")
+    next_temporal = None
+    if temporal is not None:
+        from llm.advisor_detached_next_turn_action_order_temporal_state import materialize_detached_next_turn_action_order_temporal_state, validate_detached_action_order_temporal_source_authority
+        if validate_detached_action_order_temporal_source_authority(authority=temporal) is not None:
+            return _result("rejected", "post_eot_action_order_temporal_source_invalid")
+        next_temporal = materialize_detached_next_turn_action_order_temporal_state(source_temporal_authority=temporal, source_post_eot_fingerprint=source_fp, next_turn_fingerprint=resulting_fp)
+        if next_temporal.get("status") != "resolved":
+            return _result(next_temporal.get("status", "incomplete"), next_temporal.get("reason", "next_turn_action_order_temporal_unavailable"))
     requires_replacement = [side for side, active in state["active"].items() if active["fainted"]]
     return {
         "status": "resolved",
@@ -129,6 +138,7 @@ def handoff_end_of_turn_to_next_turn_start(*, end_of_turn_branch: Mapping[str, A
         "next_state": state,
         **({"next_turn_standard_charge_continuation_authorities": deepcopy(state["next_turn_standard_charge_continuation_authorities"])} if "next_turn_standard_charge_continuation_authorities" in state else {}),
         **({"next_turn_predictive_mechanics_authority": deepcopy(predictive)} if predictive is not None else {}),
+        **({"next_turn_action_order_temporal_state_authority": deepcopy(next_temporal)} if next_temporal is not None else {}),
         "lifecycle_trace": [{
             "sequence": 1,
             "event": "end_of_turn_to_next_turn_start",

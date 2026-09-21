@@ -284,7 +284,12 @@ def _secondary_source(actor: Mapping[str, Any], target: Mapping[str, Any]) -> di
     terrain = actor["field"]
     direct = target["direct_mechanics"].get("combatant", {})
     grounded = direct.get("grounded")
-    return {"target_condition": deepcopy(target["condition"]), "target_types": {"status": "known", "values": tuple(target["types"]["value"])}, "attacker_ability": deepcopy(actor["ability"]), "target_ability": deepcopy(target["ability"]), "target_item": deepcopy(target["item"]), "terrain": {"status": "known", "value": terrain.get("terrain", "none")}, "target_groundedness": {"status": "known", "value": "grounded" if grounded is True else "ungrounded" if grounded is False else "unknown"}}
+    groundedness = (
+        {"status": "known", "value": "grounded"}
+        if grounded is True else {"status": "known", "value": "ungrounded"}
+        if grounded is False else {"status": "unknown"}
+    )
+    return {"target_condition": deepcopy(target["condition"]), "target_types": {"status": "known", "values": tuple(target["types"]["value"])}, "attacker_ability": deepcopy(actor["ability"]), "target_ability": deepcopy(target["ability"]), "target_item": deepcopy(target["item"]), "terrain": {"status": "known", "value": terrain.get("terrain", "none")}, "target_groundedness": groundedness}
 
 
 def _pre_action_gate(actor: Mapping[str, Any], target: Mapping[str, Any], move_id: str) -> dict[str, Any]:

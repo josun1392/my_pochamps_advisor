@@ -27,6 +27,7 @@ def materialize_exact_immediate_pair_to_eot_phase_input(
     weather_authority: Mapping[str, Any] | None = None,
     leech_seed_transfers: tuple[Mapping[str, Any], ...] = (),
     switch_hazard_authorities: Mapping[str, Any] | None = None,
+    action_order_temporal_source_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Bind one evaluated pair leaf to the existing exact EOT input contract.
 
@@ -77,12 +78,18 @@ def materialize_exact_immediate_pair_to_eot_phase_input(
     )
     if isinstance(charge, str):
         return _result("rejected", charge, base)
+    if action_order_temporal_source_authority is not None:
+        from llm.advisor_detached_next_turn_action_order_temporal_state import validate_detached_action_order_temporal_source_authority
+        temporal = action_order_temporal_source_authority
+        if validate_detached_action_order_temporal_source_authority(authority=temporal) is not None or any(temporal.get(key) != base.get(key) for key in ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_actor", "opponent_actor")) or temporal.get("own_action_id") != terminal_ledger.get("own_action_id") or temporal.get("opponent_action_id") != terminal_ledger.get("opponent_action_id"):
+            return _result("rejected", "action_order_temporal_source_binding_invalid", base)
     frozen = freeze_end_of_turn_phase_input(
         terminal_ledger=terminal_ledger, terminal_leaf_id=terminal_leaf_id,
         active_states=rows, weather_authority=weather_authority,
         leech_seed_transfers=leech_seed_transfers,
         switch_hazard_authorities=hazards,
         standard_charge_lifecycle_authorities=charge,
+        action_order_temporal_source_authority=action_order_temporal_source_authority,
     )
     if frozen.get("status") != "resolved":
         return deepcopy(dict(frozen))

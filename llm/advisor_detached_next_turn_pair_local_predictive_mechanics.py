@@ -48,7 +48,11 @@ def materialize_detached_next_turn_pair_local_predictive_mechanics(*,next_decisi
         pending={"status":"known_flinched","owner":deepcopy(dict(target)),"source_leaf_id":first_leaf_id,"secondary_authority":deepcopy(dict(secondary["authority"]))}
     elif isinstance(secondary,Mapping) and secondary.get("state")=="flinched":return _r("rejected","pair_local_flinch_secondary_unauthenticated")
     _sync(rows[actor["side"]]); _sync(rows[target["side"]])
-    return {"status":"resolved","schema_version":SCHEMA_VERSION,"first_action_family":family,"source_next_decision_fingerprint":next_decision_fingerprint,"root_predictive_mechanics_authority":deepcopy(dict(predictive_mechanics)),"first_action_execution_authority":deepcopy(dict(source)),"first_action_ledger":deepcopy(dict(ledger)),"first_leaf_id":first_leaf_id,"first_actor":deepcopy(dict(actor)),"first_target":deepcopy(dict(target)),"sides":rows,"pending_action_flinch":pending,"represented_mutation_manifest":manifest,"provenance":"authenticated_detached_next_turn_pair_local_predictive_mechanics_v1"}
+    # A standard-charge result contains both forced continuations.  Preserve
+    # that authenticated result (rather than only its selected action ledger)
+    # so validation can rematerialize the exact source leaf later.
+    source_ledger = first_action_ledger if family == "standard_charge" else ledger
+    return {"status":"resolved","schema_version":SCHEMA_VERSION,"first_action_family":family,"source_next_decision_fingerprint":next_decision_fingerprint,"root_predictive_mechanics_authority":deepcopy(dict(predictive_mechanics)),"first_action_execution_authority":deepcopy(dict(source)),"first_action_ledger":deepcopy(dict(source_ledger)),"first_leaf_id":first_leaf_id,"first_actor":deepcopy(dict(actor)),"first_target":deepcopy(dict(target)),"sides":rows,"pending_action_flinch":pending,"represented_mutation_manifest":manifest,"provenance":"authenticated_detached_next_turn_pair_local_predictive_mechanics_v1"}
 
 def validate_detached_next_turn_pair_local_predictive_mechanics(*,authority:Any,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,**kwargs:Any)->str|None:
     if not isinstance(authority,Mapping):return "pair_local_predictive_mechanics_authority_invalid"

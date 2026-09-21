@@ -63,6 +63,12 @@ def materialize_detached_end_of_turn_post_action_branch_authority(
             if isinstance(post_charge, str):
                 raise _Rejected(post_charge)
             state["post_eot_standard_charge_lifecycle_authorities"] = post_charge
+        temporal = ledger.get("phase_input", {}).get("action_order_temporal_source_authority")
+        if temporal is not None:
+            from llm.advisor_detached_next_turn_action_order_temporal_state import validate_detached_action_order_temporal_source_authority
+            if validate_detached_action_order_temporal_source_authority(authority=temporal) is not None:
+                raise _Rejected("post_eot_action_order_temporal_source_invalid")
+            state["post_eot_action_order_temporal_source_authority"] = deepcopy(dict(temporal))
     except _Incomplete as error:
         return _result("incomplete", error.reason)
     except _Rejected as error:

@@ -1,0 +1,88 @@
+"""Production-shaped transport for trusted inactive next-turn order facts."""
+from copy import deepcopy
+
+from llm.advisor_detached_end_of_turn_post_action_branch_authority import materialize_detached_end_of_turn_post_action_branch_authority
+from llm.advisor_detached_next_turn_action_intent import materialize_detached_next_turn_action_intents
+from llm.advisor_detached_next_turn_action_order_authority import materialize_detached_next_turn_action_order_authority
+from llm.advisor_detached_next_turn_action_order_temporal_state import freeze_detached_action_order_temporal_source_authority
+from llm.advisor_end_of_turn_residual_phase import materialize_end_of_turn_residual_phase
+from llm.advisor_exact_immediate_action_pair_outcome_ledger import normalize_exact_immediate_action_pair_outcome_ledger
+from llm.advisor_exact_immediate_pair_to_eot_phase_input import materialize_exact_immediate_pair_to_eot_phase_input
+from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate_move_vs_move_action_pair
+from llm.advisor_identity_groundedness import build_groundedness
+from llm.advisor_next_turn_handoff import handoff_end_of_turn_to_next_turn_start
+from llm.advisor_runtime_d0_action_order_authority import freeze_runtime_d0_action_order_authority
+from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
+from llm.advisor_reducer_state_model import state_fingerprint
+from llm.advisor_transition_preview import fingerprint_transition_preview_state
+from tests.test_next_turn_predictive_mechanics_state_transport import _predictive
+from tests.test_standard_charge_lifecycle_eot_next_turn_transport import _terminal_authorities
+from tests.test_standard_charge_start_immediate_pair_integration import _opponent_action, _own_action
+from tests.test_standard_charge_turn_two_ordered_pair_core import _runtime_fixture
+
+
+def _production_temporal_handoff(*, own_move="sky-attack", opponent_move="ice-burn", opponent_ability=None, opponent_grounded=None, self_final_stats=None, opponent_final_stats=None):
+    """Confirmation/reducer → D0 pair → EOT → handoff, with no field patch."""
+    snapshot, d0, _old_own, _old_opponent, _old_order, _charge = _runtime_fixture()
+    if opponent_grounded is not None:
+        state = snapshot["state"]
+        opponent_owner = d0["active_owners"]["opponent"]
+        state["identity_groundedness_context"] = build_groundedness(
+            session_id=state["session_id"],
+            side="opponent",
+            slot_index=opponent_owner["slot_index"],
+            pokemon_id=opponent_owner["pokemon_id"],
+            status="grounded" if opponent_grounded else "ungrounded",
+        )
+        snapshot["state_fingerprint"] = state_fingerprint(state)
+        d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=d0["active_owners"]["self"])
+    if opponent_ability is not None:
+        state = snapshot["state"]
+        state["opponent_side"]["pokemon"][0]["current_ability"] = opponent_ability
+        snapshot["state_fingerprint"] = state_fingerprint(state)
+        d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=d0["active_owners"]["self"])
+    own = _own_action(d0, d0["active_owners"]["self"], own_move)
+    opponent = _opponent_action(d0, opponent_move)
+    order = freeze_runtime_d0_action_order_authority(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent)
+    assert order["status"] == "resolved", order
+    pair = materialize_immediate_move_vs_move_action_pair(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent, action_order_authority=order)
+    assert pair["status"] == "evaluable", pair
+    ledger = normalize_exact_immediate_action_pair_outcome_ledger(pair=pair)
+    assert ledger["status"] == "evaluable", ledger
+    source = freeze_detached_action_order_temporal_source_authority(strategy_d0=d0, runtime_snapshot=snapshot, own_action=own, opponent_action=opponent, action_order_authority=order, evaluated_pair=ledger, source_move_ids={"self": own_move, "opponent": opponent_move})
+    assert source["status"] == "resolved", source
+    leaf = ledger["terminal_leaves"][0]
+    terminal = _terminal_authorities(
+        ledger, leaf,
+        abilities={"opponent": opponent_ability} if opponent_ability is not None else None,
+    )
+    terminal["self"]["predictive_mechanics"] = _predictive(
+        ledger, leaf, terminal["self"], final_stats=self_final_stats,
+    )
+    terminal["opponent"]["predictive_mechanics"] = _predictive(
+        ledger, leaf, terminal["opponent"], final_stats=opponent_final_stats,
+        ability={"status": "known", "value": opponent_ability or "pressure"},
+    )
+    if opponent_grounded is not None:
+        terminal["opponent"]["predictive_mechanics"]["direct_mechanics"]["combatant"]["grounded"] = opponent_grounded
+    phase = materialize_exact_immediate_pair_to_eot_phase_input(terminal_ledger=ledger, terminal_leaf_id=leaf["pair_leaf_id"], terminal_active_authorities=terminal, action_order_temporal_source_authority=source)
+    assert phase["status"] == "resolved", phase
+    eot = materialize_end_of_turn_residual_phase(phase_input=phase)
+    assert eot["status"] == "evaluable", eot
+    branch = materialize_detached_end_of_turn_post_action_branch_authority(eot_ledger=eot, source_eot_fingerprint=fingerprint_transition_preview_state(eot))
+    assert branch["status"] == "known", branch
+    handoff = handoff_end_of_turn_to_next_turn_start(end_of_turn_branch={"status": "resolved", "boundary": {"phase": "end_of_turn"}, "next_state": deepcopy(branch["state"]), "resulting_branch_fingerprint": branch["state_fingerprint"]})
+    assert handoff["status"] == "resolved", handoff
+    return handoff
+
+
+def test_trusted_inactive_order_facts_cross_the_real_pair_eot_handoff_path():
+    handoff = _production_temporal_handoff()
+    temporal = handoff["next_turn_action_order_temporal_state_authority"]
+    assert {key: row["state"] for key, row in temporal["temporal_facts"].items()} == {"self_tailwind": "inactive", "opponent_tailwind": "inactive", "trick_room": "inactive"}
+    state, fingerprint = handoff["next_state"], handoff["resulting_branch_fingerprint"]
+    predictive = handoff["next_turn_predictive_mechanics_authority"]
+    intents = materialize_detached_next_turn_action_intents(next_decision_state=state, next_decision_fingerprint=fingerprint)
+    order = materialize_detached_next_turn_action_order_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, action_intents=intents, action_order_temporal_state_authority=temporal)
+    assert order["status"] == "resolved", order
+    assert order["order_input_authority"]["self_tailwind"] == order["order_input_authority"]["opponent_tailwind"] == order["order_input_authority"]["trick_room"] == "inactive"

@@ -99,7 +99,7 @@ def materialize_detached_leech_seed_transfer(*, trace: Mapping[str, Any]) -> dic
     return {"status": "resolved", "event_kind": "leech_seed", "order_class": END_OF_TURN_EVENT_ORDER["leech_seed"], "linked_transfer": deepcopy(dict(trace)), "provenance": "canonical_detached_leech_seed_transfer_adapter_v1"}
 
 
-def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None, leech_seed_transfers: tuple[Mapping[str, Any], ...] = (), switch_hazard_authorities: Mapping[str, Any] | None = None, standard_charge_lifecycle_authorities: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], terminal_leaf_id: str, active_states: Mapping[str, Any], weather_authority: Mapping[str, Any] | None = None, leech_seed_transfers: tuple[Mapping[str, Any], ...] = (), switch_hazard_authorities: Mapping[str, Any] | None = None, standard_charge_lifecycle_authorities: Mapping[str, Any] | None = None, action_order_temporal_source_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Bind two exact detached active states to one normalized pair leaf.
 
     ``terminal_ledger`` is intentionally the output of the immediate-pair
@@ -143,6 +143,7 @@ def freeze_end_of_turn_phase_input(*, terminal_ledger: Mapping[str, Any], termin
         "terminal_branch": deepcopy(dict(leaf)), "active_states": rows, "weather_authority": weather, "leech_seed_transfers": transfers,
         **({"switch_hazard_authorities": deepcopy(dict(switch_hazard_authorities))} if switch_hazard_authorities is not None else {}),
         **({"standard_charge_lifecycle_authorities": deepcopy(dict(standard_charge_lifecycle_authorities))} if standard_charge_lifecycle_authorities is not None else {}),
+        **({"action_order_temporal_source_authority": deepcopy(dict(action_order_temporal_source_authority))} if action_order_temporal_source_authority is not None else {}),
         "provenance": "strict_detached_immediate_terminal_to_end_of_turn_phase_input_v1",
     }
 
@@ -595,6 +596,13 @@ def _valid_input(value: Any) -> str | None:
             terminal_ledger=terminal_ledger,
             terminal_leaf_id=value["terminal_leaf_id"],
         ) is not None:
+            return "end_of_turn_phase_input_invalid"
+    temporal = value.get("action_order_temporal_source_authority")
+    if temporal is not None:
+        from llm.advisor_detached_next_turn_action_order_temporal_state import validate_detached_action_order_temporal_source_authority
+        if validate_detached_action_order_temporal_source_authority(authority=temporal) is not None:
+            return "end_of_turn_phase_input_invalid"
+        if any(temporal.get(key) != value.get(key) for key in ("pair_id", "session_id", "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner", "own_actor", "opponent_actor")):
             return "end_of_turn_phase_input_invalid"
     return None
 

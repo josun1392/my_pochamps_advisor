@@ -11,7 +11,7 @@ from llm.advisor_detached_next_turn_action_intent import validate_detached_next_
 
 SCHEMA_VERSION="detached-next-turn-action-order-authority-v1"
 
-def materialize_detached_next_turn_action_order_authority(*,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,predictive_mechanics:Mapping[str,Any],action_intents:Mapping[str,Any])->dict[str,Any]:
+def materialize_detached_next_turn_action_order_authority(*,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,predictive_mechanics:Mapping[str,Any],action_intents:Mapping[str,Any],action_order_temporal_state_authority:Mapping[str,Any]|None=None)->dict[str,Any]:
     if not isinstance(next_decision_state,Mapping) or fingerprint_transition_preview_state(next_decision_state)!=next_decision_fingerprint:return _result("rejected","stale_or_invalid_next_decision_fingerprint")
     if validate_next_turn_predictive_mechanics_authority(authority=predictive_mechanics,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint) is not None:return _result("rejected","next_turn_predictive_mechanics_authority_invalid")
     intent_error=validate_detached_next_turn_action_intents(authority=action_intents,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint)
@@ -23,18 +23,28 @@ def materialize_detached_next_turn_action_order_authority(*,next_decision_state:
     items={side:materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,holder=intents[side]["actor"]) for side in ("self","opponent")}
     if any(value.get("status")!="resolved" for value in items.values()):return _result("incomplete","next_turn_action_order_item_effect_applicability_unavailable")
     facts=_facts(next_decision_state,selfrow,opprow,items)
+    if action_order_temporal_state_authority is not None:
+        from llm.advisor_detached_next_turn_action_order_temporal_state import validate_detached_next_turn_action_order_temporal_state_authority
+        temporal=action_order_temporal_state_authority
+        if validate_detached_next_turn_action_order_temporal_state_authority(authority=temporal,next_turn_fingerprint=next_decision_fingerprint) is not None:return _result("rejected","next_turn_action_order_temporal_authority_invalid")
+        values=temporal.get("temporal_facts",{})
+        try:
+            facts["self_tailwind"]=values["self_tailwind"]["state"]
+            facts["opponent_tailwind"]=values["opponent_tailwind"]["state"]
+            facts["trick_room"]=values["trick_room"]["state"]
+        except (KeyError,TypeError):return _result("rejected","next_turn_action_order_temporal_authority_invalid")
     if isinstance(facts,str):return _result("incomplete",facts)
     engine=evaluate_action_order(self_action=_move(intents["self"]),opponent_action=_move(intents["opponent"]),**facts)
     status={"acts_first":"resolved","acts_second":"resolved","speed_tie":"resolved","insufficient_context":"incomplete","unsupported_mechanic":"unsupported"}.get(engine.get("status"),"rejected")
     order={"acts_first":"self_first","acts_second":"opponent_first","speed_tie":"equal_speed_tie"}.get(engine.get("status"))
-    result={"status":status,"schema_version":SCHEMA_VERSION,"source_next_decision_fingerprint":next_decision_fingerprint,"action_intents_authority":deepcopy(dict(action_intents)),"predictive_mechanics_authority":deepcopy(dict(predictive_mechanics)),"self_action_intent":deepcopy(dict(intents["self"])),"opponent_action_intent":deepcopy(dict(intents["opponent"])),"self_actor":deepcopy(dict(intents["self"]["actor"])),"opponent_actor":deepcopy(dict(intents["opponent"]["actor"])),"order_input_authority":facts,"held_item_effect_applicability_authorities":items,"order_engine":engine,"order":order,"provenance":"detached_next_turn_narrow_action_order_adapter_v1"}
+    result={"status":status,"schema_version":SCHEMA_VERSION,"source_next_decision_fingerprint":next_decision_fingerprint,"action_intents_authority":deepcopy(dict(action_intents)),"predictive_mechanics_authority":deepcopy(dict(predictive_mechanics)),"self_action_intent":deepcopy(dict(intents["self"])),"opponent_action_intent":deepcopy(dict(intents["opponent"])),"self_actor":deepcopy(dict(intents["self"]["actor"])),"opponent_actor":deepcopy(dict(intents["opponent"]["actor"])),"order_input_authority":facts,"held_item_effect_applicability_authorities":items,"order_engine":engine,"order":order,"provenance":"detached_next_turn_narrow_action_order_adapter_v1",**({"action_order_temporal_state_authority":deepcopy(dict(action_order_temporal_state_authority))} if action_order_temporal_state_authority is not None else {})}
     if status!="resolved":result["reason"]=engine.get("unsupported_reason") or (engine.get("missing_inputs") or ["detached_order_incomplete"])[0]
     else:result["order_branch_plan"]=_branches(result)
     return result
 
 def validate_detached_next_turn_action_order_authority(*,authority:Any,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,**kwargs:Any)->str|None:
     if not isinstance(authority,Mapping):return "detached_next_turn_action_order_authority_invalid"
-    expected=materialize_detached_next_turn_action_order_authority(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=kwargs.get("predictive_mechanics",authority.get("predictive_mechanics_authority")),action_intents=kwargs.get("action_intents",authority.get("action_intents_authority")))
+    expected=materialize_detached_next_turn_action_order_authority(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=kwargs.get("predictive_mechanics",authority.get("predictive_mechanics_authority")),action_intents=kwargs.get("action_intents",authority.get("action_intents_authority")),action_order_temporal_state_authority=kwargs.get("action_order_temporal_state_authority",authority.get("action_order_temporal_state_authority")))
     return None if isinstance(authority,Mapping) and deepcopy(dict(authority))==expected else "detached_next_turn_action_order_authority_mismatch"
 
 def _move(intent):
@@ -47,14 +57,32 @@ def _facts(state,s,o,items):
         c=row.get("condition",{});return "paralyzed" if c.get("status")=="known_present" and c.get("condition")=="paralysis" else "not_paralyzed" if c.get("status") in {"known_none","known_present"} else "unknown"
     def full(row):
         hp=row.get("current_hp",{});return "full" if hp.get("current_hp")==hp.get("maximum_hp") else "not_full" if isinstance(hp.get("current_hp"),int) and isinstance(hp.get("maximum_hp"),int) else "unknown"
+    # A detached decision state carries the reducer's field observation under
+    # ``current_state.field_state_context``.  Keep the older flattened shape
+    # for callers which still provide it, but never infer an inactive effect
+    # from an omitted observation.
+    current=state.get("current_state",{}) if isinstance(state.get("current_state"),Mapping) else {}
+    context=current.get("field_state_context",{}) if isinstance(current.get("field_state_context"),Mapping) else {}
     field=state.get("field",{}) if isinstance(state.get("field"),Mapping) else {}
-    trick=_observed(field,"trick_room_status",{"trick_room_field_observed"}); tailself=_observed(state.get("self_side",{}),"tailwind_status",{"tailwind_side_condition_observed"}); tailopp=_observed(state.get("opponent_side",{}),"tailwind_status",{"tailwind_side_condition_observed"})
+    trick=_observed(field,"trick_room_status",{"trick_room_field_observed"})
+    if trick=="unknown": trick=_reducer_observed(context.get("trick_room"))
+    tailself=_observed(state.get("self_side",{}),"tailwind_status",{"tailwind_side_condition_observed"})
+    tailopp=_observed(state.get("opponent_side",{}),"tailwind_status",{"tailwind_side_condition_observed"})
+    tails=context.get("tailwind",{}) if isinstance(context.get("tailwind"),Mapping) else {}
+    if tailself=="unknown": tailself=_reducer_observed(tails.get("self"))
+    if tailopp=="unknown": tailopp=_reducer_observed(tails.get("opponent"))
     weather=s.get("field",{}).get("weather","unknown")
     if weather=="sandstorm": weather="sand"
-    return {"self_final_speed":speed(s),"opponent_final_speed":speed(o),"self_speed_stage":stage(s),"opponent_speed_stage":stage(o),"self_paralysis":paralysis(s),"opponent_paralysis":paralysis(o),"self_speed_item":items["self"].get("effective_item_id"),"opponent_speed_item":items["opponent"].get("effective_item_id"),"self_speed_ability":ability(s),"opponent_speed_ability":ability(o),"self_priority_ability":ability(s),"opponent_priority_ability":ability(o),"self_gale_wings_full_hp":full(s),"opponent_gale_wings_full_hp":full(o),"weather":weather,"terrain":s.get("field",{}).get("terrain","unknown"),"trick_room":trick,"trick_room_provenance":"trusted_observed_current","self_tailwind":tailself,"opponent_tailwind":tailopp,"self_tailwind_provenance":"trusted_observed_current","opponent_tailwind_provenance":"trusted_observed_current","self_paralysis_provenance":"trusted_observed_current","opponent_paralysis_provenance":"trusted_observed_current","self_grounded":s.get("direct_mechanics",{}).get("combatant",{}).get("grounded","unknown"),"opponent_grounded":o.get("direct_mechanics",{}).get("combatant",{}).get("grounded","unknown")}
+    return {"self_final_speed":speed(s),"opponent_final_speed":speed(o),"self_speed_stage":stage(s),"opponent_speed_stage":stage(o),"self_paralysis":paralysis(s),"opponent_paralysis":paralysis(o),"self_speed_item":items["self"].get("effective_item_id") or "none","opponent_speed_item":items["opponent"].get("effective_item_id") or "none","self_speed_ability":ability(s),"opponent_speed_ability":ability(o),"self_priority_ability":ability(s),"opponent_priority_ability":ability(o),"self_gale_wings_full_hp":full(s),"opponent_gale_wings_full_hp":full(o),"weather":weather,"terrain":s.get("field",{}).get("terrain","unknown"),"trick_room":trick,"trick_room_provenance":"trusted_observed_current","self_tailwind":tailself,"opponent_tailwind":tailopp,"self_tailwind_provenance":"trusted_observed_current","opponent_tailwind_provenance":"trusted_observed_current","self_paralysis_provenance":"trusted_observed_current","opponent_paralysis_provenance":"trusted_observed_current","self_grounded":s.get("direct_mechanics",{}).get("combatant",{}).get("grounded","unknown"),"opponent_grounded":o.get("direct_mechanics",{}).get("combatant",{}).get("grounded","unknown")}
 def _observed(row,key,kinds):
     value=row.get(key) if isinstance(row,Mapping) else None; provenance=row.get(f"{key}_provenance") if isinstance(row,Mapping) else None
     return value if value in {"active","inactive"} and isinstance(provenance,Mapping) and provenance.get("trust")=="user_confirmed_observation" and provenance.get("event_kind") in kinds and isinstance(provenance.get("source_observation_id"),str) and provenance["source_observation_id"] and isinstance(provenance.get("source_sequence"),int) and not isinstance(provenance["source_sequence"],bool) and provenance["source_sequence"]>=1 else "unknown"
+def _reducer_observed(value):
+    if not isinstance(value,Mapping): return "unknown"
+    status=value.get("status")
+    if status not in {"known_active","known_inactive"}: return "unknown"
+    if value.get("provenance") not in {"trusted_observed_current","user_confirmed_observation"}: return "unknown"
+    return "active" if status=="known_active" else "inactive"
 def _branches(authority):
     if authority["order"]=="self_first":return ({"branch_id":"deterministic:self_first","order":"self_first","conditional_probability":{"numerator":1,"denominator":1},"mechanic":"deterministic_order","source_action_order_authority":deepcopy(dict(authority))},)
     if authority["order"]=="opponent_first":return ({"branch_id":"deterministic:opponent_first","order":"opponent_first","conditional_probability":{"numerator":1,"denominator":1},"mechanic":"deterministic_order","source_action_order_authority":deepcopy(dict(authority))},)
