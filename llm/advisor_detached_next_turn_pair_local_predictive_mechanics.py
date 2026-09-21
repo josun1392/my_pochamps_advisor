@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 from llm.advisor_next_turn_predictive_mechanics_authority import validate_next_turn_predictive_mechanics_authority
-from llm.advisor_detached_next_turn_ordinary_attack_execution import validate_detached_next_turn_ordinary_attack_execution_authority
+from llm.advisor_detached_next_turn_ordinary_attack_execution import validate_detached_next_turn_ordinary_attack_execution_authority, validate_detached_next_turn_ordinary_attack_execution
 
 SCHEMA_VERSION="detached-next-turn-pair-local-predictive-mechanics-authority-v1"
 
@@ -11,6 +11,7 @@ def materialize_detached_next_turn_pair_local_predictive_mechanics(*,next_decisi
     if validate_next_turn_predictive_mechanics_authority(authority=predictive_mechanics,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint) is not None:return _r("rejected","root_predictive_mechanics_authority_invalid")
     source=first_action_execution.get("execution_authority") if isinstance(first_action_execution,Mapping) and "execution_authority" in first_action_execution else first_action_execution
     if validate_detached_next_turn_ordinary_attack_execution_authority(authority=source,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint) is not None:return _r("rejected","first_action_execution_authority_invalid")
+    if isinstance(first_action_ledger,Mapping) and "action_ledger" in first_action_ledger and validate_detached_next_turn_ordinary_attack_execution(result=first_action_ledger,execution_authority=source) is not None:return _r("rejected","first_action_ledger_execution_mismatch")
     ledger=first_action_ledger.get("action_ledger") if isinstance(first_action_ledger,Mapping) and "action_ledger" in first_action_ledger else first_action_ledger
     if not isinstance(ledger,Mapping) or ledger.get("status")!="resolved" or ledger.get("execution_authority")!=source.get("action"):return _r("rejected","first_action_ledger_authority_mismatch")
     leaf=next((x for x in ledger.get("terminal_leaves",()) if isinstance(x,Mapping) and x.get("leaf_id")==first_leaf_id),None)

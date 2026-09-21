@@ -49,6 +49,11 @@ def execute_detached_next_turn_ordinary_attack(*,execution_authority:Mapping[str
     result=_execute_one(execution_authority["action"],kernel)
     return {"status":result.get("status"),"schema_version":SCHEMA_VERSION,"source_next_decision_fingerprint":execution_authority["source_next_decision_fingerprint"],"execution_authority":deepcopy(dict(execution_authority)),"action_ledger":result,"provenance":"detached_next_turn_ordinary_attack_ledger_v1"}
 
+def validate_detached_next_turn_ordinary_attack_execution(*,result:Any,execution_authority:Mapping[str,Any])->str|None:
+    """Strictly replay one ordinary detached ledger; embedded provenance is insufficient."""
+    expected=execute_detached_next_turn_ordinary_attack(execution_authority=execution_authority)
+    return None if isinstance(result,Mapping) and deepcopy(dict(result))==expected else "detached_next_turn_ordinary_attack_execution_mismatch"
+
 def _move(metadata:Any,move_id:Any)->dict[str,Any]|str:
     if not isinstance(metadata,Mapping) or metadata.get("status")!="resolved" or metadata.get("move_id",move_id)!=move_id:return "ordinary_attack_metadata_invalid"
     value=metadata.get("metadata") if isinstance(metadata.get("metadata"),Mapping) else metadata
