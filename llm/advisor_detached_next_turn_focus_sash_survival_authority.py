@@ -7,17 +7,23 @@ from llm.advisor_detached_next_turn_held_item_effect_applicability import _base 
 SCHEMA_VERSION="detached-next-turn-focus-sash-survival-authority-v1"
 CONSEQUENCE_SCHEMA_VERSION="detached-next-turn-focus-sash-consequence-v1"
 
-def materialize_detached_next_turn_focus_sash_survival_authority(*,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,predictive_mechanics:Mapping[str,Any],holder:Mapping[str,Any],attacker:Mapping[str,Any],action:Mapping[str,Any],move_metadata:Mapping[str,Any],held_item_effect_applicability:Mapping[str,Any]|None=None)->dict[str,Any]:
+def materialize_detached_next_turn_focus_sash_survival_authority(*,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,predictive_mechanics:Mapping[str,Any],holder:Mapping[str,Any],attacker:Mapping[str,Any],action:Mapping[str,Any],move_metadata:Mapping[str,Any],held_item_effect_applicability:Mapping[str,Any]|None=None,pair_local_predictive_mechanics:Mapping[str,Any]|None=None)->dict[str,Any]:
     if not _owner(holder) or not _owner(attacker) or holder["side"]==attacker["side"]: return _result("rejected","focus_sash_owner_identity_invalid",{})
     base=_predictive_base(next_decision_state,next_decision_fingerprint,predictive_mechanics,holder)
     if isinstance(base,str): return _result("rejected",base,{})
+    if pair_local_predictive_mechanics is not None:
+        from llm.advisor_detached_next_turn_pair_local_predictive_mechanics import validate_detached_next_turn_pair_local_predictive_mechanics
+        if validate_detached_next_turn_pair_local_predictive_mechanics(authority=pair_local_predictive_mechanics,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint) is not None:return _result("rejected","pair_local_predictive_mechanics_invalid",{})
+        rows=pair_local_predictive_mechanics.get("sides",{})
+        if rows.get(holder["side"],{}).get("owner")!=dict(holder) or rows.get(attacker["side"],{}).get("owner")!=dict(attacker):return _result("rejected","pair_local_owner_identity_mismatch",{})
+        base["row"],base["other_row"]=rows[holder["side"]],rows[attacker["side"]]
     if predictive_mechanics.get("active_owners",{}).get(attacker["side"])!=dict(attacker) or not isinstance(action,Mapping) or action.get("action_type")!="attack" or not isinstance(action.get("action_id"),str) or not isinstance(move_metadata,Mapping) or action.get("identity",action.get("move_id"))!=move_metadata.get("move_id"): return _result("rejected","focus_sash_action_or_identity_mismatch",{})
     row=base["row"]; item=row.get("item",{}); hp=row.get("current_hp",{}); common={"session_id":holder["session_id"],"source_next_decision_fingerprint":next_decision_fingerprint,"holder":deepcopy(dict(holder)),"attacker":deepcopy(dict(attacker)),"continuation_action_id":action["action_id"],"move_id":move_metadata.get("move_id"),"raw_current_item":deepcopy(dict(item)) if isinstance(item,Mapping) else {"status":"unknown"},"current_hp":hp.get("current_hp"),"maximum_hp":hp.get("maximum_hp"),"predictive_mechanics_authority":deepcopy(dict(predictive_mechanics))}
     if not isinstance(item,Mapping) or item.get("status")=="unknown": return _result("incomplete","focus_sash_item_unknown",common)
     if item.get("status")!="known" or item.get("value")!="focus-sash": return _ready("resolved","known_non_focus_sash_item",common,"known_no_effect",False,False)
-    expected=materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,holder=holder)
+    expected=materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,holder=holder,pair_local_predictive_mechanics=pair_local_predictive_mechanics)
     auth=held_item_effect_applicability if held_item_effect_applicability is not None else expected
-    if validate_detached_next_turn_held_item_effect_applicability(authority=auth,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,holder=holder) is not None: return _result("rejected","focus_sash_held_item_effect_authority_invalid",common)
+    if validate_detached_next_turn_held_item_effect_applicability(authority=auth,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,holder=holder,pair_local_predictive_mechanics=pair_local_predictive_mechanics) is not None: return _result("rejected","focus_sash_held_item_effect_authority_invalid",common)
     common["held_item_effect_applicability_authority"]=deepcopy(dict(auth))
     if auth.get("status")!="resolved": return _result("incomplete","focus_sash_item_effect_applicability_unavailable",common)
     if auth.get("effective_item_id")!="focus-sash" or auth.get("item_effects_active") is not True: return _ready("resolved","focus_sash_item_effects_suppressed",common,"known_no_effect",False,False)

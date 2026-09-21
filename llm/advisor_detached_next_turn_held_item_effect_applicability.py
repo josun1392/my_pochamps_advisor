@@ -17,9 +17,15 @@ SCHEMA_VERSION = "detached-next-turn-held-item-effect-applicability-authority-v1
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 
 
-def materialize_detached_next_turn_held_item_effect_applicability(*, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, predictive_mechanics: Mapping[str, Any], holder: Mapping[str, Any]) -> dict[str, Any]:
+def materialize_detached_next_turn_held_item_effect_applicability(*, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, predictive_mechanics: Mapping[str, Any], holder: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> dict[str, Any]:
     base = _base(next_decision_state, next_decision_fingerprint, predictive_mechanics, holder)
     if isinstance(base, str): return _result("rejected", base, {})
+    if pair_local_predictive_mechanics is not None:
+        from llm.advisor_detached_next_turn_pair_local_predictive_mechanics import validate_detached_next_turn_pair_local_predictive_mechanics
+        if validate_detached_next_turn_pair_local_predictive_mechanics(authority=pair_local_predictive_mechanics,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint) is not None:return _result("rejected","pair_local_predictive_mechanics_invalid",{})
+        rows=pair_local_predictive_mechanics.get("sides",{})
+        if rows.get(holder["side"],{}).get("owner")!=dict(holder):return _result("rejected","pair_local_holder_identity_mismatch",{})
+        base["row"]=rows[holder["side"]];base["other_row"]=rows["opponent" if holder["side"]=="self" else "self"];base["pair_local_predictive_mechanics"] = deepcopy(dict(pair_local_predictive_mechanics))
     row, other = base["row"], base["other_row"]
     item = _fact(row.get("item"), "item")
     common = {k: deepcopy(v) for k, v in base.items() if k not in {"row", "other_row"}}
@@ -41,8 +47,8 @@ def materialize_detached_next_turn_held_item_effect_applicability(*, next_decisi
     return _resolved(common, "suppressed", False, None, "klutz_item_effects_suppressed")
 
 
-def validate_detached_next_turn_held_item_effect_applicability(*, authority: Any, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, predictive_mechanics: Mapping[str, Any], holder: Mapping[str, Any]) -> str | None:
-    expected = materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=next_decision_state, next_decision_fingerprint=next_decision_fingerprint, predictive_mechanics=predictive_mechanics, holder=holder)
+def validate_detached_next_turn_held_item_effect_applicability(*, authority: Any, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, predictive_mechanics: Mapping[str, Any], holder: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> str | None:
+    expected = materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=next_decision_state, next_decision_fingerprint=next_decision_fingerprint, predictive_mechanics=predictive_mechanics, holder=holder, pair_local_predictive_mechanics=pair_local_predictive_mechanics)
     if expected.get("status") == "rejected": return expected.get("reason")
     return None if isinstance(authority, Mapping) and deepcopy(dict(authority)) == expected else "detached_held_item_effect_applicability_mismatch"
 

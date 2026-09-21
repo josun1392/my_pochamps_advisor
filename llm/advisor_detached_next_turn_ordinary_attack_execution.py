@@ -39,19 +39,21 @@ def validate_detached_next_turn_ordinary_attack_execution_authority(*,authority:
     expected=materialize_detached_next_turn_ordinary_attack_execution_authority(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=kwargs.get("predictive_mechanics",authority.get("predictive_mechanics")),action_intents=kwargs.get("action_intents",authority.get("action_intents")),side=kwargs.get("side",authority.get("side")))
     return None if deepcopy(dict(authority))==expected else "ordinary_attack_execution_authority_mismatch"
 
-def execute_detached_next_turn_ordinary_attack(*,execution_authority:Mapping[str,Any])->dict[str,Any]:
+def execute_detached_next_turn_ordinary_attack(*,execution_authority:Mapping[str,Any],pair_local_predictive_mechanics:Mapping[str,Any]|None=None)->dict[str,Any]:
     if not isinstance(execution_authority,Mapping) or execution_authority.get("status")!="resolved" or execution_authority.get("schema_version")!=AUTHORITY_SCHEMA_VERSION:return _result("rejected","ordinary_attack_execution_authority_invalid")
     error=validate_detached_next_turn_ordinary_attack_execution_authority(authority=execution_authority,next_decision_state=execution_authority.get("next_decision_state"),next_decision_fingerprint=execution_authority.get("source_next_decision_fingerprint"))
     if error is not None:return _result("rejected",error)
     # The shared kernel consumes precisely these detached sources for item,
     # survival, secondary, and recoil authorities.
     kernel={"next_decision_state":execution_authority["next_decision_state"],"source_next_decision_fingerprint":execution_authority["source_next_decision_fingerprint"],"predictive_mechanics":execution_authority["predictive_mechanics"]}
-    result=_execute_one(execution_authority["action"],kernel)
-    return {"status":result.get("status"),"schema_version":SCHEMA_VERSION,"source_next_decision_fingerprint":execution_authority["source_next_decision_fingerprint"],"execution_authority":deepcopy(dict(execution_authority)),"action_ledger":result,"provenance":"detached_next_turn_ordinary_attack_ledger_v1"}
+    result=_execute_one(execution_authority["action"],kernel,pair_local_predictive_mechanics)
+    output={"status":result.get("status"),"schema_version":SCHEMA_VERSION,"source_next_decision_fingerprint":execution_authority["source_next_decision_fingerprint"],"execution_authority":deepcopy(dict(execution_authority)),"action_ledger":result,"provenance":"detached_next_turn_ordinary_attack_ledger_v1"}
+    if pair_local_predictive_mechanics is not None:output["pair_local_predictive_mechanics_authority"]=deepcopy(dict(pair_local_predictive_mechanics))
+    return output
 
-def validate_detached_next_turn_ordinary_attack_execution(*,result:Any,execution_authority:Mapping[str,Any])->str|None:
+def validate_detached_next_turn_ordinary_attack_execution(*,result:Any,execution_authority:Mapping[str,Any],pair_local_predictive_mechanics:Mapping[str,Any]|None=None)->str|None:
     """Strictly replay one ordinary detached ledger; embedded provenance is insufficient."""
-    expected=execute_detached_next_turn_ordinary_attack(execution_authority=execution_authority)
+    expected=execute_detached_next_turn_ordinary_attack(execution_authority=execution_authority,pair_local_predictive_mechanics=pair_local_predictive_mechanics)
     return None if isinstance(result,Mapping) and deepcopy(dict(result))==expected else "detached_next_turn_ordinary_attack_execution_mismatch"
 
 def _move(metadata:Any,move_id:Any)->dict[str,Any]|str:

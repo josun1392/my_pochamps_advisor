@@ -7,18 +7,24 @@ from llm.advisor_detached_next_turn_held_item_effect_applicability import _base 
 
 SCHEMA_VERSION="detached-next-turn-life-orb-immediate-authority-v1"
 
-def materialize_detached_next_turn_life_orb_immediate_authority(*,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,predictive_mechanics:Mapping[str,Any],attacker:Mapping[str,Any],target:Mapping[str,Any],action:Mapping[str,Any],move_metadata:Mapping[str,Any],qualifying_damage:bool,held_item_effect_applicability:Mapping[str,Any]|None=None)->dict[str,Any]:
+def materialize_detached_next_turn_life_orb_immediate_authority(*,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,predictive_mechanics:Mapping[str,Any],attacker:Mapping[str,Any],target:Mapping[str,Any],action:Mapping[str,Any],move_metadata:Mapping[str,Any],qualifying_damage:bool,held_item_effect_applicability:Mapping[str,Any]|None=None,pair_local_predictive_mechanics:Mapping[str,Any]|None=None)->dict[str,Any]:
     if not isinstance(qualifying_damage,bool):return _result("rejected","life_orb_qualifying_damage_invalid",{})
     if not _owner(attacker) or not _owner(target) or attacker["side"]==target["side"]:return _result("rejected","life_orb_owner_identity_invalid",{})
     base=_predictive_base(next_decision_state,next_decision_fingerprint,predictive_mechanics,attacker)
     if isinstance(base,str):return _result("rejected",base,{})
+    if pair_local_predictive_mechanics is not None:
+        from llm.advisor_detached_next_turn_pair_local_predictive_mechanics import validate_detached_next_turn_pair_local_predictive_mechanics
+        if validate_detached_next_turn_pair_local_predictive_mechanics(authority=pair_local_predictive_mechanics,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint) is not None:return _result("rejected","pair_local_predictive_mechanics_invalid",{})
+        rows=pair_local_predictive_mechanics.get("sides",{})
+        if rows.get(attacker["side"],{}).get("owner")!=dict(attacker) or rows.get(target["side"],{}).get("owner")!=dict(target):return _result("rejected","pair_local_owner_identity_mismatch",{})
+        base["row"],base["other_row"]=rows[attacker["side"]],rows[target["side"]]
     if predictive_mechanics.get("active_owners",{}).get(target["side"])!=dict(target) or not isinstance(action,Mapping) or action.get("action_type")!="attack" or not isinstance(action.get("action_id"),str) or not isinstance(move_metadata,Mapping) or action.get("identity",action.get("move_id"))!=move_metadata.get("move_id"):return _result("rejected","life_orb_action_or_identity_mismatch",{})
     row,targetrow=base["row"],base["other_row"]; hp=row.get("current_hp",{}); item=row.get("item",{}); ability=row.get("ability",{}); target_ability=targetrow.get("ability",{})
     common={"session_id":attacker["session_id"],"source_next_decision_fingerprint":next_decision_fingerprint,"attacker":deepcopy(dict(attacker)),"target":deepcopy(dict(target)),"continuation_action_id":action["action_id"],"move_id":move_metadata.get("move_id"),"qualifying_damage":qualifying_damage,"raw_current_item":deepcopy(dict(item)) if isinstance(item,Mapping) else {"status":"unknown"},"attacker_ability":deepcopy(dict(ability)) if isinstance(ability,Mapping) else {"status":"unknown"},"target_ability":deepcopy(dict(target_ability)) if isinstance(target_ability,Mapping) else {"status":"unknown"},"current_hp":hp.get("current_hp"),"maximum_hp":hp.get("maximum_hp"),"predictive_mechanics_authority":deepcopy(dict(predictive_mechanics))}
     if not isinstance(item,Mapping) or item.get("status")=="unknown":return _result("incomplete","life_orb_item_unknown",common)
-    expected=materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,holder=attacker)
+    expected=materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,holder=attacker,pair_local_predictive_mechanics=pair_local_predictive_mechanics)
     held=held_item_effect_applicability if held_item_effect_applicability is not None else expected
-    if validate_detached_next_turn_held_item_effect_applicability(authority=held,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,holder=attacker) is not None:return _result("rejected","life_orb_held_item_effect_authority_invalid",common)
+    if validate_detached_next_turn_held_item_effect_applicability(authority=held,next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,holder=attacker,pair_local_predictive_mechanics=pair_local_predictive_mechanics) is not None:return _result("rejected","life_orb_held_item_effect_authority_invalid",common)
     common["held_item_effect_applicability_authority"]=deepcopy(dict(held))
     if held.get("status")!="resolved":return _result("incomplete","life_orb_item_effect_applicability_unavailable",common)
     effective="life-orb" if held.get("effective_item_id")=="life-orb" else None

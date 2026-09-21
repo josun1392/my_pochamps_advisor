@@ -8,8 +8,8 @@ from llm.advisor_detached_next_turn_held_item_effect_applicability import _base 
 
 SCHEMA_VERSION = "detached-next-turn-sturdy-survival-authority-v1"
 
-def materialize_detached_next_turn_sturdy_survival_authority(*, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, predictive_mechanics: Mapping[str, Any], defender: Mapping[str, Any], attacker: Mapping[str, Any], action: Mapping[str, Any], move_metadata: Mapping[str, Any]) -> dict[str, Any]:
-    common = _common(next_decision_state, next_decision_fingerprint, predictive_mechanics, defender, attacker, action, move_metadata)
+def materialize_detached_next_turn_sturdy_survival_authority(*, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, predictive_mechanics: Mapping[str, Any], defender: Mapping[str, Any], attacker: Mapping[str, Any], action: Mapping[str, Any], move_metadata: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    common = _common(next_decision_state, next_decision_fingerprint, predictive_mechanics, defender, attacker, action, move_metadata, pair_local_predictive_mechanics)
     if isinstance(common, str): return _result("rejected", common, {})
     ability, hp = common["ability"], common["hp"]
     if hp is None: return _result("incomplete", "sturdy_hp_unknown", common)
@@ -22,14 +22,21 @@ def materialize_detached_next_turn_sturdy_survival_authority(*, next_decision_st
     if hp[0] != hp[1] or hp[0] <= 1: return _ready("resolved", "sturdy_hp_not_eligible", common, "known_no_effect", True, False)
     return _ready("ready", None, common, "available", True, True)
 
-def validate_detached_next_turn_sturdy_survival_authority(*, authority: Any, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, predictive_mechanics: Mapping[str, Any], defender: Mapping[str, Any], attacker: Mapping[str, Any], action: Mapping[str, Any], move_metadata: Mapping[str, Any]) -> str | None:
-    expected=materialize_detached_next_turn_sturdy_survival_authority(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,defender=defender,attacker=attacker,action=action,move_metadata=move_metadata)
+def validate_detached_next_turn_sturdy_survival_authority(*, authority: Any, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, predictive_mechanics: Mapping[str, Any], defender: Mapping[str, Any], attacker: Mapping[str, Any], action: Mapping[str, Any], move_metadata: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> str | None:
+    expected=materialize_detached_next_turn_sturdy_survival_authority(next_decision_state=next_decision_state,next_decision_fingerprint=next_decision_fingerprint,predictive_mechanics=predictive_mechanics,defender=defender,attacker=attacker,action=action,move_metadata=move_metadata,pair_local_predictive_mechanics=pair_local_predictive_mechanics)
     return None if isinstance(authority, Mapping) and deepcopy(dict(authority)) == expected else "detached_sturdy_survival_authority_mismatch"
 
-def _common(state, fingerprint, predictive, defender, attacker, action, move):
+def _common(state, fingerprint, predictive, defender, attacker, action, move, pair_local=None):
     if not _owner(defender) or not _owner(attacker) or defender["side"] == attacker["side"]: return "sturdy_owner_identity_invalid"
     base=_predictive_base(state, fingerprint, predictive, defender)
     if isinstance(base,str): return base
+    if pair_local is not None:
+        from llm.advisor_detached_next_turn_pair_local_predictive_mechanics import validate_detached_next_turn_pair_local_predictive_mechanics
+        if validate_detached_next_turn_pair_local_predictive_mechanics(authority=pair_local,next_decision_state=state,next_decision_fingerprint=fingerprint) is not None:return "pair_local_predictive_mechanics_invalid"
+        rows=pair_local.get("sides",{})
+        if rows.get(defender["side"],{}).get("owner")!=dict(defender) or rows.get(attacker["side"],{}).get("owner")!=dict(attacker):return "pair_local_owner_identity_mismatch"
+        base["row"],base["other_row"]=rows[defender["side"]],rows[attacker["side"]]
+        base["pair_local_predictive_mechanics"]=deepcopy(dict(pair_local))
     if predictive.get("active_owners",{}).get(attacker["side"]) != dict(attacker): return "sturdy_attacker_identity_mismatch"
     if not isinstance(action,Mapping) or action.get("action_type") != "attack" or not isinstance(action.get("action_id"),str) or not action["action_id"] or not isinstance(move,Mapping) or not isinstance(move.get("move_id"),str) or action.get("identity",action.get("move_id")) != move["move_id"]: return "sturdy_action_or_move_identity_mismatch"
     row=base["row"]; hpv=row.get("current_hp",{}); hp=(hpv.get("current_hp"),hpv.get("maximum_hp"))

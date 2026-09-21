@@ -59,7 +59,7 @@ def materialize_detached_standard_charge_turn_two_execution_authority(*, next_de
     return {"status": "resolved", "schema_version": AUTHORITY_SCHEMA_VERSION, "source_next_decision_fingerprint": next_decision_fingerprint, "next_decision_state": deepcopy(dict(next_decision_state)), "forced_continuation": deepcopy(dict(forced_continuation)), "predictive_mechanics": deepcopy(dict(predictive_mechanics)), "actions": rows, "provenance": "authenticated_forced_continuation_to_detached_turn_two_execution_authority_v1"}
 
 
-def execute_detached_standard_charge_turn_two_attacks(*, execution_authority: Mapping[str, Any]) -> dict[str, Any]:
+def execute_detached_standard_charge_turn_two_attacks(*, execution_authority: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Materialize independent, unordered turn-two attack ledgers.
 
     The first vertical slice intentionally accepts only exact neutral detached
@@ -74,8 +74,16 @@ def execute_detached_standard_charge_turn_two_attacks(*, execution_authority: Ma
     for side, row in execution_authority.get("actions", {}).items():
         if row.get("status") == "not_applicable":
             out[side] = deepcopy(dict(row)); continue
-        out[side] = _execute_one(row, execution_authority)
-    return {"status": "resolved" if all(x.get("status") in {"resolved", "not_applicable"} for x in out.values()) else "incomplete", "schema_version": SCHEMA_VERSION, "source_next_decision_fingerprint": execution_authority["source_next_decision_fingerprint"], "execution_authority": deepcopy(dict(execution_authority)), "actions": out, "unordered": True, "provenance": "detached_standard_charge_turn_two_attack_attempt_v1"}
+        out[side] = _execute_one(row, execution_authority, pair_local_predictive_mechanics)
+    result={"status": "resolved" if all(x.get("status") in {"resolved", "not_applicable"} for x in out.values()) else "incomplete", "schema_version": SCHEMA_VERSION, "source_next_decision_fingerprint": execution_authority["source_next_decision_fingerprint"], "execution_authority": deepcopy(dict(execution_authority)), "actions": out, "unordered": True, "provenance": "detached_standard_charge_turn_two_attack_attempt_v1"}
+    if pair_local_predictive_mechanics is not None: result["pair_local_predictive_mechanics_authority"]=deepcopy(dict(pair_local_predictive_mechanics))
+    return result
+
+
+def validate_detached_standard_charge_turn_two_attack_execution(*, result: Any, execution_authority: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> str | None:
+    """Replay the entire detached charge result; provenance alone is not authority."""
+    expected = execute_detached_standard_charge_turn_two_attacks(execution_authority=execution_authority, pair_local_predictive_mechanics=pair_local_predictive_mechanics)
+    return None if isinstance(result, Mapping) and deepcopy(dict(result)) == expected else "detached_standard_charge_turn_two_attack_execution_mismatch"
 
 
 def _authority_row(side: str, action: Mapping[str, Any], bound: Mapping[str, Any], fingerprint: str) -> dict[str, Any] | str:
@@ -89,13 +97,19 @@ def _authority_row(side: str, action: Mapping[str, Any], bound: Mapping[str, Any
     return {"status": "resolved", "schema_version": AUTHORITY_SCHEMA_VERSION, "side": side, "source_next_decision_fingerprint": fingerprint, "actor": deepcopy(action["actor"]), "target": deepcopy(action["resolved_target_owner"]), "move_id": action["move_id"], "continuation_action_id": action["continuation_action_id"], "original_charge_action_id": action["original_charge_action_id"], "continuation_target_locator": deepcopy(action["continuation_target_locator"]), "original_charge_lifecycle": deepcopy(action["original_charge_provenance"]), "canonical_terminal_effect": effect, "predictive_actor_mechanics": deepcopy(bound["actor_mechanics"]), "predictive_target_mechanics": deepcopy(bound["target_mechanics"]), "execution_grant": "authenticated_standard_charge_turn_two_only", "provenance": "forced_continuation_and_predictive_mechanics_bound_execution_authority_v1"}
 
 
-def _execute_one(row: Mapping[str, Any], execution_authority: Mapping[str, Any]) -> dict[str, Any]:
+def _execute_one(row: Mapping[str, Any], execution_authority: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> dict[str, Any]:
     actor, target = row["predictive_actor_mechanics"], row["predictive_target_mechanics"]
+    if pair_local_predictive_mechanics is not None:
+        from llm.advisor_detached_next_turn_pair_local_predictive_mechanics import validate_detached_next_turn_pair_local_predictive_mechanics
+        if validate_detached_next_turn_pair_local_predictive_mechanics(authority=pair_local_predictive_mechanics,next_decision_state=execution_authority.get("next_decision_state"),next_decision_fingerprint=execution_authority.get("source_next_decision_fingerprint")) is not None:return _incomplete(row,"pair_local_predictive_mechanics_invalid")
+        sides=pair_local_predictive_mechanics.get("sides",{})
+        actor,target=sides.get(row["actor"]["side"]),sides.get(row["target"]["side"])
+        if not isinstance(actor,Mapping) or not isinstance(target,Mapping) or actor.get("owner")!=row["actor"] or target.get("owner")!=row["target"]:return _incomplete(row,"pair_local_execution_identity_mismatch")
     missing = _required_missing(actor) + _required_missing(target)
     if missing:
         return {"status": "incomplete", "schema_version": SCHEMA_VERSION, "reason": "detached_damage_mechanics_incomplete", "missing_authority": tuple(sorted(set(missing))), "execution_authority": deepcopy(dict(row))}
     effect = row["canonical_terminal_effect"]; move = effect["move"]
-    terminal = _terminal_authorities(row, execution_authority, move)
+    terminal = _terminal_authorities(row, execution_authority, move, pair_local_predictive_mechanics)
     if terminal.get("status") != "resolved":
         return _incomplete(row, terminal.get("reason", "detached_terminal_authority_unavailable"))
     gate = _pre_action_gate(actor, target, row["move_id"])
@@ -129,7 +143,7 @@ def _execute_one(row: Mapping[str, Any], execution_authority: Mapping[str, Any])
       for critical, cp in ((False, 1 - crit), (True, crit)):
         if not cp:
             continue
-        rolls = _damage_rolls(row, critical, terminal["attacker_item"]["effective_item_id"], terminal["target_item"]["effective_item_id"])
+        rolls = _damage_rolls(row, critical, terminal["attacker_item"]["effective_item_id"], terminal["target_item"]["effective_item_id"], actor, target)
         if rolls is None:
             return _incomplete(row, "detached_damage_context_unavailable")
         for index, damage in enumerate(rolls):
@@ -149,16 +163,16 @@ def _required_missing(row: Mapping[str, Any]) -> list[str]:
     return [key for key in required if not isinstance(row.get(key), Mapping) or row[key].get("status") not in {"known", "known_none", "known_present", "known_absent", "known_active", "known_inactive"}]
 
 
-def _terminal_authorities(row: Mapping[str, Any], execution: Mapping[str, Any], move: Mapping[str, Any]) -> dict[str, Any]:
+def _terminal_authorities(row: Mapping[str, Any], execution: Mapping[str, Any], move: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> dict[str, Any]:
     state, fingerprint, predictive = execution.get("next_decision_state"), execution.get("source_next_decision_fingerprint"), execution.get("predictive_mechanics")
     action = {"action_type": "attack", "action_id": row["continuation_action_id"], "identity": row["move_id"]}
-    attacker_item = materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, holder=row["actor"])
-    target_item = materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, holder=row["target"])
+    attacker_item = materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, holder=row["actor"], pair_local_predictive_mechanics=pair_local_predictive_mechanics)
+    target_item = materialize_detached_next_turn_held_item_effect_applicability(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, holder=row["target"], pair_local_predictive_mechanics=pair_local_predictive_mechanics)
     if attacker_item.get("status") != "resolved" or target_item.get("status") != "resolved": return {"status": "incomplete", "reason": "detached_held_item_effect_applicability_unavailable"}
     if attacker_item.get("terminal_consumption") == "required_unrepresented" or target_item.get("terminal_consumption") == "required_unrepresented": return {"status": "incomplete", "reason": "detached_terminal_consumable_item_consequence_unrepresented"}
-    sturdy = materialize_detached_next_turn_sturdy_survival_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, defender=row["target"], attacker=row["actor"], action=action, move_metadata=move)
-    sash = materialize_detached_next_turn_focus_sash_survival_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, holder=row["target"], attacker=row["actor"], action=action, move_metadata=move, held_item_effect_applicability=target_item)
-    life = materialize_detached_next_turn_life_orb_immediate_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, attacker=row["actor"], target=row["target"], action=action, move_metadata=move, qualifying_damage=True, held_item_effect_applicability=attacker_item)
+    sturdy = materialize_detached_next_turn_sturdy_survival_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, defender=row["target"], attacker=row["actor"], action=action, move_metadata=move, pair_local_predictive_mechanics=pair_local_predictive_mechanics)
+    sash = materialize_detached_next_turn_focus_sash_survival_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, holder=row["target"], attacker=row["actor"], action=action, move_metadata=move, held_item_effect_applicability=target_item, pair_local_predictive_mechanics=pair_local_predictive_mechanics)
+    life = materialize_detached_next_turn_life_orb_immediate_authority(next_decision_state=state, next_decision_fingerprint=fingerprint, predictive_mechanics=predictive, attacker=row["actor"], target=row["target"], action=action, move_metadata=move, qualifying_damage=True, held_item_effect_applicability=attacker_item, pair_local_predictive_mechanics=pair_local_predictive_mechanics)
     if sturdy.get("status") in {"incomplete", "rejected"}: return {"status": "incomplete", "reason": "detached_sturdy_survival_authority_unavailable"}
     if sash.get("status") in {"incomplete", "rejected"}: return {"status": "incomplete", "reason": "detached_focus_sash_survival_authority_unavailable"}
     if life.get("status") in {"incomplete", "rejected"}: return {"status": "incomplete", "reason": "detached_life_orb_authority_unavailable"}
@@ -210,8 +224,8 @@ def _authority_is_self_consistent(authority: Mapping[str, Any]) -> bool:
     return True
 
 
-def _damage_rolls(row: Mapping[str, Any], critical: bool, attacker_item: str | None, defender_item: str | None) -> list[int] | None:
-    a, t, move = row["predictive_actor_mechanics"], row["predictive_target_mechanics"], row["canonical_terminal_effect"]["move"]
+def _damage_rolls(row: Mapping[str, Any], critical: bool, attacker_item: str | None, defender_item: str | None, actor: Mapping[str, Any] | None = None, target: Mapping[str, Any] | None = None) -> list[int] | None:
+    a, t, move = actor or row["predictive_actor_mechanics"], target or row["predictive_target_mechanics"], row["canonical_terminal_effect"]["move"]
     av, tv = a["current_final_stats"]["values"], t["current_final_stats"]["values"]
     ast, tst = a["current_stages"]["values"], t["current_stages"]["values"]
     offense, defense = ("attack", "defense") if move["category"] == "physical" else ("special-attack", "special-defense")
