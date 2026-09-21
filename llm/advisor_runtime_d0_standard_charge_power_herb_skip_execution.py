@@ -28,11 +28,15 @@ from llm.advisor_standard_charge_terminal_execution import (
 from llm.advisor_solar_terminal_weather_damage_modifier import (
     materialize_solar_terminal_weather_damage_modifier_authority,
 )
+from llm.advisor_standard_charge_turn_self_stage_effect import (
+    freeze_runtime_d0_standard_charge_turn_self_stage_effect_authority,
+)
 
 AUTHORITY_SCHEMA_VERSION = "runtime-d0-standard-charge-power-herb-skip-execution-authority-v1"
 CONSUMPTION_SCHEMA_VERSION = "detached-standard-charge-power-herb-consumption-authority-v1"
-_SUPPORTED = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_SUPPORTED = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
 _SOLAR = frozenset({"solar-beam", "solar-blade"})
+_SELF_EFFECT = frozenset({"meteor-beam", "skull-bash"})
 
 
 def freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(
@@ -79,7 +83,11 @@ def freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(
         move_id not in _SUPPORTED
         or effect.get("status") != "resolved"
         or not isinstance(lifecycle, Mapping)
-        or lifecycle.get("lifecycle_family") != ("weather_sensitive_charge_then_damage" if move_id in _SOLAR else "ordinary_charge_then_damage")
+        or lifecycle.get("lifecycle_family") != (
+            "weather_sensitive_charge_then_damage" if move_id in _SOLAR
+            else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT
+            else "ordinary_charge_then_damage"
+        )
         or lifecycle.get("power_herb_charge_skip_possible") is not True
     ):
         return _result("rejected", "power_herb_skip_move_not_supported")
@@ -128,6 +136,21 @@ def freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(
     if any(terminal.get(key) != value for key, value in binding.items()):
         return _result("rejected", "power_herb_skip_authority_binding_mismatch")
 
+    self_stage = None
+    if move_id in _SELF_EFFECT:
+        self_stage = freeze_runtime_d0_standard_charge_turn_self_stage_effect_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            action=action,
+            actor=actor,
+            target=target,
+        )
+        if self_stage.get("status") != "resolved":
+            return _result(
+                self_stage.get("status", "incomplete"),
+                self_stage.get("reason", "power_herb_charge_turn_self_stage_effect_unavailable"),
+            )
+
     return {
         "status": "resolved",
         "schema_version": AUTHORITY_SCHEMA_VERSION,
@@ -137,6 +160,7 @@ def freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(
         "readiness_authority": deepcopy(dict(readiness)),
         "held_item_effect_applicability_authority": deepcopy(dict(readiness["power_herb_applicability_authority"])),
         "terminal_mechanics_authority": deepcopy(dict(terminal)),
+        **({"charge_turn_self_stage_effect_authority": deepcopy(dict(self_stage))} if isinstance(self_stage, Mapping) else {}),
         "execution_mode": POWER_HERB_CURRENT_TURN_SKIP_MODE,
         "execution_grant": "authenticated_power_herb_current_turn_skip_only",
         "provenance": "runtime_d0_power_herb_standard_charge_skip_execution_authority_v1",
@@ -227,6 +251,7 @@ def materialize_runtime_d0_standard_charge_power_herb_terminal_execution_contrac
         "caller_action_authority": deepcopy(dict(execution_authority)),
         "power_herb_consumption_authority": deepcopy(dict(consumption)),
         **({"solar_terminal_weather_damage_modifier_authority": deepcopy(dict(solar_modifier))} if isinstance(solar_modifier, Mapping) else {}),
+        **({"charge_turn_self_stage_effect_authority": deepcopy(dict(execution_authority["charge_turn_self_stage_effect_authority"]))} if isinstance(execution_authority.get("charge_turn_self_stage_effect_authority"), Mapping) else {}),
         "source_execution_authority": deepcopy(dict(execution_authority)),
         "provenance": "power_herb_current_turn_standard_charge_terminal_caller_authentication_v1",
     }
@@ -250,6 +275,7 @@ def materialize_runtime_d0_standard_charge_power_herb_terminal_execution_contrac
         caller_authentication=caller_authentication,
         power_herb_consumption_authority=consumption,
         solar_terminal_weather_damage_modifier_authority=solar_modifier,
+        charge_turn_self_stage_effect_authority=execution_authority.get("charge_turn_self_stage_effect_authority"),
     )
 
 
@@ -430,6 +456,12 @@ def _self_consistency_error(value: Any) -> str | None:
         return "power_herb_skip_execution_authority_binding_mismatch"
     if terminal.get("canonical_terminal_effect") != value.get("canonical_terminal_effect"):
         return "power_herb_skip_terminal_effect_mismatch"
+    if value.get("move_id") in _SELF_EFFECT:
+        stage = value.get("charge_turn_self_stage_effect_authority")
+        if not isinstance(stage, Mapping) or stage.get("move_id") != value.get("move_id") or stage.get("actor") != value.get("actor") or stage.get("target") != value.get("target") or stage.get("action_id") != value.get("action_id"):
+            return "power_herb_skip_charge_turn_self_stage_effect_invalid"
+    elif value.get("charge_turn_self_stage_effect_authority") is not None:
+        return "power_herb_skip_unexpected_charge_turn_self_stage_effect"
     return None
 
 

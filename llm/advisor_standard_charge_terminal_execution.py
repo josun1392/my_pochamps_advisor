@@ -26,6 +26,11 @@ from advisor.probabilistic_target_status_effect_capabilities import resolve_prob
 from llm.advisor_champions_sleep_freeze_action_gate import classify_status_move, resolve_gate_branches
 from llm.advisor_champions_confusion_action_gate import resolve_confusion_branches
 from llm.advisor_detached_next_turn_focus_sash_survival_authority import apply_detached_focus_sash_single_hit
+from llm.advisor_standard_charge_turn_self_stage_effect import (
+    apply_stage_effect_to_actor_mechanics,
+    stage_effect_consequence,
+    validate_standard_charge_turn_self_stage_effect_for_mechanics,
+)
 
 
 CONTRACT_SCHEMA_VERSION = "standard-charge-terminal-execution-contract-v1"
@@ -35,8 +40,9 @@ FORCED_TURN_TWO_EXECUTION_MODE = "forced_turn_two_continuation"
 POWER_HERB_CURRENT_TURN_SKIP_MODE = "power_herb_current_turn_skip"
 WEATHER_CURRENT_TURN_SKIP_MODE = "weather_current_turn_skip"
 _PRODUCTION_EXECUTION_MODES = {FORCED_TURN_TWO_EXECUTION_MODE, POWER_HERB_CURRENT_TURN_SKIP_MODE, WEATHER_CURRENT_TURN_SKIP_MODE}
-_SUPPORTED_MOVES = {"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"}
+_SUPPORTED_MOVES = {"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"}
 _SOLAR_MOVES = {"solar-beam", "solar-blade"}
+_SELF_EFFECT_MOVES = {"meteor-beam", "skull-bash"}
 _OWNER_KEYS = {"session_id", "side", "slot_index", "pokemon_id"}
 
 
@@ -84,6 +90,7 @@ def materialize_standard_charge_terminal_execution_contract(
     caller_authentication: Mapping[str, Any],
     power_herb_consumption_authority: Mapping[str, Any] | None = None,
     solar_terminal_weather_damage_modifier_authority: Mapping[str, Any] | None = None,
+    charge_turn_self_stage_effect_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create the typed execution boundary for one authenticated caller mode."""
     if execution_mode not in _PRODUCTION_EXECUTION_MODES:
@@ -137,6 +144,8 @@ def materialize_standard_charge_terminal_execution_contract(
         "power_herb_consumption_authority": deepcopy(dict(power_herb_consumption_authority)) if isinstance(power_herb_consumption_authority, Mapping) else None,
         "provenance": "authenticated_standard_charge_terminal_execution_contract_v1",
     }
+    if isinstance(charge_turn_self_stage_effect_authority, Mapping):
+        contract["charge_turn_self_stage_effect_authority"] = deepcopy(dict(charge_turn_self_stage_effect_authority))
     if move_id in _SOLAR_MOVES:
         if not isinstance(solar_terminal_weather_damage_modifier_authority, Mapping):
             return _result("incomplete", "solar_terminal_weather_damage_modifier_authority_required")
@@ -182,6 +191,28 @@ def validate_standard_charge_terminal_execution_contract(contract: Any) -> str |
     )
     if shape_error is not None:
         return shape_error
+    self_stage = contract.get("charge_turn_self_stage_effect_authority")
+    if move_id in _SELF_EFFECT_MOVES:
+        if execution_mode == POWER_HERB_CURRENT_TURN_SKIP_MODE:
+            if not isinstance(self_stage, Mapping):
+                return "charge_turn_self_stage_effect_authority_required"
+            error = validate_standard_charge_turn_self_stage_effect_for_mechanics(
+                authority=self_stage,
+                session_id=session_id,
+                source_state_fingerprint=contract["source_state_fingerprint"],
+                decision_owner=decision_owner,
+                actor=actor,
+                target=target,
+                action_id=contract["action_id"],
+                move_id=move_id,
+                actor_mechanics=contract["actor_mechanics"],
+            )
+            if error is not None:
+                return error
+        elif self_stage is not None:
+            return "charge_turn_self_stage_effect_forbidden_on_turn_two"
+    elif self_stage is not None:
+        return "unexpected_charge_turn_self_stage_effect_authority"
     solar_modifier = contract.get("solar_terminal_weather_damage_modifier_authority")
     if move_id in _SOLAR_MOVES:
         if not isinstance(solar_modifier, Mapping):
@@ -217,6 +248,7 @@ def execute_standard_charge_terminal_attack(*, execution_contract: Mapping[str, 
         "focus_sash": deepcopy(dict(execution_contract["target_focus_sash_authority"])),
         "life_orb": deepcopy(dict(execution_contract["attacker_life_orb_authority"])),
         "solar_weather_modifier": deepcopy(dict(execution_contract["solar_terminal_weather_damage_modifier_authority"])) if isinstance(execution_contract.get("solar_terminal_weather_damage_modifier_authority"), Mapping) else None,
+        "charge_turn_self_stage_effect": deepcopy(dict(execution_contract["charge_turn_self_stage_effect_authority"])) if isinstance(execution_contract.get("charge_turn_self_stage_effect_authority"), Mapping) else None,
     }
     return _execute_authenticated_terminal_mechanics(
         row=execution_contract,
@@ -225,6 +257,7 @@ def execute_standard_charge_terminal_attack(*, execution_contract: Mapping[str, 
         terminal=terminal,
         caller_action_authority=execution_contract["caller_action_authority"],
         power_herb_consumption_authority=execution_contract.get("power_herb_consumption_authority"),
+        charge_turn_self_stage_effect_authority=execution_contract.get("charge_turn_self_stage_effect_authority"),
     )
 
 
@@ -270,6 +303,7 @@ def _execute_authenticated_terminal_mechanics(
     terminal: Mapping[str, Any],
     caller_action_authority: Mapping[str, Any],
     power_herb_consumption_authority: Mapping[str, Any] | None = None,
+    charge_turn_self_stage_effect_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     gate = _pre_action_gate(actor, target, row["move_id"])
     if gate["status"] == "incomplete":
@@ -282,7 +316,12 @@ def _execute_authenticated_terminal_mechanics(
     if gate["outcome"] == "cancelled":
         return _cancelled(row, gate, caller_action_authority)
     opportunities = gate.get("branches", ({"kind": "executes", "executes": True, "probability": _fd(Fraction(1))},))
-    attack_actor = _actor_after_execution_boundary(actor, power_herb_consumption_authority)
+    staged_actor = deepcopy(dict(actor))
+    if charge_turn_self_stage_effect_authority is not None:
+        staged_actor = apply_stage_effect_to_actor_mechanics(actor, charge_turn_self_stage_effect_authority)
+        if staged_actor is None:
+            return _incomplete(row, "charge_turn_self_stage_effect_application_invalid", caller_action_authority)
+    attack_actor = _actor_after_execution_boundary(staged_actor, power_herb_consumption_authority)
     if attack_actor is None:
         return _incomplete(row, "power_herb_consumption_authority_invalid", caller_action_authority)
     actor_stages, target_stages = attack_actor["current_stages"]["values"], target["current_stages"]["values"]
@@ -314,6 +353,7 @@ def _execute_authenticated_terminal_mechanics(
         execution_actor = attack_actor
         if accuracy < 1:
             miss = _miss_leaf(row, execution_actor, target, root * (1 - accuracy), caller_action_authority)
+            _attach_charge_turn_self_stage_effect(miss, charge_turn_self_stage_effect_authority)
             _attach_power_herb_consumption(miss, power_herb_consumption_authority)
             miss["branch_path"] = ("pre_action", opportunity["kind"], *miss["branch_path"])
             leaves.append(miss)
@@ -335,6 +375,7 @@ def _execute_authenticated_terminal_mechanics(
                     root * accuracy * cp * Fraction(1, 16), terminal,
                     caller_action_authority,
                 )
+                _attach_charge_turn_self_stage_effect(event, charge_turn_self_stage_effect_authority)
                 _attach_power_herb_consumption(event, power_herb_consumption_authority)
                 event["branch_path"] = ("pre_action", opportunity["kind"], *event["branch_path"])
                 secondary = _secondary_branches(row, execution_actor, target, event)
@@ -383,6 +424,8 @@ def _caller_authentication_matches(contract: Mapping[str, Any], auth: Any) -> bo
     ]
     if contract.get("move_id") in _SOLAR_MOVES:
         expected_keys.append("solar_terminal_weather_damage_modifier_authority")
+    if contract.get("move_id") in _SELF_EFFECT_MOVES and contract.get("execution_mode") == POWER_HERB_CURRENT_TURN_SKIP_MODE:
+        expected_keys.append("charge_turn_self_stage_effect_authority")
     if any(auth.get(key) != contract.get(key) for key in expected_keys):
         return False
     source = auth.get("source_execution_authority")
@@ -448,6 +491,12 @@ def _actor_after_execution_boundary(actor: Mapping[str, Any], consumption: Mappi
         direct["combatant"] = {**deepcopy(dict(combatant)), "item": None}
         result["direct_mechanics"] = direct
     return result
+
+
+def _attach_charge_turn_self_stage_effect(leaf: dict[str, Any], authority: Mapping[str, Any] | None) -> None:
+    if authority is None:
+        return
+    leaf.setdefault("consequences", {})["charge_turn_self_stage_effect"] = stage_effect_consequence(authority)
 
 
 def _attach_power_herb_consumption(leaf: dict[str, Any], consumption: Mapping[str, Any] | None) -> None:
@@ -665,14 +714,14 @@ def _gate_cancelled_leaf(row: Mapping[str, Any], actor: Mapping[str, Any], targe
 
 def _confusion_self_hit_leaves(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], branch: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> list[dict[str, Any]] | None:
     direct = actor["direct_mechanics"].get("combatant", {})
-    species, disguise = direct.get("species_id"), direct.get("disguise_state")
-    if not isinstance(species, str) or disguise not in {None, "intact", "broken"}: return None
+    species, pokemon_id, disguise = direct.get("species_id"), direct.get("pokemon_id"), direct.get("disguise_state")
+    if not isinstance(pokemon_id, str) or not pokemon_id or disguise not in {None, "intact", "broken"}: return None
     values, stages = actor["current_final_stats"]["values"], actor["current_stages"]["values"]
     try:
         attack, defense = apply_boosts(values["attack"], stages["attack"]), apply_boosts(values["defense"], stages["defense"])
         base = ((((2 * actor["current_level"]["value"]) // 5 + 2) * 40 * attack) // defense) // 50 + 2
     except (KeyError, TypeError, ValueError, ZeroDivisionError): return None
-    hp, mimikyu = actor["current_hp"]["current_hp"], species in {"mimikyu", "mimikyu-busted"}
+    hp, mimikyu = actor["current_hp"]["current_hp"], species in {"mimikyu", "mimikyu-busted"} or pokemon_id in {"mimikyu", "mimikyu-busted"}
     leaves=[]
     for index, factor in enumerate(range(85, 101)):
         raw = (base * factor) // 100; damage = 0 if mimikyu and disguise == "intact" else min(hp, raw); post = hp - damage

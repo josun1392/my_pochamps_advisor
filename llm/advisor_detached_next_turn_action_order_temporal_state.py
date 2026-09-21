@@ -12,7 +12,7 @@ from typing import Any, Mapping
 
 SCHEMA_VERSION = "detached-next-turn-action-order-temporal-state-authority-v1"
 SOURCE_SCHEMA_VERSION = "detached-action-order-temporal-source-authority-v1"
-_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
 
 
 def freeze_detached_action_order_temporal_source_authority(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], action_order_authority: Mapping[str, Any], evaluated_pair: Mapping[str, Any], source_move_ids: Mapping[str, Any]) -> dict[str, Any]:

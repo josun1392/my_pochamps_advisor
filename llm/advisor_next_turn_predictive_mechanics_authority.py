@@ -1146,6 +1146,18 @@ def _collect_stage_expectations(value: Any, owner: Mapping[str, Any], out: dict[
                 after = value.get("stage_after")
             if _stage(after):
                 out[stat] = after
+        charge_turn = value.get("charge_turn_self_stage_effect")
+        if isinstance(charge_turn, Mapping):
+            if (
+                charge_turn.get("status") == "resolved"
+                and charge_turn.get("schema_version") == "standard-charge-turn-self-stage-effect-authority-v1"
+                and charge_turn.get("owner") == dict(owner)
+                and charge_turn.get("stat") in _STAGE_KEYS
+                and _stage(charge_turn.get("resulting_stage"))
+                and charge_turn.get("timing") == "before_charge_move_event"
+                and charge_turn.get("provenance") == "exact_pre_charge_move_self_stage_transition_v1"
+            ):
+                out[charge_turn["stat"]] = charge_turn["resulting_stage"]
         effect = value.get("deterministic_stage_effect")
         if isinstance(effect, Mapping):
             _collect_stage_expectations(effect, owner, out)

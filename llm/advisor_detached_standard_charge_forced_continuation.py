@@ -26,8 +26,9 @@ ACTION_SCHEMA_VERSION = "detached-standard-charge-forced-continuation-action-v1"
 METADATA_SCHEMA_VERSION = "detached-standard-charge-continuation-move-metadata-authority-v1"
 _SIDES = ("self", "opponent")
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
+_SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
 _EXPECTED_CATEGORY = {
     "sky-attack": "physical",
     "razor-wind": "special",
@@ -35,6 +36,8 @@ _EXPECTED_CATEGORY = {
     "ice-burn": "special",
     "solar-beam": "special",
     "solar-blade": "physical",
+    "meteor-beam": "special",
+    "skull-bash": "physical",
 }
 
 
@@ -423,7 +426,11 @@ def _metadata_error(
 
 
 def _expected_family(move_id: str) -> str:
-    return "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES else "ordinary_charge_then_damage"
+    return (
+        "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
+        else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
+        else "ordinary_charge_then_damage"
+    )
 
 
 def _locator_error(

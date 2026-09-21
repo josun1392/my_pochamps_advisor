@@ -212,7 +212,7 @@ SCHEMA_VERSION = "immediate-move-vs-move-action-pair-v1"
 HORIZON = "immediate_action_pair"
 _STATUSES = {"incomplete", "unsupported", "rejected"}
 _CHARGE_MOVES = ChargeMoveRepository()
-_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
 _STANDARD_CHARGE_EXCLUDED_COUNTERPARTS = frozenset({
     "fling", "u-turn", "volt-switch", "flip-turn", "sucker-punch",
     "seismic-toss", "night-shade", "dragon-rage", "sonic-boom",

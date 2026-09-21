@@ -187,7 +187,7 @@ def test_power_herb_active_readiness_bypasses_charge_start_materializer():
     assert result["reason"] == "standard_charge_start_readiness_semantics_invalid"
 
 
-@pytest.mark.parametrize("move_id", ("meteor-beam", "fly", "geomancy"))
+@pytest.mark.parametrize("move_id", ("fly", "geomancy"))
 def test_unsupported_charge_families_cannot_use_standard_charge_start(move_id):
     _state0, snapshot, d0, action, actor, target, readiness = _inputs(move_id)
     result = materialize_detached_standard_charge_start(

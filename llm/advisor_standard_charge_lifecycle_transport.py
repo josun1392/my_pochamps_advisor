@@ -19,8 +19,9 @@ TRANSPORT_SCHEMA_VERSION = "detached-standard-charge-lifecycle-transport-authori
 POST_EOT_SCHEMA_VERSION = "detached-standard-charge-post-eot-lifecycle-authority-v1"
 NEXT_TURN_SCHEMA_VERSION = "detached-standard-charge-next-turn-continuation-authority-v1"
 _SIDES = ("self", "opponent")
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
+_SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 
 
@@ -603,7 +604,11 @@ def _active_owner(active: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _expected_family(move_id: Any) -> str:
-    return "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES else "ordinary_charge_then_damage"
+    return (
+        "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
+        else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
+        else "ordinary_charge_then_damage"
+    )
 
 
 def _owner(value: Any, *, side: str) -> bool:

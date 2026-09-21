@@ -21,6 +21,8 @@ _EFFECTS = {
     "ice-burn": {"power": 140, "category": "special", "type": "ice", "accuracy": 90, "crit_ratio": 1, "secondary": {"kind": "status", "condition": "burn", "chance": 30}},
     "solar-beam": {"power": 120, "category": "special", "type": "grass", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
     "solar-blade": {"power": 125, "category": "physical", "type": "grass", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
+    "meteor-beam": {"power": 120, "category": "special", "type": "rock", "accuracy": 90, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
+    "skull-bash": {"power": 130, "category": "physical", "type": "normal", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
 }
 
 
@@ -38,6 +40,8 @@ def resolve_canonical_standard_charge_turn_two_effect(move_id: Any) -> dict[str,
     allowed_family = (
         "weather_sensitive_charge_then_damage"
         if normalized in {"solar-beam", "solar-blade"}
+        else "charge_turn_self_effect_then_damage"
+        if normalized in {"meteor-beam", "skull-bash"}
         else "ordinary_charge_then_damage"
     )
     if effect is None or lifecycle.get("lifecycle_family") != allowed_family:

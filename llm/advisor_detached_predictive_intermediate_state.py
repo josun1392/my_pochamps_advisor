@@ -333,6 +333,26 @@ def _item(authority: Any, effects: tuple[Mapping[str, Any], ...], role: str) -> 
 
 def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...] | str:
     result: list[Mapping[str, Any]] = []
+    charge_turn = consequences.get("charge_turn_self_stage_effect")
+    if isinstance(charge_turn, Mapping):
+        if (
+            charge_turn.get("status") != "resolved"
+            or charge_turn.get("schema_version") != "standard-charge-turn-self-stage-effect-authority-v1"
+            or charge_turn.get("owner") != leaf.get("provenance", {}).get("attacker")
+            or charge_turn.get("action_id") != leaf.get("candidate_id")
+            or charge_turn.get("move_id") != leaf.get("provenance", {}).get("move_id")
+            or charge_turn.get("timing") != "before_charge_move_event"
+            or charge_turn.get("provenance") != "exact_pre_charge_move_self_stage_transition_v1"
+        ):
+            return "charge_turn_self_stage_effect_invalid"
+        result.append({
+            "owner": "self",
+            "stat": charge_turn.get("stat"),
+            "previous_stage": charge_turn.get("previous_stage"),
+            "delta": charge_turn.get("delta"),
+            "resulting_stage": charge_turn.get("resulting_stage"),
+            "charge_turn_self_stage_effect": deepcopy(dict(charge_turn)),
+        })
     deterministic = consequences.get("deterministic_stage_effect")
     if isinstance(deterministic, Mapping):
         damage = consequences.get("damage")

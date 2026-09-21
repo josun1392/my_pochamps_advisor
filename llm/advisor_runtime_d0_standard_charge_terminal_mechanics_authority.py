@@ -96,7 +96,12 @@ def freeze_runtime_d0_standard_charge_participant_mechanics_authority(*, strateg
     if status_progression["status"] == "unknown": missing.append("status_progression")
     if confusion_state["status"] == "unknown" or confusion_progression["status"] == "unknown": missing.append("confusion_progression")
     final_stats = {"hp": hp["maximum_hp"], **values} if len(values) == len(_STATS) and isinstance(hp.get("maximum_hp"), int) and not isinstance(hp.get("maximum_hp"), bool) and hp["maximum_hp"] > 0 else None
-    direct_mechanics = _direct_mechanics_from_facts(level=level, hp=hp, final_stats=final_stats, stages=stages, condition=cond, item=item, ability=ability, types=types, field=field)
+    direct_mechanics = _direct_mechanics_from_facts(
+        level=level, hp=hp, final_stats=final_stats, stages=stages, condition=cond,
+        item=item, ability=ability, types=types, field=field,
+        pokemon_id=raw.get("pokemon_id"), species_id=raw.get("species_id"),
+        disguise_state=raw.get("disguise_state"),
+    )
     if direct_mechanics["status"] == "unknown": missing.append("direct_mechanics")
     row = {**base, "schema_version": PARTICIPANT_SCHEMA_VERSION, "owner": deepcopy(dict(owner)), "participant_role": participant_role, "mechanics_only": True, "execution_grant": False,
         "current_level": _known(level) if isinstance(level, int) and not isinstance(level, bool) and level > 0 else {"status": "unknown"}, "current_final_stats": {"status": "known", "values": final_stats} if isinstance(final_stats, Mapping) else {"status": "incomplete", "values": values}, "current_hp": {"status": "known", **hp} if not "current_hp" in missing else {"status": "unknown"}, "fainted": raw.get("fainted") if isinstance(raw.get("fainted"), bool) else None,
@@ -194,7 +199,7 @@ def validate_runtime_d0_standard_charge_terminal_mechanics_authority(*, authorit
     return {"status": "resolved", "schema_version": "runtime-d0-standard-charge-terminal-mechanics-replay-v1", "authority": deepcopy(dict(expected)), "provenance": "runtime_d0_standard_charge_terminal_mechanics_replay_v1"}
 
 
-def _direct_mechanics_from_facts(*, level: Any, hp: Mapping[str, Any], final_stats: Mapping[str, Any] | None, stages: Mapping[str, Any] | None, condition: Mapping[str, Any] | None, item: Mapping[str, Any], ability: Mapping[str, Any], types: Any, field: Mapping[str, Any]) -> dict[str, Any]:
+def _direct_mechanics_from_facts(*, level: Any, hp: Mapping[str, Any], final_stats: Mapping[str, Any] | None, stages: Mapping[str, Any] | None, condition: Mapping[str, Any] | None, item: Mapping[str, Any], ability: Mapping[str, Any], types: Any, field: Mapping[str, Any], pokemon_id: Any, species_id: Any, disguise_state: Any) -> dict[str, Any]:
     if (
         not isinstance(level, int) or isinstance(level, bool) or not 1 <= level <= 100
         or not isinstance(final_stats, Mapping)
@@ -221,6 +226,9 @@ def _direct_mechanics_from_facts(*, level: Any, hp: Mapping[str, Any], final_sta
             "item": item.get("value") if item["status"] == "known" else None,
             "ability": ability["value"],
             "types": deepcopy(list(types)),
+            "pokemon_id": pokemon_id,
+            "species_id": species_id if isinstance(species_id, str) and species_id else None,
+            "disguise_state": disguise_state if disguise_state in {None, "intact", "broken"} else None,
         },
     }
 

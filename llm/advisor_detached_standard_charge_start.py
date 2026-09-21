@@ -9,13 +9,19 @@ from advisor.canonical_charge_move_lifecycle import (
 )
 from llm.advisor_reducer_state_model import state_fingerprint
 from llm.advisor_runtime_strategy_d0 import runtime_strategy_d0_freshness
+from llm.advisor_standard_charge_turn_self_stage_effect import (
+    freeze_runtime_d0_standard_charge_turn_self_stage_effect_authority,
+    stage_effect_consequence,
+)
+from llm.advisor_observed_damage_application import apply_canonical_stage_delta
 
 
 SCHEMA_VERSION = "detached-standard-charge-start-v1"
 CONTEXT_SCHEMA_VERSION = "detached-standard-charge-lifecycle-context-v1"
 _READINESS_SCHEMA = "runtime-d0-standard-charge-start-readiness-authority-v1"
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
+_SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
 
 
 def materialize_detached_standard_charge_start(
@@ -52,6 +58,21 @@ def materialize_detached_standard_charge_start(
         return _result("rejected", "standard_charge_target_no_longer_actionable", base)
 
     canonical = readiness_authority["canonical_charge_lifecycle_authority"]
+    self_stage_authority = None
+    if base["move_id"] in _SELF_EFFECT_MOVES:
+        self_stage_authority = freeze_runtime_d0_standard_charge_turn_self_stage_effect_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=runtime_snapshot,
+            action=action,
+            actor=actor,
+            target=target,
+        )
+        if self_stage_authority.get("status") != "resolved":
+            return _result(
+                self_stage_authority.get("status", "incomplete"),
+                self_stage_authority.get("reason", "standard_charge_turn_self_stage_effect_unavailable"),
+                base,
+            )
     leaf_id = f"{base['action_id']}:charge-start"
     probability = {"numerator": 1, "denominator": 1}
     context = {
@@ -105,6 +126,11 @@ def materialize_detached_standard_charge_start(
             "secondary": None,
             "contact": "not_applicable",
             "detached_standard_charge_lifecycle_context": deepcopy(context),
+            **(
+                {"charge_turn_self_stage_effect": stage_effect_consequence(self_stage_authority)}
+                if isinstance(self_stage_authority, Mapping)
+                else {}
+            ),
         },
         "provenance": {
             "session_id": base["session_id"],
@@ -134,6 +160,7 @@ def materialize_detached_standard_charge_start(
         "probability": probability,
         "action_leaf": leaf,
         "detached_charge_lifecycle_context": context,
+        **({"charge_turn_self_stage_effect_authority": deepcopy(dict(self_stage_authority))} if isinstance(self_stage_authority, Mapping) else {}),
         "post_action_runtime_snapshot": post_snapshot,
         "action_execution_opportunity_consumed": True,
         "immediate_damage_executed": False,
@@ -234,6 +261,24 @@ def validate_detached_standard_charge_start(
 
     consequences = leaf.get("consequences")
     provenance = leaf.get("provenance")
+    stage_consequence = consequences.get("charge_turn_self_stage_effect") if isinstance(consequences, Mapping) else None
+    stage_authority = result.get("charge_turn_self_stage_effect_authority")
+    if base["move_id"] in _SELF_EFFECT_MOVES:
+        expected_stage = freeze_runtime_d0_standard_charge_turn_self_stage_effect_authority(
+            strategy_d0=strategy_d0,
+            runtime_snapshot=source_runtime_snapshot,
+            action=action,
+            actor=actor,
+            target=target,
+        )
+        if (
+            expected_stage.get("status") != "resolved"
+            or stage_authority != expected_stage
+            or stage_consequence != stage_effect_consequence(expected_stage)
+        ):
+            return False
+    elif stage_consequence is not None or stage_authority is not None:
+        return False
     if (
         leaf.get("leaf_id") != f"{base['action_id']}:charge-start"
         or leaf.get("candidate_id") != f"attack:{base['move_id']}"
@@ -374,6 +419,38 @@ def validate_pair_compatible_standard_charge_leaf(leaf: Any) -> str | None:
         return "standard_charge_lifecycle_context_invalid"
     if context.get("power_herb_applicability_state", {}).get("status") == "active":
         return "standard_charge_active_power_herb_context_invalid"
+    stage = consequences.get("charge_turn_self_stage_effect")
+    if move_id in _SELF_EFFECT_MOVES:
+        expected_stat = "special-attack" if move_id == "meteor-beam" else "defense"
+        expected_class = "special_attack_plus_one" if move_id == "meteor-beam" else "defense_plus_one"
+        authority = stage.get("authority") if isinstance(stage, Mapping) else None
+        previous = stage.get("previous_stage") if isinstance(stage, Mapping) else None
+        if (
+            not isinstance(stage, Mapping)
+            or stage.get("status") != "resolved"
+            or stage.get("schema_version") != "standard-charge-turn-self-stage-effect-authority-v1"
+            or stage.get("owner") != actor
+            or stage.get("stat") != expected_stat
+            or stage.get("delta") != 1
+            or not isinstance(previous, int) or isinstance(previous, bool) or not -6 <= previous <= 6
+            or stage.get("resulting_stage") != apply_canonical_stage_delta(previous, 1)
+            or stage.get("action_id") != action_id
+            or stage.get("move_id") != move_id
+            or stage.get("timing") != "before_charge_move_event"
+            or stage.get("provenance") != "exact_pre_charge_move_self_stage_transition_v1"
+            or not isinstance(authority, Mapping)
+            or authority.get("canonical_lifecycle") != canonical
+            or authority.get("stat") != expected_stat
+            or authority.get("delta") != 1
+            or authority.get("previous_stage") != previous
+            or authority.get("resulting_stage") != stage.get("resulting_stage")
+            or authority.get("timing") != "before_charge_move_event"
+            or canonical.get("charge_turn_side_effect_class") != expected_class
+            or canonical.get("charge_turn_side_effect_timing") != "before_charge_move_event"
+        ):
+            return "standard_charge_leaf_charge_turn_self_stage_effect_invalid"
+    elif stage is not None:
+        return "unexpected_standard_charge_charge_turn_self_stage_effect"
     own_hp = consequences.get("own_final_hp")
     actor_hp = consequences.get("actor_final_hp")
     target_hp = consequences.get("target_final_hp")
@@ -521,7 +598,11 @@ def _readiness_error(
 
 
 def _expected_family(move_id: str) -> str:
-    return "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES else "ordinary_charge_then_damage"
+    return (
+        "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
+        else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
+        else "ordinary_charge_then_damage"
+    )
 
 
 def _pokemon(

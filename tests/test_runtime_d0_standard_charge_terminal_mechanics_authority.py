@@ -281,6 +281,10 @@ def test_life_orb_preexecution_authority_carries_modifier_without_claiming_recoi
         {"move_id": "razor-wind", "power": 80, "category": "special", "type": "normal", "accuracy": 100, "target": "selected-pokemon"},
         {"move_id": "freeze-shock", "power": 140, "category": "physical", "type": "ice", "accuracy": 90, "target": "selected-pokemon"},
         {"move_id": "ice-burn", "power": 140, "category": "special", "type": "ice", "accuracy": 90, "target": "selected-pokemon"},
+        {"move_id": "solar-beam", "power": 120, "category": "special", "type": "grass", "accuracy": 100, "target": "selected-pokemon"},
+        {"move_id": "solar-blade", "power": 125, "category": "physical", "type": "grass", "accuracy": 100, "target": "selected-pokemon"},
+        {"move_id": "meteor-beam", "power": 120, "category": "special", "type": "rock", "accuracy": 90, "target": "selected-pokemon"},
+        {"move_id": "skull-bash", "power": 130, "category": "physical", "type": "normal", "accuracy": 100, "target": "selected-pokemon"},
     ),
 )
 def test_generic_native_damage_guard_still_blocks_raw_charge_execution(move):
@@ -294,13 +298,13 @@ def test_generic_native_damage_guard_still_blocks_raw_charge_execution(move):
     assert result["reason"] == "two_turn_execution_unrepresented"
 
 
-def test_unsupported_charge_move_rejects_and_stale_runtime_rejects():
+def test_unsupported_semi_invulnerable_charge_move_rejects_and_stale_runtime_rejects():
     state, snapshot, d0 = _ready()
     actor, target = _owner(state, "self"), _owner(state, "opponent")
-    action = {"action_type": "attack", "action_id": "a:meteor-beam", "identity": "meteor-beam"}
+    action = {"action_type": "attack", "action_id": "a:fly", "identity": "fly"}
     assert freeze_runtime_d0_standard_charge_terminal_mechanics_authority(
         strategy_d0=d0, runtime_snapshot=snapshot, action=action, actor=actor, target=target,
-        move_metadata={"move_id": "meteor-beam"},
+        move_metadata={"move_id": "fly"},
     )["status"] == "rejected"
 
     stale = deepcopy(state)

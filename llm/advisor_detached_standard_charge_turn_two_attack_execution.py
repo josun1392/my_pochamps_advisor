@@ -34,6 +34,7 @@ AUTHORITY_SCHEMA_VERSION = "detached-standard-charge-turn-two-execution-authorit
 SCHEMA_VERSION = "detached-standard-charge-turn-two-attack-execution-v1"
 _SIDES = ("self", "opponent")
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
+_SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
 
 
 def materialize_detached_standard_charge_turn_two_execution_authority(*, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, forced_continuation: Mapping[str, Any], predictive_mechanics: Mapping[str, Any]) -> dict[str, Any]:
@@ -92,7 +93,11 @@ def _authority_row(side: str, action: Mapping[str, Any], bound: Mapping[str, Any
     effect = resolve_canonical_standard_charge_turn_two_effect(action.get("move_id"))
     if effect.get("status") != "resolved": return "canonical_terminal_effect_unavailable"
     lifecycle = effect["lifecycle"]
-    expected_family = "weather_sensitive_charge_then_damage" if action.get("move_id") in _SOLAR_MOVES else "ordinary_charge_then_damage"
+    expected_family = (
+        "weather_sensitive_charge_then_damage" if action.get("move_id") in _SOLAR_MOVES
+        else "charge_turn_self_effect_then_damage" if action.get("move_id") in _SELF_EFFECT_MOVES
+        else "ordinary_charge_then_damage"
+    )
     if lifecycle.get("lifecycle_family") != expected_family or action.get("actor") != bound.get("actor") or action.get("resolved_target_owner") != bound.get("target"):
         return "forced_continuation_execution_identity_mismatch"
     return {"status": "resolved", "schema_version": AUTHORITY_SCHEMA_VERSION, "side": side, "source_next_decision_fingerprint": fingerprint, "actor": deepcopy(action["actor"]), "target": deepcopy(action["resolved_target_owner"]), "move_id": action["move_id"], "continuation_action_id": action["continuation_action_id"], "original_charge_action_id": action["original_charge_action_id"], "continuation_target_locator": deepcopy(action["continuation_target_locator"]), "original_charge_lifecycle": deepcopy(action["original_charge_provenance"]), "canonical_terminal_effect": effect, "predictive_actor_mechanics": deepcopy(bound["actor_mechanics"]), "predictive_target_mechanics": deepcopy(bound["target_mechanics"]), "execution_grant": "authenticated_standard_charge_turn_two_only", "provenance": "forced_continuation_and_predictive_mechanics_bound_execution_authority_v1"}
