@@ -1503,7 +1503,7 @@ def _runtime_crit_volatiles_exact(raw: Any) -> list[str] | None:
 def _runtime_side_conditions_exact(raw: Any) -> list[str] | None:
     values = raw.get("side_conditions") if isinstance(raw, Mapping) else None
     provenance = raw.get("side_conditions_provenance") if isinstance(raw, Mapping) else None
-    if not isinstance(values, list) or not isinstance(provenance, Mapping) or provenance.get("trust") != "user_confirmed_observation" or provenance.get("event_kind") not in {"current_side_conditions_observed", "side_condition_started_observed", "side_condition_ended_observed"}:
+    if not isinstance(values, list) or not isinstance(provenance, Mapping) or provenance.get("trust") != "user_confirmed_observation" or provenance.get("event_kind") not in {"current_side_conditions_observed", "side_condition_started_observed", "side_condition_ended_observed", "set_observed_tailwind"}:
         return None
     return values
 
@@ -1660,7 +1660,7 @@ def _native_side_effects(state: Mapping[str, Any]) -> list[dict[str, str]] | str
         side = state.get(f"{side_name}_side")
         conditions = side.get("side_conditions") if isinstance(side, Mapping) else None
         provenance = side.get("side_conditions_provenance") if isinstance(side, Mapping) else None
-        if not isinstance(conditions, list) or not isinstance(provenance, Mapping) or provenance.get("trust") != "user_confirmed_observation" or provenance.get("event_kind") not in {"current_side_conditions_observed", "side_condition_started_observed", "side_condition_ended_observed"}:
+        if not isinstance(conditions, list) or not isinstance(provenance, Mapping) or provenance.get("trust") != "user_confirmed_observation" or provenance.get("event_kind") not in {"current_side_conditions_observed", "side_condition_started_observed", "side_condition_ended_observed", "set_observed_tailwind"}:
             return "unknown"
         rows.extend({"side": side_name, "effect": effect} for effect in conditions)
     return rows

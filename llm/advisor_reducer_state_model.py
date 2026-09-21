@@ -2735,9 +2735,10 @@ def _observed_tailwind(state, event):
     conditions = side.get("side_conditions")
     if isinstance(conditions, list) and all(isinstance(value, str) for value in conditions):
         present = "tailwind" in conditions
-        if status == "active" and not present: conditions.append("tailwind")
-        elif status == "inactive" and present: conditions.remove("tailwind")
-        _mark(side, "side_conditions", event)
+        if status == "active" and not present:
+            conditions.append("tailwind"); _mark(side, "side_conditions", event)
+        elif status == "inactive" and present:
+            conditions.remove("tailwind"); _mark(side, "side_conditions", event)
     return None
 
 
