@@ -26,7 +26,7 @@ ACTION_SCHEMA_VERSION = "detached-standard-charge-forced-continuation-action-v1"
 METADATA_SCHEMA_VERSION = "detached-standard-charge-continuation-move-metadata-authority-v1"
 _SIDES = ("self", "opponent")
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
 _EXPECTED_CATEGORY = {
@@ -38,6 +38,10 @@ _EXPECTED_CATEGORY = {
     "solar-blade": "physical",
     "meteor-beam": "special",
     "skull-bash": "physical",
+    "fly": "physical",
+    "dig": "physical",
+    "dive": "physical",
+    "bounce": "physical",
 }
 
 
@@ -247,6 +251,15 @@ def _present_source_error(
     ):
         return "standard_charge_next_turn_source_chain_mismatch"
 
+    semi = row.get("semi_invulnerable_charge_state_authority")
+    if move_id in {"fly", "dig", "dive", "bounce"}:
+        if not isinstance(semi, Mapping) or semi.get("state") != "active" or semi.get("owner") != charger or semi.get("source_move_id") != move_id or semi.get("source_action_id") != action_id:
+            return "standard_charge_next_turn_semi_invulnerable_state_invalid"
+        if post.get("semi_invulnerable_charge_state_authority") != semi or transport.get("semi_invulnerable_charge_state_authority") != semi or context.get("semi_invulnerable_charge_state_authority") != semi:
+            return "standard_charge_next_turn_semi_invulnerable_state_chain_mismatch"
+    elif semi is not None or post.get("semi_invulnerable_charge_state_authority") is not None or transport.get("semi_invulnerable_charge_state_authority") is not None:
+        return "standard_charge_next_turn_unexpected_semi_invulnerable_state"
+
     readiness = context.get("readiness_authority")
     if (
         not isinstance(readiness, Mapping)
@@ -259,7 +272,7 @@ def _present_source_error(
         or context.get("move_id") != move_id
         or context.get("action_id") != action_id
         or context.get("canonical_lifecycle_family") != _expected_family(move_id)
-        or context.get("execution_model") != "charge_then_execute"
+        or context.get("execution_model") != ("semi_invulnerable_then_execute" if move_id in {"fly", "dig", "dive", "bounce"} else "charge_then_execute")
         or context.get("turn_two_continuation_required") is not True
         or context.get("immediate_damage_executed") is not False
         or context.get("charge_turn_damage") != 0
@@ -292,7 +305,7 @@ def _present_source_error(
         or canonical.get("status") != "resolved"
         or canonical.get("move_id") != move_id
         or canonical.get("lifecycle_family") != _expected_family(move_id)
-        or canonical.get("execution_model") != "charge_then_execute"
+        or canonical.get("execution_model") != ("semi_invulnerable_then_execute" if move_id in {"fly", "dig", "dive", "bounce"} else "charge_then_execute")
     ):
         return "standard_charge_next_turn_canonical_lifecycle_invalid"
 
@@ -374,6 +387,7 @@ def _forced_row(
         "damage_execution_synthesized": False,
         "pp_consumption_materialized": False,
         "source_continuation_authority": deepcopy(dict(continuation)),
+        **({"semi_invulnerable_charge_state_authority": deepcopy(dict(continuation["semi_invulnerable_charge_state_authority"]))} if isinstance(continuation.get("semi_invulnerable_charge_state_authority"), Mapping) else {}),
         "original_charge_provenance": deepcopy(dict(context)),
         "historical_source_target_owner": deepcopy(context["source_target_owner"]),
         "provenance": "authenticated_standard_charge_turn_two_forced_request_v1",
@@ -429,6 +443,7 @@ def _expected_family(move_id: str) -> str:
     return (
         "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
+        else "semi_invulnerable_charge_then_damage" if move_id in {"fly", "dig", "dive", "bounce"}
         else "ordinary_charge_then_damage"
     )
 

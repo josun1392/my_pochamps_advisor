@@ -14,16 +14,19 @@ from llm.advisor_runtime_strategy_d0 import (
     resolve_runtime_d0_selectable_move_metadata_authority,
     runtime_strategy_d0_freshness,
 )
+from llm.advisor_runtime_d0_locked_on_gravity_authority import freeze_runtime_d0_gravity_field_authority
 from llm.advisor_runtime_d0_solar_charge_weather_authority import (
     freeze_runtime_d0_solar_charge_weather_decision_authority,
 )
 
 
 SCHEMA_VERSION = "runtime-d0-standard-charge-start-readiness-authority-v1"
-_SUPPORTED_FAMILIES = frozenset({"ordinary_charge_then_damage", "weather_sensitive_charge_then_damage", "charge_turn_self_effect_then_damage"})
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
+_SUPPORTED_FAMILIES = frozenset({"ordinary_charge_then_damage", "weather_sensitive_charge_then_damage", "charge_turn_self_effect_then_damage", "semi_invulnerable_charge_then_damage"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
+_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce"})
+_GRAVITY_RESTRICTED_MOVES = frozenset({"fly", "bounce"})
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _TRUSTED_ITEM_EVENTS = frozenset({
     "current_item_observed", "item_consumption_observed", "item_removed_observed",
@@ -142,6 +145,14 @@ def freeze_runtime_d0_standard_charge_start_readiness_authority(
         else:
             return _result("rejected", "power_herb_applicability_result_invalid", common)
 
+    if base["move_id"] in _GRAVITY_RESTRICTED_MOVES:
+        gravity = freeze_runtime_d0_gravity_field_authority(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot)
+        common["gravity_field_authority"] = deepcopy(gravity)
+        if gravity.get("status") != "resolved":
+            return _result("rejected" if gravity.get("status") == "rejected" else "incomplete", gravity.get("reason", "current_gravity_state_unknown"), common)
+        if gravity.get("gravity", {}).get("status") == "active":
+            return _result("unsupported", "semi_invulnerable_charge_blocked_by_active_gravity", {**common, "power_herb_applicability_state": deepcopy(power_state)})
+
     if base["move_id"] in _SOLAR_MOVES:
         weather = freeze_runtime_d0_solar_charge_weather_decision_authority(
             strategy_d0=strategy_d0,
@@ -246,14 +257,16 @@ def _canonical_error(canonical: Mapping[str, Any], move_id: str) -> str | None:
     expected_family = (
         "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
+        else "semi_invulnerable_charge_then_damage" if move_id in _SEMI_INVULNERABLE_MOVES
         else "ordinary_charge_then_damage"
     )
+    expected_execution = "semi_invulnerable_then_execute" if move_id in _SEMI_INVULNERABLE_MOVES else "charge_then_execute"
     expected = {
         "move_id": move_id,
         "is_charge_move": True,
         "charge_flag_confirmed": True,
         "lifecycle_family": expected_family,
-        "execution_model": "charge_then_execute",
+        "execution_model": expected_execution,
         "charge_move_event_participation": True,
         "twoturnmove_state_usage": True,
         "existing_move_volatile_continuation": True,

@@ -458,6 +458,7 @@ class MainWindow(QMainWindow):
         self._structured_type_confirmations: dict[str, dict] = {}
         self._current_stat_stage_confirmations: dict[tuple[str, str], dict] = {}
         self._current_field_state_confirmation: dict | None = None
+        self._locked_on_state_confirmation: dict | None = None
         self._grounded_context_confirmation = {"self": {"status": "unknown", "provenance": "unknown"}, "opponent": {"status": "unknown", "provenance": "unknown"}}
         self._current_final_stat_confirmations: dict[tuple[str, str], dict] = {}
         self._structured_final_stat_confirmations: dict[tuple[str, str], dict] = {}
@@ -1352,13 +1353,11 @@ class MainWindow(QMainWindow):
             return
         try:
             normalized = normalize_user_confirmed_current_field_state(snapshot)
-            if "gravity" in normalized["global_effects"]:
-                self.statusBar().showMessage("Field confirmation failed: Gravity has no current-state runtime authority")
-                return
             facts = [
                 {"event_kind": "current_weather_observed", "payload": {"weather": normalized["weather"]}},
                 {"event_kind": "current_terrain_observed", "payload": {"terrain": normalized["terrain"]}},
                 {"event_kind": "trick_room_field_observed", "payload": {"status": "active" if "trick-room" in normalized["global_effects"] else "inactive"}},
+                {"event_kind": "gravity_field_observed", "payload": {"status": "active" if "gravity" in normalized["global_effects"] else "inactive"}},
             ]
             for side in ("self", "opponent"):
                 effects = [row["effect"] for row in normalized["side_effects"] if row["side"] == side]
@@ -1510,6 +1509,9 @@ class MainWindow(QMainWindow):
         self._confirm_forced_switch_action = QAction("Confirm Forced Switch / Phazing", self)
         self._confirm_forced_switch_action.triggered.connect(self._open_forced_switch_confirmation)
         battle_menu.addAction(self._confirm_forced_switch_action)
+        self._confirm_locked_on_state_action = QAction("Confirm Locked On State", self)
+        self._confirm_locked_on_state_action.triggered.connect(self._open_locked_on_state_confirmation)
+        battle_menu.addAction(self._confirm_locked_on_state_action)
         self._confirm_confusion_state_action = QAction("Confirm Confusion State", self)
         self._confirm_confusion_state_action.triggered.connect(self._open_confusion_state_confirmation)
         battle_menu.addAction(self._confirm_confusion_state_action)
@@ -1540,7 +1542,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_confusion_state_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -1609,6 +1611,51 @@ class MainWindow(QMainWindow):
         if QMessageBox.question(self, "Confirm Forced Switch / Phazing", f"Confirm {move_id} forcing {side} to {incoming}?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes: return
         result = admit_forced_switch_phazing(runtime_session_manager=manager, captured_session_id=session_id, target_side=side, move_id=move_id, incoming_pokemon_id=incoming, turn_number=getattr(self, "_current_trusted_turn_number", None), hp_after=hp_after)
         self.statusBar().showMessage("Forced switch applied" if result.get("status") == "resolved" else "Forced switch confirmation failed or is incomplete")
+
+    @Slot()
+    def _open_locked_on_state_confirmation(self) -> None:
+        """Explicit-only Locked On observation; selected moves/targets never infer it."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None or not isinstance(turn_number, int) or turn_number < 1:
+            self.statusBar().showMessage("Locked On confirmation failed: active session or trusted turn unavailable")
+            return
+        source_side, ok = QInputDialog.getItem(self, "Confirm Locked On State", "Source active Pokémon side", ["self", "opponent"], 0, False)
+        if not ok:
+            return
+        observed, ok = QInputDialog.getItem(self, "Confirm Locked On State", "Observed state", ["Inactive", "Active"], 0, False)
+        if not ok:
+            return
+        payload = {"status": "inactive"}
+        target_label = None
+        if observed == "Active":
+            snapshot = manager.capture_runtime_state_snapshot(session_id)
+            state = snapshot.get("state") if snapshot.get("status") == "runtime_snapshot_ready" else None
+            target_side = "opponent" if source_side == "self" else "self"
+            side_state = state.get(f"{target_side}_side") if isinstance(state, dict) else None
+            roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+            choices = []
+            if isinstance(roster, dict):
+                for slot, row in roster.items():
+                    pokemon_id = row.get("pokemon_id") if isinstance(row, dict) else None
+                    if isinstance(slot, int) and isinstance(pokemon_id, str) and pokemon_id:
+                        choices.append((slot, pokemon_id))
+            if not choices:
+                self.statusBar().showMessage("Locked On active confirmation refused: exact bound target identity unavailable")
+                return
+            labels = [f"{target_side} slot {slot}: {pokemon_id}" for slot, pokemon_id in choices]
+            target_label, ok = QInputDialog.getItem(self, "Confirm Locked On State", "Exact bound target", labels, 0, False)
+            if not ok:
+                return
+            slot, pokemon_id = choices[labels.index(target_label)]
+            payload = {"status": "active", "bound_target": {"session_id": session_id, "side": target_side, "slot_index": slot, "pokemon_id": pokemon_id}}
+        if QMessageBox.question(self, "Confirm Locked On State", f"Confirm {observed.lower()} Locked On for {source_side} active Pokémon" + (f" -> {target_label}" if target_label else "") + "?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
+            return
+        if not self._admit_current_state_fact("current_locked_on_state_observed", payload, source_side):
+            return
+        self._locked_on_state_confirmation = {"session_id": session_id, "source_side": source_side, **deepcopy(payload)}
+        self.statusBar().showMessage("Locked On state applied")
 
     @Slot()
     def _open_confusion_state_confirmation(self) -> None:
@@ -2142,6 +2189,7 @@ class MainWindow(QMainWindow):
         self._contact_result_action_ids = {}
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
+        self._locked_on_state_confirmation = None
         update_persistent_effect_summary = getattr(self, "_update_current_persistent_effect_summary", None)
         if callable(update_persistent_effect_summary):
             update_persistent_effect_summary()

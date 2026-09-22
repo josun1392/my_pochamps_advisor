@@ -47,12 +47,22 @@ def materialize_detached_next_turn_pair_local_predictive_mechanics(*,next_decisi
     elif _flinch_secondary(secondary,action,target,leaf):
         pending={"status":"known_flinched","owner":deepcopy(dict(target)),"source_leaf_id":first_leaf_id,"secondary_authority":deepcopy(dict(secondary["authority"]))}
     elif isinstance(secondary,Mapping) and secondary.get("state")=="flinched":return _r("rejected","pair_local_flinch_secondary_unauthenticated")
+    retirement=consequences.get("semi_invulnerable_state_retirement")
+    if retirement is not None:
+        source_state=retirement.get("source_state_authority") if isinstance(retirement,Mapping) else None
+        if (not isinstance(retirement,Mapping) or retirement.get("status")!="resolved"
+                or retirement.get("schema_version")!="detached-semi-invulnerable-state-retirement-authority-v1"
+                or retirement.get("state_before")!="active" or retirement.get("state_after")!="inactive"
+                or retirement.get("owner")!=actor or not isinstance(source_state,Mapping)
+                or source_state.get("owner")!=actor or source_state.get("source_move_id")!=action.get("move_id")):
+            return _r("rejected","pair_local_semi_invulnerable_retirement_invalid")
+        manifest["semi_invulnerable_state_retirement"]=[actor["side"]]
     _sync(rows[actor["side"]]); _sync(rows[target["side"]])
     # A standard-charge result contains both forced continuations.  Preserve
     # that authenticated result (rather than only its selected action ledger)
     # so validation can rematerialize the exact source leaf later.
     source_ledger = first_action_ledger if family == "standard_charge" else ledger
-    return {"status":"resolved","schema_version":SCHEMA_VERSION,"first_action_family":family,"source_next_decision_fingerprint":next_decision_fingerprint,"root_predictive_mechanics_authority":deepcopy(dict(predictive_mechanics)),"first_action_execution_authority":deepcopy(dict(source)),"first_action_ledger":deepcopy(dict(source_ledger)),"first_leaf_id":first_leaf_id,"first_actor":deepcopy(dict(actor)),"first_target":deepcopy(dict(target)),"sides":rows,"pending_action_flinch":pending,"represented_mutation_manifest":manifest,"provenance":"authenticated_detached_next_turn_pair_local_predictive_mechanics_v1"}
+    return {"status":"resolved","schema_version":SCHEMA_VERSION,"first_action_family":family,"source_next_decision_fingerprint":next_decision_fingerprint,"root_predictive_mechanics_authority":deepcopy(dict(predictive_mechanics)),"first_action_execution_authority":deepcopy(dict(source)),"first_action_ledger":deepcopy(dict(source_ledger)),"first_leaf_id":first_leaf_id,"first_actor":deepcopy(dict(actor)),"first_target":deepcopy(dict(target)),"sides":rows,"pending_action_flinch":pending,**({"semi_invulnerable_state_retirement_authority":deepcopy(dict(retirement))} if isinstance(retirement,Mapping) else {}),"represented_mutation_manifest":manifest,"provenance":"authenticated_detached_next_turn_pair_local_predictive_mechanics_v1"}
 
 def validate_detached_next_turn_pair_local_predictive_mechanics(*,authority:Any,next_decision_state:Mapping[str,Any],next_decision_fingerprint:str,**kwargs:Any)->str|None:
     if not isinstance(authority,Mapping):return "pair_local_predictive_mechanics_authority_invalid"

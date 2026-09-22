@@ -28,6 +28,10 @@ _BASE_MOVE_IDS = frozenset({
     # without turning uncatalogued attacks into a generic supported family.
     "metal-claw", "shadow-ball", "acid-spray", "close-combat", "flame-charge", "fling",
     "iron-head", "sucker-punch", "avalanche", "revenge", "assurance", "payback", "stomping-tantrum", "lash-out", "rage-fist", "last-respects",
+    # Semi-invulnerability exact incoming exception family admitted by the
+    # dedicated targetability owner; their critical-hit behavior is ordinary.
+    "gust", "twister", "sky-uppercut", "thunder", "hurricane", "smack-down", "thousand-arrows",
+    "earthquake", "magnitude", "surf", "whirlpool",
     # Fixed-two-hit moves admitted by the detached per-hit execution
     # authority.  Their normal Gen 9 critical rule is the ordinary base rule;
     # the authority still keeps each hit's eventual critical roll distinct.
@@ -47,13 +51,13 @@ _SOURCE_STATUSES = frozenset({"known", "known_absent", "unknown"})
 _SUPPORTED_ATTACKER_ABILITIES = frozenset({
     "early-bird", "own-tempo", "tangled-feet", "magician", "pickpocket", "sticky-hold", "neutralizing-gas", "pressure", "super-luck", "merciless", "sniper", "guts", "skill-link", "magic-guard",
     "sheer-force", "static", "flame-body", "poison-point", "overcoat", "insomnia", "vital-spirit", "tough-claws", "reckless", "punk-rock", "sharpness",
-    "mold-breaker", "blaze", "torrent", "overgrow", "swarm", "analytic", "stakeout", "supreme-overlord",
+    "mold-breaker", "blaze", "torrent", "overgrow", "swarm", "analytic", "stakeout", "supreme-overlord", "no-guard",
 })
 _SUPPORTED_DEFENDER_ABILITIES = frozenset({
     "early-bird", "own-tempo", "tangled-feet", "magician", "pickpocket", "sticky-hold", "neutralizing-gas", "pressure", "intimidate", "drizzle", "drought", "sand-stream", "snow-warning",
     "battle-armor", "shell-armor", "guts", "sturdy", "rough-skin", "iron-barbs",
     "static", "flame-body", "poison-point", "effect-spore", "heatproof", "water-bubble", "fluffy", "punk-rock",
-    "multiscale", "shadow-shield",
+    "multiscale", "shadow-shield", "no-guard",
 })
 _SUPPORTED_ATTACKER_ITEMS = frozenset({"scope-lens", "razor-claw", "loaded-dice", "safety-goggles"})
 _POISONED = frozenset({"poison", "poisoned", "toxic", "badly-poisoned"})

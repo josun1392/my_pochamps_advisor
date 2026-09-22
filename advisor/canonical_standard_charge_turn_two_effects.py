@@ -23,6 +23,10 @@ _EFFECTS = {
     "solar-blade": {"power": 125, "category": "physical", "type": "grass", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
     "meteor-beam": {"power": 120, "category": "special", "type": "rock", "accuracy": 90, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
     "skull-bash": {"power": 130, "category": "physical", "type": "normal", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
+    "fly": {"power": 90, "category": "physical", "type": "flying", "accuracy": 95, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
+    "dig": {"power": 80, "category": "physical", "type": "ground", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
+    "dive": {"power": 80, "category": "physical", "type": "water", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
+    "bounce": {"power": 85, "category": "physical", "type": "flying", "accuracy": 85, "crit_ratio": 1, "secondary": {"kind": "status", "condition": "paralysis", "chance": 30}},
 }
 
 
@@ -42,6 +46,8 @@ def resolve_canonical_standard_charge_turn_two_effect(move_id: Any) -> dict[str,
         if normalized in {"solar-beam", "solar-blade"}
         else "charge_turn_self_effect_then_damage"
         if normalized in {"meteor-beam", "skull-bash"}
+        else "semi_invulnerable_charge_then_damage"
+        if normalized in {"fly", "dig", "dive", "bounce"}
         else "ordinary_charge_then_damage"
     )
     if effect is None or lifecycle.get("lifecycle_family") != allowed_family:

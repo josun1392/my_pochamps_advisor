@@ -6,7 +6,7 @@ from llm.advisor_lifecycle_confirmation import (
     CURRENT_ABILITY_SOURCE, CURRENT_BATTLE_FORMAT_SOURCE, CURRENT_ITEM_SOURCE,
     CURRENT_LEVEL_SOURCE, CURRENT_SIDE_CONDITIONS_SOURCE, CURRENT_TERRAIN_SOURCE, CURRENT_TYPE_SOURCE,
     CURRENT_WEATHER_SOURCE, FINAL_COMBAT_STAT_SOURCE, HP_RECOVERY_SOURCE, HP_TRANSITION_SOURCE,
-    STAT_STAGE_SOURCE, TAILWIND_SOURCE, TRICK_ROOM_SOURCE, USER_TRUST, LifecycleConfirmationBoundary,
+    STAT_STAGE_SOURCE, TAILWIND_SOURCE, TRICK_ROOM_SOURCE, GRAVITY_SOURCE, LOCKED_ON_SOURCE, USER_TRUST, LifecycleConfirmationBoundary,
 )
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 
@@ -25,9 +25,11 @@ _SOURCES = {
     "current_side_conditions_observed": CURRENT_SIDE_CONDITIONS_SOURCE,
     "current_battle_format_observed": CURRENT_BATTLE_FORMAT_SOURCE,
     "trick_room_field_observed": TRICK_ROOM_SOURCE,
+    "gravity_field_observed": GRAVITY_SOURCE,
+    "current_locked_on_state_observed": LOCKED_ON_SOURCE,
     "tailwind_side_condition_observed": TAILWIND_SOURCE,
 }
-_GLOBAL = {"current_weather_observed", "current_terrain_observed", "current_battle_format_observed", "trick_room_field_observed"}
+_GLOBAL = {"current_weather_observed", "current_terrain_observed", "current_battle_format_observed", "trick_room_field_observed", "gravity_field_observed"}
 
 
 def admit_current_state_observation(*, runtime_session_manager: Any, captured_session_id: Any,

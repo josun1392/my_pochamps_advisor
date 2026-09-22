@@ -55,6 +55,14 @@ def materialize_detached_predictive_intermediate_state(
     stage_effects = _stage_effects(terminal_leaf, consequences)
     if isinstance(stage_effects, str):
         return _result("rejected", stage_effects, {**base, **bound})
+    semi_state = consequences.get("semi_invulnerable_charge_state")
+    if semi_state is not None:
+        if (not isinstance(semi_state, Mapping) or semi_state.get("status") != "resolved"
+                or semi_state.get("schema_version") != "detached-semi-invulnerable-charge-state-authority-v1"
+                or semi_state.get("state") != "active" or semi_state.get("owner") != actor
+                or semi_state.get("source_leaf_id") != terminal_leaf.get("leaf_id")
+                or semi_state.get("source_move_id") != bound.get("move_id")):
+            return _result("rejected", "terminal_leaf_semi_invulnerable_state_invalid", {**base, **bound})
     flinch = _flinch_cancellation_consequence(consequences, target)
     if isinstance(flinch, str):
         return _result("rejected", flinch, {**base, **bound})
@@ -77,6 +85,7 @@ def materialize_detached_predictive_intermediate_state(
             actor["side"]: _participant(strategy_d0, terminal_leaf, actor, own_hp, stage_effects, "self"),
             target["side"]: _participant(strategy_d0, terminal_leaf, target, target_hp, stage_effects, "target"),
         },
+        **({"semi_invulnerable_charge_state_authority": deepcopy(dict(semi_state))} if isinstance(semi_state, Mapping) else {}),
         "unchanged_authority": _unchanged_authority(strategy_d0),
         "second_action_compatibility": {
             "faint_cancellation": {

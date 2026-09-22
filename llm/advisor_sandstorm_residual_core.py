@@ -4,10 +4,18 @@ from __future__ import annotations
 from typing import Any, Mapping, Sequence
 
 
-def evaluate_sandstorm_residual(*, current_type: Sequence[str], item: str | None, active_abilities: Mapping[str, str], target_side: str, current_hp: int, maximum_hp: int) -> dict[str, Any]:
+def evaluate_sandstorm_residual(*, current_type: Sequence[str], item: str | None, active_abilities: Mapping[str, str], target_side: str, current_hp: int, maximum_hp: int, semi_invulnerable_state: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Resolve only exact, already-authorized Sandstorm residual inputs."""
     if target_side not in {"self", "opponent"} or not _types(current_type) or not _item(item) or not _hp(current_hp, maximum_hp):
         return {"status": "incomplete", "reason": "canonical_sandstorm_authority"}
+    if semi_invulnerable_state is not None:
+        if (not isinstance(semi_invulnerable_state, Mapping) or semi_invulnerable_state.get("status") != "resolved"
+                or semi_invulnerable_state.get("schema_version") != "detached-semi-invulnerable-charge-state-authority-v1"
+                or semi_invulnerable_state.get("state") != "active"
+                or semi_invulnerable_state.get("semi_invulnerability_class") not in {"underground", "underwater"}
+                or semi_invulnerable_state.get("owner", {}).get("side") != target_side):
+            return {"status": "incomplete", "reason": "canonical_sandstorm_semi_invulnerable_authority"}
+        return _complete(current_type, current_hp, maximum_hp, 0, "immune_while_semi_invulnerable")
     if {"rock", "ground", "steel"} & set(current_type):
         return _complete(current_type, current_hp, maximum_hp, 0, "immune_by_type")
     if item == "safety-goggles":

@@ -35,6 +35,7 @@ SCHEMA_VERSION = "detached-standard-charge-turn-two-attack-execution-v1"
 _SIDES = ("self", "opponent")
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
+_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce"})
 
 
 def materialize_detached_standard_charge_turn_two_execution_authority(*, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, forced_continuation: Mapping[str, Any], predictive_mechanics: Mapping[str, Any]) -> dict[str, Any]:
@@ -96,11 +97,12 @@ def _authority_row(side: str, action: Mapping[str, Any], bound: Mapping[str, Any
     expected_family = (
         "weather_sensitive_charge_then_damage" if action.get("move_id") in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if action.get("move_id") in _SELF_EFFECT_MOVES
+        else "semi_invulnerable_charge_then_damage" if action.get("move_id") in _SEMI_INVULNERABLE_MOVES
         else "ordinary_charge_then_damage"
     )
     if lifecycle.get("lifecycle_family") != expected_family or action.get("actor") != bound.get("actor") or action.get("resolved_target_owner") != bound.get("target"):
         return "forced_continuation_execution_identity_mismatch"
-    return {"status": "resolved", "schema_version": AUTHORITY_SCHEMA_VERSION, "side": side, "source_next_decision_fingerprint": fingerprint, "actor": deepcopy(action["actor"]), "target": deepcopy(action["resolved_target_owner"]), "move_id": action["move_id"], "continuation_action_id": action["continuation_action_id"], "original_charge_action_id": action["original_charge_action_id"], "continuation_target_locator": deepcopy(action["continuation_target_locator"]), "original_charge_lifecycle": deepcopy(action["original_charge_provenance"]), "canonical_terminal_effect": effect, "predictive_actor_mechanics": deepcopy(bound["actor_mechanics"]), "predictive_target_mechanics": deepcopy(bound["target_mechanics"]), "execution_grant": "authenticated_standard_charge_turn_two_only", "provenance": "forced_continuation_and_predictive_mechanics_bound_execution_authority_v1"}
+    return {"status": "resolved", "schema_version": AUTHORITY_SCHEMA_VERSION, "side": side, "source_next_decision_fingerprint": fingerprint, "actor": deepcopy(action["actor"]), "target": deepcopy(action["resolved_target_owner"]), "move_id": action["move_id"], "continuation_action_id": action["continuation_action_id"], "original_charge_action_id": action["original_charge_action_id"], "continuation_target_locator": deepcopy(action["continuation_target_locator"]), "original_charge_lifecycle": deepcopy(action["original_charge_provenance"]), **({"semi_invulnerable_charge_state_authority": deepcopy(dict(action["semi_invulnerable_charge_state_authority"]))} if isinstance(action.get("semi_invulnerable_charge_state_authority"), Mapping) else {}), "canonical_terminal_effect": effect, "predictive_actor_mechanics": deepcopy(bound["actor_mechanics"]), "predictive_target_mechanics": deepcopy(bound["target_mechanics"]), "execution_grant": "authenticated_standard_charge_turn_two_only", "provenance": "forced_continuation_and_predictive_mechanics_bound_execution_authority_v1"}
 
 
 def materialize_detached_standard_charge_turn_two_terminal_execution_contract(
@@ -197,6 +199,7 @@ def materialize_detached_standard_charge_turn_two_terminal_execution_contract(
         caller_action_authority=row,
         caller_authentication=caller_authentication,
         solar_terminal_weather_damage_modifier_authority=solar_modifier,
+        semi_invulnerable_charge_state_authority=row.get("semi_invulnerable_charge_state_authority"),
     )
 
 
@@ -313,6 +316,7 @@ def _forced_turn_two_caller_authentication(
         "attacker_life_orb_authority": deepcopy(dict(terminal["life_orb"])),
         "caller_action_authority": deepcopy(dict(row)),
         "power_herb_consumption_authority": None,
+        **({"semi_invulnerable_charge_state_authority": deepcopy(dict(row["semi_invulnerable_charge_state_authority"]))} if isinstance(row.get("semi_invulnerable_charge_state_authority"), Mapping) else {}),
         **({"solar_terminal_weather_damage_modifier_authority": deepcopy(dict(solar_modifier))} if isinstance(solar_modifier, Mapping) else {}),
         "source_execution_authority": deepcopy(dict(execution_authority)),
         "provenance": "forced_turn_two_standard_charge_terminal_caller_authentication_v1",

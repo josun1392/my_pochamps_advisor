@@ -57,7 +57,7 @@ _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _CONDITIONS = {"none", "burn", "poison", "toxic", "paralysis", "sleep", "freeze"}
 
 
-def materialize_detached_weather_residual(*, weather_authority: Mapping[str, Any], active: Mapping[str, Any], active_abilities: Mapping[str, str]) -> dict[str, Any]:
+def materialize_detached_weather_residual(*, weather_authority: Mapping[str, Any], active: Mapping[str, Any], active_abilities: Mapping[str, str], semi_invulnerable_state: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Resolve the weather consumer from exact detached terminal authority only.
 
     This narrow helper is deliberately side-effect free; the phase ledger can
@@ -71,7 +71,7 @@ def materialize_detached_weather_residual(*, weather_authority: Mapping[str, Any
         return {"status": "resolved", "outcome": "non_damaging_weather", "weather": weather, "residual_damage": 0}
     if weather != "sandstorm" or not isinstance(active, Mapping):
         return {"status": "rejected", "reason": "end_of_turn_weather_authority_invalid"}
-    result = evaluate_sandstorm_residual(current_type=active.get("types"), item=active.get("item"), active_abilities=active_abilities, target_side=active.get("side"), current_hp=active.get("current_hp"), maximum_hp=active.get("maximum_hp"))
+    result = evaluate_sandstorm_residual(current_type=active.get("types"), item=active.get("item"), active_abilities=active_abilities, target_side=active.get("side"), current_hp=active.get("current_hp"), maximum_hp=active.get("maximum_hp"), semi_invulnerable_state=semi_invulnerable_state)
     return {"status": result.get("status"), "weather": "sandstorm", "result": result, "provenance": "canonical_sandstorm_residual_core_v1"}
 
 
@@ -523,7 +523,10 @@ def _weather_candidates(phase_input: Mapping[str, Any]) -> list[dict[str, Any]] 
         item = row["item"]
         if item.get("status") == "unknown": return "end_of_turn_weather_item_unknown"
         active = {"side": side, "types": types["value"], "item": item.get("value") if item.get("status") == "known" else None, "current_hp": row["hp"]["current_hp"], "maximum_hp": row["hp"]["maximum_hp"]}
-        resolved = materialize_detached_weather_residual(weather_authority=weather, active=active, active_abilities=abilities)
+        charge_rows = phase_input.get("standard_charge_lifecycle_authorities")
+        charge = charge_rows.get(side) if isinstance(charge_rows, Mapping) else None
+        semi_state = charge.get("semi_invulnerable_charge_state_authority") if isinstance(charge, Mapping) and charge.get("status") == "known_present" and charge.get("move_id") in {"dig", "dive"} else None
+        resolved = materialize_detached_weather_residual(weather_authority=weather, active=active, active_abilities=abilities, semi_invulnerable_state=semi_state)
         if resolved.get("status") != "complete": return "end_of_turn_weather_residual_unavailable"
         result = resolved["result"]
         if result["residual_damage"]:

@@ -1027,6 +1027,7 @@ def build_runtime_d0_native_damage_context(
     rage_fist_hit_count_power_authority: Mapping[str, Any] | None = None,
     last_respects_faint_power_authority: Mapping[str, Any] | None = None,
     fling_execution_authority: Mapping[str, Any] | None = None,
+    semi_invulnerable_exception_damage_modifier_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze native snapshot/provenance shapes from one runtime D0.
 
@@ -1106,6 +1107,7 @@ def build_runtime_d0_native_damage_context(
         "stakeout_switch_authority": deepcopy(dict(stakeout_switch_authority)) if isinstance(stakeout_switch_authority, Mapping) else None,
         "supreme_overlord_damage_authority": deepcopy(dict(supreme_overlord_damage_authority)) if isinstance(supreme_overlord_damage_authority, Mapping) else None,
         "fling_execution_authority": deepcopy(dict(fling_execution_authority)) if isinstance(fling_execution_authority, Mapping) else None,
+        "semi_invulnerable_exception_damage_modifier_authority": deepcopy(dict(semi_invulnerable_exception_damage_modifier_authority)) if isinstance(semi_invulnerable_exception_damage_modifier_authority, Mapping) else None,
     }
     if move["move_id"] == "sparkling-aria" and sparkling_aria_burn_clearing_authority is not None:
         if not _exact_sparkling_aria_pre_hit_burn_authority(

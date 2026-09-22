@@ -419,6 +419,9 @@ def evaluate_direct_damage_mechanics(
             )
             attack_stat = calculate_stage_adjusted_stat(attack_stat, offensive_stage)
             defense_stat = calculate_stage_adjusted_stat(defense_stat, defensive_stage)
+        semi_modifier = _semi_invulnerable_exception_modifier(current, move_id)
+        if isinstance(semi_modifier, str):
+            return _unsupported(semi_modifier)
         rolls = calc_damage_rolls(DamageContext(
             attacker_level=trusted_level, move_power=power,  # type: ignore[arg-type]
             attack_stat=attack_stat, defense_stat=defense_stat,
@@ -437,6 +440,7 @@ def evaluate_direct_damage_mechanics(
             attacker_hp_current=direct_attacker["current_hp"], attacker_hp_max=direct_attacker["max_hp"],
             attacker_condition=ability_modifier["attacker_condition"],
             is_contact=defender_ability_modifier["is_contact"] is True,
+            final_mod_q12=semi_modifier["modifier_q12"] if isinstance(semi_modifier, Mapping) else Q12_ONE,
         ))
     except (TypeError, ValueError, KeyError):
         return _unsupported("native_direct_damage")
@@ -453,7 +457,7 @@ def evaluate_direct_damage_mechanics(
         "damage_percent_range": {"minimum": round(min(total_rolls) * 100 / max_hp, 2), "maximum": round(max(total_rolls) * 100 / max_hp, 2)},
         "ko_result": {"status": "resolved", "single_hit_probability": float(ko_chance_from_outcomes(total_rolls, defender_hp))},
         "damage_model": "fixed_hit_formula" if hit_count > 1 else "single_hit_formula",
-        "applied_damage_modifiers": [*modifier["applied"], *ability_modifier["applied"], *item_modifier["applied"], *defender_item_modifier["applied"], *defender_ability_modifier["applied"]], "missing_inputs": [], "unsupported_reason": None,
+        "applied_damage_modifiers": [*modifier["applied"], *ability_modifier["applied"], *item_modifier["applied"], *defender_item_modifier["applied"], *defender_ability_modifier["applied"], *(["semi_invulnerable_exception_2x"] if isinstance(semi_modifier, Mapping) and semi_modifier.get("modifier_q12") == Q12_ONE * 2 else [])], "missing_inputs": [], "unsupported_reason": None,
         "stat_stage_evidence": _critical_stage_evidence(stage_context, is_critical),
         "offensive_stat_source": deepcopy(offensive_source),
         "defensive_stat_source": deepcopy(defensive_source),
@@ -489,6 +493,34 @@ def evaluate_direct_damage_mechanics(
     if hit_count == 1:
         result["exact_damage_rolls"] = tuple(rolls)
     return result
+
+
+def _semi_invulnerable_exception_modifier(current: Mapping[str, Any], move_id: str) -> Mapping[str, Any] | str | None:
+    value = current.get("semi_invulnerable_exception_damage_modifier_authority") if isinstance(current, Mapping) else None
+    if value is None:
+        return None
+    if (not isinstance(value, Mapping) or value.get("status") != "resolved"
+            or value.get("schema_version") != "detached-semi-invulnerable-exception-damage-modifier-authority-v1"
+            or value.get("incoming_move_id") != move_id
+            or value.get("semi_invulnerability_class") not in {"airborne", "underground", "underwater"}
+            or value.get("modifier_q12") not in {Q12_ONE, Q12_ONE * 2}
+            or value.get("multiplier") not in ({"numerator": 1, "denominator": 1}, {"numerator": 2, "denominator": 1})
+            or value.get("modifier_stage") != "final_damage_modifier_before_random_roll_resolution"):
+        return "semi_invulnerable_exception_damage_modifier_invalid"
+    source = value.get("source_targetability_authority")
+    expected_multiplier = value.get("multiplier", {}).get("numerator") if isinstance(value.get("multiplier"), Mapping) else None
+    if (
+        not isinstance(source, Mapping)
+        or source.get("outcome") != "allowed_by_exact_exception"
+        or source.get("incoming_move_id") != move_id
+        or source.get("attacker") != value.get("attacker")
+        or source.get("target") != value.get("target")
+        or source.get("semi_invulnerability_class") != value.get("semi_invulnerability_class")
+        or source.get("exception_multiplier") != expected_multiplier
+        or value.get("modifier_q12") != Q12_ONE * expected_multiplier
+    ):
+        return "semi_invulnerable_exception_damage_modifier_invalid"
+    return value
 
 
 def _offensive_stat_source(*, move_id: Any, category: Any) -> dict[str, str]:
@@ -1780,6 +1812,6 @@ _KNOWN_NO_DIRECT_DAMAGE_EFFECT_ABILITIES = frozenset({
     "intimidate", "pressure", "drizzle", "drought", "sand-stream", "snow-warning",
     "skill-link", "rough-skin", "iron-barbs", "static", "flame-body", "poison-point", "effect-spore",
     "mold-breaker", "neutralizing-gas", "overcoat", "insomnia", "vital-spirit",
-    "sticky-hold", "early-bird", "own-tempo", "tangled-feet", "magician", "pickpocket",
+    "sticky-hold", "early-bird", "own-tempo", "tangled-feet", "magician", "pickpocket", "no-guard",
 })
 _ACTION_ORDER_ONLY_ABILITIES = frozenset({"prankster", "gale-wings", "triage", "sturdy"})

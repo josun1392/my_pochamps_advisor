@@ -26,6 +26,10 @@ from advisor.probabilistic_target_status_effect_capabilities import resolve_prob
 from llm.advisor_champions_sleep_freeze_action_gate import classify_status_move, resolve_gate_branches
 from llm.advisor_champions_confusion_action_gate import resolve_confusion_branches
 from llm.advisor_detached_next_turn_focus_sash_survival_authority import apply_detached_focus_sash_single_hit
+from llm.advisor_detached_semi_invulnerable_charge_authority import (
+    materialize_semi_invulnerable_state_retirement,
+    validate_detached_semi_invulnerable_charge_state_authority,
+)
 from llm.advisor_standard_charge_turn_self_stage_effect import (
     apply_stage_effect_to_actor_mechanics,
     stage_effect_consequence,
@@ -40,9 +44,10 @@ FORCED_TURN_TWO_EXECUTION_MODE = "forced_turn_two_continuation"
 POWER_HERB_CURRENT_TURN_SKIP_MODE = "power_herb_current_turn_skip"
 WEATHER_CURRENT_TURN_SKIP_MODE = "weather_current_turn_skip"
 _PRODUCTION_EXECUTION_MODES = {FORCED_TURN_TWO_EXECUTION_MODE, POWER_HERB_CURRENT_TURN_SKIP_MODE, WEATHER_CURRENT_TURN_SKIP_MODE}
-_SUPPORTED_MOVES = {"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"}
+_SUPPORTED_MOVES = {"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"}
 _SOLAR_MOVES = {"solar-beam", "solar-blade"}
 _SELF_EFFECT_MOVES = {"meteor-beam", "skull-bash"}
+_SEMI_INVULNERABLE_MOVES = {"fly", "dig", "dive", "bounce"}
 _OWNER_KEYS = {"session_id", "side", "slot_index", "pokemon_id"}
 
 
@@ -91,6 +96,7 @@ def materialize_standard_charge_terminal_execution_contract(
     power_herb_consumption_authority: Mapping[str, Any] | None = None,
     solar_terminal_weather_damage_modifier_authority: Mapping[str, Any] | None = None,
     charge_turn_self_stage_effect_authority: Mapping[str, Any] | None = None,
+    semi_invulnerable_charge_state_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create the typed execution boundary for one authenticated caller mode."""
     if execution_mode not in _PRODUCTION_EXECUTION_MODES:
@@ -146,6 +152,8 @@ def materialize_standard_charge_terminal_execution_contract(
     }
     if isinstance(charge_turn_self_stage_effect_authority, Mapping):
         contract["charge_turn_self_stage_effect_authority"] = deepcopy(dict(charge_turn_self_stage_effect_authority))
+    if isinstance(semi_invulnerable_charge_state_authority, Mapping):
+        contract["semi_invulnerable_charge_state_authority"] = deepcopy(dict(semi_invulnerable_charge_state_authority))
     if move_id in _SOLAR_MOVES:
         if not isinstance(solar_terminal_weather_damage_modifier_authority, Mapping):
             return _result("incomplete", "solar_terminal_weather_damage_modifier_authority_required")
@@ -213,6 +221,19 @@ def validate_standard_charge_terminal_execution_contract(contract: Any) -> str |
             return "charge_turn_self_stage_effect_forbidden_on_turn_two"
     elif self_stage is not None:
         return "unexpected_charge_turn_self_stage_effect_authority"
+    semi_state = contract.get("semi_invulnerable_charge_state_authority")
+    if move_id in _SEMI_INVULNERABLE_MOVES:
+        if execution_mode == FORCED_TURN_TWO_EXECUTION_MODE:
+            if not isinstance(semi_state, Mapping) or validate_detached_semi_invulnerable_charge_state_authority(semi_state) is not None:
+                return "semi_invulnerable_charge_state_authority_required"
+            caller = contract.get("caller_action_authority")
+            if (semi_state.get("owner") != actor or semi_state.get("source_move_id") != move_id
+                    or not isinstance(caller, Mapping) or caller.get("original_charge_action_id") != semi_state.get("source_action_id")):
+                return "semi_invulnerable_charge_state_authority_binding_mismatch"
+        elif semi_state is not None:
+            return "semi_invulnerable_waiting_state_forbidden_on_instant_skip"
+    elif semi_state is not None:
+        return "unexpected_semi_invulnerable_charge_state_authority"
     solar_modifier = contract.get("solar_terminal_weather_damage_modifier_authority")
     if move_id in _SOLAR_MOVES:
         if not isinstance(solar_modifier, Mapping):
@@ -249,6 +270,7 @@ def execute_standard_charge_terminal_attack(*, execution_contract: Mapping[str, 
         "life_orb": deepcopy(dict(execution_contract["attacker_life_orb_authority"])),
         "solar_weather_modifier": deepcopy(dict(execution_contract["solar_terminal_weather_damage_modifier_authority"])) if isinstance(execution_contract.get("solar_terminal_weather_damage_modifier_authority"), Mapping) else None,
         "charge_turn_self_stage_effect": deepcopy(dict(execution_contract["charge_turn_self_stage_effect_authority"])) if isinstance(execution_contract.get("charge_turn_self_stage_effect_authority"), Mapping) else None,
+        "semi_invulnerable_charge_state": deepcopy(dict(execution_contract["semi_invulnerable_charge_state_authority"])) if isinstance(execution_contract.get("semi_invulnerable_charge_state_authority"), Mapping) else None,
     }
     return _execute_authenticated_terminal_mechanics(
         row=execution_contract,
@@ -258,6 +280,7 @@ def execute_standard_charge_terminal_attack(*, execution_contract: Mapping[str, 
         caller_action_authority=execution_contract["caller_action_authority"],
         power_herb_consumption_authority=execution_contract.get("power_herb_consumption_authority"),
         charge_turn_self_stage_effect_authority=execution_contract.get("charge_turn_self_stage_effect_authority"),
+        semi_invulnerable_charge_state_authority=execution_contract.get("semi_invulnerable_charge_state_authority"),
     )
 
 
@@ -304,6 +327,7 @@ def _execute_authenticated_terminal_mechanics(
     caller_action_authority: Mapping[str, Any],
     power_herb_consumption_authority: Mapping[str, Any] | None = None,
     charge_turn_self_stage_effect_authority: Mapping[str, Any] | None = None,
+    semi_invulnerable_charge_state_authority: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     gate = _pre_action_gate(actor, target, row["move_id"])
     if gate["status"] == "incomplete":
@@ -314,7 +338,20 @@ def _execute_authenticated_terminal_mechanics(
             "pre_action_gate": gate,
         }
     if gate["outcome"] == "cancelled":
-        return _cancelled(row, gate, caller_action_authority)
+        cancelled = _cancelled(row, gate, caller_action_authority)
+        if isinstance(semi_invulnerable_charge_state_authority, Mapping):
+            leaf = deepcopy(dict(cancelled["terminal_leaves"][0]))
+            retirement = materialize_semi_invulnerable_state_retirement(
+                active_state_authority=semi_invulnerable_charge_state_authority,
+                source_leaf_id=str(leaf.get("leaf_id")),
+                reason=_semi_invulnerable_retirement_reason(leaf),
+            )
+            if retirement.get("status") != "resolved":
+                return _incomplete(row, "semi_invulnerable_state_retirement_unavailable", caller_action_authority)
+            leaf.setdefault("consequences", {})["semi_invulnerable_state_retirement"] = retirement
+            leaf.setdefault("provenance", {})["semi_invulnerable_state_retirement_authority"] = deepcopy(retirement)
+            cancelled = deepcopy(dict(cancelled)); cancelled["terminal_leaves"] = (leaf,)
+        return cancelled
     opportunities = gate.get("branches", ({"kind": "executes", "executes": True, "probability": _fd(Fraction(1))},))
     staged_actor = deepcopy(dict(actor))
     if charge_turn_self_stage_effect_authority is not None:
@@ -326,7 +363,20 @@ def _execute_authenticated_terminal_mechanics(
         return _incomplete(row, "power_herb_consumption_authority_invalid", caller_action_authority)
     actor_stages, target_stages = attack_actor["current_stages"]["values"], target["current_stages"]["values"]
     move = row["canonical_terminal_effect"]["move"]
-    accuracy = _accuracy(move["accuracy"], actor_stages["accuracy"], target_stages["evasion"])
+    targetability=row.get("semi_invulnerable_targetability_authority")
+    bypass = False
+    if targetability is not None:
+        if (not isinstance(targetability, Mapping) or targetability.get("status") != "resolved"
+                or targetability.get("schema_version") != "detached-semi-invulnerable-targetability-authority-v1"
+                or targetability.get("incoming_move_id") != row.get("move_id")
+                or targetability.get("attacker") != row.get("actor")
+                or targetability.get("target") != row.get("target")
+                or targetability.get("outcome") not in {"allowed_by_exact_exception", "allowed_by_no_guard", "allowed_by_locked_on"}):
+            return _incomplete(row, "semi_invulnerable_targetability_authority_invalid", caller_action_authority)
+        bypass = targetability.get("accuracy_bypassed") is True
+        if bypass and targetability.get("outcome") not in {"allowed_by_no_guard", "allowed_by_locked_on"}:
+            return _incomplete(row, "semi_invulnerable_accuracy_bypass_authority_invalid", caller_action_authority)
+    accuracy = Fraction(1) if bypass else _accuracy(move["accuracy"], actor_stages["accuracy"], target_stages["evasion"])
     if accuracy is None:
         return _incomplete(row, "detached_accuracy_stage_adapter_unavailable", caller_action_authority)
     crit_stage = resolve_crit_stage(
@@ -388,6 +438,22 @@ def _execute_authenticated_terminal_mechanics(
                 if secondary is None:
                     return _incomplete(row, "detached_secondary_capability_unavailable", caller_action_authority)
                 leaves.extend(_apply_life_orb(secondary, terminal["life_orb"], damage > 0))
+    if isinstance(semi_invulnerable_charge_state_authority, Mapping):
+        retired = []
+        for leaf in leaves:
+            row_leaf = deepcopy(dict(leaf))
+            reason = _semi_invulnerable_retirement_reason(row_leaf)
+            retirement = materialize_semi_invulnerable_state_retirement(
+                active_state_authority=semi_invulnerable_charge_state_authority,
+                source_leaf_id=str(row_leaf.get("leaf_id")),
+                reason=reason,
+            )
+            if retirement.get("status") != "resolved":
+                return _incomplete(row, "semi_invulnerable_state_retirement_unavailable", caller_action_authority)
+            row_leaf.setdefault("consequences", {})["semi_invulnerable_state_retirement"] = retirement
+            row_leaf.setdefault("provenance", {})["semi_invulnerable_state_retirement_authority"] = deepcopy(retirement)
+            retired.append(row_leaf)
+        leaves = retired
     total = sum((_fraction(leaf["probability"]) for leaf in leaves), Fraction())
     if total != 1:
         return _incomplete(row, "detached_attack_ledger_probability_not_normalized", caller_action_authority)
@@ -411,6 +477,18 @@ def _execute_authenticated_terminal_mechanics(
     }
 
 
+def _semi_invulnerable_retirement_reason(leaf: Mapping[str, Any]) -> str:
+    path = " ".join(str(value) for value in leaf.get("branch_path", ())).lower()
+    if "confusion" in path and "self" in path: return "confusion_self_hit"
+    if "paralysis" in path: return "full_paralysis_cancellation"
+    if "sleep" in path: return "sleep_cancellation"
+    if "freeze" in path: return "freeze_cancellation"
+    if "faint" in path or leaf.get("consequences", {}).get("self_fainted") is True: return "actor_faint_prevents_continuation"
+    if leaf.get("hit_state") in {"miss", "missed"}: return "terminal_attack_missed"
+    if leaf.get("hit_state") == "hit": return "terminal_attack_executed"
+    return "pre_action_execution_opportunity_consumed"
+
+
 def _caller_authentication_matches(contract: Mapping[str, Any], auth: Any) -> bool:
     if not isinstance(auth, Mapping) or auth.get("schema_version") != CALLER_AUTH_SCHEMA_VERSION:
         return False
@@ -426,6 +504,8 @@ def _caller_authentication_matches(contract: Mapping[str, Any], auth: Any) -> bo
         expected_keys.append("solar_terminal_weather_damage_modifier_authority")
     if contract.get("move_id") in _SELF_EFFECT_MOVES and contract.get("execution_mode") == POWER_HERB_CURRENT_TURN_SKIP_MODE:
         expected_keys.append("charge_turn_self_stage_effect_authority")
+    if contract.get("move_id") in _SEMI_INVULNERABLE_MOVES and contract.get("execution_mode") == FORCED_TURN_TWO_EXECUTION_MODE:
+        expected_keys.append("semi_invulnerable_charge_state_authority")
     if any(auth.get(key) != contract.get(key) for key in expected_keys):
         return False
     source = auth.get("source_execution_authority")
@@ -571,7 +651,27 @@ def _damage_rolls(row: Mapping[str, Any], critical: bool, attacker_item: str | N
         weather_mod_q12 = solar_weather_modifier.get("modifier_q12") if isinstance(solar_weather_modifier, Mapping) else 4096
         if not isinstance(weather_mod_q12, int):
             return None
-        ctx = DamageContext(attacker_level=a["current_level"]["value"], move_power=move["power"], attack_stat=apply_boosts(av[offense], os), defense_stat=apply_boosts(tv[defense], ds), move_type=move["type"], move_id=move["move_id"], attacker_types=tuple(a["types"]["value"]), defender_types=tuple(t["types"]["value"]), is_physical=move["category"] == "physical", is_critical=critical, is_spread=False, field=field, weather_mod_q12=weather_mod_q12, attacker_ability=get_ability(_value(a["ability"])), defender_ability=get_ability(_value(t["ability"])), attacker_item=get_item(attacker_item), defender_item=get_item(defender_item), attacker_hp_current=a["current_hp"]["current_hp"], attacker_hp_max=a["current_hp"]["maximum_hp"], defender_hp_current=t["current_hp"]["current_hp"], defender_hp_max=t["current_hp"]["maximum_hp"], attacker_condition=_condition(a["condition"]) or "none")
+        semi_modifier=row.get("semi_invulnerable_exception_damage_modifier_authority")
+        final_mod_q12=4096
+        if semi_modifier is not None:
+            source=semi_modifier.get("source_targetability_authority") if isinstance(semi_modifier,Mapping) else None
+            multiplier=semi_modifier.get("multiplier") if isinstance(semi_modifier,Mapping) else None
+            numerator=multiplier.get("numerator") if isinstance(multiplier,Mapping) else None
+            if (not isinstance(semi_modifier,Mapping) or semi_modifier.get("status")!="resolved"
+                    or semi_modifier.get("schema_version")!="detached-semi-invulnerable-exception-damage-modifier-authority-v1"
+                    or semi_modifier.get("incoming_move_id")!=move.get("move_id")
+                    or semi_modifier.get("attacker")!=row.get("actor") or semi_modifier.get("target")!=row.get("target")
+                    or semi_modifier.get("modifier_stage")!="final_damage_modifier_before_random_roll_resolution"
+                    or multiplier not in ({"numerator":1,"denominator":1},{"numerator":2,"denominator":1})
+                    or semi_modifier.get("modifier_q12")!=4096*numerator
+                    or not isinstance(source,Mapping) or source.get("status")!="resolved"
+                    or source.get("outcome")!="allowed_by_exact_exception"
+                    or source.get("incoming_move_id")!=move.get("move_id")
+                    or source.get("attacker")!=row.get("actor") or source.get("target")!=row.get("target")
+                    or source.get("exception_multiplier")!=numerator):
+                return None
+            final_mod_q12=semi_modifier["modifier_q12"]
+        ctx = DamageContext(attacker_level=a["current_level"]["value"], move_power=move["power"], attack_stat=apply_boosts(av[offense], os), defense_stat=apply_boosts(tv[defense], ds), move_type=move["type"], move_id=move["move_id"], attacker_types=tuple(a["types"]["value"]), defender_types=tuple(t["types"]["value"]), is_physical=move["category"] == "physical", is_critical=critical, is_spread=False, field=field, weather_mod_q12=weather_mod_q12, final_mod_q12=final_mod_q12, attacker_ability=get_ability(_value(a["ability"])), defender_ability=get_ability(_value(t["ability"])), attacker_item=get_item(attacker_item), defender_item=get_item(defender_item), attacker_hp_current=a["current_hp"]["current_hp"], attacker_hp_max=a["current_hp"]["maximum_hp"], defender_hp_current=t["current_hp"]["current_hp"], defender_hp_max=t["current_hp"]["maximum_hp"], attacker_condition=_condition(a["condition"]) or "none")
         return calc_damage_rolls(ctx)
     except (KeyError, TypeError, ValueError):
         return None

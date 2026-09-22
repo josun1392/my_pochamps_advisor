@@ -19,9 +19,10 @@ TRANSPORT_SCHEMA_VERSION = "detached-standard-charge-lifecycle-transport-authori
 POST_EOT_SCHEMA_VERSION = "detached-standard-charge-post-eot-lifecycle-authority-v1"
 NEXT_TURN_SCHEMA_VERSION = "detached-standard-charge-next-turn-continuation-authority-v1"
 _SIDES = ("self", "opponent")
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
+_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce"})
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 
 
@@ -178,6 +179,7 @@ def project_post_eot_standard_charge_lifecycle_authorities(
             "source_transport_authority": deepcopy(dict(source)),
             "source_eot_fingerprint": source_eot_fingerprint,
             "continuation_pending": True,
+            **({"semi_invulnerable_charge_state_authority": deepcopy(dict(source["semi_invulnerable_charge_state_authority"]))} if isinstance(source.get("semi_invulnerable_charge_state_authority"), Mapping) else {}),
             "execution_grant": False,
             "pp_consumption_materialized": False,
             "provenance": "standard_charge_survived_eot_v1",
@@ -336,6 +338,7 @@ def materialize_next_turn_standard_charge_continuation_authorities(
             "source_post_eot_authority": deepcopy(dict(source)),
             "source_eot_fingerprint": source["source_eot_fingerprint"],
             "source_post_eot_fingerprint": source_post_eot_fingerprint,
+            **({"semi_invulnerable_charge_state_authority": deepcopy(dict(source["semi_invulnerable_charge_state_authority"]))} if isinstance(source.get("semi_invulnerable_charge_state_authority"), Mapping) else {}),
             "execution_grant": False,
             "target_occupant_resolved": False,
             "selected_action_synthesized": False,
@@ -395,6 +398,7 @@ def _transport_present(
         "power_herb_skip_active": False,
         "immediate_damage_executed": False,
         "turn_two_continuation_required": True,
+        **({"semi_invulnerable_charge_state_authority": deepcopy(dict(context["semi_invulnerable_charge_state_authority"]))} if isinstance(context.get("semi_invulnerable_charge_state_authority"), Mapping) else {}),
         "execution_grant": False,
         "provenance": "exact_pair_terminal_standard_charge_transport_v1",
     }
@@ -588,7 +592,7 @@ def _transport_row_shape(row: Any, side: str) -> str | None:
         or not isinstance(row.get("action_id"), str)
         or not row["action_id"]
         or row.get("canonical_lifecycle_family") != _expected_family(row.get("move_id"))
-        or row.get("execution_model") != "charge_then_execute"
+        or row.get("execution_model") != ("semi_invulnerable_then_execute" if row.get("move_id") in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
         or not _locator(row.get("continuation_target_locator"), opposite_of=side)
         or row.get("pp_consumption_materialized") is not False
         or row.get("power_herb_skip_active") is not False
@@ -596,6 +600,12 @@ def _transport_row_shape(row: Any, side: str) -> str | None:
         or row.get("turn_two_continuation_required") is not True
     ):
         return "standard_charge_transport_present_semantics_invalid"
+    semi = row.get("semi_invulnerable_charge_state_authority")
+    if row.get("move_id") in _SEMI_INVULNERABLE_MOVES:
+        if not isinstance(semi, Mapping) or semi.get("state") != "active" or semi.get("owner") != row.get("charger_owner") or semi.get("source_move_id") != row.get("move_id") or semi.get("source_action_id") != row.get("action_id"):
+            return "standard_charge_transport_semi_invulnerable_state_invalid"
+    elif semi is not None:
+        return "standard_charge_transport_unexpected_semi_invulnerable_state"
     return None
 
 
@@ -607,6 +617,7 @@ def _expected_family(move_id: Any) -> str:
     return (
         "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
+        else "semi_invulnerable_charge_then_damage" if move_id in _SEMI_INVULNERABLE_MOVES
         else "ordinary_charge_then_damage"
     )
 

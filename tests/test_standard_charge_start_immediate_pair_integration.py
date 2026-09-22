@@ -24,7 +24,7 @@ from tests.test_detached_opponent_response_profile import (
 )
 
 
-STANDARD = ("sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash")
+STANDARD = ("sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce")
 
 
 def _charge_metadata(move_id: str) -> dict:
@@ -38,6 +38,10 @@ def _charge_metadata(move_id: str) -> dict:
         "solar-blade": 125,
         "meteor-beam": 120,
         "skull-bash": 130,
+        "fly": 90,
+        "dig": 80,
+        "dive": 80,
+        "bounce": 85,
     }[move_id]
     move_type = {
         "sky-attack": "flying",
@@ -48,13 +52,17 @@ def _charge_metadata(move_id: str) -> dict:
         "solar-blade": "grass",
         "meteor-beam": "rock",
         "skull-bash": "normal",
+        "fly": "flying",
+        "dig": "ground",
+        "dive": "water",
+        "bounce": "flying",
     }[move_id]
     return {
         "move_id": move_id,
         "category": category,
         "power": power,
         "type": move_type,
-        "accuracy": 100 if move_id in {"solar-beam", "solar-blade", "razor-wind", "skull-bash"} else 90,
+        "accuracy": 95 if move_id == "fly" else 85 if move_id == "bounce" else 100 if move_id in {"solar-beam", "solar-blade", "razor-wind", "skull-bash", "dig", "dive"} else 90,
         "priority": 0,
         "target": "selected-pokemon",
     }
@@ -333,7 +341,7 @@ def test_standard_charge_excluded_counterpart_families_fail_closed_before_specia
 
 
 def test_nonstandard_charge_moves_keep_global_guard():
-    for move_id in ("fly", "geomancy"):
+    for move_id in ("geomancy",):
         state = _complete_state(_state())
         snapshot = _snapshot(state)
         d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))

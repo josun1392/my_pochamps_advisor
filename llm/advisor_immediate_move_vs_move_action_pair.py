@@ -18,6 +18,11 @@ from llm.advisor_detached_intermediate_predictive_authority import (
 from llm.advisor_detached_intermediate_paralysis_second_action_authority import (
     consume_detached_sleep_freeze_execution_for_second_action,
 )
+from llm.advisor_detached_semi_invulnerable_charge_authority import (
+    freeze_detached_semi_invulnerable_targetability_authority,
+    materialize_semi_invulnerable_exception_damage_modifier_authority,
+    materialize_semi_invulnerable_state_retirement,
+)
 from llm.advisor_detached_predictive_intermediate_state import (
     freeze_detached_actor_neutral_root_predictive_authority,
     materialize_detached_predictive_intermediate_state,
@@ -212,7 +217,7 @@ SCHEMA_VERSION = "immediate-move-vs-move-action-pair-v1"
 HORIZON = "immediate_action_pair"
 _STATUSES = {"incomplete", "unsupported", "rejected"}
 _CHARGE_MOVES = ChargeMoveRepository()
-_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
+_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
 _STANDARD_CHARGE_EXCLUDED_COUNTERPARTS = frozenset({
     "fling", "u-turn", "volt-switch", "flip-turn", "sucker-punch",
     "seismic-toss", "night-shade", "dragon-rage", "sonic-boom",
@@ -2154,6 +2159,9 @@ def _materialize_order(
         executable = [row for row in execution if isinstance(row, Mapping) and row.get("state") == "executed"]
         second = None
         rebound = None
+        targetability = None
+        semi_state = None
+        semi_modifier = None
         if executable:
             second_gate = None
             if order == "opponent_first" and own_meta["metadata"].get("move_id") == "sucker-punch":
@@ -2183,10 +2191,33 @@ def _materialize_order(
                     strategy_d0=inputs["strategy_d0"], actor=inputs["attacker"], target=inputs["target"], base=base, plan=order_plan, source_action_order_authority=action_order_authority,
                 ) if second_actor == base["own_actor"] else None
                 recent_event = materialize_detached_same_turn_last_incoming_attack_event(strategy_d0=inputs["strategy_d0"], terminal_leaf=leaf, recipient=inputs["attacker"], source_move_metadata=first_meta["metadata"])
-                second = _pair_action_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
-                    actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs),
-                    source_metadata_authority=second_meta, action=opponent_action if order == "own_first" else own_action,
-                    analytic_action_order_authority=second_analytic, same_turn_last_incoming_attack_event=recent_event, post_source_retaliation_protection_authority=post_source_retaliation_protection_authority, source_terminal_leaf=leaf, source_selected_action=first_action, source_execution_order_provenance=order_plan)
+                second_action = opponent_action if order == "own_first" else own_action
+                semi_state = leaf.get("consequences", {}).get("semi_invulnerable_charge_state") if isinstance(leaf.get("consequences"), Mapping) else None
+                if isinstance(semi_state, Mapping) and semi_state.get("state") == "active" and semi_state.get("owner") == inputs["target"]:
+                    targetability = freeze_detached_semi_invulnerable_targetability_authority(
+                        strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
+                        incoming_action=second_action, incoming_move_metadata_authority=second_meta,
+                        attacker=inputs["attacker"], target=inputs["target"],
+                        semi_invulnerable_state_authority=semi_state,
+                    )
+                    if targetability.get("status") != "resolved":
+                        return _result(_status(targetability), targetability.get("reason", "semi_invulnerable_targetability_unavailable"), base, first_leaf_id=leaf["leaf_id"])
+                    if targetability.get("state_cancel_after_successful_hit") is True:
+                        return _result("unsupported", "semi_invulnerable_state_ending_incoming_move_terminal_mechanics_unrepresented", base, first_leaf_id=leaf["leaf_id"])
+                    if targetability.get("outcome") == "blocked_by_semi_invulnerability":
+                        second = _semi_invulnerable_blocked_ledger(
+                            strategy_d0=inputs["strategy_d0"], actor=inputs["attacker"], target=inputs["target"],
+                            action=second_action, targetability_authority=targetability,
+                        )
+                    else:
+                        semi_modifier = materialize_semi_invulnerable_exception_damage_modifier_authority(targetability)
+                if second is None:
+                    second = _pair_action_ledger(strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
+                        actor=inputs["attacker"], target=inputs["target"], metadata_authority=_metadata_for_inputs(second_meta, inputs),
+                        source_metadata_authority=second_meta, action=second_action,
+                        analytic_action_order_authority=second_analytic, same_turn_last_incoming_attack_event=recent_event, post_source_retaliation_protection_authority=post_source_retaliation_protection_authority, source_terminal_leaf=leaf, source_selected_action=first_action, source_execution_order_provenance=order_plan,
+                        semi_invulnerable_targetability_authority=targetability,
+                        semi_invulnerable_exception_damage_modifier_authority=semi_modifier)
             if second.get("status") != "evaluable":
                 reason = second.get("reason", "ledger_unavailable")
                 if reason != "power_herb_charge_skip_execution_unrepresented":
@@ -2198,6 +2229,8 @@ def _materialize_order(
             if execution_branch["state"] == "cancelled_due_to_paralysis":
                 branches.append(_branch(base, order, leaf, intermediate, None, second_actor, order_plan, execution_branch)); continue
             for second_leaf in second["terminal_leaves"]:
+                if isinstance(targetability, Mapping):
+                    second_leaf = _bind_semi_invulnerable_targetability_to_leaf(second_leaf, targetability, semi_state)
                 sitrus = materialize_detached_sitrus_berry_immediate_consumption(
                     strategy_d0=inputs["strategy_d0"], runtime_snapshot=inputs["runtime_snapshot"],
                     terminal_leaf=second_leaf, holder=inputs["target"],
@@ -2223,14 +2256,63 @@ def _materialize_order(
     return branches
 
 
+def _semi_invulnerable_blocked_ledger(*, strategy_d0: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], action: Mapping[str, Any], targetability_authority: Mapping[str, Any]) -> dict[str, Any]:
+    active = strategy_d0.get("strategy_state", {}).get("active", {})
+    own_hp = active.get(actor.get("side"), {}).get("current_hp")
+    target_hp = active.get(target.get("side"), {}).get("current_hp")
+    if not _hp(own_hp) or not _hp(target_hp) or targetability_authority.get("outcome") != "blocked_by_semi_invulnerability":
+        return _result("rejected", "semi_invulnerable_block_leaf_authority_invalid", {})
+    leaf = {
+        "leaf_id": f"{action.get('action_id')}:blocked-by-semi-invulnerability",
+        "candidate_id": action.get("action_id"), "action_type": "attack",
+        "branch_path": ("semi_invulnerable_targetability", "blocked_before_accuracy"),
+        "probability": {"numerator": 1, "denominator": 1},
+        "hit_state": "blocked_by_semi_invulnerability", "critical_state": "not_applicable",
+        "critical_hit_state": "not_applicable", "damage_roll": "not_applicable",
+        "contact_state": "not_applicable", "secondary_effect_state": "not_applicable", "damage": 0,
+        "consequences": {"damage": 0, "own_final_hp": own_hp, "actor_final_hp": own_hp, "target_final_hp": target_hp,
+                         "self_fainted": own_hp == 0, "actor_ko": own_hp == 0, "target_ko": target_hp == 0,
+                         "secondary": None, "contact": "not_applicable",
+                         "semi_invulnerable_targetability": deepcopy(dict(targetability_authority))},
+        "provenance": {"session_id": strategy_d0.get("session_id"), "source_runtime_fingerprint": strategy_d0.get("source_runtime_fingerprint"),
+                       "source_branch_fingerprint": strategy_d0.get("strategy_preview_fingerprint"), "decision_owner": deepcopy(strategy_d0.get("decision_owner")),
+                       "attacker": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "move_id": action.get("identity"),
+                       "semi_invulnerable_targetability_authority": deepcopy(dict(targetability_authority)),
+                       "accuracy_resolution_skipped": True, "critical_resolution_skipped": True, "damage_roll_skipped": True},
+    }
+    return {"status": "evaluable", "terminal_leaves": (leaf,), "terminal_probability_mass": {"numerator": 1, "denominator": 1},
+            "component_manifest": {"semi_invulnerable_targetability": {"status": "resolved", "outcome": "blocked_by_semi_invulnerability"},
+                                   "accuracy": {"status": "not_applicable"}, "critical": {"status": "not_applicable"}, "damage_roll": {"status": "not_applicable"}},
+            "provenance": "semi_invulnerable_targetability_block_before_accuracy_v1"}
+
+
+def _bind_semi_invulnerable_targetability_to_leaf(leaf: Mapping[str, Any], authority: Mapping[str, Any], active_state: Mapping[str, Any] | None) -> dict[str, Any]:
+    row = deepcopy(dict(leaf))
+    consequences = deepcopy(dict(row.get("consequences", {})))
+    consequences["semi_invulnerable_targetability"] = deepcopy(dict(authority))
+    if authority.get("state_cancel_after_successful_hit") is True and row.get("hit_state") == "hit" and isinstance(active_state, Mapping):
+        retirement = materialize_semi_invulnerable_state_retirement(active_state_authority=active_state, source_leaf_id=str(row.get("leaf_id")), reason="airborne_state_ended_by_incoming_move")
+        if retirement.get("status") == "resolved":
+            consequences["semi_invulnerable_state_retirement"] = retirement
+    row["consequences"] = consequences
+    provenance = deepcopy(dict(row.get("provenance", {})))
+    provenance["semi_invulnerable_targetability_authority"] = deepcopy(dict(authority))
+    row["provenance"] = provenance
+    return row
+
+
 def _attack_ledger(**kwargs: Any) -> dict[str, Any]:
     ledger = _attack_ledger_before_ability_steal(**kwargs)
     return _apply_ability_item_steal_to_ledger(ledger=ledger, strategy_d0=kwargs["strategy_d0"], runtime_snapshot=kwargs["runtime_snapshot"], actor=kwargs["actor"], target=kwargs["target"])
 
 
-def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None, source_terminal_leaf: Mapping[str, Any] | None = None, source_selected_action: Mapping[str, Any] | None = None, source_execution_order_provenance: Mapping[str, Any] | None = None, pending_target_action: Mapping[str, Any] | None = None, action_order: str | None = None) -> dict[str, Any]:
+def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, same_turn_last_incoming_attack_event: Mapping[str, Any] | None = None, post_source_retaliation_protection_authority: Mapping[str, Any] | None = None, source_terminal_leaf: Mapping[str, Any] | None = None, source_selected_action: Mapping[str, Any] | None = None, source_execution_order_provenance: Mapping[str, Any] | None = None, pending_target_action: Mapping[str, Any] | None = None, action_order: str | None = None, semi_invulnerable_exception_damage_modifier_authority: Mapping[str, Any] | None = None, semi_invulnerable_targetability_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
+    if isinstance(semi_invulnerable_targetability_authority, Mapping) and semi_invulnerable_targetability_authority.get("accuracy_bypassed") is True:
+        if semi_invulnerable_targetability_authority.get("outcome") not in {"allowed_by_no_guard", "allowed_by_locked_on"}:
+            return _result("rejected", "semi_invulnerable_accuracy_bypass_authority_invalid", {})
+        metadata = {**metadata, "always_hit": True, "semi_invulnerable_targetability_authority": deepcopy(dict(semi_invulnerable_targetability_authority))}
     fling_execution = None
     if metadata.get("move_id") == "fling":
         if not isinstance(action, Mapping): return _result("incomplete", "fling_action_authority_required", {})
@@ -2291,7 +2373,7 @@ def _attack_ledger_before_ability_steal(*, strategy_d0: Mapping[str, Any], runti
             analytic_action_order_authority=analytic_action_order_authority,
             stakeout_switch_authority=stakeout_switch_authority,
         )
-    normal = _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_survival_authority=endure_turn_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, fling_execution_authority=fling_execution)
+    normal = _normal_formula_ledger(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target, metadata_authority=metadata, sturdy_survival_authority=sturdy_survival_authority, focus_sash_survival_authority=focus_sash_survival_authority, endure_turn_survival_authority=endure_turn_survival_authority, action=action, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, fling_execution_authority=fling_execution, semi_invulnerable_exception_damage_modifier_authority=semi_invulnerable_exception_damage_modifier_authority)
     if fling_execution is not None:
         thrown = _apply_fling_item_throw_to_ledger(ledger=normal, authority=fling_execution)
         deterministic = _apply_fling_deterministic_target_effect_to_ledger(
@@ -2616,7 +2698,7 @@ def _recent_damage_retaliation_ledger(*, strategy_d0: Mapping[str, Any], runtime
     return _apply_contact_reactive_status_to_normal_ledger(strategy_d0=strategy_d0,runtime_snapshot=runtime_snapshot,ledger=leaves,attacker=actor,defender=target,source_action=source,contact_authority=contact)
 
 
-def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, fling_execution_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], metadata_authority: Mapping[str, Any], sturdy_survival_authority: Mapping[str, Any] | None = None, focus_sash_survival_authority: Mapping[str, Any] | None = None, endure_turn_survival_authority: Mapping[str, Any] | None = None, action: Mapping[str, Any] | None = None, analytic_action_order_authority: Mapping[str, Any] | None = None, stakeout_switch_authority: Mapping[str, Any] | None = None, fling_execution_authority: Mapping[str, Any] | None = None, semi_invulnerable_exception_damage_modifier_authority: Mapping[str, Any] | None = None) -> dict[str, Any]:
     metadata = _metadata_for_inputs(metadata_authority, None)
     if metadata is None: return _result("rejected", "predictive_move_metadata_authority_invalid", {})
     sparkling_aria = None
@@ -2627,7 +2709,7 @@ def _normal_formula_ledger(*, strategy_d0: Mapping[str, Any], runtime_snapshot: 
         )
         if sparkling_aria.get("status") != "resolved":
             return _result(_status(sparkling_aria), sparkling_aria.get("reason", "sparkling_aria_burn_clearing_authority_unavailable"), {})
-    native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, sparkling_aria_burn_clearing_authority=sparkling_aria, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, was_damaged_power_authority=metadata.get("was_damaged_power_authority") if isinstance(metadata.get("was_damaged_power_authority"), Mapping) else None, target_was_damaged_power_authority=metadata.get("target_was_damaged_power_authority") if isinstance(metadata.get("target_was_damaged_power_authority"), Mapping) else None, target_already_acted_power_authority=metadata.get("target_already_acted_power_authority") if isinstance(metadata.get("target_already_acted_power_authority"), Mapping) else None, previous_action_result_authority=metadata.get("previous_action_result_authority") if isinstance(metadata.get("previous_action_result_authority"), Mapping) else None, same_turn_stat_drop_power_authority=metadata.get("same_turn_stat_drop_power_authority") if isinstance(metadata.get("same_turn_stat_drop_power_authority"), Mapping) else None, rage_fist_hit_count_power_authority=metadata.get("rage_fist_hit_count_power_authority") if isinstance(metadata.get("rage_fist_hit_count_power_authority"), Mapping) else None, last_respects_faint_power_authority=metadata.get("last_respects_faint_power_authority") if isinstance(metadata.get("last_respects_faint_power_authority"), Mapping) else None, fling_execution_authority=fling_execution_authority)
+    native = build_runtime_d0_native_damage_context(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, sparkling_aria_burn_clearing_authority=sparkling_aria, analytic_action_order_authority=analytic_action_order_authority, stakeout_switch_authority=stakeout_switch_authority, was_damaged_power_authority=metadata.get("was_damaged_power_authority") if isinstance(metadata.get("was_damaged_power_authority"), Mapping) else None, target_was_damaged_power_authority=metadata.get("target_was_damaged_power_authority") if isinstance(metadata.get("target_was_damaged_power_authority"), Mapping) else None, target_already_acted_power_authority=metadata.get("target_already_acted_power_authority") if isinstance(metadata.get("target_already_acted_power_authority"), Mapping) else None, previous_action_result_authority=metadata.get("previous_action_result_authority") if isinstance(metadata.get("previous_action_result_authority"), Mapping) else None, same_turn_stat_drop_power_authority=metadata.get("same_turn_stat_drop_power_authority") if isinstance(metadata.get("same_turn_stat_drop_power_authority"), Mapping) else None, rage_fist_hit_count_power_authority=metadata.get("rage_fist_hit_count_power_authority") if isinstance(metadata.get("rage_fist_hit_count_power_authority"), Mapping) else None, last_respects_faint_power_authority=metadata.get("last_respects_faint_power_authority") if isinstance(metadata.get("last_respects_faint_power_authority"), Mapping) else None, fling_execution_authority=fling_execution_authority, semi_invulnerable_exception_damage_modifier_authority=semi_invulnerable_exception_damage_modifier_authority)
     normal = freeze_runtime_normal_formula_predictive_input(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata, native_damage_context=native)
     hit = build_runtime_d0_strict_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, selected_move=metadata)
     crit = build_runtime_d0_strict_critical_hit_probability_assessment(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, attacker=actor, target=target, move_metadata=metadata)

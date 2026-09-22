@@ -14,14 +14,19 @@ from llm.advisor_standard_charge_turn_self_stage_effect import (
     stage_effect_consequence,
 )
 from llm.advisor_observed_damage_application import apply_canonical_stage_delta
+from llm.advisor_detached_semi_invulnerable_charge_authority import (
+    materialize_detached_semi_invulnerable_charge_state_authority,
+    validate_detached_semi_invulnerable_charge_state_authority,
+)
 
 
 SCHEMA_VERSION = "detached-standard-charge-start-v1"
 CONTEXT_SCHEMA_VERSION = "detached-standard-charge-lifecycle-context-v1"
 _READINESS_SCHEMA = "runtime-d0-standard-charge-start-readiness-authority-v1"
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
+_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce"})
 
 
 def materialize_detached_standard_charge_start(
@@ -74,6 +79,14 @@ def materialize_detached_standard_charge_start(
                 base,
             )
     leaf_id = f"{base['action_id']}:charge-start"
+    semi_state_authority = None
+    if base["move_id"] in _SEMI_INVULNERABLE_MOVES:
+        semi_state_authority = materialize_detached_semi_invulnerable_charge_state_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, actor=actor, target=target,
+            action_id=base["action_id"], move_id=base["move_id"], source_leaf_id=leaf_id,
+        )
+        if semi_state_authority.get("status") != "resolved":
+            return _result(semi_state_authority.get("status", "rejected"), semi_state_authority.get("reason", "semi_invulnerable_charge_state_unavailable"), base)
     probability = {"numerator": 1, "denominator": 1}
     context = {
         "status": "resolved",
@@ -100,6 +113,7 @@ def materialize_detached_standard_charge_start(
         "immediate_damage_executed": False,
         "charge_turn_damage": 0,
         "pp_consumption_materialized": False,
+        **({"semi_invulnerable_charge_state_authority": deepcopy(dict(semi_state_authority))} if isinstance(semi_state_authority, Mapping) else {}),
         "provenance": "detached_standard_charge_lifecycle_context_v1",
     }
     leaf = {
@@ -131,6 +145,7 @@ def materialize_detached_standard_charge_start(
                 if isinstance(self_stage_authority, Mapping)
                 else {}
             ),
+            **({"semi_invulnerable_charge_state": deepcopy(dict(semi_state_authority))} if isinstance(semi_state_authority, Mapping) else {}),
         },
         "provenance": {
             "session_id": base["session_id"],
@@ -161,6 +176,7 @@ def materialize_detached_standard_charge_start(
         "action_leaf": leaf,
         "detached_charge_lifecycle_context": context,
         **({"charge_turn_self_stage_effect_authority": deepcopy(dict(self_stage_authority))} if isinstance(self_stage_authority, Mapping) else {}),
+        **({"semi_invulnerable_charge_state_authority": deepcopy(dict(semi_state_authority))} if isinstance(semi_state_authority, Mapping) else {}),
         "post_action_runtime_snapshot": post_snapshot,
         "action_execution_opportunity_consumed": True,
         "immediate_damage_executed": False,
@@ -230,7 +246,7 @@ def validate_detached_standard_charge_start(
         or context.get("action_id") != base["action_id"]
         or context.get("move_id") != base["move_id"]
         or context.get("canonical_lifecycle_family") != _expected_family(base["move_id"])
-        or context.get("execution_model") != "charge_then_execute"
+        or context.get("execution_model") != ("semi_invulnerable_then_execute" if base["move_id"] in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
         or context.get("source_target_owner") != target
         or context.get("continuation_target_locator")
         != readiness["continuation_target_locator"]
@@ -278,6 +294,13 @@ def validate_detached_standard_charge_start(
         ):
             return False
     elif stage_consequence is not None or stage_authority is not None:
+        return False
+    semi_consequence = consequences.get("semi_invulnerable_charge_state") if isinstance(consequences, Mapping) else None
+    semi_authority = result.get("semi_invulnerable_charge_state_authority")
+    if base["move_id"] in _SEMI_INVULNERABLE_MOVES:
+        if context.get("semi_invulnerable_charge_state_authority") != semi_authority or semi_authority != semi_consequence or validate_detached_semi_invulnerable_charge_state_authority(semi_authority, strategy_d0=strategy_d0, runtime_snapshot=source_runtime_snapshot) is not None:
+            return False
+    elif semi_consequence is not None or semi_authority is not None or context.get("semi_invulnerable_charge_state_authority") is not None:
         return False
     if (
         leaf.get("leaf_id") != f"{base['action_id']}:charge-start"
@@ -388,7 +411,7 @@ def validate_pair_compatible_standard_charge_leaf(leaf: Any) -> str | None:
         not isinstance(canonical, Mapping)
         or canonical.get("move_id") != move_id
         or canonical.get("lifecycle_family") != _expected_family(move_id)
-        or canonical.get("execution_model") != "charge_then_execute"
+        or canonical.get("execution_model") != ("semi_invulnerable_then_execute" if move_id in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
     ):
         return "standard_charge_leaf_canonical_lifecycle_invalid"
     locator = context.get("continuation_target_locator")
@@ -401,7 +424,7 @@ def validate_pair_compatible_standard_charge_leaf(leaf: Any) -> str | None:
         or context.get("action_id") != action_id
         or context.get("move_id") != move_id
         or context.get("canonical_lifecycle_family") != _expected_family(move_id)
-        or context.get("execution_model") != "charge_then_execute"
+        or context.get("execution_model") != ("semi_invulnerable_then_execute" if move_id in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
         or context.get("source_target_owner") != target
         or not isinstance(locator, Mapping)
         or set(locator) != {"session_id", "side", "slot_index"}
@@ -586,7 +609,7 @@ def _readiness_error(
         canonical.get("status") != "resolved"
         or value.get("canonical_charge_lifecycle_authority") != canonical
         or canonical.get("lifecycle_family") != _expected_family(base["move_id"])
-        or canonical.get("execution_model") != "charge_then_execute"
+        or canonical.get("execution_model") != ("semi_invulnerable_then_execute" if base["move_id"] in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
         or canonical.get("terminal_effect_class") != "damaging_move"
         or canonical.get("canonical_recognition_grants_immediate_execution") is not False
     ):
@@ -601,6 +624,7 @@ def _expected_family(move_id: str) -> str:
     return (
         "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
+        else "semi_invulnerable_charge_then_damage" if move_id in _SEMI_INVULNERABLE_MOVES
         else "ordinary_charge_then_damage"
     )
 

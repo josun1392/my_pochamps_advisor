@@ -34,9 +34,10 @@ from llm.advisor_standard_charge_turn_self_stage_effect import (
 
 AUTHORITY_SCHEMA_VERSION = "runtime-d0-standard-charge-power-herb-skip-execution-authority-v1"
 CONSUMPTION_SCHEMA_VERSION = "detached-standard-charge-power-herb-consumption-authority-v1"
-_SUPPORTED = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash"})
+_SUPPORTED = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
 _SOLAR = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT = frozenset({"meteor-beam", "skull-bash"})
+_SEMI_INVULNERABLE = frozenset({"fly", "dig", "dive", "bounce"})
 
 
 def freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(
@@ -86,6 +87,7 @@ def freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(
         or lifecycle.get("lifecycle_family") != (
             "weather_sensitive_charge_then_damage" if move_id in _SOLAR
             else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT
+            else "semi_invulnerable_charge_then_damage" if move_id in _SEMI_INVULNERABLE
             else "ordinary_charge_then_damage"
         )
         or lifecycle.get("power_herb_charge_skip_possible") is not True
