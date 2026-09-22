@@ -183,6 +183,36 @@ def test_canonical_identity_is_derived_without_user_entered_internal_fields():
     assert payload["decision_point"]==first["decision_point"]
 
 
+def test_identity_reuses_exact_existing_executed_action_when_available():
+    manager=_manager()
+    snapshot=manager.capture_runtime_state_snapshot(SESSION)
+    state=snapshot["state"]
+    owner=state["self_side"]["pokemon"][0]
+    observed={
+        "status":"ready",
+        "session_id":SESSION,
+        "ordered_observations":[{
+            "event_kind":"executed_move_observed",
+            "session_id":SESSION,
+            "turn_number":2,
+            "side":"self",
+            "slot_index":0,
+            "pokemon_id":owner["pokemon_id"],
+            "source":"ui_executed_move_confirmation",
+            "trust":"user_confirmed_observation",
+            "observation_id":"executed:1",
+            "observation_sequence":9,
+            "payload":{"move_id":"tackle","source_action_id":"exact-action:2:self"},
+        }],
+    }
+    resolved=resolve_pending_confusion_action_identity(
+        runtime_snapshot=snapshot,side="self",move_id="tackle",turn_number=2,
+        observation_snapshot=observed)
+    assert resolved["status"]=="resolved"
+    assert resolved["reason"]=="existing_execution_reuse"
+    assert resolved["action_id"]=="exact-action:2:self"
+
+
 def test_duplicate_same_opportunity_does_not_advance_twice():
     manager=_manager()
     first=_submit(manager,"confusion_self_hit")

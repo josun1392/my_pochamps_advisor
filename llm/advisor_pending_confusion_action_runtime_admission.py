@@ -14,7 +14,8 @@ from llm.advisor_detached_observed_rng_reconciliation import (
     retain_historical_confusion_action_gate,
 )
 from llm.advisor_lifecycle_confirmation import (
-    LifecycleConfirmationBoundary, PENDING_CONFUSION_ACTION_EXECUTION_SOURCE, USER_TRUST,
+    EXECUTED_MOVE_SOURCE, LifecycleConfirmationBoundary,
+    PENDING_CONFUSION_ACTION_EXECUTION_SOURCE, USER_TRUST,
 )
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
@@ -44,8 +45,8 @@ def resolve_pending_confusion_action_identity(*, runtime_snapshot:Mapping[str,An
         row for row in (observation_snapshot.get("ordered_observations", []) if isinstance(observation_snapshot,Mapping) else [])
         if isinstance(row,Mapping)
         and row.get("event_kind")=="executed_move_observed"
-        and row.get("source")=="ui_executed_move_confirmation"
-        and row.get("trust")=="user_confirmed_observation"
+        and row.get("source")==EXECUTED_MOVE_SOURCE
+        and row.get("trust")==USER_TRUST
         and row.get("session_id")==owner["session_id"] and row.get("turn_number")==turn_number
         and (row.get("side"),row.get("slot_index"),row.get("pokemon_id"))
         == (owner["side"],owner["slot_index"],owner["pokemon_id"])
@@ -63,7 +64,7 @@ def resolve_pending_confusion_action_identity(*, runtime_snapshot:Mapping[str,An
         action_id=linked
     decision_seed=f"{owner['session_id']}|{owner['side']}|{owner['slot_index']}|{owner['pokemon_id']}|{turn_number}|pending-confusion"
     decision_digest=hashlib.sha256(decision_seed.encode("utf-8")).hexdigest()[:12]
-    return {"status":"resolved","reason":"deterministic_pending_confusion_identity","owner":deepcopy(owner),
+    return {"status":"resolved","reason":"existing_execution_reuse" if compatible else "deterministic_pending_confusion_identity","owner":deepcopy(owner),
             "action_id":action_id,
             "decision_point":f"pending-confusion:{turn_number}:{owner['side']}:{decision_digest}"}
 
