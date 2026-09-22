@@ -121,6 +121,56 @@ def link_direct_damage_observation_to_predictive_action(
     return linked
 
 
+def link_condition_application_observation_to_predictive_action(
+    *, observation: Mapping[str, Any], predictive_binding: Mapping[str, Any],
+    predictive_ledger: Mapping[str, Any], executed_move_observation: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return a linked condition-application copy only after exact action authentication."""
+    checked = validate_historical_predictive_action_binding(
+        binding=predictive_binding, predictive_ledger=predictive_ledger,
+    )
+    if checked.get("status") != "resolved":
+        return checked
+    execution_error = _validate_execution_observation(executed_move_observation, checked)
+    if execution_error is not None:
+        return _result("rejected", execution_error)
+    if not isinstance(observation, Mapping) or observation.get("event_kind") != "condition_applied_observed":
+        return _result("rejected", "condition_application_observation_invalid")
+    if (
+        observation.get("session_id") != checked["session_id"]
+        or observation.get("turn_number") != checked["turn_number"]
+        or observation.get("source") != "ui_condition_application_confirmation"
+        or observation.get("trust") != "user_confirmed_observation"
+        or observation.get("observed") is not True
+        or observation.get("confirmed") is not True
+    ):
+        return _result("rejected", "condition_application_context_mismatch")
+    if not _owner_identity_equal(
+        {
+            "session_id": observation.get("session_id"),
+            "side": observation.get("side"),
+            "slot_index": observation.get("slot_index"),
+            "pokemon_id": observation.get("pokemon_id"),
+        },
+        checked["target"],
+    ):
+        return _result("rejected", "condition_application_target_mismatch")
+    condition = _payload(observation).get("condition")
+    if condition not in {"burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
+        return _result("rejected", "condition_application_condition_invalid")
+    if observation.get("move_id") not in {None, checked["move_id"]} or observation.get("source_action_id") not in {None, checked["source_action_id"]}:
+        return _result("rejected", "condition_application_preexisting_link_conflict")
+    linked = deepcopy(dict(observation))
+    linked.update(
+        move_id=checked["move_id"],
+        source_action_id=checked["source_action_id"],
+        reconciliation_eligible=True,
+        linked_execution_observation_id=executed_move_observation["observation_id"],
+        predictive_ledger_fingerprint=checked["predictive_ledger_fingerprint"],
+    )
+    return linked
+
+
 def reconcile_observed_scalar_attack_rng(
     *,
     predictive_ledger: Mapping[str, Any],
@@ -128,6 +178,7 @@ def reconcile_observed_scalar_attack_rng(
     executed_move_observation: Mapping[str, Any],
     previous_action_result_observation: Mapping[str, Any] | None = None,
     direct_damage_observation: Mapping[str, Any] | None = None,
+    target_condition_application_observation: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Filter original scalar terminal leaves by exact linked observations."""
     baseline_ledger = deepcopy(predictive_ledger)
@@ -135,6 +186,7 @@ def reconcile_observed_scalar_attack_rng(
     baseline_execution = deepcopy(executed_move_observation)
     baseline_result = deepcopy(previous_action_result_observation)
     baseline_damage = deepcopy(direct_damage_observation)
+    baseline_condition = deepcopy(target_condition_application_observation)
 
     parsed = _validate_scalar_ledger(predictive_ledger)
     if isinstance(parsed, str):
@@ -180,6 +232,17 @@ def reconcile_observed_scalar_attack_rng(
         constraints.append(("actual_damage", damage_amount))
         matched_facts["direct_damage"] = damage_amount
 
+    if target_condition_application_observation is not None:
+        condition_error = _validate_condition_application_observation(
+            target_condition_application_observation, checked_binding, executed_move_observation,
+        )
+        if condition_error is not None:
+            return _result("rejected", condition_error)
+        source_observations.append(target_condition_application_observation)
+        condition = _payload(target_condition_application_observation).get("condition")
+        constraints.append(("target_condition_applied", condition))
+        matched_facts["target_condition_applied"] = condition
+
     if not constraints:
         return _reconciliation_result(
             status="incomplete", reason="insufficient_observation", binding=checked_binding,
@@ -200,7 +263,7 @@ def reconcile_observed_scalar_attack_rng(
     )
     if predictive_ledger != baseline_ledger or predictive_binding != baseline_binding:
         return _result("rejected", "reconciliation_input_mutated")
-    if executed_move_observation != baseline_execution or previous_action_result_observation != baseline_result or direct_damage_observation != baseline_damage:
+    if executed_move_observation != baseline_execution or previous_action_result_observation != baseline_result or direct_damage_observation != baseline_damage or target_condition_application_observation != baseline_condition:
         return _result("rejected", "reconciliation_observation_mutated")
     return result
 
@@ -332,6 +395,42 @@ def _validate_direct_damage_observation(value: Any, binding: Mapping[str, Any], 
     return None
 
 
+def _validate_condition_application_observation(value: Any, binding: Mapping[str, Any], execution: Mapping[str, Any]) -> str | None:
+    if not isinstance(value, Mapping) or value.get("event_kind") != "condition_applied_observed":
+        return "condition_application_observation_invalid"
+    if (
+        value.get("session_id") != binding["session_id"]
+        or value.get("turn_number") != binding["turn_number"]
+        or value.get("source") != "ui_condition_application_confirmation"
+        or value.get("trust") != "user_confirmed_observation"
+        or value.get("observed") is not True
+        or value.get("confirmed") is not True
+    ):
+        return "condition_application_provenance_invalid"
+    target = {
+        "session_id": value.get("session_id"),
+        "side": value.get("side"),
+        "slot_index": value.get("slot_index"),
+        "pokemon_id": value.get("pokemon_id"),
+    }
+    if not _owner_identity_equal(target, binding["target"]):
+        return "condition_application_target_mismatch"
+    condition = _payload(value).get("condition")
+    if condition not in {"burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
+        return "condition_application_condition_invalid"
+    if value.get("move_id") != binding["move_id"] or value.get("source_action_id") != binding["source_action_id"]:
+        return "condition_application_action_link_mismatch"
+    if value.get("linked_execution_observation_id") != execution.get("observation_id"):
+        return "condition_application_execution_reference_mismatch"
+    if value.get("predictive_ledger_fingerprint") != binding["predictive_ledger_fingerprint"]:
+        return "condition_application_prediction_reference_mismatch"
+    if value.get("reconciliation_eligible") is not True:
+        return "condition_application_not_reconciliation_eligible"
+    if _sequence(value) <= _sequence(execution):
+        return "condition_application_sequence_invalid"
+    return None
+
+
 def _common_observation(value: Mapping[str, Any], binding: Mapping[str, Any], *, actor: bool) -> bool:
     if value.get("session_id") != binding["session_id"] or value.get("turn_number") != binding["turn_number"]:
         return False
@@ -351,6 +450,21 @@ def _leaf_matches(leaf: Mapping[str, Any], field: str, expected: Any) -> bool:
         consequences = leaf.get("consequences")
         source = consequences.get("source_hit_context") if isinstance(consequences, Mapping) else None
         return isinstance(source, Mapping) and source.get("actual_damage") == expected
+    if field == "target_condition_applied":
+        consequences = leaf.get("consequences")
+        secondary = consequences.get("secondary") if isinstance(consequences, Mapping) else None
+        if not isinstance(secondary, Mapping) or secondary.get("branch") != "effect":
+            return False
+        hypothetical = secondary.get("hypothetical_target_condition")
+        if not isinstance(hypothetical, Mapping):
+            return False
+        owner = hypothetical.get("owner")
+        return (
+            hypothetical.get("schema_version") == "detached-hypothetical-current-condition-v1"
+            and hypothetical.get("resulting_condition") == expected
+            and isinstance(owner, Mapping)
+            and _owner_identity_equal(owner, leaf.get("provenance", {}).get("target"))
+        )
     return False
 
 

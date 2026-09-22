@@ -58,6 +58,7 @@ from llm.advisor_entry_hazard_ko_replacement_runtime_admission import admit_entr
 from llm.advisor_production_forced_switch_integration import admit_forced_switch_phazing
 from llm.advisor_production_confusion_integration import admit_current_confusion_state
 from llm.advisor_current_condition_observation import admit_current_condition_observation
+from llm.advisor_action_linked_condition_application_observation import admit_action_linked_condition_application_observation
 from llm.advisor_status_progression_observation import admit_champions_status_progression_observation
 from llm.advisor_pending_status_action_runtime_admission import admit_pending_status_action_execution
 from llm.advisor_current_state_runtime_admission import (
@@ -705,13 +706,47 @@ class MainWindow(QMainWindow):
             except (AttributeError, RuntimeError):
                 pass
             return
-        result = admit_current_condition_observation(
-            runtime_session_manager=manager,
-            captured_session_id=session_id,
-            side=normalized["side"],
-            condition=normalized["condition_type"],
-            turn_number=getattr(self, "_current_trusted_turn_number", None),
-        )
+        result = None
+        linked = self._linked_executed_predictive_bundle()
+        if (
+            normalized["condition_type"] != "none"
+            and linked.get("status") == "resolved"
+            and linked.get("binding", {}).get("target", {}).get("side") == normalized["side"]
+        ):
+            binding = linked["binding"]
+            prompt = (
+                f"Was {normalized['condition_type']} newly applied by the confirmed "
+                f"{binding['move_id']} action on this turn?\n\n"
+                "Choose Yes only for a newly applied condition, not a current-condition snapshot."
+            )
+            if QMessageBox.question(
+                self,
+                "Confirm Action-Linked Condition Application",
+                prompt,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            ) == QMessageBox.StandardButton.Yes:
+                result = admit_action_linked_condition_application_observation(
+                    runtime_session_manager=manager,
+                    captured_session_id=session_id,
+                    predictive_binding=binding,
+                    predictive_ledger=linked["ledger"],
+                    executed_move_observation=linked["execution"],
+                    condition=normalized["condition_type"],
+                )
+                if result.get("status") == "resolved":
+                    self._reconcile_linked_predictive_action(
+                        binding["source_action_id"],
+                        condition_application=result["observation"],
+                    )
+        if result is None:
+            result = admit_current_condition_observation(
+                runtime_session_manager=manager,
+                captured_session_id=session_id,
+                side=normalized["side"],
+                condition=normalized["condition_type"],
+                turn_number=getattr(self, "_current_trusted_turn_number", None),
+            )
         if result.get("status") != "resolved":
             try:
                 self.statusBar().showMessage("Condition confirmation failed: exact runtime confirmation was rejected")
@@ -2250,7 +2285,7 @@ class MainWindow(QMainWindow):
             return {"status": "incomplete", "reason": "linked_execution_not_unique"}
         return {"status": "resolved", **matches[0]}
 
-    def _reconcile_linked_predictive_action(self, source_action_id: str, direct_damage: dict | None = None) -> dict:
+    def _reconcile_linked_predictive_action(self, source_action_id: str, direct_damage: dict | None = None, condition_application: dict | None = None) -> dict:
         """Build detached C5 evidence only; never write reconciliation into runtime truth."""
         manager = getattr(self, "_observation_runtime_session_manager", None)
         bundle = getattr(self, "_historical_predictive_action_bindings", {}).get(source_action_id)
@@ -2267,12 +2302,21 @@ class MainWindow(QMainWindow):
         results = [row for row in rows if isinstance(row, dict) and row.get("event_kind") == "previous_action_result_observed" and row.get("payload", {}).get("previous_action_id") == source_action_id]
         if len(results) > 1:
             return {"status": "rejected", "reason": "duplicate_linked_action_result"}
+        damages = [row for row in rows if isinstance(row, dict) and row.get("event_kind") == "direct_move_damage_observed" and row.get("source_action_id") == source_action_id and row.get("reconciliation_eligible") is True]
+        conditions = [row for row in rows if isinstance(row, dict) and row.get("event_kind") == "condition_applied_observed" and row.get("source_action_id") == source_action_id and row.get("reconciliation_eligible") is True]
+        if direct_damage is None and len(damages) == 1:
+            direct_damage = damages[0]
+        if condition_application is None and len(conditions) == 1:
+            condition_application = conditions[0]
+        if len(damages) > 1 or len(conditions) > 1:
+            return {"status": "rejected", "reason": "duplicate_linked_reconciliation_evidence"}
         reconciliation = reconcile_observed_scalar_attack_rng(
             predictive_ledger=ledger,
             predictive_binding=binding,
             executed_move_observation=execution,
             previous_action_result_observation=results[0] if results else None,
             direct_damage_observation=direct_damage,
+            target_condition_application_observation=condition_application,
         )
         self._last_observed_rng_reconciliation = deepcopy(reconciliation)
         return reconciliation
