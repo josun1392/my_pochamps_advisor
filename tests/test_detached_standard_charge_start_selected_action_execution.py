@@ -187,9 +187,8 @@ def test_power_herb_active_readiness_bypasses_charge_start_materializer():
     assert result["reason"] == "standard_charge_start_readiness_semantics_invalid"
 
 
-@pytest.mark.parametrize("move_id", ("fly", "geomancy"))
-def test_unsupported_charge_families_cannot_use_standard_charge_start(move_id):
-    _state0, snapshot, d0, action, actor, target, readiness = _inputs(move_id)
+def test_geomancy_can_use_shared_charge_start_without_terminal_boosts():
+    _state0, snapshot, d0, action, actor, target, readiness = _inputs("geomancy")
     result = materialize_detached_standard_charge_start(
         strategy_d0=d0,
         runtime_snapshot=snapshot,
@@ -198,8 +197,13 @@ def test_unsupported_charge_families_cannot_use_standard_charge_start(move_id):
         target=target,
         readiness_authority=readiness,
     )
-    assert result["status"] == "rejected"
-    assert result["reason"] == "standard_charge_start_action_identity_invalid"
+    assert result["status"] == "resolved", result
+    leaf = result["action_leaf"]
+    assert "charge_turn_self_stage_effect" not in leaf["consequences"]
+    assert "geomancy_terminal_self_stage_transition" not in leaf["consequences"]
+    context = result["detached_charge_lifecycle_context"]
+    assert context["canonical_lifecycle_family"] == "charge_then_status_terminal"
+    assert context["execution_model"] == "other_two_turn"
 
 
 def test_stale_or_foreign_readiness_and_identity_reject():

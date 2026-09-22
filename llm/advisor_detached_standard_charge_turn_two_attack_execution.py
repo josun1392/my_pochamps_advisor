@@ -11,6 +11,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from advisor.canonical_standard_charge_turn_two_effects import resolve_canonical_standard_charge_turn_two_effect
+from advisor.canonical_geomancy_charge_status_terminal import resolve_canonical_geomancy_charge_status_terminal
 from llm.advisor_next_turn_predictive_mechanics_authority import validate_forced_continuation_predictive_mechanics_binding
 from llm.advisor_transition_preview import fingerprint_transition_preview_state
 from llm.advisor_detached_next_turn_held_item_effect_applicability import materialize_detached_next_turn_held_item_effect_applicability
@@ -27,6 +28,11 @@ from llm.advisor_standard_charge_terminal_execution import (
 )
 from llm.advisor_solar_terminal_weather_damage_modifier import (
     materialize_solar_terminal_weather_damage_modifier_authority,
+)
+from llm.advisor_geomancy_charge_status_terminal_execution import (
+    FORCED_MODE as GEOMANCY_FORCED_MODE,
+    execute_geomancy_status_terminal,
+    materialize_geomancy_status_terminal_contract,
 )
 
 
@@ -91,11 +97,12 @@ def validate_detached_standard_charge_turn_two_attack_execution(*, result: Any, 
 def _authority_row(side: str, action: Mapping[str, Any], bound: Mapping[str, Any], fingerprint: str) -> dict[str, Any] | str:
     if action.get("side") != side or action.get("lifecycle_state") != "turn_two_continuation_forced" or action.get("continuation_forced") is not True or action.get("execution_grant") is not False:
         return "forced_continuation_lifecycle_invalid"
-    effect = resolve_canonical_standard_charge_turn_two_effect(action.get("move_id"))
+    effect = _canonical_terminal_effect(action.get("move_id"))
     if effect.get("status") != "resolved": return "canonical_terminal_effect_unavailable"
     lifecycle = effect["lifecycle"]
     expected_family = (
-        "weather_sensitive_charge_then_damage" if action.get("move_id") in _SOLAR_MOVES
+        "charge_then_status_terminal" if action.get("move_id") == "geomancy"
+        else "weather_sensitive_charge_then_damage" if action.get("move_id") in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if action.get("move_id") in _SELF_EFFECT_MOVES
         else "semi_invulnerable_charge_then_damage" if action.get("move_id") in _SEMI_INVULNERABLE_MOVES
         else "ordinary_charge_then_damage"
@@ -122,6 +129,8 @@ def materialize_detached_standard_charge_turn_two_terminal_execution_contract(
     row = execution_authority.get("actions", {}).get(side)
     if not isinstance(row, Mapping) or row.get("status") != "resolved":
         return _result("rejected", "standard_charge_turn_two_action_unavailable")
+    if row.get("move_id") == "geomancy":
+        return _result("rejected", "geomancy_requires_status_terminal_contract")
 
     actor = row["predictive_actor_mechanics"]
     target = row["predictive_target_mechanics"]
@@ -224,6 +233,47 @@ def validate_detached_standard_charge_turn_two_terminal_execution_contract(
 
 
 def _execute_one(row: Mapping[str, Any], execution_authority: Mapping[str, Any], pair_local_predictive_mechanics: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    if row.get("move_id") == "geomancy":
+        actor = row["predictive_actor_mechanics"]
+        target = row["predictive_target_mechanics"]
+        if pair_local_predictive_mechanics is not None:
+            from llm.advisor_detached_next_turn_pair_local_predictive_mechanics import (
+                validate_detached_next_turn_pair_local_predictive_mechanics,
+            )
+            if validate_detached_next_turn_pair_local_predictive_mechanics(
+                authority=pair_local_predictive_mechanics,
+                next_decision_state=execution_authority.get("next_decision_state"),
+                next_decision_fingerprint=execution_authority.get("source_next_decision_fingerprint"),
+            ) is not None:
+                return {"status": "incomplete", "schema_version": SCHEMA_VERSION, "reason": "pair_local_predictive_mechanics_invalid"}
+            sides = pair_local_predictive_mechanics.get("sides", {})
+            actor = sides.get(row["actor"]["side"])
+            target = sides.get(row["target"]["side"])
+            if (
+                not isinstance(actor, Mapping)
+                or not isinstance(target, Mapping)
+                or actor.get("owner") != row["actor"]
+                or target.get("owner") != row["target"]
+            ):
+                return {"status": "incomplete", "schema_version": SCHEMA_VERSION, "reason": "pair_local_execution_identity_mismatch"}
+        contract = materialize_geomancy_status_terminal_contract(
+            execution_mode=GEOMANCY_FORCED_MODE,
+            source_state_fingerprint=execution_authority["source_next_decision_fingerprint"],
+            actor=row["actor"],
+            target=row["target"],
+            action_id=row["continuation_action_id"],
+            actor_mechanics=actor,
+            target_mechanics=target,
+            caller_action_authority=row,
+        )
+        if contract.get("status") != "resolved":
+            return {"status": contract.get("status", "incomplete"), "schema_version": SCHEMA_VERSION, "reason": contract.get("reason", "geomancy_status_terminal_contract_unavailable")}
+        result = execute_geomancy_status_terminal(contract)
+        result = deepcopy(dict(result))
+        result["schema_version"] = SCHEMA_VERSION
+        if result.get("status") == "resolved":
+            result["provenance"] = "authenticated_detached_geomancy_turn_two_status_terminal_v1"
+        return result
     # Backward-compatible private entry used by detached ordinary attacks.
     if execution_authority.get("schema_version") != AUTHORITY_SCHEMA_VERSION:
         actor, target = row["predictive_actor_mechanics"], row["predictive_target_mechanics"]
@@ -364,9 +414,17 @@ def _authority_is_self_consistent(authority: Mapping[str, Any]) -> bool:
         other = "opponent" if side == "self" else "self"
         if not isinstance(source, Mapping) or row.get("actor") != source.get("actor") or row.get("target") != source.get("resolved_target_owner") or row.get("move_id") != source.get("move_id") or row.get("continuation_action_id") != source.get("continuation_action_id") or row.get("original_charge_action_id") != source.get("original_charge_action_id") or row.get("predictive_actor_mechanics") != source_sides.get(side) or row.get("predictive_target_mechanics") != source_sides.get(other):
             return False
-        if row.get("canonical_terminal_effect") != resolve_canonical_standard_charge_turn_two_effect(source.get("move_id")):
+        if row.get("canonical_terminal_effect") != _canonical_terminal_effect(source.get("move_id")):
             return False
     return True
+
+
+def _canonical_terminal_effect(move_id: Any) -> dict[str, Any]:
+    return (
+        resolve_canonical_geomancy_charge_status_terminal("geomancy")
+        if move_id == "geomancy"
+        else resolve_canonical_standard_charge_turn_two_effect(move_id)
+    )
 
 
 def _result(status: str, reason: str) -> dict[str, Any]: return {"status": status, "schema_version": AUTHORITY_SCHEMA_VERSION, "reason": reason}

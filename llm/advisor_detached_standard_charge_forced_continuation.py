@@ -26,7 +26,7 @@ ACTION_SCHEMA_VERSION = "detached-standard-charge-forced-continuation-action-v1"
 METADATA_SCHEMA_VERSION = "detached-standard-charge-continuation-move-metadata-authority-v1"
 _SIDES = ("self", "opponent")
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force", "geomancy"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
 _EXPECTED_CATEGORY = {
@@ -44,6 +44,7 @@ _EXPECTED_CATEGORY = {
     "bounce": "physical",
     "phantom-force": "physical",
     "shadow-force": "physical",
+    "geomancy": "status",
 }
 
 
@@ -274,7 +275,7 @@ def _present_source_error(
         or context.get("move_id") != move_id
         or context.get("action_id") != action_id
         or context.get("canonical_lifecycle_family") != _expected_family(move_id)
-        or context.get("execution_model") != ("semi_invulnerable_then_execute" if move_id in {"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"} else "charge_then_execute")
+        or context.get("execution_model") != ("other_two_turn" if move_id == "geomancy" else "semi_invulnerable_then_execute" if move_id in {"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"} else "charge_then_execute")
         or context.get("turn_two_continuation_required") is not True
         or context.get("immediate_damage_executed") is not False
         or context.get("charge_turn_damage") != 0
@@ -307,7 +308,7 @@ def _present_source_error(
         or canonical.get("status") != "resolved"
         or canonical.get("move_id") != move_id
         or canonical.get("lifecycle_family") != _expected_family(move_id)
-        or canonical.get("execution_model") != ("semi_invulnerable_then_execute" if move_id in {"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"} else "charge_then_execute")
+        or canonical.get("execution_model") != ("other_two_turn" if move_id == "geomancy" else "semi_invulnerable_then_execute" if move_id in {"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"} else "charge_then_execute")
     ):
         return "standard_charge_next_turn_canonical_lifecycle_invalid"
 
@@ -428,6 +429,17 @@ def _metadata_error(
     accuracy = metadata.get("accuracy")
     priority = metadata.get("priority")
     move_type = metadata.get("type")
+    if move_id == "geomancy":
+        if (
+            category != "status"
+            or power != 0
+            or accuracy is not True
+            or not _integer(priority)
+            or not isinstance(move_type, str)
+            or not move_type
+        ):
+            return "standard_charge_continuation_move_metadata_invalid"
+        return None
     if (
         category != _EXPECTED_CATEGORY[move_id]
         or not _positive_int(power)
@@ -443,7 +455,8 @@ def _metadata_error(
 
 def _expected_family(move_id: str) -> str:
     return (
-        "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
+        "charge_then_status_terminal" if move_id == "geomancy"
+        else "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
         else "semi_invulnerable_charge_then_damage" if move_id in {"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"}
         else "ordinary_charge_then_damage"

@@ -23,7 +23,7 @@ from llm.advisor_detached_semi_invulnerable_charge_authority import (
 SCHEMA_VERSION = "detached-standard-charge-start-v1"
 CONTEXT_SCHEMA_VERSION = "detached-standard-charge-lifecycle-context-v1"
 _READINESS_SCHEMA = "runtime-d0-standard-charge-start-readiness-authority-v1"
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force", "geomancy"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
 _SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
@@ -246,7 +246,7 @@ def validate_detached_standard_charge_start(
         or context.get("action_id") != base["action_id"]
         or context.get("move_id") != base["move_id"]
         or context.get("canonical_lifecycle_family") != _expected_family(base["move_id"])
-        or context.get("execution_model") != ("semi_invulnerable_then_execute" if base["move_id"] in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
+        or context.get("execution_model") != ("other_two_turn" if base["move_id"] == "geomancy" else "semi_invulnerable_then_execute" if base["move_id"] in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
         or context.get("source_target_owner") != target
         or context.get("continuation_target_locator")
         != readiness["continuation_target_locator"]
@@ -411,7 +411,7 @@ def validate_pair_compatible_standard_charge_leaf(leaf: Any) -> str | None:
         not isinstance(canonical, Mapping)
         or canonical.get("move_id") != move_id
         or canonical.get("lifecycle_family") != _expected_family(move_id)
-        or canonical.get("execution_model") != ("semi_invulnerable_then_execute" if move_id in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
+        or canonical.get("execution_model") != ("other_two_turn" if move_id == "geomancy" else "semi_invulnerable_then_execute" if move_id in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
     ):
         return "standard_charge_leaf_canonical_lifecycle_invalid"
     locator = context.get("continuation_target_locator")
@@ -424,7 +424,7 @@ def validate_pair_compatible_standard_charge_leaf(leaf: Any) -> str | None:
         or context.get("action_id") != action_id
         or context.get("move_id") != move_id
         or context.get("canonical_lifecycle_family") != _expected_family(move_id)
-        or context.get("execution_model") != ("semi_invulnerable_then_execute" if move_id in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
+        or context.get("execution_model") != ("other_two_turn" if move_id == "geomancy" else "semi_invulnerable_then_execute" if move_id in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
         or context.get("source_target_owner") != target
         or not isinstance(locator, Mapping)
         or set(locator) != {"session_id", "side", "slot_index"}
@@ -609,8 +609,12 @@ def _readiness_error(
         canonical.get("status") != "resolved"
         or value.get("canonical_charge_lifecycle_authority") != canonical
         or canonical.get("lifecycle_family") != _expected_family(base["move_id"])
-        or canonical.get("execution_model") != ("semi_invulnerable_then_execute" if base["move_id"] in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
-        or canonical.get("terminal_effect_class") != "damaging_move"
+        or canonical.get("execution_model") != (
+            "other_two_turn" if base["move_id"] == "geomancy"
+            else "semi_invulnerable_then_execute" if base["move_id"] in _SEMI_INVULNERABLE_MOVES
+            else "charge_then_execute"
+        )
+        or canonical.get("terminal_effect_class") != ("self_stat_change" if base["move_id"] == "geomancy" else "damaging_move")
         or canonical.get("canonical_recognition_grants_immediate_execution") is not False
     ):
         return "rejected", "standard_charge_start_canonical_lifecycle_invalid"
@@ -622,7 +626,8 @@ def _readiness_error(
 
 def _expected_family(move_id: str) -> str:
     return (
-        "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
+        "charge_then_status_terminal" if move_id == "geomancy"
+        else "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
         else "semi_invulnerable_charge_then_damage" if move_id in _SEMI_INVULNERABLE_MOVES
         else "ordinary_charge_then_damage"

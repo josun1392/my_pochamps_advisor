@@ -221,14 +221,16 @@ def test_power_herb_klutz_suppressed_by_neutralizing_gas_enables_skip_readiness(
     assert result["power_herb_applicability_authority"]["item_effects_active"] is True
 
 
-@pytest.mark.parametrize(
-    "move_id",
-    ("geomancy",),
-)
-def test_non_standard_charge_families_are_outside_this_owner(move_id):
-    *_rest, result = _inputs(move_id, item_mode="absent")
-    assert result["status"] == "unsupported"
-    assert result["reason"] == "standard_charge_lifecycle_family_not_supported"
+def test_geomancy_status_terminal_charge_family_is_admitted_narrowly():
+    *_rest, result = _inputs("geomancy", item_mode="absent")
+    assert result["status"] == "resolved", result
+    assert result["outcome"] == "charge_start_ready"
+    canonical = result["canonical_charge_lifecycle_authority"]
+    assert canonical["lifecycle_family"] == "charge_then_status_terminal"
+    assert canonical["execution_model"] == "other_two_turn"
+    assert canonical["terminal_effect_class"] == "self_stat_change"
+    assert canonical["semi_invulnerability_class"] is None
+    assert canonical["protection_bypass_later_execution"] is False
 
 
 def test_continuation_target_locator_is_position_only():

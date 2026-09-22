@@ -227,7 +227,7 @@ _ROWS: dict[str, dict[str, Any]] = {
         "protection_bypass_later_execution": False,
         "weather_sensitive_charge_skip": False,
         "weak_weather_damage_modifier_present": False,
-        "tokens": ("category: \"Status\"", "basePower: 0", "boosts: {", "spa: 2", "spd: 2", "spe: 2"),
+        "tokens": ("accuracy: true", "basePower: 0", "category: \"Status\"", "boosts: {", "spa: 2", "spd: 2", "spe: 2", "target: \"self\"", "type: \"Fairy\""),
     },
 }
 

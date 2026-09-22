@@ -19,7 +19,7 @@ TRANSPORT_SCHEMA_VERSION = "detached-standard-charge-lifecycle-transport-authori
 POST_EOT_SCHEMA_VERSION = "detached-standard-charge-post-eot-lifecycle-authority-v1"
 NEXT_TURN_SCHEMA_VERSION = "detached-standard-charge-next-turn-continuation-authority-v1"
 _SIDES = ("self", "opponent")
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force", "geomancy"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
 _SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
@@ -592,7 +592,7 @@ def _transport_row_shape(row: Any, side: str) -> str | None:
         or not isinstance(row.get("action_id"), str)
         or not row["action_id"]
         or row.get("canonical_lifecycle_family") != _expected_family(row.get("move_id"))
-        or row.get("execution_model") != ("semi_invulnerable_then_execute" if row.get("move_id") in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
+        or row.get("execution_model") != ("other_two_turn" if row.get("move_id") == "geomancy" else "semi_invulnerable_then_execute" if row.get("move_id") in _SEMI_INVULNERABLE_MOVES else "charge_then_execute")
         or not _locator(row.get("continuation_target_locator"), opposite_of=side)
         or row.get("pp_consumption_materialized") is not False
         or row.get("power_herb_skip_active") is not False
@@ -615,7 +615,8 @@ def _active_owner(active: Mapping[str, Any]) -> dict[str, Any]:
 
 def _expected_family(move_id: Any) -> str:
     return (
-        "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
+        "charge_then_status_terminal" if move_id == "geomancy"
+        else "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
         else "semi_invulnerable_charge_then_damage" if move_id in _SEMI_INVULNERABLE_MOVES
         else "ordinary_charge_then_damage"

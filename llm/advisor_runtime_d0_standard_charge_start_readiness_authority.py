@@ -21,8 +21,8 @@ from llm.advisor_runtime_d0_solar_charge_weather_authority import (
 
 
 SCHEMA_VERSION = "runtime-d0-standard-charge-start-readiness-authority-v1"
-_SUPPORTED_FAMILIES = frozenset({"ordinary_charge_then_damage", "weather_sensitive_charge_then_damage", "charge_turn_self_effect_then_damage", "semi_invulnerable_charge_then_damage"})
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
+_SUPPORTED_FAMILIES = frozenset({"ordinary_charge_then_damage", "weather_sensitive_charge_then_damage", "charge_turn_self_effect_then_damage", "semi_invulnerable_charge_then_damage", "charge_then_status_terminal"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force", "geomancy"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
 _SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
@@ -255,12 +255,17 @@ def _base(
 
 def _canonical_error(canonical: Mapping[str, Any], move_id: str) -> str | None:
     expected_family = (
-        "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
+        "charge_then_status_terminal" if move_id == "geomancy"
+        else "weather_sensitive_charge_then_damage" if move_id in _SOLAR_MOVES
         else "charge_turn_self_effect_then_damage" if move_id in _SELF_EFFECT_MOVES
         else "semi_invulnerable_charge_then_damage" if move_id in _SEMI_INVULNERABLE_MOVES
         else "ordinary_charge_then_damage"
     )
-    expected_execution = "semi_invulnerable_then_execute" if move_id in _SEMI_INVULNERABLE_MOVES else "charge_then_execute"
+    expected_execution = (
+        "other_two_turn" if move_id == "geomancy"
+        else "semi_invulnerable_then_execute" if move_id in _SEMI_INVULNERABLE_MOVES
+        else "charge_then_execute"
+    )
     expected = {
         "move_id": move_id,
         "is_charge_move": True,
@@ -270,7 +275,7 @@ def _canonical_error(canonical: Mapping[str, Any], move_id: str) -> str | None:
         "charge_move_event_participation": True,
         "twoturnmove_state_usage": True,
         "existing_move_volatile_continuation": True,
-        "terminal_effect_class": "damaging_move",
+        "terminal_effect_class": "self_stat_change" if move_id == "geomancy" else "damaging_move",
         "power_herb_charge_skip_possible": True,
         "canonical_recognition_grants_immediate_execution": False,
         "source": "pinned_showdown_charge_move_lifecycle_v1",

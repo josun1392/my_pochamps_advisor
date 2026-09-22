@@ -362,6 +362,49 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
             "resulting_stage": charge_turn.get("resulting_stage"),
             "charge_turn_self_stage_effect": deepcopy(dict(charge_turn)),
         })
+    geomancy = consequences.get("geomancy_terminal_self_stage_transition")
+    if isinstance(geomancy, Mapping):
+        transitions = geomancy.get("transitions")
+        if (
+            geomancy.get("status") != "resolved"
+            or geomancy.get("schema_version") != "geomancy-terminal-self-stage-transition-v1"
+            or geomancy.get("owner") != leaf.get("provenance", {}).get("attacker")
+            or geomancy.get("action_id") != leaf.get("candidate_id")
+            or geomancy.get("move_id") != "geomancy"
+            or geomancy.get("timing") != "terminal_execution"
+            or geomancy.get("provenance") != "authenticated_geomancy_terminal_self_stage_transition_v1"
+            or not isinstance(transitions, (tuple, list))
+            or len(transitions) != 3
+        ):
+            return "geomancy_terminal_self_stage_transition_invalid"
+        expected_stats = {"special-attack", "special-defense", "speed"}
+        seen = set()
+        for transition in transitions:
+            if (
+                not isinstance(transition, Mapping)
+                or transition.get("stat") not in expected_stats
+                or transition.get("stat") in seen
+                or transition.get("delta") != 2
+                or not isinstance(transition.get("previous_stage"), int)
+                or isinstance(transition.get("previous_stage"), bool)
+                or not -6 <= transition["previous_stage"] <= 6
+                or not isinstance(transition.get("resulting_stage"), int)
+                or isinstance(transition.get("resulting_stage"), bool)
+                or not -6 <= transition["resulting_stage"] <= 6
+                or transition["resulting_stage"] != min(6, transition["previous_stage"] + 2)
+            ):
+                return "geomancy_terminal_self_stage_transition_invalid"
+            seen.add(transition["stat"])
+            result.append({
+                "owner": "self",
+                "stat": transition["stat"],
+                "previous_stage": transition["previous_stage"],
+                "delta": 2,
+                "resulting_stage": transition["resulting_stage"],
+                "geomancy_terminal_self_stage_transition": deepcopy(dict(geomancy)),
+            })
+        if seen != expected_stats:
+            return "geomancy_terminal_self_stage_transition_invalid"
     deterministic = consequences.get("deterministic_stage_effect")
     if isinstance(deterministic, Mapping):
         damage = consequences.get("damage")
@@ -419,6 +462,20 @@ def _stage_effects(leaf: Mapping[str, Any], consequences: Mapping[str, Any]) -> 
         and actor_item_after == {"status": "known_absent", "value": None}
     ):
         result.append({"owner": "self", "hypothetical_self_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_power_herb_consumption", "effect": deepcopy(dict(power_herb))}})
+    geomancy_power_herb = consequences.get("geomancy_power_herb_consumption")
+    if (
+        isinstance(geomancy_power_herb, Mapping)
+        and geomancy_power_herb.get("status") == "resolved"
+        and geomancy_power_herb.get("schema_version") == "detached-geomancy-power-herb-consumption-authority-v1"
+        and geomancy_power_herb.get("phase") == "after_pre_action_gate_at_charge_move_skip"
+        and geomancy_power_herb.get("item_before") == "power-herb"
+        and geomancy_power_herb.get("item_after") == {"status": "known_absent", "value": None}
+        and actor_item_after == {"status": "known_absent", "value": None}
+        and geomancy_power_herb.get("actor") == leaf.get("provenance", {}).get("attacker")
+        and geomancy_power_herb.get("action_id") == leaf.get("candidate_id")
+        and geomancy_power_herb.get("move_id") == "geomancy"
+    ):
+        result.append({"owner": "self", "hypothetical_self_item": {"status": "known_absent", "value": None, "source": "exact_terminal_leaf_geomancy_power_herb_consumption", "effect": deepcopy(dict(geomancy_power_herb))}})
     sitrus = consequences.get("sitrus_berry_immediate_consumption")
     item_after = sitrus.get("item_after") if isinstance(sitrus, Mapping) else None
     if isinstance(sitrus, Mapping) and sitrus.get("status") == "resolved" and sitrus.get("outcome") == "activated" and isinstance(item_after, Mapping) and item_after.get("status") == "known_absent" and item_after.get("value") is None:

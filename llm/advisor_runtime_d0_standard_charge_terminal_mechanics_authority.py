@@ -9,6 +9,7 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 from advisor.canonical_standard_charge_turn_two_effects import resolve_canonical_standard_charge_turn_two_effect
+from advisor.canonical_geomancy_charge_status_terminal import resolve_canonical_geomancy_charge_status_terminal
 from llm.advisor_champions_confusion_progression import valid_confusion_progression
 from llm.advisor_champions_status_progression import valid_progression
 from llm.advisor_runtime_d0_focus_sash_survival_authority import freeze_runtime_d0_focus_sash_survival_authority
@@ -163,7 +164,11 @@ def _base(d0: Any, snapshot: Any, action: Any, actor: Any, target: Any, metadata
     active = d0.get("active_owners")
     if not isinstance(move_id, str) or action.get("identity", action.get("move_id")) != move_id or not isinstance(active, Mapping) or active.get(actor.get("side")) != dict(actor) or active.get(target.get("side")) != dict(target): return None
     if runtime_strategy_d0_freshness(strategy_d0=d0, runtime_snapshot=snapshot).get("status") != "current": return None
-    effect = resolve_canonical_standard_charge_turn_two_effect(move_id)
+    effect = (
+        resolve_canonical_geomancy_charge_status_terminal("geomancy")
+        if move_id == "geomancy"
+        else resolve_canonical_standard_charge_turn_two_effect(move_id)
+    )
     if effect.get("status") != "resolved": return None
     return {"session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": deepcopy(dict(d0["decision_owner"])), "actor": deepcopy(dict(actor)), "target": deepcopy(dict(target)), "action_id": action["action_id"], "move_id": move_id, "source_action_id": action["action_id"], "source_move_id": move_id}
 

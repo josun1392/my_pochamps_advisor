@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from core.charge_move_repository import ChargeMoveRepository
 from llm.advisor_detached_predictive_intermediate_state import (
     materialize_detached_predictive_intermediate_state,
 )
@@ -24,11 +25,11 @@ from tests.test_detached_opponent_response_profile import (
 )
 
 
-STANDARD = ("sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force")
+STANDARD = ("sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force", "geomancy")
 
 
 def _charge_metadata(move_id: str) -> dict:
-    category = "special" if move_id in {"razor-wind", "ice-burn", "solar-beam", "meteor-beam"} else "physical"
+    category = "status" if move_id == "geomancy" else "special" if move_id in {"razor-wind", "ice-burn", "solar-beam", "meteor-beam"} else "physical"
     power = {
         "sky-attack": 140,
         "razor-wind": 80,
@@ -44,6 +45,7 @@ def _charge_metadata(move_id: str) -> dict:
         "bounce": 85,
         "phantom-force": 90,
         "shadow-force": 120,
+        "geomancy": 0,
     }[move_id]
     move_type = {
         "sky-attack": "flying",
@@ -60,15 +62,16 @@ def _charge_metadata(move_id: str) -> dict:
         "bounce": "flying",
         "phantom-force": "ghost",
         "shadow-force": "ghost",
+        "geomancy": "fairy",
     }[move_id]
     return {
         "move_id": move_id,
         "category": category,
         "power": power,
         "type": move_type,
-        "accuracy": 95 if move_id == "fly" else 85 if move_id == "bounce" else 100 if move_id in {"solar-beam", "solar-blade", "razor-wind", "skull-bash", "dig", "dive", "phantom-force", "shadow-force"} else 90,
+        "accuracy": True if move_id == "geomancy" else 95 if move_id == "fly" else 85 if move_id == "bounce" else 100 if move_id in {"solar-beam", "solar-blade", "razor-wind", "skull-bash", "dig", "dive", "phantom-force", "shadow-force"} else 90,
         "priority": 0,
-        "target": "selected-pokemon",
+        "target": "self" if move_id == "geomancy" else "selected-pokemon",
     }
 
 
@@ -344,22 +347,21 @@ def test_standard_charge_excluded_counterpart_families_fail_closed_before_specia
         assert pair["reason"] == "standard_charge_pair_counterpart_family_unrepresented"
 
 
-def test_nonstandard_charge_moves_keep_global_guard():
-    for move_id in ("geomancy",):
-        state = _complete_state(_state())
-        snapshot = _snapshot(state)
-        d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
-        metadata = _metadata(move_id)["metadata"]
-        metadata["category"] = "status" if move_id == "geomancy" else metadata["category"]
-        own = _own_action(d0, d0["active_owners"]["self"], move_id, metadata)
-        opponent = _opponent_action(d0, "tackle")
-        pair = materialize_immediate_move_vs_move_action_pair(
-            strategy_d0=d0, runtime_snapshot=snapshot,
-            own_action=own, opponent_action=opponent,
-            action_order_authority=_order(d0, own, opponent, "own_first"),
-        )
-        assert pair["status"] == "unsupported"
-        assert pair["reason"] == "two_turn_execution_unrepresented"
+def test_geomancy_dedicated_charge_pair_is_admitted_while_global_raw_guard_stays_closed():
+    state = _complete_state(_state())
+    snapshot = _snapshot(state)
+    d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
+    own = _own_action(d0, d0["active_owners"]["self"], "geomancy")
+    opponent = _opponent_action(d0, "tackle")
+    pair = materialize_immediate_move_vs_move_action_pair(
+        strategy_d0=d0, runtime_snapshot=snapshot,
+        own_action=own, opponent_action=opponent,
+        action_order_authority=_order(d0, own, opponent, "own_first"),
+    )
+    assert pair["status"] == "evaluable", pair
+    guard = ChargeMoveRepository().immediate_execution_guard("geomancy")
+    assert guard["reason"] == "two_turn_execution_unrepresented"
+    assert guard["canonical_recognition_grants_immediate_execution"] is False
 
 def test_opponent_charge_second_after_ordinary_own_attack_uses_branch_local_hp_and_ledger_mapping():
     _state0, _snapshot0, d0, _own, _opp, _order0, pair = _case(
