@@ -1059,3 +1059,166 @@ def _sleep_freeze_hidden_dimensions(branches: Sequence[Mapping[str, Any]]) -> tu
         if len(values) > 1:
             dimensions.append(key)
     return tuple(dimensions)
+
+
+_CONFUSION_RETENTION_SCHEMA = "historical-confusion-action-gate-v1"
+_CONFUSION_RETENTION_PROVENANCE = "authenticated_pre_observation_confusion_action_gate_v1"
+_CONFUSION_OUTCOME_TO_BRANCH = {
+    "confusion_self_hit": "confusion_self_hit",
+    "confusion_selected_action_executes": "confusion_selected_action_executes",
+    "confusion_snaps_out_and_executes": "confusion_snaps_out_and_executes",
+}
+
+
+def retain_historical_confusion_action_gate(
+    *, predictive_gate: Mapping[str, Any], turn_number: int, decision_point: str,
+) -> dict[str, Any]:
+    from llm.advisor_champions_confusion_action_gate import validate_confusion_gate
+    if not validate_confusion_gate(predictive_gate):
+        return _result("rejected", "invalid_confusion_action_gate")
+    if predictive_gate.get("confusion") != "confused":
+        return _result("rejected", "confusion_action_gate_not_active")
+    if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1:
+        return _result("rejected", "invalid_trusted_turn_number")
+    if not isinstance(decision_point, str) or not decision_point:
+        return _result("rejected", "invalid_confusion_decision_point")
+    gate = deepcopy(dict(predictive_gate))
+    progression = gate.get("progression")
+    origin_id = progression.get("origin_id") if isinstance(progression, Mapping) else None
+    if not isinstance(origin_id, str) or not origin_id:
+        return _result("rejected", "confusion_progression_origin_missing")
+    return {
+        "status": "resolved", "schema_version": _CONFUSION_RETENTION_SCHEMA,
+        "session_id": gate["session_id"], "turn_number": turn_number,
+        "actor": deepcopy(gate["actor"]), "decision_point": decision_point,
+        "action_id": gate["action_id"], "move_id": gate["move_id"],
+        "confusion_origin_id": origin_id,
+        "source_runtime_fingerprint": gate["source_runtime_fingerprint"],
+        "source_branch_fingerprint": gate["source_branch_fingerprint"],
+        "prediction_fingerprint": _fingerprint(gate),
+        "predictive_gate": gate, "provenance": _CONFUSION_RETENTION_PROVENANCE,
+    }
+
+
+def validate_historical_confusion_action_gate(retained: Mapping[str, Any]) -> dict[str, Any]:
+    from llm.advisor_champions_confusion_action_gate import validate_confusion_gate
+    if not isinstance(retained, Mapping) or retained.get("schema_version") != _CONFUSION_RETENTION_SCHEMA:
+        return _result("rejected", "historical_confusion_gate_missing")
+    gate = retained.get("predictive_gate")
+    if not isinstance(gate, Mapping) or not validate_confusion_gate(gate):
+        return _result("rejected", "historical_confusion_gate_invalid")
+    if _fingerprint(gate) != retained.get("prediction_fingerprint"):
+        return _result("rejected", "historical_confusion_prediction_fingerprint_mismatch")
+    progression = gate.get("progression")
+    expected = {
+        "session_id": gate.get("session_id"), "actor": gate.get("actor"),
+        "action_id": gate.get("action_id"), "move_id": gate.get("move_id"),
+        "confusion_origin_id": progression.get("origin_id") if isinstance(progression, Mapping) else None,
+        "source_runtime_fingerprint": gate.get("source_runtime_fingerprint"),
+        "source_branch_fingerprint": gate.get("source_branch_fingerprint"),
+        "provenance": _CONFUSION_RETENTION_PROVENANCE,
+    }
+    if any(retained.get(key) != value for key, value in expected.items()):
+        return _result("rejected", "historical_confusion_gate_identity_mismatch")
+    if not isinstance(retained.get("turn_number"), int) or isinstance(retained.get("turn_number"), bool) or retained["turn_number"] < 1:
+        return _result("rejected", "historical_confusion_turn_invalid")
+    if not isinstance(retained.get("decision_point"), str) or not retained["decision_point"]:
+        return _result("rejected", "historical_confusion_decision_point_invalid")
+    return deepcopy(dict(retained))
+
+
+def reconcile_observed_confusion_action_gate_rng(
+    *, retained_prediction: Mapping[str, Any],
+    pending_confusion_action_observation: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    checked = validate_historical_confusion_action_gate(retained_prediction)
+    if checked.get("status") != "resolved":
+        return checked
+    branches = checked["predictive_gate"]["branches"]
+    if pending_confusion_action_observation is None:
+        return _confusion_reconciliation_result(
+            status="incomplete", reason="insufficient_observation", retained=checked,
+            observations=(), compatible_branches=branches, matched={})
+    if (not isinstance(pending_confusion_action_observation, Mapping)
+            or pending_confusion_action_observation.get("event_kind") != "pending_confusion_action_execution_observed"):
+        return _confusion_reconciliation_result(
+            status="incomplete", reason="insufficient_observation", retained=checked,
+            observations=(), compatible_branches=branches, matched={})
+    error = _validate_pending_confusion_action_observation(pending_confusion_action_observation, checked)
+    if error:
+        return _result("rejected", error)
+    payload = pending_confusion_action_observation["payload"]
+    kind = _CONFUSION_OUTCOME_TO_BRANCH[payload["outcome_class"]]
+    compatible = tuple(branch for branch in branches if branch.get("kind") == kind)
+    return _confusion_reconciliation_result(
+        status="resolved", reason=None, retained=checked,
+        observations=(pending_confusion_action_observation,), compatible_branches=compatible,
+        matched={"outcome_class": payload["outcome_class"]})
+
+
+def _validate_pending_confusion_action_observation(value: Mapping[str, Any], retained: Mapping[str, Any]) -> str | None:
+    if (value.get("session_id") != retained["session_id"] or value.get("turn_number") != retained["turn_number"]
+            or value.get("source") != "ui_pending_confusion_action_execution_confirmation"
+            or value.get("trust") != "user_confirmed_observation"
+            or value.get("observed") is not True or value.get("confirmed") is not True or _sequence(value) <= 0):
+        return "pending_confusion_action_observation_provenance_mismatch"
+    actor = retained["actor"]
+    if (value.get("side"), value.get("slot_index"), value.get("pokemon_id")) != (
+        actor.get("side"), actor.get("slot_index"), actor.get("pokemon_id")):
+        return "pending_confusion_action_actor_mismatch"
+    payload = value.get("payload")
+    if not isinstance(payload, Mapping) or set(payload) != {"decision_point", "action_id", "move_id", "outcome_class"}:
+        return "pending_confusion_action_payload_invalid"
+    if payload.get("decision_point") != retained["decision_point"]:
+        return "pending_confusion_action_decision_point_mismatch"
+    if payload.get("action_id") != retained["action_id"]:
+        return "pending_confusion_action_action_id_mismatch"
+    if payload.get("move_id") != retained["move_id"]:
+        return "pending_confusion_action_move_mismatch"
+    if payload.get("outcome_class") not in _CONFUSION_OUTCOME_TO_BRANCH:
+        return "unsupported_pending_confusion_action_outcome"
+    return None
+
+
+def _confusion_reconciliation_result(*, status: str, reason: str | None, retained: Mapping[str, Any],
+                                     observations: Sequence[Mapping[str, Any]],
+                                     compatible_branches: Sequence[Mapping[str, Any]],
+                                     matched: Mapping[str, Any]) -> dict[str, Any]:
+    mass = sum((_fraction(branch.get("probability")) or Fraction() for branch in compatible_branches), Fraction())
+    outcome = None if status != "resolved" else (
+        "incompatible_observation" if not compatible_branches else
+        "uniquely_matched" if len(compatible_branches) == 1 else "multiple_compatible_branches")
+    refs = tuple({"observation_id": row.get("observation_id"), "observation_sequence": _sequence(row),
+                  "event_kind": row.get("event_kind")} for row in observations)
+    return {
+        "status": status, "schema_version": RECONCILIATION_SCHEMA_VERSION, "reason": reason,
+        "source_prediction_kind": "confusion_action_gate",
+        "source_prediction_identity": {
+            "schema_version": "champions-confusion-action-gate-v1",
+            "prediction_fingerprint": retained["prediction_fingerprint"],
+        },
+        "session_id": retained["session_id"], "turn_number": retained["turn_number"],
+        "actor": deepcopy(retained["actor"]), "decision_point": retained["decision_point"],
+        "action_id": retained["action_id"], "move_id": retained["move_id"],
+        "confusion_origin_id": retained["confusion_origin_id"],
+        "source_runtime_fingerprint": retained["source_runtime_fingerprint"],
+        "source_branch_fingerprint": retained["source_branch_fingerprint"],
+        "source_observations": refs, "match_outcome": outcome,
+        "compatible_branch_ids": tuple(branch["branch_id"] for branch in compatible_branches),
+        "compatible_original_probability_mass": _fd(mass),
+        "probability_normalization": "none_preserve_original_mass",
+        "matched_observable_facts": deepcopy(dict(matched)),
+        "unresolved_hidden_dimensions": _confusion_hidden_dimensions(compatible_branches),
+        "provenance": _RECONCILIATION_PROVENANCE,
+    }
+
+
+def _confusion_hidden_dimensions(branches: Sequence[Mapping[str, Any]]) -> tuple[str, ...]:
+    if len(branches) < 2:
+        return ()
+    dimensions = []
+    for key in ("duration", "duration_identity", "opportunity"):
+        values = {_canonical_bytes(branch.get(key)) for branch in branches if key in branch}
+        if len(values) > 1:
+            dimensions.append(key)
+    return tuple(dimensions)

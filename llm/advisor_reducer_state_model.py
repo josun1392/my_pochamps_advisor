@@ -22,6 +22,13 @@ from llm.advisor_champions_status_action_lifecycle_derived_observation import (
     DERIVED_KINDS as STATUS_ACTION_DERIVED_KINDS, MECHANICS_DERIVED_TRUST as STATUS_ACTION_TRUST,
     CHAMPIONS_STATUS_ACTION_LIFECYCLE_SOURCE, PROGRESSION_DERIVED, CONDITION_CLEARED_DERIVED,
 )
+from llm.advisor_champions_confusion_action_lifecycle_derived_observation import (
+    DERIVED_KINDS as CONFUSION_ACTION_DERIVED_KINDS,
+    MECHANICS_DERIVED_TRUST as CONFUSION_ACTION_TRUST,
+    CHAMPIONS_CONFUSION_ACTION_LIFECYCLE_SOURCE,
+    PROGRESSION_DERIVED as CONFUSION_PROGRESSION_DERIVED,
+    CLEARED_DERIVED as CONFUSION_CLEARED_DERIVED,
+)
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
@@ -38,6 +45,9 @@ _TARGETS["record_champions_status_progression"] = "pokemon.champions_status_prog
 _TARGETS["advance_champions_status_progression"] = "pokemon.champions_status_progression"
 _TARGETS["clear_champions_status_condition"] = "pokemon.condition"
 _TARGETS["record_champions_confusion_progression"] = "pokemon.champions_confusion_progression"
+_TARGETS["record_pending_confusion_action_execution"] = "state.pending_confusion_action_execution_context"
+_TARGETS["advance_champions_confusion_progression"] = "pokemon.champions_confusion_progression"
+_TARGETS["clear_champions_confusion"] = "pokemon.current_confusion"
 _TARGETS["set_current_confusion_state"] = "pokemon.current_confusion"
 _TARGETS["record_previous_action_result"] = "pokemon.previous_action_result"
 _TARGETS["set_switch_entry_trace_ability"] = "pokemon.current_ability"
@@ -845,7 +855,7 @@ def _normalize_steps(steps, plan):
         previous, seen = (seq, oid), seen | {oid}
         event = deepcopy(events.get(oid, {})); event.update(deepcopy(raw))
         event["observation_id"], event["observation_sequence"], event["planned_effect"] = oid, seq, effect
-        if event.get("trust") == MECHANICS_DERIVED_TRUST and event.get("event_kind") not in DERIVED_KINDS | STATUS_ACTION_DERIVED_KINDS:
+        if event.get("trust") == MECHANICS_DERIVED_TRUST and event.get("event_kind") not in DERIVED_KINDS | STATUS_ACTION_DERIVED_KINDS | CONFUSION_ACTION_DERIVED_KINDS:
             return [], "mechanics_derived_trust_on_non_derived_event"
         if not _has_target_identity(event): return [], "missing_required_target_identity"
         if event.get("event_kind") in DERIVED_KINDS:
@@ -860,6 +870,12 @@ def _normalize_steps(steps, plan):
             if not _valid_status_action_derived_binding(event, source, batch_ids, plan.get("session_id")):
                 return [], "invalid_champions_status_action_lifecycle_binding"
             event["_status_action_source_pending"] = deepcopy(source)
+        if event.get("event_kind") in CONFUSION_ACTION_DERIVED_KINDS:
+            source_id = _value(event, "source_pending_observation_id")
+            source = events.get(source_id)
+            if not _valid_confusion_action_derived_binding(event, source, batch_ids, plan.get("session_id")):
+                return [], "invalid_champions_confusion_action_lifecycle_binding"
+            event["_confusion_action_source_pending"] = deepcopy(source)
         result.append(event)
     return result, None
 
@@ -868,6 +884,25 @@ def _value(event, name):
     if name in event: return event[name]
     payload = event.get("payload")
     return payload.get(name) if isinstance(payload, dict) else None
+
+
+def _valid_confusion_action_derived_binding(event, source, batch_ids, session):
+    if (event.get("trust") != CONFUSION_ACTION_TRUST
+            or event.get("source") != CHAMPIONS_CONFUSION_ACTION_LIFECYCLE_SOURCE
+            or event.get("scope") != "champions_confusion_action_lifecycle"
+            or not isinstance(source, dict)
+            or source.get("observation_id") not in batch_ids
+            or source.get("event_kind") != "pending_confusion_action_execution_observed"
+            or source.get("session_id") != session
+            or source.get("turn_number") != event.get("turn_number")
+            or source.get("observation_sequence", 0) >= event.get("observation_sequence", 0)):
+        return False
+    sp, ep = source.get("payload"), event.get("payload")
+    if not isinstance(sp, dict) or not isinstance(ep, dict):
+        return False
+    if ep.get("source_pending_observation_id") != source.get("observation_id"):
+        return False
+    return all(ep.get(key) == sp.get(key) for key in ("decision_point", "action_id", "move_id", "outcome_class"))
 
 
 def _valid_switch_entry_derived_binding(event, source, batch_ids, session):
@@ -1046,7 +1081,7 @@ def _mark_pending_lifecycle_terminal(state, event):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
-    if effect in {"record_champions_status_progression", "advance_champions_status_progression", "clear_champions_status_condition", "record_champions_confusion_progression", "set_current_confusion_state", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
+    if effect in {"record_champions_status_progression", "advance_champions_status_progression", "clear_champions_status_condition", "record_champions_confusion_progression", "record_pending_confusion_action_execution", "advance_champions_confusion_progression", "clear_champions_confusion", "set_current_confusion_state", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_confusion_state" or (_value(event, "confusion_state") in {"confused", "none"} and _value(event, "trust") == "user_confirmed_observation"))
     if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_mat_block_active_entry_eligibility", "set_fake_out_active_entry_eligibility", "set_current_ability", "set_switch_entry_trace_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry", "set_berry_eaten_state"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
@@ -1139,6 +1174,13 @@ def _apply(state, event):
         if effect == "advance_champions_status_progression":
             return _advance_champions_status_progression(state, event)
         return _clear_champions_status_condition(state, event)
+    if event.get("event_kind") in CONFUSION_ACTION_DERIVED_KINDS:
+        reason = _valid_confusion_action_derived_transition(state, event)
+        if reason:
+            return _conflict(event, reason)
+        if effect == "advance_champions_confusion_progression":
+            return _advance_champions_confusion_progression(state, event)
+        return _clear_champions_confusion(state, event)
     if event.get("event_kind") in DERIVED_KINDS:
         reason = _valid_switch_entry_derived_transition(state, event)
         if reason:
@@ -1169,6 +1211,8 @@ def _apply(state, event):
         data = {k: _value(event, k) for k in ("side", "slot_index", "pokemon_id", "state", "origin_id", "established_turn", "prior_opportunities", "duration", "turn_number", "trust")}; data["session_id"] = state["session_id"]
         error = observe_confusion_progression(state=state, pokemon=pokemon, event=data)
         return _conflict(event, error) if error else None
+    if effect == "record_pending_confusion_action_execution":
+        return _record_pending_confusion_action_execution(state, event)
     if effect == "set_current_confusion_state":
         return _set_current_confusion_state(state, event)
     if effect == "set_current_condition":
@@ -1695,6 +1739,77 @@ def _set_current_opponent_switch_target_combat(state, event):
     pokemon["condition_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "condition": payload["condition"]}
     pokemon["known_item_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "status": item.get("status")}
     pokemon["current_ability_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn}
+    return None
+
+
+def _record_pending_confusion_action_execution(state, event):
+    pokemon = _pokemon(state, event)
+    if (not isinstance(pokemon, dict) or pokemon.get("fainted") is True
+            or pokemon.get("current_confusion") != "confused"
+            or not isinstance(pokemon.get("champions_confusion_progression"), dict)):
+        return _conflict(event, "invalid_pending_confusion_action_state")
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else event
+    if payload.get("outcome_class") not in {"confusion_self_hit", "confusion_selected_action_executes", "confusion_snaps_out_and_executes"}:
+        return _conflict(event, "invalid_pending_confusion_action_outcome")
+    state["pending_confusion_action_execution_context"] = {
+        "actor": {"session_id": state["session_id"], "side": _value(event, "side"), "slot_index": _value(event, "slot_index"), "pokemon_id": _value(event, "pokemon_id")},
+        "decision_point": payload.get("decision_point"), "action_id": payload.get("action_id"),
+        "move_id": payload.get("move_id"), "outcome_class": payload.get("outcome_class"),
+        "provenance": _provenance(event) | {"turn_number": _value(event, "turn_number")},
+    }
+    return None
+
+
+def _valid_confusion_action_derived_transition(state, event):
+    pokemon = _pokemon(state, event)
+    source = state.get("pending_confusion_action_execution_context")
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else event
+    if not isinstance(pokemon, dict) or not isinstance(source, dict):
+        return "invalid_confusion_action_derived_source"
+    actor = {"session_id": state["session_id"], "side": _value(event, "side"), "slot_index": _value(event, "slot_index"), "pokemon_id": _value(event, "pokemon_id")}
+    if source.get("actor") != actor:
+        return "confusion_action_source_actor_mismatch"
+    for key in ("decision_point", "action_id", "move_id", "outcome_class"):
+        if source.get(key) != payload.get(key):
+            return "confusion_action_source_binding_mismatch"
+    if payload.get("source_pending_observation_id") != source.get("provenance", {}).get("source_observation_id"):
+        return "confusion_action_source_observation_mismatch"
+    row = pokemon.get("champions_confusion_progression")
+    if event.get("event_kind") == CONFUSION_PROGRESSION_DERIVED:
+        before, after = payload.get("prior_opportunities_before"), payload.get("prior_opportunities_after")
+        if (pokemon.get("current_confusion") != "confused" or not isinstance(row, dict)
+                or row.get("prior_opportunities") != before or after != before + 1
+                or after > 4 or payload.get("outcome_class") not in {"confusion_self_hit", "confusion_selected_action_executes"}):
+            return "invalid_champions_confusion_progression_transition"
+        return None
+    if pokemon.get("current_confusion") != "confused" or payload.get("outcome_class") != "confusion_snaps_out_and_executes":
+        return "invalid_champions_confusion_clear"
+    return None
+
+
+def _advance_champions_confusion_progression(state, event):
+    pokemon = _pokemon(state, event)
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else event
+    row = deepcopy(pokemon.get("champions_confusion_progression")) if isinstance(pokemon, dict) else None
+    if not isinstance(row, dict):
+        return _conflict(event, "invalid_champions_confusion_progression_transition")
+    row["prior_opportunities"] = payload["prior_opportunities_after"]
+    row["observed_turn"] = _value(event, "turn_number")
+    pokemon["champions_confusion_progression"] = row
+    return None
+
+
+def _clear_champions_confusion(state, event):
+    pokemon = _pokemon(state, event)
+    if not isinstance(pokemon, dict):
+        return _conflict(event, "invalid_champions_confusion_clear")
+    pokemon["current_confusion"] = "none"
+    pokemon["confusion_provenance"] = _provenance(event) | {
+        "event_kind": CONFUSION_CLEARED_DERIVED, "trust": CONFUSION_ACTION_TRUST,
+        "source": CHAMPIONS_CONFUSION_ACTION_LIFECYCLE_SOURCE, "state": "none",
+        "source_pending_observation_id": _value(event, "source_pending_observation_id"),
+    }
+    pokemon["champions_confusion_progression"] = None
     return None
 
 

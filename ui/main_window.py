@@ -57,6 +57,10 @@ from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observat
 from llm.advisor_entry_hazard_ko_replacement_runtime_admission import admit_entry_hazard_ko_replacement
 from llm.advisor_production_forced_switch_integration import admit_forced_switch_phazing
 from llm.advisor_production_confusion_integration import admit_current_confusion_state
+from llm.advisor_pending_confusion_action_runtime_admission import (
+    admit_pending_confusion_action_execution,
+    resolve_pending_confusion_action_identity,
+)
 from llm.advisor_current_condition_observation import admit_current_condition_observation
 from llm.advisor_action_linked_condition_application_observation import admit_action_linked_condition_application_observation
 from llm.advisor_status_progression_observation import admit_champions_status_progression_observation
@@ -513,6 +517,7 @@ class MainWindow(QMainWindow):
         self._structured_observed_damage_confirmations: list[dict] = []
         self._contact_result_action_ids: dict[tuple[str, str, int, str], str] = {}
         self._historical_predictive_action_bindings: dict[str, dict] = {}
+        self._historical_confusion_action_gates: dict[tuple[str, int, str, str], dict] = {}
         self._last_observed_rng_reconciliation: dict | None = None
         self._battle_counter_confirmation: dict[str, int] | None = None
         self._consecutive_use_confirmation: dict[str, int | bool] | None = None
@@ -1631,6 +1636,9 @@ class MainWindow(QMainWindow):
         self._confirm_confusion_state_action = QAction("Confirm Confusion State", self)
         self._confirm_confusion_state_action.triggered.connect(self._open_confusion_state_confirmation)
         battle_menu.addAction(self._confirm_confusion_state_action)
+        self._confirm_confusion_action_result_action = QAction("Confirm Confusion Action Result", self)
+        self._confirm_confusion_action_result_action.triggered.connect(self._open_confusion_action_result_confirmation)
+        battle_menu.addAction(self._confirm_confusion_action_result_action)
         self._confirm_paralysis_result_action = QAction("Confirm Thunder Wave / Nuzzle Result", self)
         self._confirm_paralysis_result_action.triggered.connect(self._open_paralysis_result_confirmation)
         battle_menu.addAction(self._confirm_paralysis_result_action)
@@ -1658,7 +1666,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -1701,6 +1709,8 @@ class MainWindow(QMainWindow):
         if QMessageBox.question(self, "Confirm Pokémon Switch", f"Confirm {side} switch to slot {slot_index} / {pokemon_id}?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
             return
         result = self._confirm_pokemon_switch(side=side, switch_in_slot_index=slot_index, switch_in_pokemon_id=pokemon_id)
+        if result.get("status") == "resolved":
+            self._historical_confusion_action_gates = {}
         self.statusBar().showMessage("Pokémon switch applied" if result.get("status") == "resolved" else "Switch confirmation failed: exact runtime confirmation was rejected")
 
     @Slot()
@@ -1786,6 +1796,8 @@ class MainWindow(QMainWindow):
         confused = choice.startswith("Confused")
         if QMessageBox.question(self, "Confirm Confusion State", f"Confirm {choice} for {side} active Pokémon?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes: return
         result = admit_current_confusion_state(runtime_session_manager=manager, captured_session_id=session_id, side=side, state="confused" if confused else "none", newly_established=choice.startswith("Confused — newly"), turn_number=getattr(self, "_current_trusted_turn_number", None))
+        if result.get("status") == "resolved":
+            self._historical_confusion_action_gates = {}
         self.statusBar().showMessage("Confusion state applied" if result.get("status") == "resolved" else "Confusion confirmation failed or is incomplete")
 
     @Slot()
@@ -1807,6 +1819,120 @@ class MainWindow(QMainWindow):
         if QMessageBox.question(self, "Confirm Thunder Wave / Nuzzle Result", f"Confirm {move_id} {outcome} against {target_side}?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes: return
         result = admit_observed_champions_paralysis_result(runtime_session_manager=manager, captured_session_id=session_id, target_side=target_side, move_id=move_id, outcome=outcome, turn_number=getattr(self, "_current_trusted_turn_number", None), hp_after=hp_after)
         self.statusBar().showMessage("Paralysis result applied" if result.get("status") == "resolved" else "Paralysis result confirmation failed or is incomplete")
+
+    @Slot()
+    def _open_confusion_action_result_confirmation(self) -> None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str):
+            self.statusBar().showMessage("Confusion action confirmation failed: active session unavailable")
+            return
+        side, ok = QInputDialog.getItem(self, "Confirm Confusion Action Result", "Acting side", ["self", "opponent"], 0, False)
+        if not ok:
+            return
+        move_id, ok = QInputDialog.getText(self, "Confirm Confusion Action Result", "Selected move id")
+        if not ok:
+            return
+        outcome, ok = QInputDialog.getItem(
+            self,
+            "Confirm Confusion Action Result",
+            "Observed confusion result",
+            ["confusion_self_hit", "confusion_selected_action_executes", "confusion_snaps_out_and_executes"],
+            0,
+            False,
+        )
+        if not ok:
+            return
+        snapshot = manager.capture_runtime_state_snapshot(session_id)
+        actor = self._resolve_pending_confusion_actor(snapshot, session_id=session_id, side=side)
+        if actor.get("status") != "resolved":
+            self.statusBar().showMessage("Confusion action confirmation failed: exact confused actor unavailable")
+            return
+        identity = self._resolve_pending_confusion_action_identity(
+            captured_session_id=session_id,
+            owner=actor["owner"],
+            move_id=move_id,
+            turn_number=turn_number,
+            runtime_snapshot=snapshot,
+        )
+        if identity.get("status") != "resolved":
+            self.statusBar().showMessage("Confusion action confirmation failed: exact action identity unavailable")
+            return
+        if QMessageBox.question(
+            self,
+            "Confirm Confusion Action Result",
+            f"Confirm {outcome} for {side} / {move_id}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        result = admit_pending_confusion_action_execution(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            side=actor["owner"]["side"],
+            slot_index=actor["owner"]["slot_index"],
+            pokemon_id=actor["owner"]["pokemon_id"],
+            turn_number=turn_number,
+            decision_point=identity["decision_point"],
+            action_id=identity["action_id"],
+            move_id=move_id,
+            outcome_class=outcome,
+        )
+        retained = result.get("retained_prediction") if isinstance(result, dict) else None
+        if result.get("status") == "resolved" and isinstance(retained, dict):
+            key = (session_id, turn_number, identity["decision_point"], identity["action_id"])
+            storage = dict(getattr(self, "_historical_confusion_action_gates", {}))
+            storage[key] = deepcopy(retained)
+            self._historical_confusion_action_gates = storage
+            reconciliation = result.get("rng_reconciliation")
+            if isinstance(reconciliation, dict):
+                self._last_observed_rng_reconciliation = deepcopy(reconciliation)
+            self._retire_advice_presentation_authority()
+            self._recommendation_readiness_owner = None
+        self.statusBar().showMessage(
+            "Confusion action result applied"
+            if result.get("status") == "resolved"
+            else "Confusion action confirmation failed or is incomplete"
+        )
+
+    def _resolve_pending_confusion_actor(self, runtime_snapshot: dict, *, session_id: str, side: object) -> dict:
+        state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, dict) else None
+        side_state = state.get(f"{side}_side") if isinstance(state, dict) and side in {"self", "opponent"} else None
+        roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+        slot = side_state.get("active_slot_index") if isinstance(side_state, dict) else None
+        pokemon = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) and isinstance(slot, int) else None
+        if not isinstance(pokemon, dict) or pokemon.get("fainted") is True or pokemon.get("current_confusion") != "confused":
+            return {"status": "incomplete", "reason": "current_confusion_action_actor_unavailable"}
+        progression = pokemon.get("champions_confusion_progression")
+        if not isinstance(progression, dict) or progression.get("state") != "confused":
+            return {"status": "incomplete", "reason": "current_confusion_progression_unavailable"}
+        return {"status": "resolved", "reason": None, "owner": {
+            "session_id": session_id, "side": side, "slot_index": slot, "pokemon_id": pokemon.get("pokemon_id"),
+        }}
+
+    def _resolve_pending_confusion_action_identity(
+        self, *, captured_session_id: str, owner: dict, move_id: object,
+        turn_number: object, runtime_snapshot: dict,
+    ) -> dict:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager):
+            return {"status": "rejected", "reason": "invalid_pending_confusion_action_identity"}
+        resolved = resolve_pending_confusion_action_identity(
+            runtime_snapshot=runtime_snapshot,
+            side=owner.get("side") if isinstance(owner, dict) else None,
+            move_id=move_id,
+            turn_number=turn_number,
+            observation_snapshot=manager.read_collection_snapshot(),
+        )
+        if resolved.get("status") != "resolved" or resolved.get("owner") != owner:
+            return resolved if resolved.get("status") != "resolved" else {
+                "status": "rejected", "reason": "pending_confusion_action_actor_mismatch",
+            }
+        return {
+            "status": "resolved", "reason": resolved.get("reason"),
+            "action_id": resolved["action_id"], "decision_point": resolved["decision_point"],
+        }
 
     @Slot()
     def _open_previous_action_confirmation(self) -> None:
@@ -2236,6 +2362,7 @@ class MainWindow(QMainWindow):
         # This only synchronizes presentation after reducer application.  It is
         # ordinary navigation and deliberately emits no observation itself.
         self.select_slot("team_my" if side == "self" else "team_enemy", switch_in_slot_index)
+        self._historical_confusion_action_gates = {}
         self._retire_advice_presentation_authority()
         self._recommendation_readiness_owner = None
         try:
@@ -2275,6 +2402,7 @@ class MainWindow(QMainWindow):
         """Replace temporary C5 bindings from one fresh pre-action strategy result."""
         self._historical_predictive_action_bindings = {}
         self._historical_sleep_freeze_action_gates = {}
+        self._historical_confusion_action_gates = {}
         self._last_observed_rng_reconciliation = None
         turn_number = getattr(self, "_current_trusted_turn_number", None)
         ledgers = strategy_result.get("exact_outcome_ledgers") if isinstance(strategy_result, dict) else None
@@ -2618,6 +2746,7 @@ class MainWindow(QMainWindow):
         self._contact_result_action_ids = {}
         self._historical_predictive_action_bindings = {}
         self._historical_sleep_freeze_action_gates = {}
+        self._historical_confusion_action_gates = {}
         self._last_observed_rng_reconciliation = None
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
@@ -2662,6 +2791,7 @@ class MainWindow(QMainWindow):
         if prior != turn_number:
             self._historical_predictive_action_bindings = {}
             self._historical_sleep_freeze_action_gates = {}
+            self._historical_confusion_action_gates = {}
             self._last_observed_rng_reconciliation = None
         self._current_trusted_turn_number = turn_number
 
