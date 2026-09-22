@@ -18,7 +18,7 @@ def create_unknown_bootstrap_battle_state(session_id, self_identity, opponent_id
         "session_id": session_id,
         "self_side": _side(self_roster_ids),
         "opponent_side": _side(opponent_roster_ids),
-        "field": {"weather": make_unknown_battle_fact(), "terrain": make_unknown_battle_fact(), "battle_format": make_unknown_battle_fact(), "trick_room_status": make_unknown_battle_fact(), "magic_room_status": make_unknown_battle_fact()},
+        "field": {"weather": make_unknown_battle_fact(), "terrain": make_unknown_battle_fact(), "battle_format": make_unknown_battle_fact(), "trick_room_status": make_unknown_battle_fact(), "magic_room_status": make_unknown_battle_fact(), "gravity_status": make_unknown_battle_fact()},
         "last_applied_observation_sequence": None,
     }
     if battle_format is not None:
@@ -67,6 +67,7 @@ def _pokemon(pokemon_id):
         "condition": make_unknown_battle_fact(),
         "healing_prevented_status": make_unknown_battle_fact(),
         "known_item": make_unknown_battle_fact(),
+        "locked_on_state": make_unknown_battle_fact(),
     }
 
 

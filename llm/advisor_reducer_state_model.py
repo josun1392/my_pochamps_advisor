@@ -47,6 +47,8 @@ _TARGETS["apply_encore_restriction"] = "state.current_encore_restrictions"
 _TARGETS["complete_encore_restricted_active_turn"] = "state.current_encore_restrictions"
 _TARGETS["apply_disable_restriction"] = "state.current_disable_restrictions"
 _TARGETS["complete_disable_restricted_active_turn"] = "state.current_disable_restrictions"
+_TARGETS["set_current_locked_on_state"] = "pokemon.locked_on_state"
+_TARGETS["set_observed_gravity"] = "field.gravity_status"
 for _persistent_effect in ("aqua_ring", "ingrain", "leech_seed"):
     _TARGETS[f"set_current_{_persistent_effect}_state"] = "state.current_persistent_effect_context"
 
@@ -84,7 +86,7 @@ def validate_battle_state_unknown_markers(state):
         for slot, pokemon in roster.items():
             if not isinstance(pokemon, dict):
                 return False
-            if any(not _valid_fact_marker(pokemon.get(field)) for field in ("current_level", "current_hp", "max_hp", "fainted", "condition", "known_item")) or not _valid_current_condition_state(pokemon.get("condition"), pokemon.get("condition_provenance")) or not _valid_current_healing_prevented_state(pokemon.get("healing_prevented_status", make_unknown_battle_fact()), pokemon.get("healing_prevented_status_provenance")) or not _valid_current_item_state(pokemon.get("known_item"), pokemon.get("known_item_provenance")) or not _valid_current_level_state(pokemon.get("current_level"), pokemon.get("current_level_provenance")) or not _valid_current_final_stats(pokemon.get("current_final_stats")) or not _valid_current_type_state(pokemon.get("current_type"), pokemon.get("current_type_provenance")) or not _valid_current_ability_state(pokemon.get("current_ability"), pokemon.get("current_ability_provenance")) or not _valid_toxic_progression_state(pokemon.get("toxic_progression")) or not _valid_berry_eaten_state(pokemon.get("berry_eaten_state", make_unknown_battle_fact()), pokemon.get("berry_eaten_state_provenance")):
+            if any(not _valid_fact_marker(pokemon.get(field)) for field in ("current_level", "current_hp", "max_hp", "fainted", "condition", "known_item")) or not _valid_current_condition_state(pokemon.get("condition"), pokemon.get("condition_provenance")) or not _valid_current_healing_prevented_state(pokemon.get("healing_prevented_status", make_unknown_battle_fact()), pokemon.get("healing_prevented_status_provenance")) or not _valid_current_item_state(pokemon.get("known_item"), pokemon.get("known_item_provenance")) or not _valid_current_level_state(pokemon.get("current_level"), pokemon.get("current_level_provenance")) or not _valid_current_final_stats(pokemon.get("current_final_stats")) or not _valid_current_type_state(pokemon.get("current_type"), pokemon.get("current_type_provenance")) or not _valid_current_ability_state(pokemon.get("current_ability"), pokemon.get("current_ability_provenance")) or not _valid_toxic_progression_state(pokemon.get("toxic_progression")) or not _valid_berry_eaten_state(pokemon.get("berry_eaten_state", make_unknown_battle_fact()), pokemon.get("berry_eaten_state_provenance")) or not _valid_current_locked_on_state(state, pokemon.get("locked_on_state", make_unknown_battle_fact()), pokemon.get("locked_on_state_provenance")):
                 return False
             known_moves = pokemon.get("known_move_ids", [])
             if not isinstance(known_moves, list) or len(known_moves) > 4 or any(not _canonical_move_id(move) for move in known_moves) or len(set(known_moves)) != len(known_moves) or not _valid_known_move_provenance(pokemon.get("known_move_ids_provenance"), known_moves):
@@ -94,7 +96,7 @@ def validate_battle_state_unknown_markers(state):
             expected_owner = {"session_id": state.get("session_id"), "side": "self" if side_name == "self_side" else "opponent", "slot_index": slot, "pokemon_id": pokemon.get("pokemon_id", pokemon.get("name_en"))} if isinstance(slot, int) and not isinstance(slot, bool) else None
             if not _valid_last_executed_move(state, pokemon.get("last_executed_move"), expected_owner) or not _valid_previous_action_result(state, pokemon.get("previous_action_result"), expected_owner):
                 return False
-            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "known_move_ids_provenance", "current_move_usability", "toxic_progression", "condition", "condition_provenance", "healing_prevented_status", "healing_prevented_status_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance", "last_executed_move", "previous_action_result", "rage_fist_hit_count", "berry_eaten_state", "berry_eaten_state_provenance"}):
+            if any(_contains_marker(value) for key, value in pokemon.items() if key not in {"current_level", "current_level_provenance", "current_final_stats", "current_hp", "max_hp", "fainted", "current_type", "current_type_provenance", "current_ability", "current_ability_provenance", "known_item", "known_item_provenance", "known_move_ids_provenance", "current_move_usability", "toxic_progression", "condition", "condition_provenance", "healing_prevented_status", "healing_prevented_status_provenance", "current_crit_volatiles", "current_crit_volatiles_provenance", "last_executed_move", "previous_action_result", "rage_fist_hit_count", "berry_eaten_state", "berry_eaten_state_provenance", "locked_on_state", "locked_on_state_provenance"}):
                 return False
     field = state.get("field")
     if not isinstance(field, dict) or not all(_valid_fact_marker(field.get(name)) for name in ("weather", "terrain", "battle_format")) or not _valid_current_weather_state(field.get("weather"), field.get("weather_provenance")) or not _valid_current_terrain_state(field.get("terrain"), field.get("terrain_provenance")) or not _valid_current_battle_format_state(field.get("battle_format"), field.get("battle_format_provenance")):
@@ -111,7 +113,13 @@ def validate_battle_state_unknown_markers(state):
         return False
     if isinstance(magic_room, str) and magic_room in {"active", "inactive"} and not isinstance(magic_room_provenance, dict):
         return False
-    if any(_contains_marker(value) for key, value in field.items() if key not in {"weather", "weather_provenance", "terrain", "terrain_provenance", "battle_format", "battle_format_provenance", "trick_room_status", "trick_room_status_provenance", "magic_room_status", "magic_room_status_provenance"}):
+    gravity = field.get("gravity_status", make_unknown_battle_fact())
+    gravity_provenance = field.get("gravity_status_provenance")
+    if not (is_unknown_battle_fact(gravity) or (isinstance(gravity, str) and gravity in {"active", "inactive"})):
+        return False
+    if isinstance(gravity, str) and gravity in {"active", "inactive"} and not _valid_observed_field_toggle_provenance(gravity_provenance, "gravity_field_observed"):
+        return False
+    if any(_contains_marker(value) for key, value in field.items() if key not in {"weather", "weather_provenance", "terrain", "terrain_provenance", "battle_format", "battle_format_provenance", "trick_room_status", "trick_room_status_provenance", "magic_room_status", "magic_room_status_provenance", "gravity_status", "gravity_status_provenance"}):
         return False
     events = state.get("same_turn_event_context", [])
     if not isinstance(events, list) or any(not _valid_same_turn_event(event, state.get("session_id")) for event in events): return False
@@ -617,6 +625,28 @@ def _valid_current_condition_state(value, provenance):
     return provenance.get("event_kind") == "condition_removed_observed" and value is None
 
 
+def _valid_current_locked_on_state(state, value, provenance):
+    if is_unknown_battle_fact(value):
+        return provenance is None
+    if not isinstance(value, dict) or value.get("status") not in {"known_active", "known_inactive"} or not isinstance(provenance, dict):
+        return False
+    if provenance.get("event_kind") != "current_locked_on_state_observed" or provenance.get("trust") != "user_confirmed_observation" or not isinstance(provenance.get("turn_number"), int) or isinstance(provenance.get("turn_number"), bool) or provenance["turn_number"] < 1:
+        return False
+    if value["status"] == "known_inactive":
+        return set(value) == {"status"}
+    target = value.get("bound_target")
+    if set(value) != {"status", "bound_target"} or not isinstance(target, dict) or set(target) != {"session_id", "side", "slot_index", "pokemon_id"} or target.get("session_id") != state.get("session_id") or target.get("side") not in {"self", "opponent"} or not isinstance(target.get("slot_index"), int) or isinstance(target.get("slot_index"), bool) or target["slot_index"] < 0 or not isinstance(target.get("pokemon_id"), str) or not target["pokemon_id"]:
+        return False
+    side = _side(state, target["side"])
+    roster = side.get("pokemon") if isinstance(side, dict) else None
+    pokemon = roster.get(target["slot_index"], roster.get(str(target["slot_index"]))) if isinstance(roster, dict) else None
+    return isinstance(pokemon, dict) and pokemon.get("pokemon_id", pokemon.get("name_en")) == target["pokemon_id"]
+
+
+def _valid_observed_field_toggle_provenance(value, event_kind):
+    return isinstance(value, dict) and value.get("event_kind") == event_kind and value.get("trust") == "user_confirmed_observation" and isinstance(value.get("turn_number"), int) and not isinstance(value.get("turn_number"), bool) and value["turn_number"] > 0
+
+
 def _valid_current_crit_volatile_state(value, provenance):
     if value is None or is_unknown_battle_fact(value):
         return provenance is None
@@ -1032,6 +1062,12 @@ def _has_target_identity(event):
         return _value(event, "trick_room_status") in {"active", "inactive"}
     if effect == "set_observed_magic_room":
         return _value(event, "magic_room_status") in {"active", "inactive"}
+    if effect == "set_observed_gravity":
+        return _value(event, "gravity_status") in {"active", "inactive"} and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
+    if effect == "set_current_locked_on_state":
+        status, target = _value(event, "status"), _value(event, "bound_target")
+        return (_identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
+                and ((status == "inactive" and target is None) or (status == "active" and isinstance(target, dict))))
     if effect == "set_same_turn_event":
         return _identity_values(event, "side", "slot_index", "pokemon_id") and _identity_values(event, "target_side", "target_slot_index", "target_pokemon_id") and (_value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")) != (_value(event, "target_side"), _value(event, "target_slot_index"), _value(event, "target_pokemon_id")) and _value(event, "predicate") in {"received_qualifying_direct_damage", "acted_earlier_this_turn", "lost_hp_this_turn", "qualifying_direct_damage_dealt"} and isinstance(_value(event, "occurred"), bool) and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0
     if effect == "mark_first_end_of_turn_reached":
@@ -1137,6 +1173,8 @@ def _apply(state, event):
         return _set_current_confusion_state(state, event)
     if effect == "set_current_condition":
         return _set_current_condition(state, event)
+    if effect == "set_current_locked_on_state":
+        return _set_current_locked_on_state(state, event)
     if effect == "set_current_healing_prevented":
         return _set_current_healing_prevented(state, event)
     if effect == "set_pending_status_action_execution":
@@ -1287,6 +1325,8 @@ def _apply(state, event):
         return _observed_trick_room(state, event)
     if effect == "set_observed_magic_room":
         return _observed_magic_room(state, event)
+    if effect == "set_observed_gravity":
+        return _observed_gravity(state, event)
     if effect == "set_same_turn_event":
         return _same_turn_event(state, event)
     if effect == "set_current_crit_volatiles":
@@ -1422,6 +1462,36 @@ def _set_current_condition(state, event):
         "turn_number": turn_number, "condition": condition,
     }
     pokemon["toxic_progression"] = make_unknown_battle_fact()
+    return None
+
+
+def _set_current_locked_on_state(state, event):
+    pokemon = _pokemon(state, event)
+    side, slot, pokemon_id = _value(event, "side"), _value(event, "slot_index"), _value(event, "pokemon_id")
+    status, target, turn = _value(event, "status"), _value(event, "bound_target"), _value(event, "turn_number")
+    if pokemon is None or not _active_identity_matches(state, side, slot, pokemon_id) or pokemon.get("fainted") is True or _value(event, "trust") != "user_confirmed_observation" or not isinstance(turn, int) or isinstance(turn, bool) or turn < 1:
+        return _conflict(event, "invalid_current_locked_on_owner")
+    if status == "inactive":
+        if target is not None:
+            return _conflict(event, "inactive_locked_on_cannot_bind_target")
+        value = {"status": "known_inactive"}
+    elif status == "active":
+        if not isinstance(target, dict) or set(target) != {"session_id", "side", "slot_index", "pokemon_id"} or target.get("session_id") != state.get("session_id") or target.get("side") not in {"self", "opponent"} or target.get("side") == side or not isinstance(target.get("slot_index"), int) or isinstance(target.get("slot_index"), bool) or target["slot_index"] < 0 or not isinstance(target.get("pokemon_id"), str) or not target["pokemon_id"]:
+            return _conflict(event, "invalid_current_locked_on_target")
+        target_side = _side(state, target["side"])
+        roster = target_side.get("pokemon") if isinstance(target_side, dict) else None
+        bound = roster.get(target["slot_index"], roster.get(str(target["slot_index"]))) if isinstance(roster, dict) else None
+        if not isinstance(bound, dict) or bound.get("pokemon_id", bound.get("name_en")) != target["pokemon_id"]:
+            return _conflict(event, "current_locked_on_target_identity_mismatch")
+        value = {"status": "known_active", "bound_target": deepcopy(target)}
+    else:
+        return _conflict(event, "invalid_current_locked_on_state")
+    prior = pokemon.get("locked_on_state_provenance")
+    prior_turn = prior.get("turn_number") if isinstance(prior, dict) and prior.get("event_kind") == "current_locked_on_state_observed" else None
+    if isinstance(prior_turn, int) and not isinstance(prior_turn, bool) and turn < prior_turn:
+        return _conflict(event, "stale_current_locked_on_observation")
+    pokemon["locked_on_state"] = value
+    pokemon["locked_on_state_provenance"] = _provenance(event) | {"event_kind": "current_locked_on_state_observed", "trust": "user_confirmed_observation", "source": _value(event, "source"), "turn_number": turn}
     return None
 
 
@@ -2011,7 +2081,7 @@ def _retire_outgoing_active_transient_state(pokemon):
         )
     }
     pokemon.pop("stat_stages_provenance", None)
-    for field in ("current_type", "current_ability", "healing_prevented_status"):
+    for field in ("current_type", "current_ability", "healing_prevented_status", "locked_on_state"):
         pokemon[field] = make_unknown_battle_fact()
         pokemon.pop(f"{field}_provenance", None)
 
@@ -2763,6 +2833,22 @@ def _observed_magic_room(state, event):
         return _conflict(event, "invalid_observed_magic_room_state")
     field["magic_room_status"] = status
     field["magic_room_status_provenance"] = {**_provenance(event), "event_kind": event.get("event_kind")}
+    return None
+
+
+def _observed_gravity(state, event):
+    field, status, turn = state.get("field"), _value(event, "gravity_status"), _value(event, "turn_number")
+    if not isinstance(field, dict) or status not in {"active", "inactive"} or _value(event, "trust") != "user_confirmed_observation" or not isinstance(turn, int) or isinstance(turn, bool) or turn < 1:
+        return _conflict(event, "invalid_observed_gravity")
+    current = field.get("gravity_status", make_unknown_battle_fact())
+    if not (is_unknown_battle_fact(current) or current in {"active", "inactive"}):
+        return _conflict(event, "invalid_observed_gravity_state")
+    prior = field.get("gravity_status_provenance")
+    prior_turn = prior.get("turn_number") if isinstance(prior, dict) and prior.get("event_kind") == "gravity_field_observed" else None
+    if isinstance(prior_turn, int) and not isinstance(prior_turn, bool) and turn < prior_turn:
+        return _conflict(event, "stale_gravity_observation")
+    field["gravity_status"] = status
+    field["gravity_status_provenance"] = _provenance(event) | {"event_kind": "gravity_field_observed", "trust": "user_confirmed_observation", "source": _value(event, "source"), "turn_number": turn}
     return None
 
 
