@@ -1224,3 +1224,257 @@ def _confusion_hidden_dimensions(branches: Sequence[Mapping[str, Any]]) -> tuple
         if len(values) > 1:
             dimensions.append(key)
     return tuple(dimensions)
+
+
+_CONFUSION_SELF_HIT_RETENTION_SCHEMA = "historical-confusion-self-hit-v1"
+_CONFUSION_SELF_HIT_RETENTION_PROVENANCE = "authenticated_pre_damage_confusion_self_hit_v1"
+
+
+def retain_historical_confusion_self_hit(
+    *, predictive_self_hits: Sequence[Mapping[str, Any]], retained_action_gate: Mapping[str, Any],
+) -> dict[str, Any]:
+    gate = validate_historical_confusion_action_gate(retained_action_gate)
+    if gate.get("status") != "resolved":
+        return gate
+    hits = tuple(deepcopy(dict(row)) for row in predictive_self_hits if isinstance(row, Mapping))
+    if not hits:
+        return _result("rejected", "confusion_self_hit_prediction_missing")
+    branch_ids = []
+    canonical_rolls = None
+    fingerprints = []
+    for hit in hits:
+        error = _validate_confusion_self_hit_prediction(hit, gate)
+        if error:
+            return _result("rejected", error)
+        branch_ids.append(hit["branch"]["branch_id"])
+        rolls = tuple(deepcopy(hit["damage_rolls"]))
+        projection = tuple({
+            "roll_index": row["roll_index"], "probability": deepcopy(row["probability"]),
+            "damage": row["damage"], "raw_damage": row["raw_damage"],
+            "hp_before": row["hp_before"], "hp_after": row["hp_after"],
+            "self_fainted": row["self_fainted"], "disguise": deepcopy(row["disguise"]),
+        } for row in rolls)
+        if canonical_rolls is None:
+            canonical_rolls = projection
+        elif canonical_rolls != projection:
+            return _result("rejected", "confusion_self_hit_branch_rolls_diverged")
+        fingerprints.append(_fingerprint(hit))
+    expected = tuple(
+        branch["branch_id"] for branch in gate["predictive_gate"]["branches"]
+        if branch.get("kind") == "confusion_self_hit"
+    )
+    if tuple(branch_ids) != expected:
+        return _result("rejected", "confusion_self_hit_branch_set_mismatch")
+    return {
+        "status": "resolved", "schema_version": _CONFUSION_SELF_HIT_RETENTION_SCHEMA,
+        "session_id": gate["session_id"], "turn_number": gate["turn_number"],
+        "actor": deepcopy(gate["actor"]), "decision_point": gate["decision_point"],
+        "action_id": gate["action_id"], "move_id": gate["move_id"],
+        "confusion_origin_id": gate["confusion_origin_id"],
+        "source_runtime_fingerprint": gate["source_runtime_fingerprint"],
+        "source_branch_fingerprint": gate["source_branch_fingerprint"],
+        "source_confusion_gate_prediction_fingerprint": gate["prediction_fingerprint"],
+        "retained_action_gate": deepcopy(gate),
+        "source_confusion_self_hit_branch_ids": tuple(branch_ids),
+        "predictive_self_hits": hits,
+        "predictive_self_hit_fingerprints": tuple(fingerprints),
+        "canonical_damage_rolls": canonical_rolls,
+        "artifact_fingerprint": _fingerprint({
+            "gate": gate["prediction_fingerprint"], "hits": fingerprints,
+            "branches": branch_ids, "rolls": canonical_rolls,
+        }),
+        "provenance": _CONFUSION_SELF_HIT_RETENTION_PROVENANCE,
+    }
+
+
+def validate_historical_confusion_self_hit(retained: Mapping[str, Any]) -> dict[str, Any]:
+    if not isinstance(retained, Mapping) or retained.get("schema_version") != _CONFUSION_SELF_HIT_RETENTION_SCHEMA:
+        return _result("rejected", "historical_confusion_self_hit_missing")
+    gate = validate_historical_confusion_action_gate(retained.get("retained_action_gate"))
+    if gate.get("status") != "resolved":
+        return _result("rejected", "historical_confusion_self_hit_gate_invalid")
+    expected_identity = {
+        "session_id": gate["session_id"], "turn_number": gate["turn_number"],
+        "actor": gate["actor"], "decision_point": gate["decision_point"],
+        "action_id": gate["action_id"], "move_id": gate["move_id"],
+        "confusion_origin_id": gate["confusion_origin_id"],
+        "source_runtime_fingerprint": gate["source_runtime_fingerprint"],
+        "source_branch_fingerprint": gate["source_branch_fingerprint"],
+        "source_confusion_gate_prediction_fingerprint": gate["prediction_fingerprint"],
+    }
+    if any(retained.get(key) != value for key, value in expected_identity.items()):
+        return _result("rejected", "historical_confusion_self_hit_identity_mismatch")
+    hits = retained.get("predictive_self_hits")
+    fingerprints = retained.get("predictive_self_hit_fingerprints")
+    if not isinstance(hits, (tuple, list)) or not isinstance(fingerprints, (tuple, list)) or len(hits) != len(fingerprints) or not hits:
+        return _result("rejected", "historical_confusion_self_hit_invalid")
+    branch_ids=[]
+    for hit, fingerprint in zip(hits, fingerprints):
+        if not isinstance(hit, Mapping) or _fingerprint(hit) != fingerprint:
+            return _result("rejected", "historical_confusion_self_hit_fingerprint_mismatch")
+        error=_validate_confusion_self_hit_prediction(hit,gate)
+        if error:
+            return _result("rejected",error)
+        branch_ids.append(hit["branch"]["branch_id"])
+    expected_branches=tuple(
+        branch["branch_id"] for branch in gate["predictive_gate"]["branches"]
+        if branch.get("kind")=="confusion_self_hit"
+    )
+    if tuple(branch_ids)!=expected_branches or tuple(retained.get("source_confusion_self_hit_branch_ids",()))!=expected_branches:
+        return _result("rejected","historical_confusion_self_hit_branch_set_mismatch")
+    expected_artifact = _fingerprint({
+        "gate": retained.get("source_confusion_gate_prediction_fingerprint"),
+        "hits": list(fingerprints),
+        "branches": list(retained.get("source_confusion_self_hit_branch_ids", ())),
+        "rolls": retained.get("canonical_damage_rolls"),
+    })
+    if retained.get("artifact_fingerprint") != expected_artifact:
+        return _result("rejected", "historical_confusion_self_hit_artifact_fingerprint_mismatch")
+    rolls = retained.get("canonical_damage_rolls")
+    if not isinstance(rolls, (tuple, list)) or len(rolls) != 16:
+        return _result("rejected", "historical_confusion_self_hit_rolls_invalid")
+    mass = sum((_fraction(row.get("probability")) or Fraction() for row in rolls), Fraction())
+    if mass != 1:
+        return _result("rejected", "historical_confusion_self_hit_probability_mass_invalid")
+    return deepcopy(dict(retained))
+
+
+def _validate_confusion_self_hit_prediction(hit: Mapping[str, Any], gate: Mapping[str, Any]) -> str | None:
+    if (hit.get("status") != "resolved" or hit.get("schema_version") != "champions-confusion-self-hit-v1"
+            or hit.get("event") != "confusion_self_hit" or hit.get("selected_move_does_not_execute") is not True
+            or hit.get("critical") is not False or hit.get("stab") is not False or hit.get("contact") is not False
+            or hit.get("actor") != gate["actor"] or hit.get("target") != gate["actor"]):
+        return "invalid_confusion_self_hit_prediction"
+    branch = hit.get("branch")
+    if not isinstance(branch, Mapping) or branch.get("kind") != "confusion_self_hit":
+        return "confusion_self_hit_source_branch_invalid"
+    if not any(branch == candidate for candidate in gate["predictive_gate"]["branches"]):
+        return "confusion_self_hit_source_branch_foreign"
+    rolls = hit.get("damage_rolls")
+    if not isinstance(rolls, (tuple, list)) or len(rolls) != 16:
+        return "confusion_self_hit_roll_count_invalid"
+    if hit.get("root_probability_mass") != {"numerator": 1, "denominator": 1}:
+        return "confusion_self_hit_root_mass_invalid"
+    for index, row in enumerate(rolls):
+        if (not isinstance(row, Mapping) or row.get("roll_index") != index
+                or _fraction(row.get("probability")) != Fraction(1, 16)):
+            return "confusion_self_hit_roll_probability_invalid"
+    return None
+
+
+def reconcile_observed_confusion_self_hit_damage_rng(
+    *, retained_prediction: Mapping[str, Any],
+    primary_confusion_observation: Mapping[str, Any] | None = None,
+    damage_observation: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    retained = validate_historical_confusion_self_hit(retained_prediction)
+    if retained.get("status") != "resolved":
+        return retained
+    rolls = retained["canonical_damage_rolls"]
+    if not isinstance(primary_confusion_observation, Mapping) or not isinstance(damage_observation, Mapping):
+        return _confusion_self_hit_reconciliation_result(
+            status="incomplete", reason="insufficient_observation", retained=retained,
+            observations=(), compatible_rolls=rolls, matched={})
+    error = _validate_confusion_self_hit_damage_observations(primary_confusion_observation, damage_observation, retained)
+    if error:
+        return _result("rejected", error)
+    payload = damage_observation["payload"]
+    compatible = tuple(row for row in rolls if _confusion_self_hit_roll_matches(row, payload))
+    return _confusion_self_hit_reconciliation_result(
+        status="resolved", reason=None, retained=retained,
+        observations=(primary_confusion_observation, damage_observation),
+        compatible_rolls=compatible,
+        matched={
+            "hp_before": payload["hp_before"], "hp_after": payload["hp_after"],
+            "self_fainted": payload["self_fainted"], "disguise_outcome": payload["disguise_outcome"],
+        })
+
+
+def _validate_confusion_self_hit_damage_observations(primary: Mapping[str, Any], damage: Mapping[str, Any],
+                                                     retained: Mapping[str, Any]) -> str | None:
+    if (primary.get("event_kind") != "pending_confusion_action_execution_observed"
+            or primary.get("source")!="ui_pending_confusion_action_execution_confirmation"
+            or primary.get("trust")!="user_confirmed_observation"
+            or primary.get("confirmed") is not True or primary.get("observed") is not True):
+        return "confusion_self_hit_primary_observation_invalid"
+    pp = primary.get("payload")
+    if not isinstance(pp, Mapping) or pp.get("outcome_class") != "confusion_self_hit":
+        return "confusion_self_hit_primary_outcome_mismatch"
+    if damage.get("event_kind") != "confusion_self_hit_damage_observed":
+        return "confusion_self_hit_damage_observation_invalid"
+    dp = damage.get("payload")
+    if not isinstance(dp, Mapping) or set(dp)!={"decision_point","action_id","move_id","confusion_origin_id","source_confusion_observation_id","hp_before","hp_after","self_fainted","disguise_outcome"}:
+        return "confusion_self_hit_damage_payload_invalid"
+    if (damage.get("source") != "ui_confusion_self_hit_damage_confirmation"
+            or damage.get("trust") != "user_confirmed_observation"
+            or damage.get("confirmed") is not True or damage.get("observed") is not True):
+        return "confusion_self_hit_damage_provenance_mismatch"
+    if damage.get("observation_sequence", 0) <= primary.get("observation_sequence", 0):
+        return "confusion_self_hit_damage_observation_order_invalid"
+    if dp.get("source_confusion_observation_id") != primary.get("observation_id"):
+        return "confusion_self_hit_damage_source_observation_mismatch"
+    for field, retained_key in (
+        ("decision_point","decision_point"),("action_id","action_id"),("move_id","move_id"),
+        ("confusion_origin_id","confusion_origin_id"),
+    ):
+        if dp.get(field) != retained.get(retained_key) or pp.get(field) != retained.get(retained_key):
+            return f"confusion_self_hit_damage_{field}_mismatch"
+    if (damage.get("session_id") != retained["session_id"] or primary.get("session_id") != retained["session_id"]
+            or damage.get("turn_number") != retained["turn_number"] or primary.get("turn_number") != retained["turn_number"]):
+        return "confusion_self_hit_damage_session_turn_mismatch"
+    actor = retained["actor"]
+    expected_actor = (actor.get("side"),actor.get("slot_index"),actor.get("pokemon_id"))
+    if ((damage.get("side"),damage.get("slot_index"),damage.get("pokemon_id")) != expected_actor
+            or (primary.get("side"),primary.get("slot_index"),primary.get("pokemon_id")) != expected_actor):
+        return "confusion_self_hit_damage_actor_mismatch"
+    return None
+
+
+def _confusion_self_hit_roll_matches(row: Mapping[str, Any], payload: Mapping[str, Any]) -> bool:
+    status = row.get("disguise", {}).get("status")
+    expected_disguise = "intact_to_broken" if status == "broken" else status
+    return (
+        row.get("hp_before") == payload.get("hp_before")
+        and row.get("hp_after") == payload.get("hp_after")
+        and row.get("self_fainted") is payload.get("self_fainted")
+        and expected_disguise == payload.get("disguise_outcome")
+    )
+
+
+def _confusion_self_hit_reconciliation_result(*, status: str, reason: str | None, retained: Mapping[str, Any],
+                                              observations: Sequence[Mapping[str, Any]],
+                                              compatible_rolls: Sequence[Mapping[str, Any]],
+                                              matched: Mapping[str, Any]) -> dict[str, Any]:
+    mass = sum((_fraction(row.get("probability")) or Fraction() for row in compatible_rolls), Fraction())
+    outcome = None if status != "resolved" else (
+        "incompatible_observation" if not compatible_rolls else
+        "uniquely_matched" if len(compatible_rolls) == 1 else "multiple_compatible_branches")
+    dimensions = []
+    if len(compatible_rolls) > 1:
+        for key in ("roll_index","raw_damage"):
+            if len({_canonical_bytes(row.get(key)) for row in compatible_rolls}) > 1:
+                dimensions.append(key)
+    return {
+        "status": status, "schema_version": RECONCILIATION_SCHEMA_VERSION, "reason": reason,
+        "source_prediction_kind": "confusion_self_hit_damage_rolls",
+        "session_id": retained["session_id"], "turn_number": retained["turn_number"],
+        "actor": deepcopy(retained["actor"]), "decision_point": retained["decision_point"],
+        "action_id": retained["action_id"], "move_id": retained["move_id"],
+        "confusion_origin_id": retained["confusion_origin_id"],
+        "source_prediction_identity": {
+            "schema_version": "champions-confusion-self-hit-v1",
+            "artifact_fingerprint": retained["artifact_fingerprint"],
+        },
+        "source_observations": tuple({
+            "observation_id": row.get("observation_id"), "observation_sequence": row.get("observation_sequence"),
+            "event_kind": row.get("event_kind"),
+        } for row in observations),
+        "match_outcome": outcome,
+        "compatible_roll_indices": tuple(row["roll_index"] for row in compatible_rolls),
+        "compatible_original_probability_mass": _fd(mass),
+        "probability_normalization": "none_preserve_original_mass",
+        "probability_layer": "conditional_on_confusion_self_hit",
+        "matched_observable_facts": deepcopy(dict(matched)),
+        "unresolved_hidden_dimensions": tuple(dimensions),
+        "provenance": _RECONCILIATION_PROVENANCE,
+    }

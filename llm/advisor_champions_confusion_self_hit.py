@@ -1,5 +1,6 @@
 """Typed typeless physical confusion self-hit, deliberately separate from a move."""
 from copy import deepcopy
+from fractions import Fraction
 from typing import Mapping
 from llm.advisor_battle_state_context import calculate_stage_adjusted_stat
 
@@ -18,5 +19,6 @@ def materialize_confusion_self_hit(*, runtime_snapshot, actor, gate, branch):
     rows=[]
     for index,damage in enumerate(rolls):
         broken=is_mimikyu and disguise=="intact"; applied=0 if broken else min(hp,damage); after=hp-applied
-        rows.append({"roll_index":index,"damage":applied,"raw_damage":damage,"hp_before":hp,"hp_after":after,"self_fainted":after==0,"disguise":{"status":"broken" if broken else "not_applicable" if not is_mimikyu else "already_broken","before":disguise,"after":"broken" if broken else disguise}})
-    return {"status":"resolved","schema_version":SCHEMA,"actor":deepcopy(actor),"target":deepcopy(actor),"event":"confusion_self_hit","base_power":40,"type":"typeless","category":"physical","critical":False,"stab":False,"contact":False,"selected_move_does_not_execute":True,"attack_stat":attack,"defense_stat":defense,"damage_rolls":tuple(rows),"gate":deepcopy(gate),"branch":deepcopy(branch),"provenance":"canonical_confusion_self_hit_v1"}
+        rows.append({"roll_index":index,"probability":{"numerator":1,"denominator":16},"damage":applied,"raw_damage":damage,"hp_before":hp,"hp_after":after,"self_fainted":after==0,"disguise":{"status":"broken" if broken else "not_applicable" if not is_mimikyu else "already_broken","before":disguise,"after":"broken" if broken else disguise}})
+    assert sum((Fraction(row["probability"]["numerator"],row["probability"]["denominator"]) for row in rows),Fraction())==1
+    return {"status":"resolved","schema_version":SCHEMA,"actor":deepcopy(actor),"target":deepcopy(actor),"event":"confusion_self_hit","base_power":40,"type":"typeless","category":"physical","critical":False,"stab":False,"contact":False,"selected_move_does_not_execute":True,"attack_stat":attack,"defense_stat":defense,"root_probability_mass":{"numerator":1,"denominator":1},"damage_rolls":tuple(rows),"gate":deepcopy(gate),"branch":deepcopy(branch),"provenance":"canonical_confusion_self_hit_v1"}

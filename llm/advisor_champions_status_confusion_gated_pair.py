@@ -48,7 +48,7 @@ def materialize_champions_status_confusion_gated_pair(*,strategy_d0,runtime_snap
                     for roll in hit["damage_rolls"]:
                         state=deepcopy(cv["runtime_snapshot"]["state"]); own=state[f"{actor['side']}_side"]["pokemon"][actor["slot_index"]];own["current_hp"]=roll["hp_after"];own["fainted"]=roll["self_fainted"]
                         if roll["disguise"]["status"]=="broken": own["disguise_state"]="broken"
-                        rows.append({"probability":fraction(sb["probability"])*fraction(cb["probability"])*Fraction(1,16),"events":[se,{**ce,"self_hit":hit,"self_hit_roll":roll}],"snapshot":snapshot_for(state),"executes":False,"self_fainted":roll["self_fainted"]})
+                        rows.append({"probability":fraction(sb["probability"])*fraction(cb["probability"])*fraction(roll["probability"]),"events":[se,{**ce,"self_hit":hit,"self_hit_roll":roll}],"snapshot":snapshot_for(state),"executes":False,"self_fainted":roll["self_fainted"]})
                 else: rows.append({"probability":fraction(sb["probability"])*fraction(cb["probability"]),"events":[se,ce],"snapshot":cv["runtime_snapshot"],"executes":True})
         return {"status":"resolved","rows":rows}
     def walk(plan,lineup,index,snapshot,prob,events,hp,execution=None):

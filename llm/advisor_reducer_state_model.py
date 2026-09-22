@@ -29,6 +29,10 @@ from llm.advisor_champions_confusion_action_lifecycle_derived_observation import
     PROGRESSION_DERIVED as CONFUSION_PROGRESSION_DERIVED,
     CLEARED_DERIVED as CONFUSION_CLEARED_DERIVED,
 )
+from llm.advisor_confusion_self_hit_damage_lifecycle import (
+    DERIVED_KINDS as CONFUSION_SELF_HIT_DAMAGE_DERIVED_KINDS,
+    DISGUISE_BROKEN_DERIVED,
+)
 
 STATE_MODEL_VERSION = "battle-state-v1"
 UNKNOWN_BATTLE_FACT = MappingProxyType({"knowledge": "unknown"})
@@ -46,6 +50,7 @@ _TARGETS["advance_champions_status_progression"] = "pokemon.champions_status_pro
 _TARGETS["clear_champions_status_condition"] = "pokemon.condition"
 _TARGETS["record_champions_confusion_progression"] = "pokemon.champions_confusion_progression"
 _TARGETS["record_pending_confusion_action_execution"] = "state.pending_confusion_action_execution_context"
+_TARGETS["break_confusion_self_hit_disguise"] = "pokemon.disguise_state"
 _TARGETS["advance_champions_confusion_progression"] = "pokemon.champions_confusion_progression"
 _TARGETS["clear_champions_confusion"] = "pokemon.current_confusion"
 _TARGETS["set_current_confusion_state"] = "pokemon.current_confusion"
@@ -843,8 +848,8 @@ def execute_atomic_transition(base_state, replay_plan, *, expected_session_id=No
 
 
 def _normalize_steps(steps, plan):
-    events = {e.get("observation_id"): e for e in plan.get("accepted_events", []) if isinstance(e, dict) and isinstance(e.get("observation_id"), str)}
-    batch_ids = {raw.get("observation_id") for raw in steps if isinstance(raw, dict)}
+    events = {e.get("observation_id"): e for e in [*plan.get("accepted_events", []), *plan.get("evidence_only_events", [])] if isinstance(e, dict) and isinstance(e.get("observation_id"), str)}
+    batch_ids = {e.get("observation_id") for e in [*plan.get("accepted_events", []), *plan.get("evidence_only_events", [])] if isinstance(e, dict)}
     result, seen, previous = [], set(), None
     for raw in steps:
         if not isinstance(raw, dict): return [], "invalid_step"
@@ -855,7 +860,7 @@ def _normalize_steps(steps, plan):
         previous, seen = (seq, oid), seen | {oid}
         event = deepcopy(events.get(oid, {})); event.update(deepcopy(raw))
         event["observation_id"], event["observation_sequence"], event["planned_effect"] = oid, seq, effect
-        if event.get("trust") == MECHANICS_DERIVED_TRUST and event.get("event_kind") not in DERIVED_KINDS | STATUS_ACTION_DERIVED_KINDS | CONFUSION_ACTION_DERIVED_KINDS:
+        if event.get("trust") == MECHANICS_DERIVED_TRUST and event.get("event_kind") not in DERIVED_KINDS | STATUS_ACTION_DERIVED_KINDS | CONFUSION_ACTION_DERIVED_KINDS | CONFUSION_SELF_HIT_DAMAGE_DERIVED_KINDS:
             return [], "mechanics_derived_trust_on_non_derived_event"
         if not _has_target_identity(event): return [], "missing_required_target_identity"
         if event.get("event_kind") in DERIVED_KINDS:
@@ -876,6 +881,12 @@ def _normalize_steps(steps, plan):
             if not _valid_confusion_action_derived_binding(event, source, batch_ids, plan.get("session_id")):
                 return [], "invalid_champions_confusion_action_lifecycle_binding"
             event["_confusion_action_source_pending"] = deepcopy(source)
+        if event.get("event_kind") in CONFUSION_SELF_HIT_DAMAGE_DERIVED_KINDS:
+            source_id = _value(event, "source_damage_observation_id")
+            source = events.get(source_id)
+            if not _valid_confusion_self_hit_damage_derived_binding(event, source, batch_ids, plan.get("session_id")):
+                return [], "invalid_confusion_self_hit_damage_lifecycle_binding"
+            event["_confusion_self_hit_damage_source"] = deepcopy(source)
         result.append(event)
     return result, None
 
@@ -903,6 +914,27 @@ def _valid_confusion_action_derived_binding(event, source, batch_ids, session):
     if ep.get("source_pending_observation_id") != source.get("observation_id"):
         return False
     return all(ep.get(key) == sp.get(key) for key in ("decision_point", "action_id", "move_id", "outcome_class"))
+
+
+def _valid_confusion_self_hit_damage_derived_binding(event, source, batch_ids, session):
+    if (event.get("event_kind") != DISGUISE_BROKEN_DERIVED
+            or not isinstance(source, dict)
+            or source.get("observation_id") not in batch_ids
+            or source.get("event_kind") != "confusion_self_hit_damage_observed"
+            or source.get("session_id") != session
+            or source.get("turn_number") != event.get("turn_number")
+            or source.get("observation_sequence",0) >= event.get("observation_sequence",0)):
+        return False
+    sp, ep = source.get("payload"), event.get("payload")
+    if not isinstance(sp, dict) or not isinstance(ep, dict):
+        return False
+    if ep.get("source_damage_observation_id") != source.get("observation_id"):
+        return False
+    if sp.get("disguise_outcome") != "intact_to_broken":
+        return False
+    return all(ep.get(key) == sp.get(key) for key in (
+        "decision_point","action_id","move_id","confusion_origin_id","source_confusion_observation_id"
+    )) and ep.get("disguise_before")=="intact" and ep.get("disguise_after")=="broken"
 
 
 def _valid_switch_entry_derived_binding(event, source, batch_ids, session):
@@ -1083,7 +1115,7 @@ def _has_target_identity(event):
     effect = event["planned_effect"]
     if effect in {"record_champions_status_progression", "advance_champions_status_progression", "clear_champions_status_condition", "record_champions_confusion_progression", "record_pending_confusion_action_execution", "advance_champions_confusion_progression", "clear_champions_confusion", "set_current_confusion_state", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_confusion_state" or (_value(event, "confusion_state") in {"confused", "none"} and _value(event, "trust") == "user_confirmed_observation"))
-    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_mat_block_active_entry_eligibility", "set_fake_out_active_entry_eligibility", "set_current_ability", "set_switch_entry_trace_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry", "set_berry_eaten_state"}:
+    if effect in {"apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_mat_block_active_entry_eligibility", "set_fake_out_active_entry_eligibility", "set_current_ability", "set_switch_entry_trace_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "break_confusion_self_hit_disguise", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry", "set_berry_eaten_state"}:
         return isinstance(_value(event, "side"), str) and isinstance(_value(event, "slot_index"), int) and not isinstance(_value(event, "slot_index"), bool) and isinstance(_value(event, "pokemon_id"), str) and bool(_value(event, "pokemon_id"))
     if effect in {"set_current_aqua_ring_state", "set_current_ingrain_state", "set_current_leech_seed_state"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and _value(event, "persistent_state") in {"active", "inactive"} and _value(event, "trust") == "user_confirmed_observation" and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_leech_seed_state" or _value(event, "persistent_state") != "active" or (_value(event, "source_side") in {"self", "opponent"} and isinstance(_value(event, "source_slot_index"), int) and not isinstance(_value(event, "source_slot_index"), bool)))
@@ -1181,6 +1213,8 @@ def _apply(state, event):
         if effect == "advance_champions_confusion_progression":
             return _advance_champions_confusion_progression(state, event)
         return _clear_champions_confusion(state, event)
+    if event.get("event_kind") in CONFUSION_SELF_HIT_DAMAGE_DERIVED_KINDS:
+        return _break_confusion_self_hit_disguise(state, event)
     if event.get("event_kind") in DERIVED_KINDS:
         reason = _valid_switch_entry_derived_transition(state, event)
         if reason:
@@ -1739,6 +1773,18 @@ def _set_current_opponent_switch_target_combat(state, event):
     pokemon["condition_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "condition": payload["condition"]}
     pokemon["known_item_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn, "status": item.get("status")}
     pokemon["current_ability_provenance"] |= {"event_kind": "current_opponent_switch_target_combat_observed", "trust": _value(event, "trust"), "turn_number": turn}
+    return None
+
+
+def _break_confusion_self_hit_disguise(state, event):
+    pokemon=_pokemon(state,event)
+    if not isinstance(pokemon,dict) or pokemon.get("disguise_state")!="intact":
+        return _conflict(event,"confusion_self_hit_disguise_not_intact")
+    pokemon["disguise_state"]="broken"
+    pokemon["disguise_state_provenance"]=_provenance(event) | {
+        "event_kind":DISGUISE_BROKEN_DERIVED,
+        "source_damage_observation_id":_value(event,"source_damage_observation_id"),
+    }
     return None
 
 

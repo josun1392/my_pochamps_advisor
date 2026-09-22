@@ -8,10 +8,14 @@ from llm.advisor_champions_confusion_action_lifecycle_derived_observation import
     CLEARED_DERIVED, PROGRESSION_DERIVED, derive_confusion_action_lifecycle_consequence,
 )
 from llm.advisor_champions_confusion_progression import valid_confusion_progression
-from llm.advisor_champions_confusion_action_gate import freeze_champions_confusion_action_gate
+from llm.advisor_champions_confusion_action_gate import (
+    freeze_champions_confusion_action_gate, materialize_confusion_branch,
+)
+from llm.advisor_champions_confusion_self_hit import materialize_confusion_self_hit
 from llm.advisor_detached_observed_rng_reconciliation import (
     reconcile_observed_confusion_action_gate_rng,
     retain_historical_confusion_action_gate,
+    retain_historical_confusion_self_hit,
 )
 from llm.advisor_lifecycle_confirmation import (
     EXECUTED_MOVE_SOURCE, LifecycleConfirmationBoundary,
@@ -117,7 +121,7 @@ def admit_pending_confusion_action_execution(*, runtime_session_manager:BattleOb
         return {"status":"resolved","reason":"duplicate_pending_confusion_action","runtime_committed":False,
                 "observation":None,"derived_observations":[],"runtime_snapshot":deepcopy(snapshot),
                 "strategy_d0":freeze_runtime_strategy_d0(runtime_snapshot=snapshot,decision_owner=owner),
-                "retained_prediction":None,"rng_reconciliation":None}
+                "retained_prediction":None,"retained_self_hit_prediction":None,"rng_reconciliation":None}
     pre_d0=freeze_runtime_strategy_d0(runtime_snapshot=snapshot,decision_owner=owner)
     if pre_d0.get("status")!="resolved":
         return _result("incomplete","confusion_pre_action_d0_unavailable")
@@ -130,6 +134,28 @@ def admit_pending_confusion_action_execution(*, runtime_session_manager:BattleOb
         predictive_gate=gate,turn_number=turn_number,decision_point=decision_point)
     if retained.get("status")!="resolved":
         return _result("rejected",retained.get("reason","confusion_gate_retention_rejected"))
+    retained_self_hit=None
+    if outcome_class=="confusion_self_hit":
+        hits=[]; retention_block=None
+        for branch in gate.get("branches",()):
+            if branch.get("kind")!="confusion_self_hit":
+                continue
+            view=materialize_confusion_branch(
+                strategy_d0=pre_d0,runtime_snapshot=snapshot,authority=gate,branch=branch)
+            if view.get("status")!="resolved":
+                retention_block={"status":view.get("status","incomplete"),"reason":view.get("reason","confusion_self_hit_branch_materialization_failed")}
+                break
+            hit=materialize_confusion_self_hit(
+                runtime_snapshot=view["runtime_snapshot"],actor=owner,gate=gate,branch=branch)
+            if hit.get("status")!="resolved":
+                retention_block={"status":hit.get("status","incomplete"),"reason":hit.get("reason","confusion_self_hit_prediction_unavailable")}
+                break
+            hits.append(hit)
+        if retention_block is not None:
+            retained_self_hit=retention_block
+        else:
+            retained_self_hit=retain_historical_confusion_self_hit(
+                predictive_self_hits=hits,retained_action_gate=retained)
     seq=runtime_session_manager.allocate_observation_sequence()
     if seq.get("status")!="allocated" or seq.get("session_id")!=captured_session_id:
         return _result("rejected","observation_sequence_binding_mismatch")
@@ -177,7 +203,8 @@ def admit_pending_confusion_action_execution(*, runtime_session_manager:BattleOb
     return {"status":"resolved","reason":None,"runtime_committed":True,"observation":deepcopy(source),
             "derived_observations":[deepcopy(derived["observation"])],"runtime_snapshot":deepcopy(committed),
             "strategy_d0":d0 if d0.get("status")=="resolved" else None,
-            "retained_prediction":deepcopy(retained),"rng_reconciliation":deepcopy(reconciliation)}
+            "retained_prediction":deepcopy(retained),"retained_self_hit_prediction":deepcopy(retained_self_hit),
+            "rng_reconciliation":deepcopy(reconciliation)}
 
 def _active_owner(state:Any,side:str):
     side_state=state.get(f"{side}_side") if isinstance(state,Mapping) else None
@@ -190,4 +217,4 @@ def _active_owner(state:Any,side:str):
 def _result(status,reason):
     return {"status":status,"reason":reason,"runtime_committed":False,"observation":None,
             "derived_observations":[],"runtime_snapshot":None,"strategy_d0":None,
-            "retained_prediction":None,"rng_reconciliation":None}
+            "retained_prediction":None,"retained_self_hit_prediction":None,"rng_reconciliation":None}
