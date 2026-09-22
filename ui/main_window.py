@@ -67,7 +67,14 @@ from llm.advisor_current_state_runtime_admission import (
 )
 from llm.advisor_production_paralysis_application import admit_observed_champions_paralysis_result
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
-from llm.advisor_flinch_causality_observation import admit_flinch_causality_observation
+from llm.advisor_flinch_causality_observation import (
+    admit_flinch_causality_observation,
+    admit_standard_charge_flinch_causality_observation,
+)
+from llm.advisor_standard_charge_flinch_reconciliation_adapter import (
+    reconcile_observed_standard_charge_flinch_rng,
+    retain_standard_charge_flinch_prediction_from_strategy_result,
+)
 from llm.advisor_observed_contact_reactive_status_runtime_admission import admit_observed_contact_reactive_status_result
 from llm.advisor_observed_contact_reactive_damage_runtime_admission import admit_observed_contact_reactive_damage_result
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
@@ -2234,6 +2241,14 @@ class MainWindow(QMainWindow):
             )
             if opportunity.get("status") == "resolved":
                 bundle["action_opportunity_authority"] = deepcopy(opportunity)
+            if binding.get("move_id") == "sky-attack":
+                retained = retain_standard_charge_flinch_prediction_from_strategy_result(
+                    strategy_result=strategy_result,
+                    predictive_binding=binding,
+                    predictive_ledger=ledger,
+                )
+                if retained.get("status") == "resolved":
+                    bundle["standard_charge_flinch_prediction"] = deepcopy(retained["prediction"])
             self._historical_predictive_action_bindings[binding["source_action_id"]] = bundle
 
     @staticmethod
@@ -2335,6 +2350,14 @@ class MainWindow(QMainWindow):
         flinch_causality = flinch_causalities[0] if len(flinch_causalities) == 1 else None
         if len(damages) > 1 or len(conditions) > 1 or len(flinch_causalities) > 1:
             return {"status": "rejected", "reason": "duplicate_linked_reconciliation_evidence"}
+        charge_prediction = bundle.get("standard_charge_flinch_prediction")
+        charge_causality = (
+            flinch_causality
+            if isinstance(flinch_causality, dict)
+            and flinch_causality.get("producer_prediction_kind") == "standard_charge_terminal_execution"
+            else None
+        )
+        scalar_causality = flinch_causality if charge_causality is None else None
         scalar_reconciliation = reconcile_observed_scalar_attack_rng(
             predictive_ledger=ledger,
             predictive_binding=binding,
@@ -2342,8 +2365,19 @@ class MainWindow(QMainWindow):
             previous_action_result_observation=results[0] if results else None,
             direct_damage_observation=direct_damage,
             target_condition_application_observation=condition_application,
-            flinch_causality_observation=flinch_causality,
+            flinch_causality_observation=scalar_causality,
         )
+        if isinstance(charge_prediction, dict) and charge_causality is not None:
+            charge_reconciliation = reconcile_observed_standard_charge_flinch_rng(
+                prediction=charge_prediction,
+                predictive_binding=binding,
+                predictive_ledger=ledger,
+                executed_move_observation=execution,
+                flinch_causality_observation=charge_causality,
+                direct_damage_observation=direct_damage,
+            )
+            self._last_observed_rng_reconciliation = deepcopy(charge_reconciliation)
+            return charge_reconciliation
         opportunity = bundle.get("action_opportunity_authority")
         if isinstance(opportunity, dict):
             action_reconciliation = reconcile_observed_action_opportunity_rng(
@@ -2392,9 +2426,13 @@ class MainWindow(QMainWindow):
                 checked.get("status") != "resolved"
                 or checked.get("session_id") != session_id
                 or checked.get("turn_number") != turn_number
-                or checked.get("move_id") != "iron-head"
                 or checked.get("target") != affected
             ):
+                continue
+            is_scalar_iron_head = checked.get("move_id") == "iron-head"
+            charge_prediction = bundle.get("standard_charge_flinch_prediction")
+            is_charge_sky_attack = checked.get("move_id") == "sky-attack" and isinstance(charge_prediction, dict)
+            if not (is_scalar_iron_head or is_charge_sky_attack):
                 continue
             executions = [
                 row for row in rows
@@ -2404,7 +2442,13 @@ class MainWindow(QMainWindow):
                 and row.get("payload", {}).get("move_id") == checked.get("move_id")
             ]
             if len(executions) == 1:
-                candidates.append({"binding": checked, "ledger": ledger, "execution": executions[0]})
+                candidates.append({
+                    "binding": checked,
+                    "ledger": ledger,
+                    "execution": executions[0],
+                    "producer_kind": "charge" if is_charge_sky_attack else "scalar",
+                    "charge_prediction": deepcopy(charge_prediction) if is_charge_sky_attack else None,
+                })
         if not candidates:
             return {"status": "incomplete", "reason": "exact_flinch_producer_unavailable"}
 
@@ -2424,15 +2468,27 @@ class MainWindow(QMainWindow):
         if not accepted or chosen == "Not confirmed":
             return {"status": "incomplete", "reason": "flinch_causality_not_confirmed"}
         selected = candidates[labels.index(chosen)]
-        admitted = admit_flinch_causality_observation(
-            runtime_session_manager=manager,
-            captured_session_id=session_id,
-            predictive_binding=selected["binding"],
-            predictive_ledger=selected["ledger"],
-            producer_execution_observation=selected["execution"],
-            cancelled_execution_observation=cancelled_execution,
-            cancelled_result_observation=cancelled_result,
-        )
+        if selected.get("producer_kind") == "charge":
+            admitted = admit_standard_charge_flinch_causality_observation(
+                runtime_session_manager=manager,
+                captured_session_id=session_id,
+                prediction=selected["charge_prediction"],
+                predictive_binding=selected["binding"],
+                predictive_ledger=selected["ledger"],
+                producer_execution_observation=selected["execution"],
+                cancelled_execution_observation=cancelled_execution,
+                cancelled_result_observation=cancelled_result,
+            )
+        else:
+            admitted = admit_flinch_causality_observation(
+                runtime_session_manager=manager,
+                captured_session_id=session_id,
+                predictive_binding=selected["binding"],
+                predictive_ledger=selected["ledger"],
+                producer_execution_observation=selected["execution"],
+                cancelled_execution_observation=cancelled_execution,
+                cancelled_result_observation=cancelled_result,
+            )
         if admitted.get("status") == "resolved":
             self._reconcile_linked_predictive_action(selected["binding"]["source_action_id"])
         return admitted

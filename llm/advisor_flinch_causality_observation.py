@@ -173,6 +173,129 @@ def admit_flinch_causality_observation(
     }
 
 
+def admit_standard_charge_flinch_causality_observation(
+    *,
+    runtime_session_manager: BattleObservationRuntimeSessionManager,
+    captured_session_id: str,
+    prediction: Mapping[str, Any],
+    predictive_binding: Mapping[str, Any],
+    predictive_ledger: Mapping[str, Any],
+    producer_execution_observation: Mapping[str, Any],
+    cancelled_execution_observation: Mapping[str, Any],
+    cancelled_result_observation: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Admit the same causal event for one authenticated Sky Attack terminal."""
+    from llm.advisor_standard_charge_flinch_reconciliation_adapter import (
+        validate_standard_charge_flinch_prediction,
+    )
+    if not isinstance(runtime_session_manager, BattleObservationRuntimeSessionManager):
+        return _result("rejected", "invalid_runtime_manager")
+    checked = validate_standard_charge_flinch_prediction(
+        prediction=prediction,
+        predictive_binding=predictive_binding,
+        predictive_ledger=predictive_ledger,
+    )
+    if checked.get("status") != "resolved" or checked.get("session_id") != captured_session_id:
+        return _result("rejected", checked.get("reason", "charge_prediction_invalid"))
+    producer_error = _validate_producer_execution(producer_execution_observation, checked)
+    if producer_error:
+        return _result("rejected", producer_error)
+    affected = checked["target"]
+    cancelled_error = _validate_cancelled_history(
+        cancelled_execution_observation, cancelled_result_observation,
+        affected=affected, session_id=checked["session_id"], turn_number=checked["turn_number"],
+    )
+    if cancelled_error:
+        return _result("rejected", cancelled_error)
+    producer_action_id = checked["source_action_id"]
+    cancelled_payload = _payload(cancelled_execution_observation)
+    cancelled_action_id = cancelled_payload.get("source_action_id")
+    if producer_action_id == cancelled_action_id:
+        return _result("rejected", "producer_and_cancelled_action_must_differ")
+    rows = runtime_session_manager.read_collection_snapshot().get("ordered_observations", [])
+    if not isinstance(rows, list):
+        return _result("rejected", "observation_collection_unavailable")
+    for source in (producer_execution_observation, cancelled_execution_observation, cancelled_result_observation):
+        matches = [row for row in rows if row.get("observation_id") == source.get("observation_id")]
+        if len(matches) != 1 or matches[0] != source:
+            return _result("rejected", "referenced_observation_not_exactly_admitted")
+    if len(_execution_matches(rows, checked["actor"], producer_action_id, checked["move_id"], checked["turn_number"])) != 1:
+        return _result("rejected", "ambiguous_producer_execution_evidence")
+    producer_results = [
+        row for row in rows
+        if row.get("event_kind") == "previous_action_result_observed"
+        and row.get("session_id") == checked["session_id"]
+        and row.get("turn_number") == checked["turn_number"]
+        and _owner_from_observation(row) == checked["actor"]
+        and _payload(row).get("previous_action_id") == producer_action_id
+    ]
+    if len(producer_results) > 1:
+        return _result("rejected", "ambiguous_producer_result_evidence")
+    if producer_results and _payload(producer_results[0]).get("result_class") != "success":
+        return _result("rejected", "producer_result_incompatible_with_flinch_causality")
+    cancelled_move_id = cancelled_payload.get("move_id")
+    if len(_execution_matches(rows, affected, cancelled_action_id, cancelled_move_id, checked["turn_number"])) != 1:
+        return _result("rejected", "ambiguous_cancelled_execution_evidence")
+    result_matches = [
+        row for row in rows
+        if row.get("event_kind") == "previous_action_result_observed"
+        and row.get("session_id") == checked["session_id"]
+        and row.get("turn_number") == checked["turn_number"]
+        and _owner_from_observation(row) == affected
+        and _payload(row).get("previous_action_id") == cancelled_action_id
+    ]
+    if len(result_matches) != 1 or result_matches[0] != cancelled_result_observation:
+        return _result("rejected", "ambiguous_cancelled_result_evidence")
+    allocated = runtime_session_manager.allocate_observation_sequence()
+    if allocated.get("status") != "allocated":
+        return _result("rejected", "observation_sequence_allocation_failed")
+    sequence = allocated["observation_sequence"]
+    if sequence <= max(_sequence(row) for row in (producer_execution_observation, cancelled_execution_observation, cancelled_result_observation)):
+        return _result("rejected", "flinch_causality_sequence_not_after_sources")
+    state = runtime_session_manager.read_state().get("state")
+    owners = {side: _active_owner(state, captured_session_id, side) for side in ("self", "opponent")}
+    if owners.get(checked["actor"]["side"]) != checked["actor"] or owners.get(affected["side"]) != affected:
+        return _result("rejected", "causal_action_owner_not_current")
+    payload = {
+        "producer_source_action_id": producer_action_id,
+        "producer_move_id": checked["move_id"],
+        "producer_owner": deepcopy(checked["actor"]),
+        "producer_execution_observation_id": producer_execution_observation["observation_id"],
+        "affected_owner": deepcopy(affected),
+        "cancelled_source_action_id": cancelled_action_id,
+        "cancelled_move_id": cancelled_move_id,
+        "cancelled_execution_observation_id": cancelled_execution_observation["observation_id"],
+        "cancelled_result_observation_id": cancelled_result_observation["observation_id"],
+        "producer_predictive_ledger_fingerprint": checked["predictive_ledger_fingerprint"],
+        "producer_prediction_kind": "standard_charge_terminal_execution",
+        "producer_prediction_fingerprint": checked["terminal_prediction_fingerprint"],
+        "original_charge_action_id": checked["original_charge_action_id"],
+        "terminal_action_identity": checked["terminal_action_identity"],
+        "execution_mode": checked["execution_mode"],
+        "caller_kind": checked["caller_kind"],
+        "charge_lifecycle": deepcopy(checked["charge_lifecycle"]),
+    }
+    boundary = LifecycleConfirmationBoundary(captured_session_id, owners)
+    confirmation = boundary.confirm(
+        event_kind="flinch_causality_observed", payload=payload,
+        session_id=captured_session_id, source=FLINCH_CAUSALITY_SOURCE, trust=USER_TRUST,
+        confirmed=True, side=checked["actor"]["side"], slot_index=checked["actor"]["slot_index"],
+        pokemon_id=checked["actor"]["pokemon_id"],
+        observation_id=f"{captured_session_id}:flinch-causality:{sequence}",
+        turn_number=checked["turn_number"],
+    )
+    if confirmation.get("status") != "confirmed":
+        return _result("rejected", confirmation.get("excluded_reason", "flinch_causality_confirmation_rejected"))
+    observation = deepcopy(confirmation["observation"])
+    observation["observation_sequence"] = sequence
+    observation.update(**deepcopy(payload), reconciliation_eligible=True, provenance=PROVENANCE)
+    confirmation = {**deepcopy(confirmation), "observation": observation}
+    admitted = runtime_session_manager.admit_confirmation(captured_session_id, confirmation)
+    if admitted.get("status") not in {"added", "duplicate"}:
+        return _result("rejected", "flinch_causality_observation_admission_rejected")
+    return {"status": "resolved", "observation": observation, "runtime_committed": False, "provenance": PROVENANCE}
+
+
 def _validate_producer_execution(value: Any, binding: Mapping[str, Any]) -> str | None:
     if not isinstance(value, Mapping) or value.get("event_kind") != "executed_move_observed":
         return "producer_execution_observation_invalid"

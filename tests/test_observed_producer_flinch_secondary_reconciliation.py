@@ -482,7 +482,8 @@ def test_ui_requires_explicit_causal_choice_and_reuses_internal_action_ids():
     contract = source[start:end]
     assert '"Confirm Flinch Cause"' in contract
     assert '"Not confirmed"' in contract
-    assert 'checked.get("move_id") != "iron-head"' in contract
+    assert 'is_scalar_iron_head = checked.get("move_id") == "iron-head"' in contract
+    assert 'is_charge_sky_attack = checked.get("move_id") == "sky-attack"' in contract
     assert "admit_flinch_causality_observation(" in contract
     assert 'selected["binding"]["source_action_id"]' in contract
     # The UI selects a human-readable producer option; it never asks for an
