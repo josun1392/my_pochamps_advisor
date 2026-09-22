@@ -250,7 +250,7 @@ def test_ui_source_contract_derives_identity_internally_and_retires_historical_s
     confusion_end=source.index("def _open_paralysis_result_confirmation",confusion_start)
     assert "self._historical_confusion_action_gates = {}" in source[confusion_start:confusion_end]
     switch_start=source.index("def _confirm_pokemon_switch")
-    switch_end=source.index("def _open_forced_switch_confirmation",switch_start)
+    switch_end=source.index("def _confirm_previous_action_history",switch_start)
     assert "self._historical_confusion_action_gates = {}" in source[switch_start:switch_end]
 
 
