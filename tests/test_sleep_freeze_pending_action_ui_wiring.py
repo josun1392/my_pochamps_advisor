@@ -109,6 +109,19 @@ def _window(manager, *, side="self", turn=2):
     return window, panel, status
 
 
+def _set_exact_abilities(manager, *, turn=1):
+    for side in ("self", "opponent"):
+        result = admit_current_state_observation(
+            runtime_session_manager=manager,
+            captured_session_id=manager.session_id,
+            event_kind="current_ability_observed",
+            payload={"ability": "pressure"},
+            side=side,
+            turn_number=turn,
+        )
+        assert result["status"] == "resolved", result
+
+
 def _submit(window, *, side="self", move="tackle", result="remained_asleep", session=None):
     return MainWindow._submit_pending_status_action_result(
         window,
@@ -151,6 +164,57 @@ def test_all_six_actual_result_paths_reach_canonical_owner(
         assert [row["event_kind"] for row in result["derived_observations"]] == [derived_kind]
     assert result["strategy_d0"]["source_runtime_fingerprint"] == result["runtime_snapshot"]["state_fingerprint"]
     assert panel.clear_readiness_calls == 1
+
+
+@pytest.mark.parametrize(
+    "condition,result_code,expected_mass",
+    [
+        ("sleep", "remained_asleep", (1, 1)),
+        ("freeze", "remained_frozen", (3, 4)),
+    ],
+)
+def test_ui_retains_exact_pre_observation_gate_and_reconciles_after_runtime_commit(
+    condition, result_code, expected_mass
+):
+    manager = _manager(condition=condition, duration=None)
+    _set_exact_abilities(manager)
+    window, _panel, _status = _window(manager)
+    before = manager.capture_runtime_state_snapshot(manager.session_id)
+    before_state = deepcopy(manager.read_state())
+
+    result = _submit(window, result=result_code)
+
+    assert result["status"] == "resolved", result
+    assert result["runtime_committed"] is True
+    reconciliation = result["rng_reconciliation"]
+    assert reconciliation["status"] == "resolved"
+    assert reconciliation["source_prediction_kind"] == "sleep_freeze_action_gate"
+    assert reconciliation["probability_normalization"] == "none_preserve_original_mass"
+    assert reconciliation["compatible_original_probability_mass"] == {
+        "numerator": expected_mass[0], "denominator": expected_mass[1],
+    }
+    if condition == "sleep":
+        assert reconciliation["match_outcome"] == "multiple_compatible_branches"
+        assert "sleep_duration" in reconciliation["unresolved_hidden_dimensions"]
+    retained = next(iter(window._historical_sleep_freeze_action_gates.values()))
+    assert retained["source_runtime_fingerprint"] == before["state_fingerprint"]
+    assert retained["predictive_gate"]["source_runtime_fingerprint"] == before["state_fingerprint"]
+    assert result["runtime_snapshot"]["state_fingerprint"] != before["state_fingerprint"]
+    assert manager.read_state() != before_state
+    assert reconciliation["source_observations"][0]["event_kind"] == "pending_status_action_execution_observed"
+    assert len(reconciliation["source_observations"]) == 1
+    assert result["derived_observations"]
+    assert all(row["event_kind"] != "pending_status_action_execution_observed" for row in result["derived_observations"])
+
+
+def test_turn_change_retires_historical_sleep_freeze_gate_storage():
+    manager = _manager(condition="freeze")
+    window, _panel, _status = _window(manager)
+    window._historical_sleep_freeze_action_gates = {("old",): {"status": "resolved"}}
+
+    MainWindow.set_current_turn_number(window, 3)
+
+    assert window._historical_sleep_freeze_action_gates == {}
 
 
 @pytest.mark.parametrize("side", ["self", "opponent"])

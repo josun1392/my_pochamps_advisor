@@ -852,3 +852,210 @@ def _canonical_bytes(value: Any) -> bytes:
 
 def _result(status: str, reason: str) -> dict[str, Any]:
     return {"status": status, "schema_version": RECONCILIATION_SCHEMA_VERSION, "reason": reason}
+
+
+_SLEEP_FREEZE_RETENTION_SCHEMA = "historical-sleep-freeze-action-gate-v1"
+_SLEEP_FREEZE_RETENTION_PROVENANCE = "authenticated_pre_observation_sleep_freeze_action_gate_v1"
+_SLEEP_FREEZE_OUTCOME_TO_BRANCH = {
+    ("sleep", "blocked_sleep"): ("cancelled_sleep", "blocked", "sleep"),
+    ("sleep", "wake_and_execute"): ("wakes_and_executes", "executable", None),
+    ("sleep", "sleep_exception_execute"): ("move_specific_sleep_exception_executes", "executable", None),
+    ("freeze", "blocked_freeze"): ("cancelled_freeze", "blocked", "freeze"),
+    ("freeze", "natural_thaw_and_execute"): ("thaws_and_executes", "executable", None),
+    ("freeze", "self_thaw_move_execute"): ("self_thaw_move_executes", "executable", None),
+}
+
+
+def retain_historical_sleep_freeze_action_gate(
+    *, predictive_gate: Mapping[str, Any], turn_number: int, decision_point: str,
+) -> dict[str, Any]:
+    """Freeze one exact pre-observation sleep/freeze gate for later C5 comparison."""
+    from llm.advisor_champions_sleep_freeze_action_gate import validate_status_gate
+
+    if not validate_status_gate(predictive_gate):
+        return _result("rejected", "invalid_sleep_freeze_action_gate")
+    if predictive_gate.get("condition") not in {"sleep", "freeze"}:
+        return _result("rejected", "unsupported_sleep_freeze_gate_condition")
+    if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1:
+        return _result("rejected", "invalid_trusted_turn_number")
+    if not isinstance(decision_point, str) or not decision_point:
+        return _result("rejected", "invalid_sleep_freeze_decision_point")
+    gate = deepcopy(dict(predictive_gate))
+    fingerprint = _fingerprint(gate)
+    return {
+        "status": "resolved",
+        "schema_version": _SLEEP_FREEZE_RETENTION_SCHEMA,
+        "session_id": gate["session_id"],
+        "turn_number": turn_number,
+        "decision_point": decision_point,
+        "action_id": gate["action_id"],
+        "move_id": gate["move_id"],
+        "condition": gate["condition"],
+        "actor": deepcopy(gate["actor"]),
+        "source_runtime_fingerprint": gate["source_runtime_fingerprint"],
+        "source_branch_fingerprint": gate["source_branch_fingerprint"],
+        "prediction_fingerprint": fingerprint,
+        "predictive_gate": gate,
+        "provenance": _SLEEP_FREEZE_RETENTION_PROVENANCE,
+    }
+
+
+def validate_historical_sleep_freeze_action_gate(retained: Mapping[str, Any]) -> dict[str, Any]:
+    from llm.advisor_champions_sleep_freeze_action_gate import validate_status_gate
+
+    if not isinstance(retained, Mapping) or retained.get("schema_version") != _SLEEP_FREEZE_RETENTION_SCHEMA:
+        return _result("rejected", "historical_sleep_freeze_gate_missing")
+    gate = retained.get("predictive_gate")
+    if not isinstance(gate, Mapping) or not validate_status_gate(gate):
+        return _result("rejected", "historical_sleep_freeze_gate_invalid")
+    if _fingerprint(gate) != retained.get("prediction_fingerprint"):
+        return _result("rejected", "historical_sleep_freeze_prediction_fingerprint_mismatch")
+    required = {
+        "session_id": gate.get("session_id"),
+        "action_id": gate.get("action_id"),
+        "move_id": gate.get("move_id"),
+        "condition": gate.get("condition"),
+        "actor": gate.get("actor"),
+        "source_runtime_fingerprint": gate.get("source_runtime_fingerprint"),
+        "source_branch_fingerprint": gate.get("source_branch_fingerprint"),
+        "provenance": _SLEEP_FREEZE_RETENTION_PROVENANCE,
+    }
+    if any(retained.get(key) != value for key, value in required.items()):
+        return _result("rejected", "historical_sleep_freeze_gate_identity_mismatch")
+    if not isinstance(retained.get("turn_number"), int) or isinstance(retained.get("turn_number"), bool) or retained["turn_number"] < 1:
+        return _result("rejected", "historical_sleep_freeze_turn_invalid")
+    if not isinstance(retained.get("decision_point"), str) or not retained["decision_point"]:
+        return _result("rejected", "historical_sleep_freeze_decision_point_invalid")
+    return deepcopy(dict(retained))
+
+
+def reconcile_observed_sleep_freeze_action_gate_rng(
+    *, retained_prediction: Mapping[str, Any],
+    pending_status_action_observation: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Filter one immutable exact sleep/freeze gate by its exact production observation."""
+    checked = validate_historical_sleep_freeze_action_gate(retained_prediction)
+    if checked.get("status") != "resolved":
+        return checked
+    gate = checked["predictive_gate"]
+    branches = gate["branches"]
+    if pending_status_action_observation is None:
+        return _sleep_freeze_reconciliation_result(
+            status="incomplete", reason="insufficient_observation", retained=checked,
+            observations=(), compatible_branches=branches, matched={},
+        )
+    if not isinstance(pending_status_action_observation, Mapping) or pending_status_action_observation.get("event_kind") != "pending_status_action_execution_observed":
+        return _sleep_freeze_reconciliation_result(
+            status="incomplete", reason="insufficient_observation", retained=checked,
+            observations=(), compatible_branches=branches, matched={},
+        )
+    error = _validate_pending_status_action_observation(pending_status_action_observation, checked)
+    if error:
+        return _result("rejected", error)
+    payload = pending_status_action_observation["payload"]
+    mapping = _SLEEP_FREEZE_OUTCOME_TO_BRANCH.get((checked["condition"], payload["outcome_class"]))
+    if mapping is None:
+        return _result("rejected", "unsupported_pending_status_action_outcome")
+    expected_kind, expected_state, expected_blocker = mapping
+    if payload.get("execution_state") != expected_state or payload.get("blocker") != expected_blocker:
+        return _result("rejected", "pending_status_action_semantics_mismatch")
+    compatible = tuple(branch for branch in branches if branch.get("kind") == expected_kind)
+    return _sleep_freeze_reconciliation_result(
+        status="resolved", reason=None, retained=checked,
+        observations=(pending_status_action_observation,), compatible_branches=compatible,
+        matched={
+            "outcome_class": payload["outcome_class"],
+            "execution_state": payload["execution_state"],
+            "blocker": payload["blocker"],
+        },
+    )
+
+
+def _validate_pending_status_action_observation(value: Mapping[str, Any], retained: Mapping[str, Any]) -> str | None:
+    if (
+        value.get("session_id") != retained["session_id"]
+        or value.get("turn_number") != retained["turn_number"]
+        or value.get("source") != "ui_pending_status_action_execution_confirmation"
+        or value.get("trust") != "user_confirmed_observation"
+        or value.get("observed") is not True
+        or value.get("confirmed") is not True
+        or _sequence(value) <= 0
+    ):
+        return "pending_status_action_observation_provenance_mismatch"
+    actor = retained["actor"]
+    if (value.get("side"), value.get("slot_index"), value.get("pokemon_id")) != (
+        actor.get("side"), actor.get("slot_index"), actor.get("pokemon_id"),
+    ):
+        return "pending_status_action_actor_mismatch"
+    payload = value.get("payload")
+    if not isinstance(payload, Mapping) or set(payload) != {
+        "decision_point", "action_id", "move_id", "condition",
+        "execution_state", "blocker", "outcome_class",
+    }:
+        return "pending_status_action_payload_invalid"
+    if payload.get("decision_point") != retained["decision_point"]:
+        return "pending_status_action_decision_point_mismatch"
+    if payload.get("action_id") != retained["action_id"]:
+        return "pending_status_action_action_id_mismatch"
+    if payload.get("move_id") != retained["move_id"]:
+        return "pending_status_action_move_mismatch"
+    if payload.get("condition") != retained["condition"]:
+        return "pending_status_action_condition_mismatch"
+    if (retained["condition"], payload.get("outcome_class")) not in _SLEEP_FREEZE_OUTCOME_TO_BRANCH:
+        return "unsupported_pending_status_action_outcome"
+    return None
+
+
+def _sleep_freeze_reconciliation_result(
+    *, status: str, reason: str | None, retained: Mapping[str, Any],
+    observations: Sequence[Mapping[str, Any]], compatible_branches: Sequence[Mapping[str, Any]],
+    matched: Mapping[str, Any],
+) -> dict[str, Any]:
+    mass = sum((_fraction(branch.get("probability")) or Fraction() for branch in compatible_branches), Fraction())
+    if status == "resolved":
+        match_outcome = "incompatible_observation" if not compatible_branches else "uniquely_matched" if len(compatible_branches) == 1 else "multiple_compatible_branches"
+    else:
+        match_outcome = None
+    refs = tuple({
+        "observation_id": row.get("observation_id"),
+        "observation_sequence": _sequence(row),
+        "event_kind": row.get("event_kind"),
+    } for row in observations)
+    return {
+        "status": status,
+        "schema_version": RECONCILIATION_SCHEMA_VERSION,
+        "reason": reason,
+        "source_prediction_kind": "sleep_freeze_action_gate",
+        "source_prediction_identity": {
+            "schema_version": "champions-sleep-freeze-action-gate-v1",
+            "prediction_fingerprint": retained["prediction_fingerprint"],
+        },
+        "session_id": retained["session_id"],
+        "turn_number": retained["turn_number"],
+        "actor": deepcopy(retained["actor"]),
+        "decision_point": retained["decision_point"],
+        "action_id": retained["action_id"],
+        "move_id": retained["move_id"],
+        "condition": retained["condition"],
+        "source_runtime_fingerprint": retained["source_runtime_fingerprint"],
+        "source_branch_fingerprint": retained["source_branch_fingerprint"],
+        "source_observations": refs,
+        "match_outcome": match_outcome,
+        "compatible_branch_ids": tuple(branch["branch_id"] for branch in compatible_branches),
+        "compatible_original_probability_mass": _fd(mass),
+        "probability_normalization": "none_preserve_original_mass",
+        "matched_observable_facts": deepcopy(dict(matched)),
+        "unresolved_hidden_dimensions": _sleep_freeze_hidden_dimensions(compatible_branches),
+        "provenance": _RECONCILIATION_PROVENANCE,
+    }
+
+
+def _sleep_freeze_hidden_dimensions(branches: Sequence[Mapping[str, Any]]) -> tuple[str, ...]:
+    if len(branches) < 2:
+        return ()
+    dimensions = []
+    for key in ("sleep_duration", "adjusted_duration", "duration_adjustment", "duration_identity", "attempt"):
+        values = {_canonical_bytes(branch.get(key)) for branch in branches if key in branch}
+        if len(values) > 1:
+            dimensions.append(key)
+    return tuple(dimensions)

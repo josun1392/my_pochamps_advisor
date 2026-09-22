@@ -61,6 +61,8 @@ from llm.advisor_current_condition_observation import admit_current_condition_ob
 from llm.advisor_action_linked_condition_application_observation import admit_action_linked_condition_application_observation
 from llm.advisor_status_progression_observation import admit_champions_status_progression_observation
 from llm.advisor_pending_status_action_runtime_admission import admit_pending_status_action_execution
+from llm.advisor_champions_sleep_freeze_action_gate import freeze_champions_status_action_gate
+from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 from llm.advisor_current_state_runtime_admission import (
     admit_current_state_observation,
     admit_current_state_observations,
@@ -92,6 +94,8 @@ from llm.advisor_detached_observed_rng_reconciliation import (
     materialize_historical_predictive_action_binding,
     reconcile_observed_action_opportunity_rng,
     reconcile_observed_scalar_attack_rng,
+    reconcile_observed_sleep_freeze_action_gate_rng,
+    retain_historical_sleep_freeze_action_gate,
     validate_historical_predictive_action_binding,
 )
 from llm.advisor_current_action_paralysis_opportunity_authority import (
@@ -979,6 +983,32 @@ class MainWindow(QMainWindow):
             self._present_pending_status_result(identity)
             return identity
         outcome_class, execution_state, blocker = mapped
+        pre_action_d0 = freeze_runtime_strategy_d0(
+            runtime_snapshot=before,
+            decision_owner=actor["owner"],
+        )
+        retained_gate = None
+        if pre_action_d0.get("status") == "resolved":
+            predictive_gate = freeze_champions_status_action_gate(
+                strategy_d0=pre_action_d0,
+                runtime_snapshot=before,
+                actor=actor["owner"],
+                action_id=identity["action_id"],
+                move_id=move_id,
+                action_order={"decision_point": identity["decision_point"]},
+                path=(),
+            )
+            if predictive_gate.get("status") == "resolved":
+                retained_gate = retain_historical_sleep_freeze_action_gate(
+                    predictive_gate=predictive_gate,
+                    turn_number=turn_number,
+                    decision_point=identity["decision_point"],
+                )
+                if retained_gate.get("status") == "resolved":
+                    key = (session_id, turn_number, identity["decision_point"], identity["action_id"])
+                    storage = dict(getattr(self, "_historical_sleep_freeze_action_gates", {}))
+                    storage[key] = deepcopy(retained_gate)
+                    self._historical_sleep_freeze_action_gates = storage
         result = admit_pending_status_action_execution(
             runtime_session_manager=manager,
             captured_session_id=session_id,
@@ -995,6 +1025,17 @@ class MainWindow(QMainWindow):
             outcome_class=outcome_class,
         )
         if result.get("status") == "resolved":
+            if (
+                isinstance(retained_gate, dict)
+                and retained_gate.get("status") == "resolved"
+                and isinstance(result.get("observation"), dict)
+            ):
+                reconciliation = reconcile_observed_sleep_freeze_action_gate_rng(
+                    retained_prediction=retained_gate,
+                    pending_status_action_observation=result["observation"],
+                )
+                self._last_observed_rng_reconciliation = deepcopy(reconciliation)
+                result = {**result, "rng_reconciliation": deepcopy(reconciliation)}
             after = result.get("runtime_snapshot")
             changed = (
                 isinstance(before, dict)
@@ -2233,6 +2274,7 @@ class MainWindow(QMainWindow):
     def _install_historical_predictive_action_bindings(self, strategy_result: dict) -> None:
         """Replace temporary C5 bindings from one fresh pre-action strategy result."""
         self._historical_predictive_action_bindings = {}
+        self._historical_sleep_freeze_action_gates = {}
         self._last_observed_rng_reconciliation = None
         turn_number = getattr(self, "_current_trusted_turn_number", None)
         ledgers = strategy_result.get("exact_outcome_ledgers") if isinstance(strategy_result, dict) else None
@@ -2575,6 +2617,7 @@ class MainWindow(QMainWindow):
         self._structured_observed_damage_confirmations = []
         self._contact_result_action_ids = {}
         self._historical_predictive_action_bindings = {}
+        self._historical_sleep_freeze_action_gates = {}
         self._last_observed_rng_reconciliation = None
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
@@ -2618,6 +2661,7 @@ class MainWindow(QMainWindow):
         prior = getattr(self, "_current_trusted_turn_number", None)
         if prior != turn_number:
             self._historical_predictive_action_bindings = {}
+            self._historical_sleep_freeze_action_gates = {}
             self._last_observed_rng_reconciliation = None
         self._current_trusted_turn_number = turn_number
 
