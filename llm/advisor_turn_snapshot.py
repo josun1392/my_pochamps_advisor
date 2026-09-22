@@ -782,7 +782,22 @@ def normalize_structured_observed_damage_confirmations(
         attacker, defender, amount = item.get("attacker"), item.get("defender"), item.get("damage_amount")
         if (item.get("event_kind"), item.get("hp_unit"), item.get("source"), item.get("trust"), item.get("observed"), item.get("confirmed")) != ("direct_move_damage_observed", "exact", "ui_observed_damage_confirmation", "user_confirmed_observation", True, True):
             continue
-        if isinstance(amount, bool) or not isinstance(amount, int) or amount < 0 or item.get("move_id") is not None or item.get("move_slot") is not None or "hp_before" in item or "hp_after" in item:
+        linked = item.get("reconciliation_eligible") is True
+        move_id = item.get("move_id")
+        source_action_id = item.get("source_action_id")
+        linked_execution_id = item.get("linked_execution_observation_id")
+        prediction_fingerprint = item.get("predictive_ledger_fingerprint")
+        if isinstance(amount, bool) or not isinstance(amount, int) or amount < 0 or item.get("move_slot") is not None or "hp_before" in item or "hp_after" in item:
+            continue
+        if linked:
+            if (
+                not isinstance(move_id, str) or not move_id or move_id != move_id.lower() or " " in move_id or "_" in move_id
+                or not isinstance(source_action_id, str) or not source_action_id
+                or not isinstance(linked_execution_id, str) or not linked_execution_id
+                or not isinstance(prediction_fingerprint, str) or len(prediction_fingerprint) != 64
+            ):
+                continue
+        elif move_id is not None or source_action_id is not None:
             continue
         if not _observed_damage_owner_matches(attacker, active, session_id) or not _observed_damage_owner_matches(defender, active, session_id) or attacker.get("side") == defender.get("side"):
             continue
@@ -800,11 +815,19 @@ def normalize_structured_observed_damage_confirmations(
         event = {
             "event_kind": "direct_move_damage_observed", "attacker_side": attacker["side"], "attacker_slot_index": attacker["slot_index"], "attacker_pokemon_id": attacker["pokemon_id"],
             "defender_side": defender["side"], "defender_slot_index": defender["slot_index"], "defender_pokemon_id": defender["pokemon_id"],
-            "move_id": None, "move_slot": None, "session_id": session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation",
-            "observed": True, "confirmed": True, "damage_amount": amount, "hp_unit": "exact", "payload": {"damage_amount": amount, "hp_unit": "exact", "mode": "amount_only"},
+            "move_id": move_id if linked else None, "move_slot": None, "session_id": session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation",
+            "observed": True, "confirmed": True, "damage_amount": amount, "hp_unit": "exact",
+            "payload": {"damage_amount": amount, "hp_unit": "exact", "mode": "action_linked" if linked else "amount_only"},
             "attacker": deepcopy(attacker), "defender": deepcopy(defender),
             "attacker_provenance": deepcopy(attacker), "defender_provenance": deepcopy(defender),
+            "reconciliation_eligible": linked,
         }
+        if linked:
+            event.update(
+                source_action_id=source_action_id,
+                linked_execution_observation_id=linked_execution_id,
+                predictive_ledger_fingerprint=prediction_fingerprint,
+            )
         if observation_id is not None:
             event["observation_id"] = observation_id
         event["observation_sequence"] = sequence

@@ -77,6 +77,12 @@ from llm.advisor_candidate_contract import prepare_ui_recommendation_cycle
 from llm.advisor_recommendation_readiness import build_recommendation_readiness
 from llm.advisor_switch_candidates import build_switch_candidate_context_projection
 from llm.advisor_ui_detached_strategy_bridge import run_current_ui_detached_strategy
+from llm.advisor_detached_observed_rng_reconciliation import (
+    link_direct_damage_observation_to_predictive_action,
+    materialize_historical_predictive_action_binding,
+    reconcile_observed_scalar_attack_rng,
+    validate_historical_predictive_action_binding,
+)
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
@@ -469,6 +475,8 @@ class MainWindow(QMainWindow):
         self._current_observed_damage_confirmation: dict[str, object] | None = None
         self._structured_observed_damage_confirmations: list[dict] = []
         self._contact_result_action_ids: dict[tuple[str, str, int, str], str] = {}
+        self._historical_predictive_action_bindings: dict[str, dict] = {}
+        self._last_observed_rng_reconciliation: dict | None = None
         self._battle_counter_confirmation: dict[str, int] | None = None
         self._consecutive_use_confirmation: dict[str, int | bool] | None = None
 
@@ -2124,21 +2132,150 @@ class MainWindow(QMainWindow):
         return result
 
     def _confirm_previous_action_history(self, *, side: str, execution_move_id: str, selected_move_id: str, result_class: str | None) -> dict:
-        """Submit only an explicit real-action confirmation through the core runtime."""
+        """Submit one explicit real action, reusing only an exact pre-action C5 link."""
         manager = getattr(self, "_observation_runtime_session_manager", None)
         session_id = MainWindow._active_session_id(self)
         if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
             return {"status": "rejected", "reason": "active_session_unavailable"}
-        return admit_previous_action_history_observation(
+        linked = self._resolve_historical_predictive_action_bundle(side=side, move_id=execution_move_id)
+        source_action_id = (
+            linked["binding"]["source_action_id"]
+            if linked.get("status") == "resolved"
+            else f"{session_id}:action-{manager.last_allocated_sequence + 1}"
+        )
+        result = admit_previous_action_history_observation(
             runtime_session_manager=manager,
             captured_session_id=session_id,
             side=side,
             execution_move_id=execution_move_id,
             selected_move_id=selected_move_id,
-            source_action_id=f"{session_id}:action-{manager.last_allocated_sequence + 1}",
+            source_action_id=source_action_id,
             result_class=result_class,
             turn_number=getattr(self, "_current_trusted_turn_number", None),
         )
+        if result.get("status") == "resolved" and linked.get("status") == "resolved":
+            result = {**result, "predictive_action_binding": deepcopy(linked["binding"])}
+            self._reconcile_linked_predictive_action(source_action_id)
+        return result
+
+    def _install_historical_predictive_action_bindings(self, strategy_result: dict) -> None:
+        """Replace temporary C5 bindings from one fresh pre-action strategy result."""
+        self._historical_predictive_action_bindings = {}
+        self._last_observed_rng_reconciliation = None
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        ledgers = strategy_result.get("exact_outcome_ledgers") if isinstance(strategy_result, dict) else None
+        if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1 or not isinstance(ledgers, dict):
+            return
+        for ledger in ledgers.values():
+            if not isinstance(ledger, dict) or ledger.get("status") != "evaluable" or ledger.get("action_type") != "attack":
+                continue
+            binding = materialize_historical_predictive_action_binding(
+                predictive_ledger=ledger, turn_number=turn_number,
+            )
+            if binding.get("status") != "resolved":
+                continue
+            self._historical_predictive_action_bindings[binding["source_action_id"]] = {
+                "binding": deepcopy(binding), "ledger": deepcopy(ledger),
+            }
+
+    @staticmethod
+    def _runtime_owner_matches_predictive_binding(state: object, owner: object) -> bool:
+        if not isinstance(state, dict) or not isinstance(owner, dict) or owner.get("side") not in {"self", "opponent"}:
+            return False
+        side_state = state.get(f"{owner['side']}_side")
+        roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
+        slot = side_state.get("active_slot_index") if isinstance(side_state, dict) else None
+        pokemon = roster.get(slot, roster.get(str(slot))) if isinstance(roster, dict) and isinstance(slot, int) and not isinstance(slot, bool) else None
+        return (
+            slot == owner.get("slot_index")
+            and isinstance(pokemon, dict)
+            and pokemon.get("pokemon_id") == owner.get("pokemon_id")
+        )
+
+    def _resolve_historical_predictive_action_bundle(self, *, side: str, move_id: str) -> dict:
+        """Resolve exactly one current pre-action binding; move equality alone never suffices."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str) or not isinstance(turn_number, int):
+            return {"status": "incomplete", "reason": "predictive_action_link_context_unavailable"}
+        snapshot = manager.capture_runtime_state_snapshot(session_id)
+        if snapshot.get("status") != "runtime_snapshot_ready":
+            return {"status": "rejected", "reason": "predictive_action_link_runtime_unavailable"}
+        state = snapshot.get("state")
+        compatible = []
+        for bundle in getattr(self, "_historical_predictive_action_bindings", {}).values():
+            if not isinstance(bundle, dict):
+                continue
+            binding, ledger = bundle.get("binding"), bundle.get("ledger")
+            checked = validate_historical_predictive_action_binding(binding=binding, predictive_ledger=ledger) if isinstance(binding, dict) and isinstance(ledger, dict) else {}
+            if checked.get("status") != "resolved":
+                continue
+            if (
+                checked.get("session_id") != session_id
+                or checked.get("turn_number") != turn_number
+                or checked.get("move_id") != move_id
+                or checked.get("actor", {}).get("side") != side
+                or checked.get("source_runtime_fingerprint") != snapshot.get("state_fingerprint")
+                or checked.get("decision_owner") != checked.get("actor")
+                or not self._runtime_owner_matches_predictive_binding(state, checked.get("actor"))
+                or not self._runtime_owner_matches_predictive_binding(state, checked.get("target"))
+            ):
+                continue
+            compatible.append({"binding": checked, "ledger": deepcopy(ledger)})
+        if len(compatible) != 1:
+            return {"status": "rejected" if len(compatible) > 1 else "incomplete", "reason": "ambiguous_predictive_action_link" if len(compatible) > 1 else "exact_predictive_action_link_unavailable"}
+        return {"status": "resolved", **compatible[0]}
+
+    def _linked_executed_predictive_bundle(self) -> dict:
+        """Resolve the one already-observed action that still has an authenticated C5 binding."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str) or not isinstance(turn_number, int):
+            return {"status": "incomplete", "reason": "linked_execution_context_unavailable"}
+        observations = manager.read_collection_snapshot().get("ordered_observations", [])
+        matches = []
+        for bundle in getattr(self, "_historical_predictive_action_bindings", {}).values():
+            if not isinstance(bundle, dict):
+                continue
+            binding, ledger = bundle.get("binding"), bundle.get("ledger")
+            checked = validate_historical_predictive_action_binding(binding=binding, predictive_ledger=ledger) if isinstance(binding, dict) and isinstance(ledger, dict) else {}
+            if checked.get("status") != "resolved" or checked.get("session_id") != session_id or checked.get("turn_number") != turn_number:
+                continue
+            execution = [row for row in observations if isinstance(row, dict) and row.get("event_kind") == "executed_move_observed" and row.get("session_id") == session_id and row.get("turn_number") == turn_number and row.get("payload", {}).get("source_action_id") == checked.get("source_action_id") and row.get("payload", {}).get("move_id") == checked.get("move_id")]
+            if len(execution) == 1:
+                matches.append({"binding": checked, "ledger": deepcopy(ledger), "execution": deepcopy(execution[0])})
+        if len(matches) != 1:
+            return {"status": "incomplete", "reason": "linked_execution_not_unique"}
+        return {"status": "resolved", **matches[0]}
+
+    def _reconcile_linked_predictive_action(self, source_action_id: str, direct_damage: dict | None = None) -> dict:
+        """Build detached C5 evidence only; never write reconciliation into runtime truth."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        bundle = getattr(self, "_historical_predictive_action_bindings", {}).get(source_action_id)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(bundle, dict):
+            return {"status": "incomplete", "reason": "reconciliation_binding_unavailable"}
+        binding, ledger = bundle.get("binding"), bundle.get("ledger")
+        if not isinstance(binding, dict) or not isinstance(ledger, dict):
+            return {"status": "rejected", "reason": "reconciliation_binding_invalid"}
+        rows = manager.read_collection_snapshot().get("ordered_observations", [])
+        executions = [row for row in rows if isinstance(row, dict) and row.get("event_kind") == "executed_move_observed" and row.get("payload", {}).get("source_action_id") == source_action_id]
+        if len(executions) != 1:
+            return {"status": "incomplete", "reason": "linked_execution_unavailable"}
+        execution = executions[0]
+        results = [row for row in rows if isinstance(row, dict) and row.get("event_kind") == "previous_action_result_observed" and row.get("payload", {}).get("previous_action_id") == source_action_id]
+        if len(results) > 1:
+            return {"status": "rejected", "reason": "duplicate_linked_action_result"}
+        reconciliation = reconcile_observed_scalar_attack_rng(
+            predictive_ledger=ledger,
+            predictive_binding=binding,
+            executed_move_observation=execution,
+            previous_action_result_observation=results[0] if results else None,
+            direct_damage_observation=direct_damage,
+        )
+        self._last_observed_rng_reconciliation = deepcopy(reconciliation)
+        return reconciliation
 
     def _confirm_action_restriction(self, *, side: str, restriction: str, operation: str, source_action_id: str | None) -> dict:
         return admit_action_restriction_observation(runtime_session_manager=getattr(self, "_observation_runtime_session_manager", None), captured_session_id=MainWindow._active_session_id(self), side=side, restriction=restriction, operation=operation, source_action_id=source_action_id, turn_number=getattr(self, "_current_trusted_turn_number", None))
@@ -2187,6 +2324,8 @@ class MainWindow(QMainWindow):
         self._current_observed_damage_confirmation = None
         self._structured_observed_damage_confirmations = []
         self._contact_result_action_ids = {}
+        self._historical_predictive_action_bindings = {}
+        self._last_observed_rng_reconciliation = None
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
         self._locked_on_state_confirmation = None
@@ -2226,6 +2365,10 @@ class MainWindow(QMainWindow):
             isinstance(turn_number, bool) or not isinstance(turn_number, int) or turn_number < 1
         ):
             raise ValueError("turn_number must be a positive integer or None")
+        prior = getattr(self, "_current_trusted_turn_number", None)
+        if prior != turn_number:
+            self._historical_predictive_action_bindings = {}
+            self._last_observed_rng_reconciliation = None
         self._current_trusted_turn_number = turn_number
 
     def advance_turn(self) -> int:
@@ -2275,10 +2418,12 @@ class MainWindow(QMainWindow):
                     manager = getattr(self, "_observation_runtime_session_manager", None)
                     captured_session_id = structured["session_id"]
                     if isinstance(manager, BattleObservationRuntimeSessionManager):
-                        manager.admit_confirmation(
+                        admitted = manager.admit_confirmation(
                             captured_session_id,
                             {"status": "confirmed", "observation": structured},
                         )
+                        if admitted.get("status") in {"added", "duplicate"} and structured.get("reconciliation_eligible") is True:
+                            self._reconcile_linked_predictive_action(structured["source_action_id"], direct_damage=structured)
                 self._update_current_observed_damage_summary()
 
     def _clear_current_observed_damage_confirmation(self) -> None:
@@ -2612,7 +2757,7 @@ class MainWindow(QMainWindow):
             pass
 
     def _capture_structured_observed_damage_confirmation(self, entry: dict) -> dict | None:
-        """Bind the legacy amount-only confirmation to current owners privately."""
+        """Capture amount-only damage, adding C5 action linkage only when already authenticated."""
         damage = entry.get("damage")
         if isinstance(damage, bool) or not isinstance(damage, int) or damage < 0:
             return None
@@ -2638,7 +2783,27 @@ class MainWindow(QMainWindow):
             if not isinstance(pokemon_id, str) or not pokemon_id:
                 return None
             owners[side] = {"side": side, "slot_index": slot_index, "pokemon_id": pokemon_id, "session_id": captured_session_id, "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation"}
-        return {"event_kind": "direct_move_damage_observed", "session_id": captured_session_id, "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True, "observation_id": observation_id, "observation_sequence": observation_sequence, "turn_number": getattr(self, "_current_trusted_turn_number", None)}
+        event = {"event_kind": "direct_move_damage_observed", "session_id": captured_session_id, "attacker": owners["opponent"], "defender": owners["self"], "move_id": None, "move_slot": None, "damage_amount": damage, "hp_unit": "exact", "source": "ui_observed_damage_confirmation", "trust": "user_confirmed_observation", "observed": True, "confirmed": True, "observation_id": observation_id, "observation_sequence": observation_sequence, "turn_number": getattr(self, "_current_trusted_turn_number", None), "turn_source": "ui_turn_number_confirmation", "turn_trust": "user_confirmed_observation", "reconciliation_eligible": False}
+        linked = self._linked_executed_predictive_bundle()
+        if linked.get("status") != "resolved":
+            return event
+        binding = linked["binding"]
+        actor, target = binding["actor"], binding["target"]
+        actor_owner, target_owner = owners.get(actor.get("side")), owners.get(target.get("side"))
+        if not isinstance(actor_owner, dict) or not isinstance(target_owner, dict):
+            return event
+        actor_identity = {key: actor_owner.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id")}
+        target_identity = {key: target_owner.get(key) for key in ("session_id", "side", "slot_index", "pokemon_id")}
+        if actor_identity != actor or target_identity != target:
+            return event
+        event.update(attacker=actor_owner, defender=target_owner)
+        linked_event = link_direct_damage_observation_to_predictive_action(
+            observation=event,
+            predictive_binding=binding,
+            predictive_ledger=linked["ledger"],
+            executed_move_observation=linked["execution"],
+        )
+        return linked_event if linked_event.get("event_kind") == "direct_move_damage_observed" else event
 
     def _update_item_event_summary(self) -> None:
         try:
@@ -2914,6 +3079,7 @@ class MainWindow(QMainWindow):
             opponent_move_metadata_authority_builder=lambda strategy_d0, runtime_snapshot: freeze_runtime_d0_observed_opponent_move_metadata_authorities(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, move_repository=self.move_repo),
         )
         if result.get("status") == "resolved":
+            self._install_historical_predictive_action_bindings(result)
             panel.set_strategy_explanation(result["explanation"])
             self.statusBar().showMessage("전략 분석 완료")
         elif result.get("status") == "stale":
