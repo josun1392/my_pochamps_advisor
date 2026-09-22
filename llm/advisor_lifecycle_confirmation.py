@@ -243,8 +243,8 @@ def _valid_payload(kind, payload):
                 and (duration is None or type(duration) is int and duration in {2, 3})
                 and (condition == "sleep" or duration is None))
     if kind == "pending_confusion_action_execution_observed":
-        return (set(payload) == {"decision_point", "action_id", "move_id", "outcome_class"}
-                and all(isinstance(payload.get(key), str) and bool(payload[key]) for key in ("decision_point", "action_id", "move_id"))
+        return (set(payload) == {"decision_point", "action_id", "move_id", "confusion_origin_id", "outcome_class"}
+                and all(isinstance(payload.get(key), str) and bool(payload[key]) for key in ("decision_point", "action_id", "move_id", "confusion_origin_id"))
                 and payload.get("outcome_class") in {"confusion_self_hit", "confusion_selected_action_executes", "confusion_snaps_out_and_executes"})
     if kind == "pending_status_action_execution_observed":
         condition, state, blocker, outcome = (payload.get("condition"), payload.get("execution_state"),

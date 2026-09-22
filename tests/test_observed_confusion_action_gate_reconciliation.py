@@ -61,6 +61,10 @@ def test_self_hit_retains_pre_observation_gate_and_preserves_duration_ambiguity(
     assert result["status"]=="resolved",result
     retained=result["retained_prediction"]
     reconciliation=result["rng_reconciliation"]
+    origin=before["state"]["self_side"]["pokemon"][0]["champions_confusion_progression"]["origin_id"]
+    assert retained["confusion_origin_id"]==origin
+    assert result["observation"]["payload"]["confusion_origin_id"]==origin
+    assert result["derived_observations"][0]["payload"]["confusion_origin_id"]==origin
     assert retained["source_runtime_fingerprint"]==before["state_fingerprint"]
     assert retained["predictive_gate"]["source_runtime_fingerprint"]==before["state_fingerprint"]
     assert result["runtime_snapshot"]["state_fingerprint"]!=before["state_fingerprint"]
@@ -95,6 +99,9 @@ def test_snap_out_filters_only_snap_branch_after_prior_opportunity():
     rec=result["rng_reconciliation"]
     assert rec["match_outcome"]=="uniquely_matched"
     assert _mass(rec)==Fraction(1,4)
+    source_origin=result["retained_prediction"]["confusion_origin_id"]
+    assert result["observation"]["payload"]["confusion_origin_id"]==source_origin
+    assert result["derived_observations"][0]["payload"]["confusion_origin_id"]==source_origin
     pokemon=result["runtime_snapshot"]["state"]["self_side"]["pokemon"][0]
     assert pokemon["current_confusion"]=="none"
     assert pokemon["champions_confusion_progression"] is None
@@ -136,6 +143,7 @@ def test_foreign_observation_envelope_rejects(field,value,reason):
     ("decision_point","foreign","pending_confusion_action_decision_point_mismatch"),
     ("action_id","foreign","pending_confusion_action_action_id_mismatch"),
     ("move_id","thunderbolt","pending_confusion_action_move_mismatch"),
+    ("confusion_origin_id","foreign-origin","pending_confusion_action_origin_mismatch"),
 ])
 def test_foreign_observation_payload_identity_rejects(field,value,reason):
     manager=_manager(); result=_submit(manager,"confusion_self_hit")
@@ -143,6 +151,20 @@ def test_foreign_observation_payload_identity_rejects(field,value,reason):
     checked=reconcile_observed_confusion_action_gate_rng(
         retained_prediction=retained,pending_confusion_action_observation=obs)
     assert checked["status"]=="rejected" and checked["reason"]==reason
+
+
+def test_foreign_old_confusion_episode_origin_rejects_even_when_action_identity_matches():
+    manager=_manager(); result=_submit(manager,"confusion_self_hit")
+    retained=result["retained_prediction"]
+    obs=deepcopy(result["observation"])
+    obs["payload"]["confusion_origin_id"]="old-confusion-origin"
+    assert obs["payload"]["decision_point"]==retained["decision_point"]
+    assert obs["payload"]["action_id"]==retained["action_id"]
+    assert obs["payload"]["move_id"]==retained["move_id"]
+    checked=reconcile_observed_confusion_action_gate_rng(
+        retained_prediction=retained,pending_confusion_action_observation=obs)
+    assert checked["status"]=="rejected"
+    assert checked["reason"]=="pending_confusion_action_origin_mismatch"
 
 
 def test_tampered_historical_prediction_fingerprint_and_gate_reject():
@@ -161,6 +183,7 @@ def test_reconciliation_uses_only_primary_rng_observation_not_derived_lifecycle(
     assert len(rec["source_observations"])==1
     assert rec["source_observations"][0]["event_kind"]=="pending_confusion_action_execution_observed"
     assert [row["event_kind"] for row in result["derived_observations"]]==["champions_confusion_progression_derived"]
+    assert result["derived_observations"][0]["payload"]["confusion_origin_id"]==result["retained_prediction"]["confusion_origin_id"]
     assert result["observation"]["payload"]["outcome_class"]=="confusion_self_hit"
     assert "executed_move_observed" not in [row["event_kind"] for row in result["derived_observations"]]
 

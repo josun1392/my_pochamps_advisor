@@ -99,11 +99,18 @@ def admit_pending_confusion_action_execution(*, runtime_session_manager:BattleOb
         return _result("rejected","pending_confusion_action_actor_mismatch")
     if outcome_class not in _OUTCOMES:
         return _result("rejected","unsupported_confusion_action_outcome")
+    if pokemon.get("current_confusion")!="confused":
+        return _result("rejected","pending_confusion_action_state_mismatch")
+    progression=pokemon.get("champions_confusion_progression")
+    if not valid_confusion_progression(progression,owner):
+        return _result("incomplete","champions_confusion_progression_unavailable")
     prior_context=state.get("pending_confusion_action_execution_context") if isinstance(state,Mapping) else None
     same_identity=(isinstance(prior_context,Mapping) and prior_context.get("actor")==owner and all(
         prior_context.get(key)==value for key,value in {
             "decision_point":decision_point,"action_id":action_id,"move_id":move_id,
         }.items()))
+    if same_identity and prior_context.get("confusion_origin_id")!=progression.get("origin_id"):
+        return _result("rejected","pending_confusion_action_origin_mismatch")
     if same_identity and prior_context.get("outcome_class")!=outcome_class:
         return _result("rejected","conflicting_pending_confusion_action_retry")
     if same_identity:
@@ -111,11 +118,6 @@ def admit_pending_confusion_action_execution(*, runtime_session_manager:BattleOb
                 "observation":None,"derived_observations":[],"runtime_snapshot":deepcopy(snapshot),
                 "strategy_d0":freeze_runtime_strategy_d0(runtime_snapshot=snapshot,decision_owner=owner),
                 "retained_prediction":None,"rng_reconciliation":None}
-    if pokemon.get("current_confusion")!="confused":
-        return _result("rejected","pending_confusion_action_state_mismatch")
-    progression=pokemon.get("champions_confusion_progression")
-    if not valid_confusion_progression(progression,owner):
-        return _result("incomplete","champions_confusion_progression_unavailable")
     pre_d0=freeze_runtime_strategy_d0(runtime_snapshot=snapshot,decision_owner=owner)
     if pre_d0.get("status")!="resolved":
         return _result("incomplete","confusion_pre_action_d0_unavailable")
@@ -134,7 +136,8 @@ def admit_pending_confusion_action_execution(*, runtime_session_manager:BattleOb
     boundary=LifecycleConfirmationBoundary(captured_session_id,{side:owner})
     confirmation=boundary.confirm(
         event_kind="pending_confusion_action_execution_observed",
-        payload={"decision_point":decision_point,"action_id":action_id,"move_id":move_id,"outcome_class":outcome_class},
+        payload={"decision_point":decision_point,"action_id":action_id,"move_id":move_id,
+                 "confusion_origin_id":progression["origin_id"],"outcome_class":outcome_class},
         session_id=captured_session_id,source=PENDING_CONFUSION_ACTION_EXECUTION_SOURCE,trust=USER_TRUST,
         confirmed=True,side=side,slot_index=slot_index,pokemon_id=pokemon_id,
         observation_id=f"{captured_session_id}:pending-confusion-action:{seq['observation_sequence']}",turn_number=turn_number)
@@ -143,7 +146,8 @@ def admit_pending_confusion_action_execution(*, runtime_session_manager:BattleOb
     source=confirmation["observation"]; source["observation_sequence"]=seq["observation_sequence"]
     allocated=runtime_session_manager.allocate_observation_sequence()
     if allocated.get("status")!="allocated": return _result("rejected","derived_sequence_unavailable")
-    common={"decision_point":decision_point,"action_id":action_id,"move_id":move_id,"outcome_class":outcome_class}
+    common={"decision_point":decision_point,"action_id":action_id,"move_id":move_id,
+            "confusion_origin_id":progression["origin_id"],"outcome_class":outcome_class}
     if outcome_class in {"confusion_self_hit","confusion_selected_action_executes"}:
         common.update(prior_opportunities_before=progression["prior_opportunities"],
                       prior_opportunities_after=progression["prior_opportunities"]+1)

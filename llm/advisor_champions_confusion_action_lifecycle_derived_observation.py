@@ -37,8 +37,10 @@ def derive_confusion_action_lifecycle_consequence(*, event_kind:str, session_id:
 def _valid(kind,source,payload):
     sp=source.get("payload")
     if not isinstance(sp,Mapping): return False
-    for key in ("decision_point","action_id","move_id","outcome_class"):
+    for key in ("decision_point","action_id","move_id","confusion_origin_id","outcome_class"):
         if payload.get(key)!=sp.get(key): return False
+    if not isinstance(payload.get("confusion_origin_id"),str) or not payload["confusion_origin_id"]:
+        return False
     outcome=payload.get("outcome_class")
     if kind==PROGRESSION_DERIVED:
         return (outcome in {"confusion_self_hit","confusion_selected_action_executes"}

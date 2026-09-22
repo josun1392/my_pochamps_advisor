@@ -1749,12 +1749,17 @@ def _record_pending_confusion_action_execution(state, event):
             or not isinstance(pokemon.get("champions_confusion_progression"), dict)):
         return _conflict(event, "invalid_pending_confusion_action_state")
     payload = event.get("payload") if isinstance(event.get("payload"), dict) else event
+    progression = pokemon.get("champions_confusion_progression")
+    if (not isinstance(progression, dict)
+            or payload.get("confusion_origin_id") != progression.get("origin_id")):
+        return _conflict(event, "pending_confusion_action_origin_mismatch")
     if payload.get("outcome_class") not in {"confusion_self_hit", "confusion_selected_action_executes", "confusion_snaps_out_and_executes"}:
         return _conflict(event, "invalid_pending_confusion_action_outcome")
     state["pending_confusion_action_execution_context"] = {
         "actor": {"session_id": state["session_id"], "side": _value(event, "side"), "slot_index": _value(event, "slot_index"), "pokemon_id": _value(event, "pokemon_id")},
         "decision_point": payload.get("decision_point"), "action_id": payload.get("action_id"),
-        "move_id": payload.get("move_id"), "outcome_class": payload.get("outcome_class"),
+        "move_id": payload.get("move_id"), "confusion_origin_id": payload.get("confusion_origin_id"),
+        "outcome_class": payload.get("outcome_class"),
         "provenance": _provenance(event) | {"turn_number": _value(event, "turn_number")},
     }
     return None
@@ -1769,7 +1774,7 @@ def _valid_confusion_action_derived_transition(state, event):
     actor = {"session_id": state["session_id"], "side": _value(event, "side"), "slot_index": _value(event, "slot_index"), "pokemon_id": _value(event, "pokemon_id")}
     if source.get("actor") != actor:
         return "confusion_action_source_actor_mismatch"
-    for key in ("decision_point", "action_id", "move_id", "outcome_class"):
+    for key in ("decision_point", "action_id", "move_id", "confusion_origin_id", "outcome_class"):
         if source.get(key) != payload.get(key):
             return "confusion_action_source_binding_mismatch"
     if payload.get("source_pending_observation_id") != source.get("provenance", {}).get("source_observation_id"):
@@ -1778,11 +1783,15 @@ def _valid_confusion_action_derived_transition(state, event):
     if event.get("event_kind") == CONFUSION_PROGRESSION_DERIVED:
         before, after = payload.get("prior_opportunities_before"), payload.get("prior_opportunities_after")
         if (pokemon.get("current_confusion") != "confused" or not isinstance(row, dict)
+                or row.get("origin_id") != payload.get("confusion_origin_id")
                 or row.get("prior_opportunities") != before or after != before + 1
                 or after > 4 or payload.get("outcome_class") not in {"confusion_self_hit", "confusion_selected_action_executes"}):
             return "invalid_champions_confusion_progression_transition"
         return None
-    if pokemon.get("current_confusion") != "confused" or payload.get("outcome_class") != "confusion_snaps_out_and_executes":
+    if (pokemon.get("current_confusion") != "confused"
+            or not isinstance(row, dict)
+            or row.get("origin_id") != payload.get("confusion_origin_id")
+            or payload.get("outcome_class") != "confusion_snaps_out_and_executes"):
         return "invalid_champions_confusion_clear"
     return None
 

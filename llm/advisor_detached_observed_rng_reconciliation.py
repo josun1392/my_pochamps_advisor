@@ -1167,7 +1167,7 @@ def _validate_pending_confusion_action_observation(value: Mapping[str, Any], ret
         actor.get("side"), actor.get("slot_index"), actor.get("pokemon_id")):
         return "pending_confusion_action_actor_mismatch"
     payload = value.get("payload")
-    if not isinstance(payload, Mapping) or set(payload) != {"decision_point", "action_id", "move_id", "outcome_class"}:
+    if not isinstance(payload, Mapping) or set(payload) != {"decision_point", "action_id", "move_id", "confusion_origin_id", "outcome_class"}:
         return "pending_confusion_action_payload_invalid"
     if payload.get("decision_point") != retained["decision_point"]:
         return "pending_confusion_action_decision_point_mismatch"
@@ -1175,6 +1175,8 @@ def _validate_pending_confusion_action_observation(value: Mapping[str, Any], ret
         return "pending_confusion_action_action_id_mismatch"
     if payload.get("move_id") != retained["move_id"]:
         return "pending_confusion_action_move_mismatch"
+    if payload.get("confusion_origin_id") != retained["confusion_origin_id"]:
+        return "pending_confusion_action_origin_mismatch"
     if payload.get("outcome_class") not in _CONFUSION_OUTCOME_TO_BRANCH:
         return "unsupported_pending_confusion_action_outcome"
     return None

@@ -79,7 +79,8 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
                     or source.get("observation_sequence",0)>=event.get("observation_sequence",0)
                     or event.get("trust")!=CONFUSION_ACTION_TRUST
                     or event.get("source")!=CHAMPIONS_CONFUSION_ACTION_LIFECYCLE_SOURCE
-                    or event.get("scope")!="champions_confusion_action_lifecycle"):
+                    or event.get("scope")!="champions_confusion_action_lifecycle"
+                    or event.get("payload",{}).get("confusion_origin_id")!=source.get("payload",{}).get("confusion_origin_id")):
                 unsupported.append(event); conflicts.append({"observation_id":event.get("observation_id"),"reason":"invalid_confusion_action_derived_binding"}); continue
         confusion_verified.append(event)
     accepted=confusion_verified
