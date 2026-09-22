@@ -283,7 +283,12 @@ def reconcile_observed_action_opportunity_rng(
     deliberately not evidence that the paralysis gate was passed.
     """
     from llm.advisor_current_action_paralysis_opportunity_authority import (
+        SCHEMA_VERSION as CURRENT_PARALYSIS_OPPORTUNITY_SCHEMA,
         validate_current_action_paralysis_opportunity_authority,
+    )
+    from llm.advisor_existing_paralysis_opportunity_reconciliation_adapters import (
+        SCHEMA_VERSION as EXISTING_PARALYSIS_ADAPTER_SCHEMA,
+        validate_existing_paralysis_opportunity_adapter,
     )
 
     baseline = deepcopy((
@@ -296,11 +301,20 @@ def reconcile_observed_action_opportunity_rng(
     )
     if checked_binding.get("status") != "resolved":
         return checked_binding
-    authority = validate_current_action_paralysis_opportunity_authority(
-        authority=predictive_authority,
-        predictive_binding=predictive_binding,
-        predictive_ledger=predictive_ledger,
-    )
+    if predictive_authority.get("schema_version") == CURRENT_PARALYSIS_OPPORTUNITY_SCHEMA:
+        authority = validate_current_action_paralysis_opportunity_authority(
+            authority=predictive_authority,
+            predictive_binding=predictive_binding,
+            predictive_ledger=predictive_ledger,
+        )
+    elif predictive_authority.get("schema_version") == EXISTING_PARALYSIS_ADAPTER_SCHEMA:
+        authority = validate_existing_paralysis_opportunity_adapter(
+            adapter=predictive_authority,
+            predictive_binding=predictive_binding,
+            predictive_ledger=predictive_ledger,
+        )
+    else:
+        return _result("rejected", "action_opportunity_prediction_schema_invalid")
     if authority.get("status") != "resolved":
         return authority
     execution_error = _validate_execution_observation(
@@ -332,8 +346,11 @@ def reconcile_observed_action_opportunity_rng(
             require_cancelled = True
             matched.setdefault("action_result_classes", []).append("full_paralysis")
         elif result_class == "accuracy_miss":
-            require_executed = True
-            matched.setdefault("action_result_classes", []).append("accuracy_miss")
+            if authority.get("accuracy_miss_execution_evidence_allowed", True) is True:
+                require_executed = True
+                matched.setdefault("action_result_classes", []).append("accuracy_miss")
+            else:
+                matched.setdefault("action_result_classes", []).append("accuracy_miss_not_applicable_to_prediction")
         elif result_class == "success":
             matched.setdefault("action_result_classes", []).append("success_non_execution_proof")
 
@@ -344,6 +361,8 @@ def reconcile_observed_action_opportunity_rng(
         if error is not None:
             return _result("rejected", error)
         observations.append(direct_damage_observation)
+        if authority.get("direct_damage_execution_evidence_allowed", True) is not True:
+            return _result("rejected", "direct_damage_not_applicable_to_action_opportunity_prediction")
         require_executed = True
         amount = direct_damage_observation.get("damage_amount")
         if amount is None:
