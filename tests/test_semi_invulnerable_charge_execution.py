@@ -401,17 +401,16 @@ def test_bounce_secondary_catalog_is_exact_thirty_percent():
     assert result["effect"] == {"owner": "target", "condition": "paralysis"}
 
 
-def test_phantom_and_shadow_force_remain_outside_bounded_terminal_family():
-    for move_id in ("phantom-force", "shadow-force"):
-        effect = resolve_canonical_standard_charge_turn_two_effect(move_id)
-        assert effect["status"] == "unsupported"
+def test_geomancy_remains_outside_bounded_terminal_family():
+    effect = resolve_canonical_standard_charge_turn_two_effect("geomancy")
+    assert effect["status"] == "unsupported"
 
 
-def _next_turn_opponent_action_chain(move_id: str, *, self_speed: int, opponent_speed: int):
+def _next_turn_opponent_action_chain(move_id: str, *, self_speed: int, opponent_speed: int, own_move: str = "fly"):
     self_stats = {"hp": 100, "attack": 100, "defense": 100, "special-attack": 100, "special-defense": 100, "speed": self_speed}
     opponent_stats = {"hp": 100, "attack": 100, "defense": 100, "special-attack": 100, "special-defense": 100, "speed": opponent_speed}
     handoff = _production_temporal_handoff(
-        own_move="fly", opponent_move="razor-wind",
+        own_move=own_move, opponent_move="razor-wind",
         self_final_stats=self_stats, opponent_final_stats=opponent_stats,
     )
     state = handoff["next_state"]; fingerprint = handoff["resulting_branch_fingerprint"]

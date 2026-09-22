@@ -18,6 +18,10 @@ from llm.advisor_detached_intermediate_predictive_authority import (
 from llm.advisor_detached_intermediate_paralysis_second_action_authority import (
     consume_detached_sleep_freeze_execution_for_second_action,
 )
+from llm.advisor_vanished_protection_bypass_authority import (
+    attach_vanished_protection_bypass_to_terminal_leaf,
+    materialize_vanished_protection_bypass_break_authority,
+)
 from llm.advisor_detached_semi_invulnerable_charge_authority import (
     freeze_detached_semi_invulnerable_targetability_authority,
     materialize_semi_invulnerable_exception_damage_modifier_authority,
@@ -217,7 +221,8 @@ SCHEMA_VERSION = "immediate-move-vs-move-action-pair-v1"
 HORIZON = "immediate_action_pair"
 _STATUSES = {"incomplete", "unsupported", "rejected"}
 _CHARGE_MOVES = ChargeMoveRepository()
-_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
+_STANDARD_CHARGE_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
+_VANISHED_CHARGE_MOVES = frozenset({"phantom-force", "shadow-force"})
 _STANDARD_CHARGE_EXCLUDED_COUNTERPARTS = frozenset({
     "fling", "u-turn", "volt-switch", "flip-turn", "sucker-punch",
     "seismic-toss", "night-shade", "dragon-rage", "sonic-boom",
@@ -523,7 +528,23 @@ def _standard_charge_pair_scope_error(
     if own_charge and opponent_charge:
         return None
     counterpart = opponent_metadata if own_charge else own_metadata
+    charge_move = own_move if own_charge else opponent_move
+    if charge_move in _VANISHED_CHARGE_MOVES and _standard_charge_vanished_protection_counterpart(counterpart):
+        return None
     return None if _standard_charge_ordinary_counterpart(counterpart) else "standard_charge_pair_counterpart_family_unrepresented"
+
+
+def _standard_charge_vanished_protection_counterpart(metadata: Any) -> bool:
+    if not isinstance(metadata, Mapping):
+        return False
+    move_id = metadata.get("move_id")
+    if not isinstance(move_id, str) or metadata.get("category") != "status" or metadata.get("target") != "user":
+        return False
+    return any(resolver(move_id) is not None for resolver in (
+        canonical_protection_metadata, canonical_silk_trap_metadata, canonical_kings_shield_metadata,
+        canonical_obstruct_metadata, canonical_spiky_shield_reactive_damage_metadata,
+        canonical_baneful_bunker_reactive_poison_metadata, canonical_burning_bulwark_reactive_burn_metadata,
+    ))
 
 
 def _standard_charge_ordinary_counterpart(metadata: Any) -> bool:
@@ -1396,6 +1417,18 @@ def _materialize_protection_response_pair(
     """Materialize only the existing exact ordinary self-protection contract."""
     branches: list[dict[str, Any]] = []
     for plan in orders:
+        if own_meta["metadata"].get("move_id") in _VANISHED_CHARGE_MOVES:
+            vanished = _materialize_vanished_protection_response_branch(
+                strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, base=base,
+                own_action=own_action, opponent_action=opponent_action,
+                own_meta=own_meta, opponent_meta=opponent_meta, plan=plan,
+                opponent_protection_success_authority=opponent_protection_success_authority,
+                incoming_contact_authority=incoming_contact_authority,
+            )
+            if isinstance(vanished, Mapping) and vanished.get("status") in _STATUSES:
+                return vanished
+            branches.extend(vanished)
+            continue
         sucker = None
         if own_meta["metadata"].get("move_id") == "sucker-punch":
             sucker = freeze_runtime_d0_sucker_punch_execution_applicability_authority(
@@ -1535,6 +1568,62 @@ def _materialize_protection_response_pair(
         "aggregation": "none_preserve_protection_and_attack_identity",
         "provenance": "strict_detached_immediate_protection_response_pair_materialization_v1",
     }
+
+
+def _materialize_vanished_protection_response_branch(*, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], base: Mapping[str, Any], own_action: Mapping[str, Any], opponent_action: Mapping[str, Any], own_meta: Mapping[str, Any], opponent_meta: Mapping[str, Any], plan: Mapping[str, Any], opponent_protection_success_authority: Mapping[str, Any] | None, incoming_contact_authority: Mapping[str, Any] | None) -> list[dict[str, Any]] | dict[str, Any]:
+    ledger = _pair_action_ledger(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot,
+        actor=base["own_actor"], target=base["opponent_actor"], metadata_authority=own_meta,
+        source_metadata_authority=own_meta, action=own_action,
+    )
+    if ledger.get("status") != "evaluable":
+        return _result(_status(ledger), ledger.get("reason", "vanished_charge_action_ledger_unavailable"), base)
+    ledger = _apply_contact_reactive_to_normal_ledger(
+        strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, ledger=ledger,
+        attacker=base["own_actor"], defender=base["opponent_actor"], source_action=own_action,
+        contact_authority=incoming_contact_authority,
+    )
+    if ledger.get("status") != "evaluable":
+        return _result(_status(ledger), ledger.get("reason", "vanished_contact_reactive_damage_unavailable"), base)
+    if plan["order"] == "own_first":
+        return [
+            _protection_branch(
+                base, plan, leaf,
+                "cancelled_due_to_faint" if leaf.get("consequences", {}).get("target_ko") is True else "executed_protection",
+            )
+            for leaf in ledger["terminal_leaves"]
+        ]
+    protection = _resolved_protection(
+        strategy_d0=strategy_d0, opponent=base["opponent_actor"], own=base["own_actor"],
+        metadata=opponent_meta["metadata"], success_authority=opponent_protection_success_authority,
+    )
+    if protection.get("status") != "resolved":
+        return _result(_status(protection), protection.get("reason", "opponent_protection_authority_unavailable"), base)
+    manifest = ledger.get("component_manifest", {})
+    instant = "standard_charge_power_herb_skip" in manifest
+    if not instant:
+        return [_protection_branch(base, plan, leaf, "executed_protection") for leaf in ledger["terminal_leaves"]]
+    rows = []
+    for leaf in ledger["terminal_leaves"]:
+        if leaf.get("hit_state") != "hit":
+            rows.append(_protection_branch(base, plan, leaf, "executed_protection"))
+            continue
+        authority = materialize_vanished_protection_bypass_break_authority(
+            session_id=base["session_id"], source_runtime_fingerprint=base["source_runtime_fingerprint"],
+            source_branch_fingerprint=base["source_branch_fingerprint"], decision_owner=base["decision_owner"],
+            attacker=base["own_actor"], protected_target=base["opponent_actor"],
+            source_action_id=base["own_action_id"], move_id=own_meta["metadata"]["move_id"],
+            source_terminal_leaf_id=str(leaf.get("leaf_id")), active_protection_effect=protection,
+            protection_action_authority=opponent_action,
+            protection_context_fingerprint=base["source_branch_fingerprint"],
+        )
+        if authority.get("status") != "resolved":
+            return _result(_status(authority), authority.get("reason", "vanished_protection_bypass_authority_unavailable"), base)
+        attached = attach_vanished_protection_bypass_to_terminal_leaf(terminal_leaf=leaf, authority=authority)
+        if attached.get("status") in _STATUSES:
+            return _result(_status(attached), attached.get("reason", "vanished_protection_bypass_leaf_unavailable"), base)
+        rows.append(_protection_branch(base, plan, attached, "executed_bypassing_protection"))
+    return rows
 
 
 def _materialize_quick_guard_pair(*, base: Mapping[str, Any], strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any], own_meta: Mapping[str, Any], orders: list[Mapping[str, Any]], authority: Mapping[str, Any] | None) -> dict[str, Any]:

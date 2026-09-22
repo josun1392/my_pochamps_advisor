@@ -23,6 +23,8 @@ _MOVE_CLASS = {
     "bounce": "airborne",
     "dig": "underground",
     "dive": "underwater",
+    "phantom-force": "vanished",
+    "shadow-force": "vanished",
 }
 _EXCEPTIONS = {
     "airborne": {
@@ -31,6 +33,7 @@ _EXCEPTIONS = {
     },
     "underground": {"earthquake": 2, "magnitude": 2},
     "underwater": {"surf": 2, "whirlpool": 2},
+    "vanished": {},
 }
 _STATE_ENDING_AIRBORNE = frozenset({"smack-down", "thousand-arrows"})
 _OWNER_KEYS = frozenset({"session_id", "side", "slot_index", "pokemon_id"})
@@ -57,7 +60,7 @@ def materialize_detached_semi_invulnerable_charge_state_authority(
         or lifecycle.get("lifecycle_family") != "semi_invulnerable_charge_then_damage"
         or lifecycle.get("execution_model") != "semi_invulnerable_then_execute"
         or lifecycle.get("semi_invulnerability_class") != _MOVE_CLASS[move_id]
-        or lifecycle.get("protection_bypass_later_execution") is not False
+        or lifecycle.get("protection_bypass_later_execution") is not (move_id in {"phantom-force", "shadow-force"})
     ):
         return _result("rejected", STATE_SCHEMA, "semi_invulnerable_canonical_lifecycle_invalid")
     return {
@@ -91,7 +94,7 @@ def validate_detached_semi_invulnerable_charge_state_authority(
     if not isinstance(authority, Mapping) or authority.get("schema_version") != STATE_SCHEMA or authority.get("status") != "resolved":
         return "semi_invulnerable_state_authority_invalid"
     move_id, cls = authority.get("source_move_id"), authority.get("semi_invulnerability_class")
-    if move_id not in _MOVE_CLASS or cls != _MOVE_CLASS[move_id] or cls == "vanished":
+    if move_id not in _MOVE_CLASS or cls != _MOVE_CLASS[move_id]:
         return "semi_invulnerable_state_class_invalid"
     if authority.get("state") != "active" or authority.get("hypothetical") is not True or authority.get("observation_emitted") is not False or authority.get("entered_after_pre_action_gate") is not True:
         return "semi_invulnerable_state_semantics_invalid"

@@ -25,10 +25,11 @@ from tests.test_standard_charge_turn_two_ordered_pair_core import _runtime_fixtu
 def _production_temporal_handoff(*, own_move="sky-attack", opponent_move="ice-burn", opponent_ability=None, opponent_grounded=None, self_final_stats=None, opponent_final_stats=None, weather=None, self_item=None):
     """Confirmation/reducer → D0 pair → EOT → handoff, with optional exact weather."""
     snapshot, d0, _old_own, _old_opponent, _old_order, _charge = _runtime_fixture()
-    if own_move in {"fly", "dig", "dive", "bounce"}:
+    if own_move in {"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"}:
         state = snapshot["state"]
-        state["field"]["gravity_status"] = "inactive"
-        state["field"]["gravity_status_provenance"] = {"event_kind": "gravity_field_observed", "trust": "user_confirmed_observation", "source": "ui_gravity_field_confirmation", "turn_number": 1, "source_observation_id": "temporal-gravity", "source_sequence": 1}
+        if own_move in {"fly", "bounce"}:
+            state["field"]["gravity_status"] = "inactive"
+            state["field"]["gravity_status_provenance"] = {"event_kind": "gravity_field_observed", "trust": "user_confirmed_observation", "source": "ui_gravity_field_confirmation", "turn_number": 1, "source_observation_id": "temporal-gravity", "source_sequence": 1}
         opponent = state["opponent_side"]["pokemon"][0]
         opponent["locked_on_state"] = {"status": "known_inactive"}
         opponent["locked_on_state_provenance"] = {"event_kind": "current_locked_on_state_observed", "trust": "user_confirmed_observation", "source": "ui_current_locked_on_state_confirmation", "turn_number": 1, "source_observation_id": "temporal-locked-on", "source_sequence": 2}

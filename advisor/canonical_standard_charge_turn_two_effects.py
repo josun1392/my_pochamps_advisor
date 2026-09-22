@@ -27,6 +27,8 @@ _EFFECTS = {
     "dig": {"power": 80, "category": "physical", "type": "ground", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
     "dive": {"power": 80, "category": "physical", "type": "water", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
     "bounce": {"power": 85, "category": "physical", "type": "flying", "accuracy": 85, "crit_ratio": 1, "secondary": {"kind": "status", "condition": "paralysis", "chance": 30}},
+    "phantom-force": {"power": 90, "category": "physical", "type": "ghost", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
+    "shadow-force": {"power": 120, "category": "physical", "type": "ghost", "accuracy": 100, "crit_ratio": 1, "secondary": {"kind": "none", "chance": 0}},
 }
 
 
@@ -47,7 +49,7 @@ def resolve_canonical_standard_charge_turn_two_effect(move_id: Any) -> dict[str,
         else "charge_turn_self_effect_then_damage"
         if normalized in {"meteor-beam", "skull-bash"}
         else "semi_invulnerable_charge_then_damage"
-        if normalized in {"fly", "dig", "dive", "bounce"}
+        if normalized in {"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"}
         else "ordinary_charge_then_damage"
     )
     if effect is None or lifecycle.get("lifecycle_family") != allowed_family:

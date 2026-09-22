@@ -34,10 +34,10 @@ from llm.advisor_standard_charge_turn_self_stage_effect import (
 
 AUTHORITY_SCHEMA_VERSION = "runtime-d0-standard-charge-power-herb-skip-execution-authority-v1"
 CONSUMPTION_SCHEMA_VERSION = "detached-standard-charge-power-herb-consumption-authority-v1"
-_SUPPORTED = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
+_SUPPORTED = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
 _SOLAR = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT = frozenset({"meteor-beam", "skull-bash"})
-_SEMI_INVULNERABLE = frozenset({"fly", "dig", "dive", "bounce"})
+_SEMI_INVULNERABLE = frozenset({"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
 
 
 def freeze_runtime_d0_standard_charge_power_herb_skip_execution_authority(

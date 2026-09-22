@@ -22,10 +22,10 @@ from llm.advisor_runtime_d0_solar_charge_weather_authority import (
 
 SCHEMA_VERSION = "runtime-d0-standard-charge-start-readiness-authority-v1"
 _SUPPORTED_FAMILIES = frozenset({"ordinary_charge_then_damage", "weather_sensitive_charge_then_damage", "charge_turn_self_effect_then_damage", "semi_invulnerable_charge_then_damage"})
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
-_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce"})
+_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
 _GRAVITY_RESTRICTED_MOVES = frozenset({"fly", "bounce"})
 _OWNER_KEYS = ("session_id", "side", "slot_index", "pokemon_id")
 _TRUSTED_ITEM_EVENTS = frozenset({

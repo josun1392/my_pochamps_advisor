@@ -44,10 +44,10 @@ FORCED_TURN_TWO_EXECUTION_MODE = "forced_turn_two_continuation"
 POWER_HERB_CURRENT_TURN_SKIP_MODE = "power_herb_current_turn_skip"
 WEATHER_CURRENT_TURN_SKIP_MODE = "weather_current_turn_skip"
 _PRODUCTION_EXECUTION_MODES = {FORCED_TURN_TWO_EXECUTION_MODE, POWER_HERB_CURRENT_TURN_SKIP_MODE, WEATHER_CURRENT_TURN_SKIP_MODE}
-_SUPPORTED_MOVES = {"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"}
+_SUPPORTED_MOVES = {"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"}
 _SOLAR_MOVES = {"solar-beam", "solar-blade"}
 _SELF_EFFECT_MOVES = {"meteor-beam", "skull-bash"}
-_SEMI_INVULNERABLE_MOVES = {"fly", "dig", "dive", "bounce"}
+_SEMI_INVULNERABLE_MOVES = {"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"}
 _OWNER_KEYS = {"session_id", "side", "slot_index", "pokemon_id"}
 
 
@@ -679,7 +679,7 @@ def _damage_rolls(row: Mapping[str, Any], critical: bool, attacker_item: str | N
 
 def _hit_event(row: Mapping[str, Any], actor: Mapping[str, Any], target: Mapping[str, Any], critical: bool, index: int, damage: int, probability: Fraction, terminal: Mapping[str, Any], caller_action_authority: Mapping[str, Any]) -> dict[str, Any]:
     hp = target["current_hp"]["current_hp"]; actual = min(hp, damage); post = hp - actual
-    consequence = {"damage": actual, "raw_damage": damage, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": post, "target_ko": post == 0, "self_fainted": False, "secondary": None, "sturdy_survival": {"outcome": "not_activated"}, "focus_sash_survival": {"outcome": "not_activated"}}
+    consequence = {"damage": actual, "raw_damage": damage, "own_final_hp": actor["current_hp"]["current_hp"], "target_final_hp": post, "target_ko": post == 0, "self_fainted": False, "secondary": None, "sturdy_survival": {"outcome": "not_activated"}, "focus_sash_survival": {"outcome": "not_activated"}, "source_hit_context": {"source_action_id": row["action_id"], "source_move_id": row["move_id"], "actual_damage": actual, "target_routing": "target"}}
     if post == 0 and terminal["sturdy"].get("status") == "ready":
         consequence.update({"target_final_hp": 1, "target_ko": False, "sturdy_survival": {"outcome": "activated", "authority": deepcopy(terminal["sturdy"]), "final_hp": 1}})
     elif post == 0:

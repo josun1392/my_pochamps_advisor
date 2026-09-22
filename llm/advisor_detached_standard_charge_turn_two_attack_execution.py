@@ -35,7 +35,7 @@ SCHEMA_VERSION = "detached-standard-charge-turn-two-attack-execution-v1"
 _SIDES = ("self", "opponent")
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
-_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce"})
+_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
 
 
 def materialize_detached_standard_charge_turn_two_execution_authority(*, next_decision_state: Mapping[str, Any], next_decision_fingerprint: str, forced_continuation: Mapping[str, Any], predictive_mechanics: Mapping[str, Any]) -> dict[str, Any]:

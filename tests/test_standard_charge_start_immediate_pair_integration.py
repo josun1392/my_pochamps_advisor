@@ -24,7 +24,7 @@ from tests.test_detached_opponent_response_profile import (
 )
 
 
-STANDARD = ("sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce")
+STANDARD = ("sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force")
 
 
 def _charge_metadata(move_id: str) -> dict:
@@ -42,6 +42,8 @@ def _charge_metadata(move_id: str) -> dict:
         "dig": 80,
         "dive": 80,
         "bounce": 85,
+        "phantom-force": 90,
+        "shadow-force": 120,
     }[move_id]
     move_type = {
         "sky-attack": "flying",
@@ -56,13 +58,15 @@ def _charge_metadata(move_id: str) -> dict:
         "dig": "ground",
         "dive": "water",
         "bounce": "flying",
+        "phantom-force": "ghost",
+        "shadow-force": "ghost",
     }[move_id]
     return {
         "move_id": move_id,
         "category": category,
         "power": power,
         "type": move_type,
-        "accuracy": 95 if move_id == "fly" else 85 if move_id == "bounce" else 100 if move_id in {"solar-beam", "solar-blade", "razor-wind", "skull-bash", "dig", "dive"} else 90,
+        "accuracy": 95 if move_id == "fly" else 85 if move_id == "bounce" else 100 if move_id in {"solar-beam", "solar-blade", "razor-wind", "skull-bash", "dig", "dive", "phantom-force", "shadow-force"} else 90,
         "priority": 0,
         "target": "selected-pokemon",
     }

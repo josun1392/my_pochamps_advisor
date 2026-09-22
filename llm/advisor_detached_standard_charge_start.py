@@ -23,10 +23,10 @@ from llm.advisor_detached_semi_invulnerable_charge_authority import (
 SCHEMA_VERSION = "detached-standard-charge-start-v1"
 CONTEXT_SCHEMA_VERSION = "detached-standard-charge-lifecycle-context-v1"
 _READINESS_SCHEMA = "runtime-d0-standard-charge-start-readiness-authority-v1"
-_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce"})
+_SUPPORTED_MOVES = frozenset({"sky-attack", "razor-wind", "freeze-shock", "ice-burn", "solar-beam", "solar-blade", "meteor-beam", "skull-bash", "fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
 _SOLAR_MOVES = frozenset({"solar-beam", "solar-blade"})
 _SELF_EFFECT_MOVES = frozenset({"meteor-beam", "skull-bash"})
-_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce"})
+_SEMI_INVULNERABLE_MOVES = frozenset({"fly", "dig", "dive", "bounce", "phantom-force", "shadow-force"})
 
 
 def materialize_detached_standard_charge_start(

@@ -298,13 +298,13 @@ def test_generic_native_damage_guard_still_blocks_raw_charge_execution(move):
     assert result["reason"] == "two_turn_execution_unrepresented"
 
 
-def test_unsupported_semi_invulnerable_charge_move_rejects_and_stale_runtime_rejects():
+def test_unsupported_charge_move_rejects_and_stale_runtime_rejects():
     state, snapshot, d0 = _ready()
     actor, target = _owner(state, "self"), _owner(state, "opponent")
-    action = {"action_type": "attack", "action_id": "a:fly", "identity": "fly"}
+    action = {"action_type": "attack", "action_id": "a:geomancy", "identity": "geomancy"}
     assert freeze_runtime_d0_standard_charge_terminal_mechanics_authority(
         strategy_d0=d0, runtime_snapshot=snapshot, action=action, actor=actor, target=target,
-        move_metadata={"move_id": "fly"},
+        move_metadata={"move_id": "geomancy"},
     )["status"] == "rejected"
 
     stale = deepcopy(state)
