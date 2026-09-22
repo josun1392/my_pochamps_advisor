@@ -8,6 +8,7 @@ from llm.advisor_observation_runtime_session import BattleObservationRuntimeSess
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
 from llm.advisor_standard_charge_flinch_reconciliation_adapter import (
+    HISTORICAL_BINDING_SCHEMA_VERSION,
     materialize_standard_charge_flinch_prediction,
     reconcile_observed_standard_charge_flinch_rng,
     retain_standard_charge_flinch_prediction_from_strategy_result,
@@ -149,21 +150,44 @@ def test_prediction_time_retention_uses_only_existing_terminal_artifacts_and_ded
     assert ambiguous["reason"]=="ambiguous_standard_charge_terminal_prediction"
 
 
+def test_charge_retention_materializes_charge_specific_binding_from_incomplete_identity_ledger():
+    terminal,ledger,_legacy_binding,_prediction=_source()
+    incomplete=deepcopy(ledger)
+    incomplete["status"]="incomplete"
+    incomplete["reason"]="secondary_component_incomplete"
+    retained=retain_standard_charge_flinch_prediction_from_strategy_result(
+        strategy_result={"exact_outcome_ledgers":{"sky":incomplete},"nested":{"terminal":terminal}},
+        predictive_ledger=incomplete,candidate_id="attack:sky-attack",turn_number=2,
+    )
+    assert retained["status"]=="resolved",retained
+    binding=retained["binding"]
+    assert binding["schema_version"]==HISTORICAL_BINDING_SCHEMA_VERSION
+    assert binding["source_action_id"]==binding["action_link_id"]
+    assert binding["move_id"]=="sky-attack"
+    assert validate_standard_charge_flinch_prediction(
+        prediction=retained["prediction"],predictive_binding=binding,predictive_ledger=incomplete,
+    )["status"]=="resolved"
+
+
 def test_ui_historical_bundle_retains_charge_prediction_without_reconstruction():
     source=open("ui/main_window.py",encoding="utf-8").read()
     start=source.index("def _install_historical_predictive_action_bindings")
     end=source.index("def _runtime_owner_matches_predictive_binding",start)
     contract=source[start:end]
+    assert "ledger.get(\"status\") in {\"evaluable\", \"incomplete\"}" in contract
     assert "retain_standard_charge_flinch_prediction_from_strategy_result(" in contract
-    assert 'bundle["standard_charge_flinch_prediction"]' in contract
+    assert "candidate_id=candidate_id" in contract
+    assert 'retained["binding"]' in contract
+    assert '"standard_charge_flinch_prediction": deepcopy(retained["prediction"])' in contract
     assert "execute_standard_charge_terminal_attack" not in contract
+    assert source.count("_validate_historical_predictive_bundle_binding(bundle)") >= 3
 
 
 def test_charge_prediction_retirement_inherits_existing_historical_bundle_lifecycle():
     source=open("ui/main_window.py",encoding="utf-8").read()
     install=source[source.index("def _install_historical_predictive_action_bindings"):source.index("def _runtime_owner_matches_predictive_binding")]
     assert "self._historical_predictive_action_bindings = {}" in install
-    assert 'bundle["standard_charge_flinch_prediction"]' in install
+    assert '"standard_charge_flinch_prediction": deepcopy(retained["prediction"])' in install
     turn=source[source.index("def set_current_turn_number"):source.index("def advance_turn")]
     assert "self._historical_predictive_action_bindings = {}" in turn
     battle=source[source.index("def _begin_new_battle_session"):source.index("def begin_new_battle")]

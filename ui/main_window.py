@@ -74,6 +74,7 @@ from llm.advisor_flinch_causality_observation import (
 from llm.advisor_standard_charge_flinch_reconciliation_adapter import (
     reconcile_observed_standard_charge_flinch_rng,
     retain_standard_charge_flinch_prediction_from_strategy_result,
+    validate_standard_charge_flinch_prediction,
 )
 from llm.advisor_observed_contact_reactive_status_runtime_admission import admit_observed_contact_reactive_status_result
 from llm.advisor_observed_contact_reactive_damage_runtime_admission import admit_observed_contact_reactive_damage_result
@@ -160,6 +161,25 @@ SPEED_CONTEXT_UNAVAILABLE_LIMITATIONS = [
     "Default Speed fallback is not used in v0.30.",
     "This does not confirm final turn order.",
 ]
+
+
+def _validate_historical_predictive_bundle_binding(bundle: object) -> dict:
+    if not isinstance(bundle, dict):
+        return {}
+    binding, ledger = bundle.get("binding"), bundle.get("ledger")
+    if not isinstance(binding, dict) or not isinstance(ledger, dict):
+        return {}
+    charge_prediction = bundle.get("standard_charge_flinch_prediction")
+    if isinstance(charge_prediction, dict):
+        return validate_standard_charge_flinch_prediction(
+            prediction=charge_prediction,
+            predictive_binding=binding,
+            predictive_ledger=ledger,
+        )
+    return validate_historical_predictive_action_binding(
+        binding=binding,
+        predictive_ledger=ledger,
+    )
 
 
 def _item_event_identity(event: dict) -> tuple[object, object, object, object]:
@@ -2226,7 +2246,29 @@ class MainWindow(QMainWindow):
             else {}
         )
         for ledger in ledgers.values():
-            if not isinstance(ledger, dict) or ledger.get("status") != "evaluable" or ledger.get("action_type") != "attack":
+            if not isinstance(ledger, dict) or ledger.get("action_type") != "attack":
+                continue
+            bindings = ledger.get("bindings")
+            move_id = bindings.get("move_id") if isinstance(bindings, dict) else None
+            candidate_id = f"attack:{move_id}" if isinstance(move_id, str) and move_id else None
+            if move_id == "sky-attack" and ledger.get("status") in {"evaluable", "incomplete"}:
+                retained = retain_standard_charge_flinch_prediction_from_strategy_result(
+                    strategy_result=strategy_result,
+                    predictive_ledger=ledger,
+                    candidate_id=candidate_id,
+                    turn_number=turn_number,
+                )
+                if retained.get("status") != "resolved":
+                    continue
+                binding = retained["binding"]
+                bundle = {
+                    "binding": deepcopy(binding),
+                    "ledger": deepcopy(ledger),
+                    "standard_charge_flinch_prediction": deepcopy(retained["prediction"]),
+                }
+                self._historical_predictive_action_bindings[binding["source_action_id"]] = bundle
+                continue
+            if ledger.get("status") != "evaluable":
                 continue
             binding = materialize_historical_predictive_action_binding(
                 predictive_ledger=ledger, turn_number=turn_number,
@@ -2241,14 +2283,6 @@ class MainWindow(QMainWindow):
             )
             if opportunity.get("status") == "resolved":
                 bundle["action_opportunity_authority"] = deepcopy(opportunity)
-            if binding.get("move_id") == "sky-attack":
-                retained = retain_standard_charge_flinch_prediction_from_strategy_result(
-                    strategy_result=strategy_result,
-                    predictive_binding=binding,
-                    predictive_ledger=ledger,
-                )
-                if retained.get("status") == "resolved":
-                    bundle["standard_charge_flinch_prediction"] = deepcopy(retained["prediction"])
             self._historical_predictive_action_bindings[binding["source_action_id"]] = bundle
 
     @staticmethod
@@ -2281,7 +2315,7 @@ class MainWindow(QMainWindow):
             if not isinstance(bundle, dict):
                 continue
             binding, ledger = bundle.get("binding"), bundle.get("ledger")
-            checked = validate_historical_predictive_action_binding(binding=binding, predictive_ledger=ledger) if isinstance(binding, dict) and isinstance(ledger, dict) else {}
+            checked = _validate_historical_predictive_bundle_binding(bundle)
             if checked.get("status") != "resolved":
                 continue
             if (
@@ -2313,7 +2347,7 @@ class MainWindow(QMainWindow):
             if not isinstance(bundle, dict):
                 continue
             binding, ledger = bundle.get("binding"), bundle.get("ledger")
-            checked = validate_historical_predictive_action_binding(binding=binding, predictive_ledger=ledger) if isinstance(binding, dict) and isinstance(ledger, dict) else {}
+            checked = _validate_historical_predictive_bundle_binding(bundle)
             if checked.get("status") != "resolved" or checked.get("session_id") != session_id or checked.get("turn_number") != turn_number:
                 continue
             execution = [row for row in observations if isinstance(row, dict) and row.get("event_kind") == "executed_move_observed" and row.get("session_id") == session_id and row.get("turn_number") == turn_number and row.get("payload", {}).get("source_action_id") == checked.get("source_action_id") and row.get("payload", {}).get("move_id") == checked.get("move_id")]
@@ -2421,7 +2455,7 @@ class MainWindow(QMainWindow):
             if not isinstance(bundle, dict):
                 continue
             binding, ledger = bundle.get("binding"), bundle.get("ledger")
-            checked = validate_historical_predictive_action_binding(binding=binding, predictive_ledger=ledger) if isinstance(binding, dict) and isinstance(ledger, dict) else {}
+            checked = _validate_historical_predictive_bundle_binding(bundle)
             if (
                 checked.get("status") != "resolved"
                 or checked.get("session_id") != session_id

@@ -12,7 +12,90 @@ from llm.advisor_detached_observed_rng_reconciliation import (
 )
 
 SCHEMA_VERSION = "standard-charge-flinch-reconciliation-adapter-v1"
+HISTORICAL_BINDING_SCHEMA_VERSION = "historical-standard-charge-predictive-action-binding-v1"
 PROVENANCE = "authenticated_standard_charge_flinch_terminal_reconciliation_v1"
+_BINDING_PROVENANCE = "authenticated_pre_action_standard_charge_prediction_binding_v1"
+
+
+def materialize_standard_charge_historical_action_binding(
+    *, predictive_ledger: Mapping[str, Any], candidate_id: str,
+    terminal_execution: Mapping[str, Any], turn_number: int,
+) -> dict[str, Any]:
+    """Bind an exact retained charge terminal to the existing C5 action-link algorithm.
+
+    The scalar ledger may be incomplete; it is used only as an authenticated
+    identity envelope.  Terminal mechanics/probabilities remain owned by the
+    retained charge artifact.
+    """
+    if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1:
+        return _r("rejected", "invalid_trusted_turn_number")
+    if candidate_id != "attack:sky-attack":
+        return _r("rejected", "unsupported_standard_charge_candidate")
+    if (
+        not isinstance(predictive_ledger, Mapping)
+        or predictive_ledger.get("schema_version") != "exact-predictive-outcome-ledger-v1"
+        or predictive_ledger.get("status") not in {"evaluable", "incomplete"}
+    ):
+        return _r("rejected", "standard_charge_identity_ledger_invalid")
+    bindings = predictive_ledger.get("bindings")
+    if not _identity_bindings(bindings, candidate_id):
+        return _r("rejected", "standard_charge_identity_bindings_invalid")
+    provisional = {
+        "status": "resolved",
+        "schema_version": HISTORICAL_BINDING_SCHEMA_VERSION,
+        "session_id": bindings["session_id"],
+        "turn_number": turn_number,
+        "actor": deepcopy(bindings["attacker"]),
+        "target": deepcopy(bindings["target"]),
+        "move_id": bindings["move_id"],
+        "candidate_id": candidate_id,
+        "source_runtime_fingerprint": bindings["source_runtime_fingerprint"],
+        "source_branch_fingerprint": bindings["source_branch_fingerprint"],
+        "decision_owner": deepcopy(bindings["decision_owner"]),
+        "predictive_ledger_fingerprint": _fingerprint(predictive_ledger),
+    }
+    terminal_check = _validate_terminal_source(
+        terminal_execution=terminal_execution,
+        checked=provisional,
+    )
+    if isinstance(terminal_check, str):
+        return _r("rejected", terminal_check)
+    identity = {key: deepcopy(provisional[key]) for key in (
+        "session_id", "turn_number", "actor", "target", "move_id", "candidate_id",
+        "source_runtime_fingerprint", "source_branch_fingerprint", "decision_owner",
+        "predictive_ledger_fingerprint",
+    )}
+    action_link_id = "observed-rng:" + hashlib.sha256(_canonical(identity)).hexdigest()[:24]
+    return {
+        **provisional,
+        "source_action_id": action_link_id,
+        "action_link_id": action_link_id,
+        "prediction_identity": {
+            "schema_version": "exact-predictive-outcome-ledger-v1",
+            "candidate_id": candidate_id,
+            "predictive_ledger_fingerprint": provisional["predictive_ledger_fingerprint"],
+            "source_prediction_kind": "standard_charge_terminal_execution",
+        },
+        "action_link_algorithm": "historical-predictive-action-binding-v1-compatible",
+        "provenance": _BINDING_PROVENANCE,
+    }
+
+
+def validate_standard_charge_historical_action_binding(
+    *, binding: Mapping[str, Any], predictive_ledger: Mapping[str, Any],
+    candidate_id: str, terminal_execution: Mapping[str, Any],
+) -> dict[str, Any]:
+    if not isinstance(binding, Mapping):
+        return _r("rejected", "standard_charge_historical_binding_missing")
+    expected = materialize_standard_charge_historical_action_binding(
+        predictive_ledger=predictive_ledger,
+        candidate_id=candidate_id,
+        terminal_execution=terminal_execution,
+        turn_number=binding.get("turn_number"),
+    )
+    if expected.get("status") != "resolved":
+        return expected
+    return deepcopy(expected) if dict(binding) == expected else _r("rejected", "standard_charge_historical_binding_mismatch")
 
 
 def materialize_standard_charge_flinch_prediction(
@@ -20,8 +103,9 @@ def materialize_standard_charge_flinch_prediction(
     predictive_binding: Mapping[str, Any],
     predictive_ledger: Mapping[str, Any],
 ) -> dict[str, Any]:
-    checked = validate_historical_predictive_action_binding(
+    checked = _checked_binding(
         binding=predictive_binding, predictive_ledger=predictive_ledger,
+        terminal_execution=terminal_execution,
     )
     if checked.get("status") != "resolved":
         return checked
@@ -101,8 +185,10 @@ def materialize_standard_charge_flinch_prediction(
 
 def retain_standard_charge_flinch_prediction_from_strategy_result(
     *, strategy_result: Mapping[str, Any],
-    predictive_binding: Mapping[str, Any],
     predictive_ledger: Mapping[str, Any],
+    predictive_binding: Mapping[str, Any] | None = None,
+    candidate_id: str | None = None,
+    turn_number: int | None = None,
 ) -> dict[str, Any]:
     """Retain exactly one already-materialized terminal artifact from a prediction result.
 
@@ -139,20 +225,29 @@ def retain_standard_charge_flinch_prediction_from_strategy_result(
     if not isinstance(strategy_result, Mapping):
         return _r("rejected", "strategy_result_invalid")
     visit(strategy_result)
-    predictions: dict[str, dict[str, Any]] = {}
+    predictions: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
     for artifact in artifacts:
+        binding = deepcopy(dict(predictive_binding)) if isinstance(predictive_binding, Mapping) else materialize_standard_charge_historical_action_binding(
+            predictive_ledger=predictive_ledger,
+            candidate_id=candidate_id,
+            terminal_execution=artifact,
+            turn_number=turn_number,
+        )
+        if binding.get("status") != "resolved":
+            continue
         candidate = materialize_standard_charge_flinch_prediction(
             terminal_execution=artifact,
-            predictive_binding=predictive_binding,
+            predictive_binding=binding,
             predictive_ledger=predictive_ledger,
         )
         if candidate.get("status") == "resolved":
-            predictions[candidate["terminal_prediction_fingerprint"]] = candidate
+            predictions[candidate["terminal_prediction_fingerprint"]] = (binding, candidate)
     if not predictions:
         return _r("incomplete", "standard_charge_terminal_prediction_not_retained")
     if len(predictions) != 1:
         return _r("rejected", "ambiguous_standard_charge_terminal_prediction")
-    return {"status": "resolved", "prediction": deepcopy(next(iter(predictions.values())))}
+    binding, prediction = next(iter(predictions.values()))
+    return {"status": "resolved", "binding": deepcopy(binding), "prediction": deepcopy(prediction)}
 
 
 def validate_standard_charge_flinch_prediction(
@@ -226,6 +321,96 @@ def reconcile_observed_standard_charge_flinch_rng(
     if (prediction, predictive_binding, predictive_ledger, executed_move_observation, flinch_causality_observation, direct_damage_observation) != baseline:
         return _r("rejected","reconciliation_input_mutated")
     return result
+
+
+def _checked_binding(*, binding, predictive_ledger, terminal_execution):
+    if not isinstance(binding, Mapping):
+        return _r("rejected", "historical_predictive_binding_missing")
+    if binding.get("schema_version") == HISTORICAL_BINDING_SCHEMA_VERSION:
+        return validate_standard_charge_historical_action_binding(
+            binding=binding,
+            predictive_ledger=predictive_ledger,
+            candidate_id=binding.get("candidate_id"),
+            terminal_execution=terminal_execution,
+        )
+    return validate_historical_predictive_action_binding(
+        binding=binding, predictive_ledger=predictive_ledger,
+    )
+
+
+def _identity_bindings(value, candidate_id):
+    if not isinstance(value, Mapping) or candidate_id != "attack:sky-attack":
+        return False
+    required=("session_id","source_runtime_fingerprint","source_branch_fingerprint","decision_owner","attacker","target","move_id")
+    if not all(key in value for key in required):
+        return False
+    if not all(isinstance(value.get(key),str) and value[key] for key in ("session_id","source_runtime_fingerprint","source_branch_fingerprint","move_id")):
+        return False
+    if value.get("move_id")!="sky-attack" or candidate_id!=f"attack:{value['move_id']}":
+        return False
+    if not all(isinstance(value.get(key),Mapping) for key in ("decision_owner","attacker","target")):
+        return False
+    return value.get("decision_owner")==value.get("attacker")
+
+
+def _validate_terminal_source(*, terminal_execution, checked):
+    if (
+        not isinstance(terminal_execution, Mapping)
+        or terminal_execution.get("status")!="resolved"
+        or terminal_execution.get("schema_version") not in {
+            "standard-charge-terminal-attack-kernel-v1",
+            "detached-standard-charge-turn-two-attack-execution-v1",
+        }
+        or _fraction(terminal_execution.get("terminal_probability_mass")) != Fraction(1,1)
+    ):
+        return "standard_charge_terminal_artifact_invalid"
+    leaves=terminal_execution.get("terminal_leaves")
+    if not isinstance(leaves,(tuple,list)) or not leaves:
+        return "standard_charge_terminal_leaves_missing"
+    if sum((_fraction(row.get("probability")) or Fraction() for row in leaves),Fraction()) != Fraction(1,1):
+        return "standard_charge_terminal_root_mass_invalid"
+    if any(not _leaf_binding(row,checked) for row in leaves):
+        return "standard_charge_terminal_leaf_binding_mismatch"
+    authority=terminal_execution.get("execution_authority")
+    if not isinstance(authority,Mapping):
+        return "standard_charge_terminal_execution_authority_missing"
+    mode,lifecycle,caller_kind,original_action_id,runtime_fingerprint=_caller_context(authority)
+    if (
+        mode not in {"forced_turn_two_continuation","power_herb_current_turn_skip"}
+        or caller_kind!=mode
+        or original_action_id!=checked["candidate_id"]
+        or runtime_fingerprint!=checked["source_runtime_fingerprint"]
+        or not isinstance(lifecycle,Mapping)
+    ):
+        return "standard_charge_terminal_caller_binding_mismatch"
+    if mode=="forced_turn_two_continuation":
+        if (
+            lifecycle.get("status")!="resolved"
+            or lifecycle.get("actor")!=checked["actor"]
+            or lifecycle.get("move_id")!="sky-attack"
+            or lifecycle.get("action_id")!=checked["candidate_id"]
+            or lifecycle.get("turn_two_continuation_required") is not True
+        ):
+            return "standard_charge_terminal_lifecycle_mismatch"
+    elif (
+        lifecycle.get("outcome")!="power_herb_charge_skip_ready"
+        or lifecycle.get("actor")!=checked["actor"]
+        or lifecycle.get("move_id")!="sky-attack"
+        or lifecycle.get("action_id")!=checked["candidate_id"]
+    ):
+        return "standard_charge_terminal_lifecycle_mismatch"
+    identities={row.get("candidate_id") for row in leaves}
+    if len(identities)!=1 or not all(isinstance(value,str) and value for value in identities):
+        return "standard_charge_terminal_action_identity_ambiguous"
+    return {
+        "leaves": leaves,
+        "authority": authority,
+        "mode": mode,
+        "lifecycle": lifecycle,
+        "caller_kind": caller_kind,
+        "original_action_id": original_action_id,
+        "terminal_action_identity": next(iter(identities)),
+    }
 
 
 def _leaf_binding(leaf, checked):
@@ -376,8 +561,12 @@ def _fd(value):
     return {"numerator":value.numerator,"denominator":value.denominator}
 
 
+def _canonical(value):
+    return json.dumps(value,sort_keys=True,separators=(",",":"),ensure_ascii=True,default=list).encode("ascii")
+
+
 def _fingerprint(value):
-    return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":"),ensure_ascii=True,default=list).encode("ascii")).hexdigest()
+    return hashlib.sha256(_canonical(value)).hexdigest()
 
 
 def _r(status,reason):
