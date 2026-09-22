@@ -75,6 +75,15 @@ from llm.advisor_runtime_strategy_d0 import (
     runtime_strategy_d0_freshness,
 )
 from llm.advisor_strategy_explanation import explain_detached_strategy
+from llm.advisor_runtime_d0_fixed_two_hit_multi_hit_execution_authority import (
+    freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority,
+)
+from llm.advisor_detached_fixed_two_hit_per_hit_predictive_materialization import (
+    materialize_detached_fixed_two_hit_per_hit_predictive_leaves,
+)
+from llm.advisor_runtime_d0_canonical_contact_classification_authority import (
+    freeze_runtime_d0_canonical_contact_classification_authority,
+)
 
 
 SCHEMA = "ui-detached-strategy-bridge-result-v1"
@@ -160,6 +169,9 @@ def run_current_ui_detached_strategy(
     live_attacks = _runtime_live_attack_authorities(
         strategy_d0=d0, runtime_snapshot=capture, selection=selection,
     )
+    fixed_two_hit_predictions = _project_fixed_two_hit_predictions(
+        strategy_d0=d0, runtime_snapshot=capture, selection=selection, live_attacks=live_attacks,
+    )
     orchestration_attacks = {key: value for key, value in live_attacks.items() if key != "secondary_manifest_authorities"}
     provisional = run_detached_strategy_orchestration(
         decision_state=d0["strategy_state"], decision_owner=d0["decision_owner"],
@@ -199,6 +211,7 @@ def run_current_ui_detached_strategy(
         "exact_outcome_ledgers": deepcopy(ledgers),
         "descriptive_metrics": deepcopy(metrics),
         "opponent_response_profiles": deepcopy(response_profiles),
+        "fixed_two_hit_predictions": deepcopy(fixed_two_hit_predictions),
         "orchestration": deepcopy(orchestration), "explanation": deepcopy(explanation),
         "provenance": "runtime_d0_detached_strategy_ui_controller_bridge_v1",
     }
@@ -541,6 +554,46 @@ def _runtime_seismic_toss_authorities(
         if authority.get("status") == "resolved":
             resolved[action["action_id"]] = authority
     return resolved
+
+
+def _project_fixed_two_hit_predictions(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    selection: Mapping[str, Any], live_attacks: Mapping[str, Mapping[str, Mapping[str, Any]]],
+) -> dict[str, Mapping[str, Any]]:
+    """Freeze existing exact fixed-two-hit artifacts while the runtime is still pre-observation."""
+    result: dict[str, Mapping[str, Any]] = {}
+    target_side = "opponent" if strategy_d0["decision_owner"]["side"] == "self" else "self"
+    target = strategy_d0.get("active_owners", {}).get(target_side)
+    if not isinstance(target, Mapping):
+        return result
+    sturdy = live_attacks.get("sturdy_survival_authorities", {})
+    sash = live_attacks.get("focus_sash_survival_authorities", {})
+    for action in selection.get("actions", ()):
+        if not isinstance(action, Mapping) or action.get("action_type") != "attack" or action.get("selection") != "selectable":
+            continue
+        if action.get("identity") not in {"double-hit", "double-kick"}:
+            continue
+        execution = freeze_runtime_d0_fixed_two_hit_multi_hit_execution_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+        )
+        if execution.get("status") != "resolved":
+            continue
+        contact = freeze_runtime_d0_canonical_contact_classification_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+            attacker=strategy_d0["decision_owner"], target=target,
+        )
+        if contact.get("status") != "resolved":
+            continue
+        prediction = materialize_detached_fixed_two_hit_per_hit_predictive_leaves(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+            execution_authority=execution,
+            sturdy_survival_authority=sturdy.get(action.get("action_id")),
+            focus_sash_survival_authority=sash.get(action.get("action_id")),
+            contact_reactive_contact_authority=contact,
+        )
+        if prediction.get("status") == "evaluable":
+            result[action["action_id"]] = prediction
+    return result
 
 
 def _runtime_live_attack_authorities(

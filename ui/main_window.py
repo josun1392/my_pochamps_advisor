@@ -64,6 +64,8 @@ from llm.advisor_pending_confusion_action_runtime_admission import (
 from llm.advisor_confusion_self_hit_damage_runtime_admission import (
     admit_observed_confusion_self_hit_damage_result,
 )
+from llm.advisor_multi_hit_graph_reconciliation import retain_historical_fixed_two_hit_prediction
+from llm.advisor_fixed_two_hit_observation_runtime_admission import admit_observed_fixed_two_hit_result
 from llm.advisor_current_condition_observation import admit_current_condition_observation
 from llm.advisor_action_linked_condition_application_observation import admit_action_linked_condition_application_observation
 from llm.advisor_status_progression_observation import admit_champions_status_progression_observation
@@ -522,6 +524,7 @@ class MainWindow(QMainWindow):
         self._historical_predictive_action_bindings: dict[str, dict] = {}
         self._historical_confusion_action_gates: dict[tuple[str, int, str, str], dict] = {}
         self._historical_confusion_self_hit_predictions: dict[tuple[str, int, str, str], dict] = {}
+        self._historical_multi_hit_predictions: dict[str, dict] = {}
         self._last_observed_rng_reconciliation: dict | None = None
         self._battle_counter_confirmation: dict[str, int] | None = None
         self._consecutive_use_confirmation: dict[str, int | bool] | None = None
@@ -1646,6 +1649,9 @@ class MainWindow(QMainWindow):
         self._confirm_confusion_self_hit_damage_action = QAction("Confirm Confusion Self-Hit Damage", self)
         self._confirm_confusion_self_hit_damage_action.triggered.connect(self._open_confusion_self_hit_damage_confirmation)
         battle_menu.addAction(self._confirm_confusion_self_hit_damage_action)
+        self._confirm_fixed_two_hit_result_action = QAction("Confirm Fixed Two-Hit Result", self)
+        self._confirm_fixed_two_hit_result_action.triggered.connect(self._open_fixed_two_hit_result_confirmation)
+        battle_menu.addAction(self._confirm_fixed_two_hit_result_action)
         self._confirm_paralysis_result_action = QAction("Confirm Thunder Wave / Nuzzle Result", self)
         self._confirm_paralysis_result_action.triggered.connect(self._open_paralysis_result_confirmation)
         battle_menu.addAction(self._confirm_paralysis_result_action)
@@ -1673,7 +1679,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_fixed_two_hit_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -1719,6 +1725,7 @@ class MainWindow(QMainWindow):
         if result.get("status") == "resolved":
             self._historical_confusion_action_gates = {}
             self._historical_confusion_self_hit_predictions = {}
+            self._historical_multi_hit_predictions = {}
         self.statusBar().showMessage("Pokémon switch applied" if result.get("status") == "resolved" else "Switch confirmation failed: exact runtime confirmation was rejected")
 
     @Slot()
@@ -1747,6 +1754,7 @@ class MainWindow(QMainWindow):
         if result.get("status") == "resolved":
             self._historical_confusion_action_gates = {}
             self._historical_confusion_self_hit_predictions = {}
+            self._historical_multi_hit_predictions = {}
         self.statusBar().showMessage("Forced switch applied" if result.get("status") == "resolved" else "Forced switch confirmation failed or is incomplete")
 
     @Slot()
@@ -1810,6 +1818,7 @@ class MainWindow(QMainWindow):
         if result.get("status") == "resolved":
             self._historical_confusion_action_gates = {}
             self._historical_confusion_self_hit_predictions = {}
+            self._historical_multi_hit_predictions = {}
         self.statusBar().showMessage("Confusion state applied" if result.get("status") == "resolved" else "Confusion confirmation failed or is incomplete")
 
     @Slot()
@@ -2013,6 +2022,124 @@ class MainWindow(QMainWindow):
             "Confusion self-hit damage applied"
             if result.get("status") == "resolved"
             else "Confusion self-hit damage confirmation failed or is incomplete"
+        )
+
+    @Slot()
+    def _open_fixed_two_hit_result_confirmation(self) -> None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str) or not isinstance(turn_number, int):
+            self.statusBar().showMessage("Fixed two-hit confirmation failed: active session/turn unavailable")
+            return
+        rows = manager.read_collection_snapshot().get("ordered_observations", [])
+        candidates = []
+        for retained in getattr(self, "_historical_multi_hit_predictions", {}).values():
+            if not isinstance(retained, dict) or retained.get("session_id") != session_id or retained.get("turn_number") != turn_number:
+                continue
+            actor = retained.get("actor", {})
+            executions = [
+                row for row in rows
+                if isinstance(row, dict)
+                and row.get("event_kind") == "executed_move_observed"
+                and row.get("session_id") == session_id
+                and row.get("turn_number") == turn_number
+                and (row.get("side"), row.get("slot_index"), row.get("pokemon_id"))
+                    == (actor.get("side"), actor.get("slot_index"), actor.get("pokemon_id"))
+                and row.get("payload", {}).get("move_id") == retained.get("move_id")
+                and row.get("payload", {}).get("source_action_id") == retained.get("source_action_id")
+            ]
+            if len(executions) == 1:
+                candidates.append((deepcopy(retained), deepcopy(executions[0])))
+        if not candidates:
+            self.statusBar().showMessage("Fixed two-hit confirmation failed: exact retained action/execution unavailable")
+            return
+        if len(candidates) > 1:
+            labels = [f"{retained['actor']['pokemon_id']} / {retained['move_id']} ({i + 1})" for i, (retained, _) in enumerate(candidates)]
+            label, ok = QInputDialog.getItem(self, "Confirm Fixed Two-Hit Result", "Choose the observed action", labels, 0, False)
+            if not ok:
+                return
+            retained, execution = candidates[labels.index(label)]
+        else:
+            retained, execution = candidates[0]
+        outcome_label, ok = QInputDialog.getItem(
+            self, "Confirm Fixed Two-Hit Result", "Observed action result", ["Action landed", "Action missed"], 0, False,
+        )
+        if not ok:
+            return
+        if outcome_label == "Action missed":
+            landed_count, terminal_reason, observed_hits = 0, "action_miss", ()
+        else:
+            count_label, ok = QInputDialog.getItem(self, "Confirm Fixed Two-Hit Result", "Observed landed hit count", ["2", "1"], 0, False)
+            if not ok:
+                return
+            landed_count = int(count_label)
+            predictive_hits = [
+                leaf.get("ordered_hits", ())
+                for leaf in retained.get("predictive_artifact", {}).get("terminal_leaves", ())
+                if isinstance(leaf, dict) and len(leaf.get("ordered_hits", ())) >= 1
+            ]
+            first_hp_values = {hits[0].get("pre_hp") for hits in predictive_hits if hits}
+            if len(first_hp_values) != 1 or not all(isinstance(value, int) for value in first_hp_values):
+                self.statusBar().showMessage("Fixed two-hit confirmation failed: exact pre-hit HP unavailable")
+                return
+            hp_before = next(iter(first_hp_values))
+            observed = []
+            for hit_index in range(1, landed_count + 1):
+                hp_after, ok = QInputDialog.getInt(
+                    self, "Confirm Fixed Two-Hit Result",
+                    f"Target HP after hit {hit_index} (before: {hp_before})",
+                    hp_before, 0, hp_before,
+                )
+                if not ok:
+                    return
+                observed.append({
+                    "hit_index": hit_index, "hp_before": hp_before, "hp_after": hp_after,
+                    "critical_state": None, "related_contact_observation_ids": (),
+                })
+                hp_before = hp_after
+            observed_hits = tuple(observed)
+            if landed_count == 1:
+                reasons = {
+                    "Target fainted": "target_fainted",
+                    "Attacker fainted from contact-reactive damage": "attacker_fainted_from_contact_reactive_damage",
+                    "Effect Spore sleep cancelled remaining hit": "effect_spore_sleep_cancels_remaining_hits",
+                }
+            else:
+                reasons = {
+                    "All two hits completed": "all_hits_landed",
+                    "Target fainted on hit 2": "target_fainted",
+                    "Attacker fainted from contact-reactive damage": "attacker_fainted_from_contact_reactive_damage",
+                }
+            reason_label, ok = QInputDialog.getItem(self, "Confirm Fixed Two-Hit Result", "Observed terminal cause", list(reasons), 0, False)
+            if not ok:
+                return
+            terminal_reason = reasons[reason_label]
+        result = admit_observed_fixed_two_hit_result(
+            runtime_session_manager=manager, captured_session_id=session_id,
+            retained_prediction=retained, turn_number=turn_number,
+            source_execution_observation=execution, action_outcome="miss" if landed_count == 0 else "landed",
+            landed_hit_count=landed_count, terminal_reason=terminal_reason, ordered_hits=observed_hits,
+        )
+        if result.get("status") == "resolved":
+            reconciliation = result.get("reconciliation")
+            if isinstance(reconciliation, dict):
+                self._last_observed_rng_reconciliation = deepcopy(reconciliation)
+            target = retained.get("target", {})
+            side = target.get("side")
+            if side in {"self", "opponent"}:
+                current_hp = dict(getattr(self, "_current_hp_confirmations", {}))
+                owners = dict(getattr(self, "_current_hp_confirmation_owners", {}))
+                current_hp.pop(side, None); owners.pop(side, None)
+                self._current_hp_confirmations = current_hp; self._current_hp_confirmation_owners = owners
+                update = getattr(self, "_update_current_hp_summary", None)
+                if callable(update):
+                    update()
+            self._retire_advice_presentation_authority()
+            self._recommendation_readiness_owner = None
+        self.statusBar().showMessage(
+            "Fixed two-hit result applied" if result.get("status") == "resolved"
+            else "Fixed two-hit confirmation failed or is incompatible"
         )
 
     def _resolve_pending_confusion_actor(self, runtime_snapshot: dict, *, session_id: str, side: object) -> dict:
@@ -2483,6 +2610,7 @@ class MainWindow(QMainWindow):
         self.select_slot("team_my" if side == "self" else "team_enemy", switch_in_slot_index)
         self._historical_confusion_action_gates = {}
         self._historical_confusion_self_hit_predictions = {}
+        self._historical_multi_hit_predictions = {}
         self._retire_advice_presentation_authority()
         self._recommendation_readiness_owner = None
         try:
@@ -2498,9 +2626,24 @@ class MainWindow(QMainWindow):
         if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
             return {"status": "rejected", "reason": "active_session_unavailable"}
         linked = self._resolve_historical_predictive_action_bundle(side=side, move_id=execution_move_id)
+        fixed = None
+        if linked.get("status") != "resolved":
+            snapshot = manager.capture_runtime_state_snapshot(session_id)
+            candidates = [
+                value for value in getattr(self, "_historical_multi_hit_predictions", {}).values()
+                if isinstance(value, dict)
+                and value.get("session_id") == session_id
+                and value.get("turn_number") == getattr(self, "_current_trusted_turn_number", None)
+                and value.get("move_id") == execution_move_id
+                and value.get("actor", {}).get("side") == side
+                and value.get("source_runtime_fingerprint") == snapshot.get("state_fingerprint")
+                and self._runtime_owner_matches_predictive_binding(snapshot.get("state"), value.get("actor"))
+                and self._runtime_owner_matches_predictive_binding(snapshot.get("state"), value.get("target"))
+            ]
+            fixed = candidates[0] if len(candidates) == 1 else None
         source_action_id = (
-            linked["binding"]["source_action_id"]
-            if linked.get("status") == "resolved"
+            linked["binding"]["source_action_id"] if linked.get("status") == "resolved"
+            else fixed["source_action_id"] if isinstance(fixed, dict)
             else f"{session_id}:action-{manager.last_allocated_sequence + 1}"
         )
         result = admit_previous_action_history_observation(
@@ -2524,6 +2667,7 @@ class MainWindow(QMainWindow):
         self._historical_sleep_freeze_action_gates = {}
         self._historical_confusion_action_gates = {}
         self._historical_confusion_self_hit_predictions = {}
+        self._historical_multi_hit_predictions = {}
         self._last_observed_rng_reconciliation = None
         turn_number = getattr(self, "_current_trusted_turn_number", None)
         ledgers = strategy_result.get("exact_outcome_ledgers") if isinstance(strategy_result, dict) else None
@@ -2575,6 +2719,31 @@ class MainWindow(QMainWindow):
             if opportunity.get("status") == "resolved":
                 bundle["action_opportunity_authority"] = deepcopy(opportunity)
             self._historical_predictive_action_bindings[binding["source_action_id"]] = bundle
+        predictions = strategy_result.get("fixed_two_hit_predictions")
+        if isinstance(predictions, dict):
+            for action_id, prediction in predictions.items():
+                actor = prediction.get("attacker") if isinstance(prediction, dict) else None
+                if not isinstance(actor, dict) or actor.get("session_id") != session_id:
+                    continue
+                source_links = [
+                    bundle.get("binding")
+                    for bundle in self._historical_predictive_action_bindings.values()
+                    if isinstance(bundle, dict)
+                    and isinstance(bundle.get("binding"), dict)
+                    and bundle["binding"].get("candidate_id") == action_id
+                    and bundle["binding"].get("actor") == actor
+                    and bundle["binding"].get("move_id") == prediction.get("move_id")
+                ]
+                if len(source_links) > 1:
+                    continue
+                retained = retain_historical_fixed_two_hit_prediction(
+                    predictive_artifact=prediction,
+                    turn_number=turn_number,
+                    decision_point=f"decision:{turn_number}:{actor.get('side')}",
+                    source_action_id=source_links[0]["source_action_id"] if source_links else action_id,
+                )
+                if retained.get("status") == "resolved":
+                    self._historical_multi_hit_predictions[action_id] = deepcopy(retained)
 
     @staticmethod
     def _runtime_owner_matches_predictive_binding(state: object, owner: object) -> bool:
@@ -2869,6 +3038,7 @@ class MainWindow(QMainWindow):
         self._historical_sleep_freeze_action_gates = {}
         self._historical_confusion_action_gates = {}
         self._historical_confusion_self_hit_predictions = {}
+        self._historical_multi_hit_predictions = {}
         self._last_observed_rng_reconciliation = None
         self._item_event_confirmations = []
         self._current_field_state_confirmation = None
@@ -2915,6 +3085,7 @@ class MainWindow(QMainWindow):
             self._historical_sleep_freeze_action_gates = {}
             self._historical_confusion_action_gates = {}
             self._historical_confusion_self_hit_predictions = {}
+            self._historical_multi_hit_predictions = {}
             self._last_observed_rng_reconciliation = None
         self._current_trusted_turn_number = turn_number
 

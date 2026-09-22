@@ -28,6 +28,7 @@
     "dragon-pulse": ["pulse"],
     "drain-punch": ["contact", "punch"],
     "double-hit": ["contact"],
+    "double-kick": ["contact"],
     "egg-bomb": ["bullet"],
     "echoed-voice": ["sound"],
     "energy-ball": ["bullet"],

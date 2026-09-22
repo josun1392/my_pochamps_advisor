@@ -57,6 +57,7 @@ def test_exact_canonical_contact_and_non_contact_actions_resolve_without_mutatio
     assert non_contact["status"] == "resolved" and non_contact["contact_state"] == "non_contact"
     assert canonical_move_contact_metadata("water-gun")["contact_state"] == "non_contact"
     assert canonical_move_contact_metadata("rock-blast")["contact_state"] == "non_contact"
+    assert canonical_move_contact_metadata("double-kick")["contact_state"] == "contact"
     assert state == before
 
 
