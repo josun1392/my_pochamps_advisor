@@ -81,8 +81,12 @@ from llm.advisor_ui_detached_strategy_bridge import run_current_ui_detached_stra
 from llm.advisor_detached_observed_rng_reconciliation import (
     link_direct_damage_observation_to_predictive_action,
     materialize_historical_predictive_action_binding,
+    reconcile_observed_action_opportunity_rng,
     reconcile_observed_scalar_attack_rng,
     validate_historical_predictive_action_binding,
+)
+from llm.advisor_current_action_paralysis_opportunity_authority import (
+    materialize_current_action_paralysis_opportunity_authority,
 )
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
@@ -2201,6 +2205,13 @@ class MainWindow(QMainWindow):
         ledgers = strategy_result.get("exact_outcome_ledgers") if isinstance(strategy_result, dict) else None
         if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1 or not isinstance(ledgers, dict):
             return
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        runtime_snapshot = (
+            manager.capture_runtime_state_snapshot(session_id)
+            if isinstance(manager, BattleObservationRuntimeSessionManager) and isinstance(session_id, str)
+            else {}
+        )
         for ledger in ledgers.values():
             if not isinstance(ledger, dict) or ledger.get("status") != "evaluable" or ledger.get("action_type") != "attack":
                 continue
@@ -2209,9 +2220,15 @@ class MainWindow(QMainWindow):
             )
             if binding.get("status") != "resolved":
                 continue
-            self._historical_predictive_action_bindings[binding["source_action_id"]] = {
-                "binding": deepcopy(binding), "ledger": deepcopy(ledger),
-            }
+            bundle = {"binding": deepcopy(binding), "ledger": deepcopy(ledger)}
+            opportunity = materialize_current_action_paralysis_opportunity_authority(
+                predictive_binding=binding,
+                predictive_ledger=ledger,
+                runtime_snapshot=runtime_snapshot,
+            )
+            if opportunity.get("status") == "resolved":
+                bundle["action_opportunity_authority"] = deepcopy(opportunity)
+            self._historical_predictive_action_bindings[binding["source_action_id"]] = bundle
 
     @staticmethod
     def _runtime_owner_matches_predictive_binding(state: object, owner: object) -> bool:
@@ -2310,7 +2327,7 @@ class MainWindow(QMainWindow):
             condition_application = conditions[0]
         if len(damages) > 1 or len(conditions) > 1:
             return {"status": "rejected", "reason": "duplicate_linked_reconciliation_evidence"}
-        reconciliation = reconcile_observed_scalar_attack_rng(
+        scalar_reconciliation = reconcile_observed_scalar_attack_rng(
             predictive_ledger=ledger,
             predictive_binding=binding,
             executed_move_observation=execution,
@@ -2318,8 +2335,21 @@ class MainWindow(QMainWindow):
             direct_damage_observation=direct_damage,
             target_condition_application_observation=condition_application,
         )
-        self._last_observed_rng_reconciliation = deepcopy(reconciliation)
-        return reconciliation
+        opportunity = bundle.get("action_opportunity_authority")
+        if isinstance(opportunity, dict):
+            action_reconciliation = reconcile_observed_action_opportunity_rng(
+                predictive_authority=opportunity,
+                predictive_binding=binding,
+                predictive_ledger=ledger,
+                executed_move_observation=execution,
+                previous_action_result_observation=results[0] if results else None,
+                direct_damage_observation=direct_damage,
+            )
+            if action_reconciliation.get("status") == "resolved":
+                self._last_observed_rng_reconciliation = deepcopy(action_reconciliation)
+                return action_reconciliation
+        self._last_observed_rng_reconciliation = deepcopy(scalar_reconciliation)
+        return scalar_reconciliation
 
     def _confirm_action_restriction(self, *, side: str, restriction: str, operation: str, source_action_id: str | None) -> dict:
         return admit_action_restriction_observation(runtime_session_manager=getattr(self, "_observation_runtime_session_manager", None), captured_session_id=MainWindow._active_session_id(self), side=side, restriction=restriction, operation=operation, source_action_id=source_action_id, turn_number=getattr(self, "_current_trusted_turn_number", None))

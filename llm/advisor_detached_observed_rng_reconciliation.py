@@ -268,6 +268,181 @@ def reconcile_observed_scalar_attack_rng(
     return result
 
 
+def reconcile_observed_action_opportunity_rng(
+    *,
+    predictive_authority: Mapping[str, Any],
+    predictive_binding: Mapping[str, Any],
+    predictive_ledger: Mapping[str, Any],
+    executed_move_observation: Mapping[str, Any],
+    previous_action_result_observation: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None = None,
+    direct_damage_observation: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Reconcile exact current-paralysis action-opportunity branches.
+
+    Executed-move history authenticates the real action identity only.  It is
+    deliberately not evidence that the paralysis gate was passed.
+    """
+    from llm.advisor_current_action_paralysis_opportunity_authority import (
+        validate_current_action_paralysis_opportunity_authority,
+    )
+
+    baseline = deepcopy((
+        predictive_authority, predictive_binding, predictive_ledger,
+        executed_move_observation, previous_action_result_observation,
+        direct_damage_observation,
+    ))
+    checked_binding = validate_historical_predictive_action_binding(
+        binding=predictive_binding, predictive_ledger=predictive_ledger,
+    )
+    if checked_binding.get("status") != "resolved":
+        return checked_binding
+    authority = validate_current_action_paralysis_opportunity_authority(
+        authority=predictive_authority,
+        predictive_binding=predictive_binding,
+        predictive_ledger=predictive_ledger,
+    )
+    if authority.get("status") != "resolved":
+        return authority
+    execution_error = _validate_execution_observation(
+        executed_move_observation, checked_binding,
+    )
+    if execution_error is not None:
+        return _result("rejected", execution_error)
+
+    results: list[Mapping[str, Any]] = []
+    if previous_action_result_observation is not None:
+        if isinstance(previous_action_result_observation, Mapping):
+            results = [previous_action_result_observation]
+        elif isinstance(previous_action_result_observation, Sequence) and not isinstance(previous_action_result_observation, (str, bytes)):
+            results = list(previous_action_result_observation)
+        else:
+            return _result("rejected", "previous_action_result_observation_invalid")
+
+    observations: list[Mapping[str, Any]] = [executed_move_observation]
+    matched: dict[str, Any] = {}
+    require_cancelled = False
+    require_executed = False
+    for row in results:
+        error = _validate_result_observation(row, checked_binding, executed_move_observation)
+        if error is not None:
+            return _result("rejected", error)
+        observations.append(row)
+        result_class = _payload(row).get("result_class")
+        if result_class == "full_paralysis":
+            require_cancelled = True
+            matched.setdefault("action_result_classes", []).append("full_paralysis")
+        elif result_class == "accuracy_miss":
+            require_executed = True
+            matched.setdefault("action_result_classes", []).append("accuracy_miss")
+        elif result_class == "success":
+            matched.setdefault("action_result_classes", []).append("success_non_execution_proof")
+
+    if direct_damage_observation is not None:
+        error = _validate_direct_damage_observation(
+            direct_damage_observation, checked_binding, executed_move_observation,
+        )
+        if error is not None:
+            return _result("rejected", error)
+        observations.append(direct_damage_observation)
+        require_executed = True
+        amount = direct_damage_observation.get("damage_amount")
+        if amount is None:
+            amount = _payload(direct_damage_observation).get("damage_amount")
+        matched["linked_direct_damage"] = amount
+
+    branches = tuple(authority["branches"])
+    if not require_cancelled and not require_executed:
+        result = _action_opportunity_reconciliation_result(
+            status="incomplete", reason="insufficient_observation",
+            binding=checked_binding, authority=authority, observations=observations,
+            compatible_branches=branches, matched_observable_facts=matched,
+        )
+    else:
+        compatible = []
+        for branch in branches:
+            if require_cancelled and branch.get("state") != "cancelled_due_to_paralysis":
+                continue
+            if require_executed and branch.get("state") != "executed":
+                continue
+            compatible.append(branch)
+        result = _action_opportunity_reconciliation_result(
+            status="resolved", reason=None,
+            binding=checked_binding, authority=authority, observations=observations,
+            compatible_branches=tuple(compatible), matched_observable_facts=matched,
+        )
+
+    current = (
+        predictive_authority, predictive_binding, predictive_ledger,
+        executed_move_observation, previous_action_result_observation,
+        direct_damage_observation,
+    )
+    if deepcopy(current) != baseline:
+        return _result("rejected", "reconciliation_input_mutated")
+    return result
+
+
+def _action_opportunity_reconciliation_result(
+    *,
+    status: str,
+    reason: str | None,
+    binding: Mapping[str, Any],
+    authority: Mapping[str, Any],
+    observations: Sequence[Mapping[str, Any]],
+    compatible_branches: Sequence[Mapping[str, Any]],
+    matched_observable_facts: Mapping[str, Any],
+) -> dict[str, Any]:
+    mass = sum(
+        (_fraction(branch.get("probability")) or Fraction() for branch in compatible_branches),
+        Fraction(),
+    )
+    if status == "resolved":
+        outcome = (
+            "incompatible_observation" if not compatible_branches
+            else "uniquely_matched" if len(compatible_branches) == 1
+            else "multiple_compatible_branches"
+        )
+        uniqueness = (
+            "none" if not compatible_branches
+            else "unique" if len(compatible_branches) == 1
+            else "ambiguous"
+        )
+    else:
+        outcome = None
+        uniqueness = "ambiguous"
+    return {
+        "status": status,
+        "schema_version": RECONCILIATION_SCHEMA_VERSION,
+        "reason": reason,
+        **{
+            key: deepcopy(binding[key])
+            for key in (
+                "session_id", "turn_number", "actor", "target", "move_id",
+                "source_action_id", "source_runtime_fingerprint",
+                "source_branch_fingerprint", "decision_owner",
+            )
+        },
+        "source_prediction_kind": "action_opportunity_execution",
+        "source_prediction_identity": deepcopy(authority["prediction_identity"]),
+        "source_observations": tuple({
+            "observation_id": row.get("observation_id"),
+            "observation_sequence": _sequence(row),
+            "event_kind": row.get("event_kind"),
+        } for row in observations),
+        "match_outcome": outcome,
+        "compatible_branch_ids": tuple(
+            branch["branch_id"] for branch in compatible_branches
+        ),
+        "compatible_original_probability_mass": _fd(mass),
+        "probability_normalization": "none_preserve_original_mass",
+        "matched_observable_facts": deepcopy(dict(matched_observable_facts)),
+        "unresolved_hidden_dimensions": (
+            ("paralysis_action_opportunity",) if len(compatible_branches) > 1 else ()
+        ),
+        "uniqueness": uniqueness,
+        "provenance": _RECONCILIATION_PROVENANCE,
+    }
+
+
 def _validate_scalar_ledger(value: Any) -> dict[str, Any] | str:
     if not isinstance(value, Mapping):
         return "predictive_ledger_missing"
