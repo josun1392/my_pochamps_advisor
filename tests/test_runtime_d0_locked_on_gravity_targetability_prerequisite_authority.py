@@ -123,7 +123,7 @@ def test_locked_on_inactive_observation_replays_and_freezes_known_inactive():
     )
     assert authority["status"] == "resolved"
     assert authority["locked_on_state"] == {"status": "known_inactive"}
-    assert authority["targetability_outcome"] is None
+    assert "targetability_outcome" not in authority
 
 
 def test_locked_on_active_observation_preserves_exact_bound_target_through_replay_and_d0():
@@ -140,7 +140,7 @@ def test_locked_on_active_observation_preserves_exact_bound_target_through_repla
     assert authority["source_owner"] == SELF
     assert authority["source_runtime_fingerprint"] == snapshot["state_fingerprint"]
     assert authority["source_branch_fingerprint"] == d0["strategy_preview_fingerprint"]
-    assert authority["targetability_outcome"] is None
+    assert "targetability_outcome" not in authority
 
 
 def test_locked_on_malformed_active_and_inactive_payloads_are_rejected_at_lifecycle_boundary():
@@ -242,8 +242,8 @@ def test_gravity_active_and_inactive_observations_replay_and_freeze_exactly():
         )
         assert authority["status"] == "resolved"
         assert authority["gravity"] == {"status": expected}
-        assert authority["remaining_duration"] is None
-        assert authority["targetability_outcome"] is None
+        assert "remaining_duration" not in authority
+        assert "targetability_outcome" not in authority
 
 
 def test_gravity_missing_is_incomplete_and_malformed_status_is_rejected():

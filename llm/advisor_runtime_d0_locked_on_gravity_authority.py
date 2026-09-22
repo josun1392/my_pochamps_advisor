@@ -53,7 +53,6 @@ def freeze_runtime_d0_locked_on_target_binding_authority(
             "status": "resolved",
             "locked_on_state": {"status": "known_inactive"},
             "observation_provenance": deepcopy(dict(provenance)),
-            "targetability_outcome": None,
             "provenance": "strict_runtime_d0_current_locked_on_target_binding_v1",
         }
     if not isinstance(value, Mapping) or set(value) != {"status", "bound_target"} or value.get("status") != "known_active":
@@ -71,7 +70,6 @@ def freeze_runtime_d0_locked_on_target_binding_authority(
             "bound_target": deepcopy(dict(target)),
         },
         "observation_provenance": deepcopy(dict(provenance)),
-        "targetability_outcome": None,
         "provenance": "strict_runtime_d0_current_locked_on_target_binding_v1",
     }
 
@@ -116,8 +114,6 @@ def freeze_runtime_d0_gravity_field_authority(
         "scope": "battle_field",
         "gravity": {"status": value},
         "observation_provenance": deepcopy(dict(provenance)),
-        "remaining_duration": None,
-        "targetability_outcome": None,
         "provenance": "strict_runtime_d0_current_gravity_field_v1",
     }
 
