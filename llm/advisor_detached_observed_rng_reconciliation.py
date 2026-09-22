@@ -179,6 +179,7 @@ def reconcile_observed_scalar_attack_rng(
     previous_action_result_observation: Mapping[str, Any] | None = None,
     direct_damage_observation: Mapping[str, Any] | None = None,
     target_condition_application_observation: Mapping[str, Any] | None = None,
+    flinch_causality_observation: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Filter original scalar terminal leaves by exact linked observations."""
     baseline_ledger = deepcopy(predictive_ledger)
@@ -187,6 +188,7 @@ def reconcile_observed_scalar_attack_rng(
     baseline_result = deepcopy(previous_action_result_observation)
     baseline_damage = deepcopy(direct_damage_observation)
     baseline_condition = deepcopy(target_condition_application_observation)
+    baseline_flinch = deepcopy(flinch_causality_observation)
 
     parsed = _validate_scalar_ledger(predictive_ledger)
     if isinstance(parsed, str):
@@ -243,6 +245,19 @@ def reconcile_observed_scalar_attack_rng(
         constraints.append(("target_condition_applied", condition))
         matched_facts["target_condition_applied"] = condition
 
+    if flinch_causality_observation is not None:
+        flinch_error = _validate_flinch_causality_observation(
+            flinch_causality_observation, checked_binding, executed_move_observation,
+        )
+        if flinch_error is not None:
+            return _result("rejected", flinch_error)
+        source_observations.append(flinch_causality_observation)
+        constraints.append(("target_flinch_caused", checked_binding["target"]))
+        matched_facts["target_flinch_caused"] = {
+            "affected_owner": deepcopy(checked_binding["target"]),
+            "cancelled_source_action_id": flinch_causality_observation["cancelled_source_action_id"],
+        }
+
     if not constraints:
         return _reconciliation_result(
             status="incomplete", reason="insufficient_observation", binding=checked_binding,
@@ -263,7 +278,7 @@ def reconcile_observed_scalar_attack_rng(
     )
     if predictive_ledger != baseline_ledger or predictive_binding != baseline_binding:
         return _result("rejected", "reconciliation_input_mutated")
-    if executed_move_observation != baseline_execution or previous_action_result_observation != baseline_result or direct_damage_observation != baseline_damage or target_condition_application_observation != baseline_condition:
+    if executed_move_observation != baseline_execution or previous_action_result_observation != baseline_result or direct_damage_observation != baseline_damage or target_condition_application_observation != baseline_condition or flinch_causality_observation != baseline_flinch:
         return _result("rejected", "reconciliation_observation_mutated")
     return result
 
@@ -625,6 +640,58 @@ def _validate_condition_application_observation(value: Any, binding: Mapping[str
     return None
 
 
+def _validate_flinch_causality_observation(value: Any, binding: Mapping[str, Any], execution: Mapping[str, Any]) -> str | None:
+    if not isinstance(value, Mapping) or value.get("event_kind") != "flinch_causality_observed":
+        return "flinch_causality_observation_invalid"
+    if binding.get("move_id") != "iron-head":
+        return "flinch_causality_producer_not_supported_in_v1"
+    if (
+        value.get("session_id") != binding["session_id"]
+        or value.get("turn_number") != binding["turn_number"]
+        or value.get("source") != "ui_flinch_causality_confirmation"
+        or value.get("trust") != "user_confirmed_observation"
+        or value.get("observed") is not True
+        or value.get("confirmed") is not True
+        or value.get("reducer_eligibility") != "evidence_only"
+        or value.get("provenance") != "authenticated_c5_cross_action_flinch_causality_v1"
+        or value.get("reconciliation_eligible") is not True
+    ):
+        return "flinch_causality_provenance_invalid"
+    payload = _payload(value)
+    if (
+        value.get("producer_source_action_id") != binding["source_action_id"]
+        or payload.get("producer_source_action_id") != binding["source_action_id"]
+        or value.get("producer_move_id") != binding["move_id"]
+        or payload.get("producer_move_id") != binding["move_id"]
+        or value.get("producer_execution_observation_id") != execution.get("observation_id")
+        or payload.get("producer_execution_observation_id") != execution.get("observation_id")
+        or value.get("producer_predictive_ledger_fingerprint") != binding["predictive_ledger_fingerprint"]
+        or payload.get("producer_predictive_ledger_fingerprint") != binding["predictive_ledger_fingerprint"]
+    ):
+        return "flinch_causality_producer_binding_mismatch"
+    if not _owner_identity_equal(value.get("producer_owner"), binding["actor"]) or not _owner_identity_equal(payload.get("producer_owner"), binding["actor"]):
+        return "flinch_causality_producer_owner_mismatch"
+    if not _owner_identity_equal(value.get("affected_owner"), binding["target"]) or not _owner_identity_equal(payload.get("affected_owner"), binding["target"]):
+        return "flinch_causality_affected_owner_mismatch"
+    cancelled_action_id = value.get("cancelled_source_action_id")
+    if (
+        cancelled_action_id != payload.get("cancelled_source_action_id")
+        or not isinstance(cancelled_action_id, str) or not cancelled_action_id
+        or cancelled_action_id == binding["source_action_id"]
+        or value.get("cancelled_move_id") != payload.get("cancelled_move_id")
+        or value.get("cancelled_execution_observation_id") != payload.get("cancelled_execution_observation_id")
+        or value.get("cancelled_result_observation_id") != payload.get("cancelled_result_observation_id")
+    ):
+        return "flinch_causality_cancelled_action_binding_mismatch"
+    if not all(isinstance(value.get(key), str) and bool(value[key]) for key in (
+        "cancelled_move_id", "cancelled_execution_observation_id", "cancelled_result_observation_id",
+    )):
+        return "flinch_causality_cancelled_reference_invalid"
+    if _sequence(value) <= _sequence(execution):
+        return "flinch_causality_sequence_invalid"
+    return None
+
+
 def _common_observation(value: Mapping[str, Any], binding: Mapping[str, Any], *, actor: bool) -> bool:
     if value.get("session_id") != binding["session_id"] or value.get("turn_number") != binding["turn_number"]:
         return False
@@ -658,6 +725,18 @@ def _leaf_matches(leaf: Mapping[str, Any], field: str, expected: Any) -> bool:
             and hypothetical.get("resulting_condition") == expected
             and isinstance(owner, Mapping)
             and _owner_identity_equal(owner, leaf.get("provenance", {}).get("target"))
+        )
+    if field == "target_flinch_caused":
+        consequences = leaf.get("consequences")
+        secondary = consequences.get("secondary") if isinstance(consequences, Mapping) else None
+        hypothetical = secondary.get("hypothetical_target_flinch") if isinstance(secondary, Mapping) else None
+        return (
+            isinstance(secondary, Mapping)
+            and secondary.get("branch") == "effect"
+            and isinstance(hypothetical, Mapping)
+            and hypothetical.get("schema_version") == "detached-hypothetical-immediate-flinch-v1"
+            and hypothetical.get("state") == "flinched"
+            and _owner_identity_equal(leaf.get("provenance", {}).get("target"), expected)
         )
     return False
 

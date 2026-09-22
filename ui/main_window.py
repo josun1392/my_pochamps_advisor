@@ -67,6 +67,7 @@ from llm.advisor_current_state_runtime_admission import (
 )
 from llm.advisor_production_paralysis_application import admit_observed_champions_paralysis_result
 from llm.advisor_previous_action_history_observation import admit_previous_action_history_observation
+from llm.advisor_flinch_causality_observation import admit_flinch_causality_observation
 from llm.advisor_observed_contact_reactive_status_runtime_admission import admit_observed_contact_reactive_status_result
 from llm.advisor_observed_contact_reactive_damage_runtime_admission import admit_observed_contact_reactive_damage_result
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
@@ -1751,6 +1752,11 @@ class MainWindow(QMainWindow):
         result, accepted = QInputDialog.getItem(self, "Confirm Previous Action", "Result", ["unknown / not confirmed", "accuracy_miss", "type_or_ability_immunity", "move_specific_failure", "full_paralysis", "flinch", "sleep", "freeze", "success", "protection_block", "recharge", "sky_drop"], 0, False)
         if not accepted: return
         confirmed = self._confirm_previous_action_history(side=side, execution_move_id=executed.strip(), selected_move_id=(selected.strip() or executed.strip()), result_class=None if result == "unknown / not confirmed" else result)
+        if confirmed.get("status") == "resolved" and result == "flinch":
+            causal = self._confirm_flinch_causality_for_cancelled_history(confirmed)
+            if causal.get("status") == "resolved":
+                self.statusBar().showMessage("Previous action and explicit flinch causality confirmed")
+                return
         self.statusBar().showMessage("Previous action applied" if confirmed.get("status") == "resolved" else "Previous action confirmation failed")
 
     @Slot()
@@ -2321,11 +2327,13 @@ class MainWindow(QMainWindow):
             return {"status": "rejected", "reason": "duplicate_linked_action_result"}
         damages = [row for row in rows if isinstance(row, dict) and row.get("event_kind") == "direct_move_damage_observed" and row.get("source_action_id") == source_action_id and row.get("reconciliation_eligible") is True]
         conditions = [row for row in rows if isinstance(row, dict) and row.get("event_kind") == "condition_applied_observed" and row.get("source_action_id") == source_action_id and row.get("reconciliation_eligible") is True]
+        flinch_causalities = [row for row in rows if isinstance(row, dict) and row.get("event_kind") == "flinch_causality_observed" and row.get("producer_source_action_id") == source_action_id and row.get("reconciliation_eligible") is True]
         if direct_damage is None and len(damages) == 1:
             direct_damage = damages[0]
         if condition_application is None and len(conditions) == 1:
             condition_application = conditions[0]
-        if len(damages) > 1 or len(conditions) > 1:
+        flinch_causality = flinch_causalities[0] if len(flinch_causalities) == 1 else None
+        if len(damages) > 1 or len(conditions) > 1 or len(flinch_causalities) > 1:
             return {"status": "rejected", "reason": "duplicate_linked_reconciliation_evidence"}
         scalar_reconciliation = reconcile_observed_scalar_attack_rng(
             predictive_ledger=ledger,
@@ -2334,6 +2342,7 @@ class MainWindow(QMainWindow):
             previous_action_result_observation=results[0] if results else None,
             direct_damage_observation=direct_damage,
             target_condition_application_observation=condition_application,
+            flinch_causality_observation=flinch_causality,
         )
         opportunity = bundle.get("action_opportunity_authority")
         if isinstance(opportunity, dict):
@@ -2350,6 +2359,83 @@ class MainWindow(QMainWindow):
                 return action_reconciliation
         self._last_observed_rng_reconciliation = deepcopy(scalar_reconciliation)
         return scalar_reconciliation
+
+    def _confirm_flinch_causality_for_cancelled_history(self, history_result: dict) -> dict:
+        """Explicitly confirm which exact producer action caused a flinch cancellation."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str) or not isinstance(turn_number, int):
+            return {"status": "incomplete", "reason": "flinch_causality_context_unavailable"}
+        observations = history_result.get("observations") if isinstance(history_result, dict) else None
+        if not isinstance(observations, (tuple, list)):
+            return {"status": "rejected", "reason": "cancelled_history_observations_missing"}
+        cancelled_executions = [row for row in observations if isinstance(row, dict) and row.get("event_kind") == "executed_move_observed"]
+        cancelled_results = [row for row in observations if isinstance(row, dict) and row.get("event_kind") == "previous_action_result_observed" and row.get("payload", {}).get("result_class") == "flinch"]
+        if len(cancelled_executions) != 1 or len(cancelled_results) != 1:
+            return {"status": "rejected", "reason": "cancelled_flinch_history_not_exact"}
+        cancelled_execution, cancelled_result = cancelled_executions[0], cancelled_results[0]
+        affected = {
+            "session_id": cancelled_execution.get("session_id"),
+            "side": cancelled_execution.get("side"),
+            "slot_index": cancelled_execution.get("slot_index"),
+            "pokemon_id": cancelled_execution.get("pokemon_id"),
+        }
+        rows = manager.read_collection_snapshot().get("ordered_observations", [])
+        candidates = []
+        for bundle in getattr(self, "_historical_predictive_action_bindings", {}).values():
+            if not isinstance(bundle, dict):
+                continue
+            binding, ledger = bundle.get("binding"), bundle.get("ledger")
+            checked = validate_historical_predictive_action_binding(binding=binding, predictive_ledger=ledger) if isinstance(binding, dict) and isinstance(ledger, dict) else {}
+            if (
+                checked.get("status") != "resolved"
+                or checked.get("session_id") != session_id
+                or checked.get("turn_number") != turn_number
+                or checked.get("move_id") != "iron-head"
+                or checked.get("target") != affected
+            ):
+                continue
+            executions = [
+                row for row in rows
+                if isinstance(row, dict)
+                and row.get("event_kind") == "executed_move_observed"
+                and row.get("payload", {}).get("source_action_id") == checked.get("source_action_id")
+                and row.get("payload", {}).get("move_id") == checked.get("move_id")
+            ]
+            if len(executions) == 1:
+                candidates.append({"binding": checked, "ledger": ledger, "execution": executions[0]})
+        if not candidates:
+            return {"status": "incomplete", "reason": "exact_flinch_producer_unavailable"}
+
+        labels = [
+            f"{row['binding']['actor']['pokemon_id']} / {row['binding']['move_id']} ({index + 1})"
+            for index, row in enumerate(candidates)
+        ]
+        labels.append("Not confirmed")
+        chosen, accepted = QInputDialog.getItem(
+            self,
+            "Confirm Flinch Cause",
+            "Which already-observed producer action caused this flinch? This is an explicit causal confirmation.",
+            labels,
+            0,
+            False,
+        )
+        if not accepted or chosen == "Not confirmed":
+            return {"status": "incomplete", "reason": "flinch_causality_not_confirmed"}
+        selected = candidates[labels.index(chosen)]
+        admitted = admit_flinch_causality_observation(
+            runtime_session_manager=manager,
+            captured_session_id=session_id,
+            predictive_binding=selected["binding"],
+            predictive_ledger=selected["ledger"],
+            producer_execution_observation=selected["execution"],
+            cancelled_execution_observation=cancelled_execution,
+            cancelled_result_observation=cancelled_result,
+        )
+        if admitted.get("status") == "resolved":
+            self._reconcile_linked_predictive_action(selected["binding"]["source_action_id"])
+        return admitted
 
     def _confirm_action_restriction(self, *, side: str, restriction: str, operation: str, source_action_id: str | None) -> dict:
         return admit_action_restriction_observation(runtime_session_manager=getattr(self, "_observation_runtime_session_manager", None), captured_session_id=MainWindow._active_session_id(self), side=side, restriction=restriction, operation=operation, source_action_id=source_action_id, turn_number=getattr(self, "_current_trusted_turn_number", None))

@@ -10,6 +10,7 @@ USED_MOVE_SOURCE = "ui_used_move_confirmation"
 RESTRICTION_SOURCE = "ui_action_restriction_confirmation"
 EXECUTED_MOVE_SOURCE = "ui_executed_move_confirmation"
 PREVIOUS_ACTION_RESULT_SOURCE = "ui_previous_action_result_confirmation"
+FLINCH_CAUSALITY_SOURCE = "ui_flinch_causality_confirmation"
 HP_TRANSITION_SOURCE = "ui_exact_hp_transition_confirmation"
 HP_RECOVERY_SOURCE = "ui_exact_hp_recovery_confirmation"
 SWITCH_SOURCE = "ui_switch_confirmation"
@@ -63,6 +64,7 @@ _KINDS["supreme_overlord_initial_active_observed"] = "production_ready"
 _KINDS["berry_eaten_state_observed"] = "production_ready"
 _KINDS["executed_move_observed"] = "production_ready"
 _KINDS["previous_action_result_observed"] = "production_ready"
+_KINDS["flinch_causality_observed"] = "production_ready"
 _KINDS["contact_reactive_status_result_observed"] = "production_ready"
 _KINDS["contact_reactive_damage_result_observed"] = "production_ready"
 for _kind in {"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"}: _KINDS[_kind] = "production_ready"
@@ -91,7 +93,7 @@ class LifecycleConfirmationBoundary:
         if not _valid_turn_number(turn_number): return _result("invalid_provenance", "invalid_turn_number", readiness)
         if event_kind not in {"direct_move_damage_observed", "switch_hazards_observed", "tailwind_side_condition_observed", "trick_room_field_observed", "magic_room_field_observed", "gravity_field_observed", "first_end_of_turn_reached_observed", "current_weather_observed", "current_terrain_observed", "current_side_conditions_observed", "current_battle_format_observed", "doubles_active_topology_observed"} and not _owner_matches(self._owners, side, slot_index, pokemon_id): return _result("invalid_provenance", "owner_mismatch", readiness)
         if event_kind == "same_turn_event_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
-        if event_kind in {"executed_move_observed", "previous_action_result_observed", "contact_reactive_status_result_observed", "contact_reactive_damage_result_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
+        if event_kind in {"executed_move_observed", "previous_action_result_observed", "flinch_causality_observed", "contact_reactive_status_result_observed", "contact_reactive_damage_result_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind.endswith("restriction_applied_observed") or event_kind.endswith("restricted_turn_completed_observed"):
             if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1: return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "first_end_of_turn_reached_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
@@ -122,7 +124,7 @@ class LifecycleConfirmationBoundary:
         if event_kind in {"switch_hazards_observed", "tailwind_side_condition_observed"} and side not in {"self", "opponent"}: return _result("invalid_provenance", "side_owner_mismatch", readiness)
         if event_kind == "current_leech_seed_state_observed" and payload.get("persistent_state") == "active" and payload.get("source_side") == side: return _result("invalid_provenance", "leech_seed_source_must_be_opposite_side", readiness)
         oid = observation_id or f"{self._session_id}:obs:{self._next_sequence}"
-        record = {"event_kind": event_kind, "observation_id": oid, "session_id": self._session_id, "turn_number": turn_number, "source": source, "trust": trust, "confirmed": True, "observed": True, "payload": deepcopy(payload), "reducer_eligibility": "evidence_only" if event_kind in {"direct_move_damage_observed", "contact_reactive_status_result_observed", "contact_reactive_damage_result_observed"} else "candidate"}
+        record = {"event_kind": event_kind, "observation_id": oid, "session_id": self._session_id, "turn_number": turn_number, "source": source, "trust": trust, "confirmed": True, "observed": True, "payload": deepcopy(payload), "reducer_eligibility": "evidence_only" if event_kind in {"direct_move_damage_observed", "flinch_causality_observed", "contact_reactive_status_result_observed", "contact_reactive_damage_result_observed"} else "candidate"}
         if side is not None: record.update(side=side, slot_index=slot_index, pokemon_id=pokemon_id)
         if event_kind == "pokemon_switch_observed": record.update(**{key: payload[key] for key in ("switch_out_slot_index", "switch_out_pokemon_id", "switch_in_slot_index", "switch_in_pokemon_id")}, switch_kind="unknown")
         if event_kind == "used_move_observed": record.update(move_id=payload["move_id"], move_slot=payload.get("move_slot"))
@@ -188,6 +190,7 @@ def _production_source_matches(kind, source):
     if kind == "berry_eaten_state_observed": return source == BERRY_EATEN_STATE_SOURCE
     if kind == "executed_move_observed": return source == EXECUTED_MOVE_SOURCE
     if kind == "previous_action_result_observed": return source == PREVIOUS_ACTION_RESULT_SOURCE
+    if kind == "flinch_causality_observed": return source == FLINCH_CAUSALITY_SOURCE
     if kind == "contact_reactive_status_result_observed": return source == CONTACT_REACTIVE_STATUS_RESULT_SOURCE
     if kind == "contact_reactive_damage_result_observed": return source == CONTACT_REACTIVE_DAMAGE_RESULT_SOURCE
     if kind in {"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"}: return source == PERSISTENT_EFFECT_SOURCE
@@ -312,6 +315,14 @@ def _valid_payload(kind, payload):
     if kind == "used_move_observed": return isinstance(payload.get("move_id"), str) and bool(payload["move_id"]) and (payload.get("move_slot") is None or isinstance(payload.get("move_slot"), int))
     if kind == "executed_move_observed": return set(payload) == {"move_id", "source_action_id"} and all(isinstance(payload.get(key), str) and bool(payload[key]) and payload[key] == payload[key].lower() and " " not in payload[key] and "_" not in payload[key] for key in ("move_id", "source_action_id"))
     if kind == "previous_action_result_observed": return set(payload) == {"previous_action_id", "selected_move_id", "execution_move_id", "result_class"} and all(isinstance(payload.get(key), str) and bool(payload[key]) and payload[key] == payload[key].lower() and " " not in payload[key] and "_" not in payload[key] for key in ("previous_action_id", "selected_move_id", "execution_move_id")) and payload.get("result_class") in {"accuracy_miss", "type_or_ability_immunity", "move_specific_failure", "full_paralysis", "flinch", "sleep", "freeze", "success", "protection_block", "recharge", "sky_drop"}
+    if kind == "flinch_causality_observed":
+        keys = {"producer_source_action_id", "producer_move_id", "producer_owner", "producer_execution_observation_id", "affected_owner", "cancelled_source_action_id", "cancelled_move_id", "cancelled_execution_observation_id", "cancelled_result_observation_id", "producer_predictive_ledger_fingerprint"}
+        if set(payload) != keys or payload.get("producer_source_action_id") == payload.get("cancelled_source_action_id"): return False
+        if not all(isinstance(payload.get(key), str) and bool(payload[key]) for key in ("producer_source_action_id", "producer_move_id", "producer_execution_observation_id", "cancelled_source_action_id", "cancelled_move_id", "cancelled_execution_observation_id", "cancelled_result_observation_id", "producer_predictive_ledger_fingerprint")): return False
+        for owner_key in ("producer_owner", "affected_owner"):
+            owner = payload.get(owner_key)
+            if not isinstance(owner, dict) or set(owner) != {"session_id", "side", "slot_index", "pokemon_id"} or owner.get("session_id") is None or owner.get("side") not in {"self", "opponent"} or not isinstance(owner.get("slot_index"), int) or isinstance(owner.get("slot_index"), bool) or owner["slot_index"] < 0 or not isinstance(owner.get("pokemon_id"), str) or not owner["pokemon_id"]: return False
+        return payload["producer_owner"]["side"] != payload["affected_owner"]["side"]
     if kind == "contact_reactive_status_result_observed":
         keys = {"source_action_id", "move_id", "reactive_ability", "outcome", "attacker_side", "attacker_slot_index", "attacker_pokemon_id", "defender_side", "defender_slot_index", "defender_pokemon_id", "hp_before", "hp_after"}
         ability, outcome = payload.get("reactive_ability"), payload.get("outcome")
