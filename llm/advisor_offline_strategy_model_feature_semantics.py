@@ -26,6 +26,87 @@ LIMITATIONS = (
 )
 
 
+def validates_detached_semantic_feature_record(value: Any) -> bool:
+    """Check detached structure and identity; live source retention is not reproven."""
+    if not isinstance(value, MappingProxyType) or set(value) != {
+        "status", "schema_version", "feature_record_id", "feature_availability",
+        "model_features", "semantic_feature_fingerprint", "label", "evaluation_partition", "audit",
+    } or value["status"] != "materialized" or value["schema_version"] != SCHEMA_VERSION:
+        return False
+    if not _deeply_frozen(value) or value["evaluation_partition"] not in {"train", "validation", "test"}:
+        return False
+    availability = value["feature_availability"]
+    label = value["label"]
+    audit = value["audit"]
+    if (not isinstance(availability, Mapping) or availability.get("availability") not in {"available", "unavailable"}
+            or not isinstance(label, Mapping) or label.get("availability") not in {"available", "unavailable"}
+            or not isinstance(audit, Mapping) or set(audit) != {
+                "choice_example_id", "public_information_id", "evaluation_split_id",
+                "choice_example_schema", "public_information_schema", "public_surface_version", "limitations",
+            }):
+        return False
+    if (not all(isinstance(audit[key], str) and audit[key] for key in (
+        "choice_example_id", "public_information_id", "evaluation_split_id",
+    )) or audit["choice_example_schema"] != EXAMPLE_SCHEMA
+            or audit["public_information_schema"] != PUBLIC_SCHEMA
+            or audit["public_surface_version"] != PUBLIC_SURFACE_VERSION
+            or audit["limitations"] != LIMITATIONS):
+        return False
+    if label["availability"] == "available":
+        if (set(label) != {"availability", "value", "semantics"}
+                or type(label["value"]) is not int or label["value"] not in {-1, 0, 1}
+                or label["semantics"] != "terminal_outcome_self_perspective"):
+            return False
+    elif (set(label) != {"availability", "reason"}
+          or not isinstance(label["reason"], str) or not label["reason"]):
+        return False
+    features = value["model_features"]
+    fingerprint = value["semantic_feature_fingerprint"]
+    if availability["availability"] == "available":
+        if (set(availability) != {"availability"} or label["availability"] != "available"
+                or not isinstance(features, MappingProxyType) or set(features) != {
+                    "rules_and_decision", "public_battle", "actor_private", "exact_legal_actions", "selected_action",
+                } or not isinstance(fingerprint, str)
+                or fingerprint != fingerprint_decision_contract_reference(features)
+                or _contains_leakage_key(features)):
+            return False
+    elif (set(availability) != {"availability", "reason"}
+          or not isinstance(availability["reason"], str) or not availability["reason"]
+          or features is not None or fingerprint is not None):
+        return False
+    expected = "offline-semantic-feature:" + fingerprint_decision_contract_reference({
+        "schema_version": SCHEMA_VERSION, "example_id": audit["choice_example_id"],
+        "public_information_id": audit["public_information_id"],
+        "semantic_feature_fingerprint": fingerprint,
+    })
+    return value["feature_record_id"] == expected
+
+
+def _deeply_frozen(value: Any) -> bool:
+    if isinstance(value, MappingProxyType):
+        return all(isinstance(key, str) and _deeply_frozen(item) for key, item in value.items())
+    if isinstance(value, tuple):
+        return all(_deeply_frozen(item) for item in value)
+    return value is None or type(value) in {str, int, float, bool}
+
+
+def _contains_leakage_key(value: Any) -> bool:
+    forbidden = {
+        "label", "target", "terminal_target", "declared_result", "termination_cause",
+        "evaluation_partition", "evaluation_split_id", "session_id", "battle_id",
+        "boundary_id", "decision_id", "example_id", "command_id", "evidence_id",
+        "source_id", "private_information_id", "public_information_id", "collection_mode",
+        "competition_context", "source_dataset_id", "set_id", "team_cluster_id",
+        "self_player_cluster_id", "opponent_player_cluster_id", "fingerprint",
+    }
+    if isinstance(value, Mapping):
+        return any(key in forbidden or "fingerprint" in key or _contains_leakage_key(item)
+                   for key, item in value.items())
+    if isinstance(value, tuple):
+        return any(_contains_leakage_key(item) for item in value)
+    return False
+
+
 def materialize_offline_strategy_model_feature_semantics(
     *, choice_example: Mapping[str, Any], public_information: Mapping[str, Any],
     public_source: SessionBoundDecisionPublicBattleInformationSource,
