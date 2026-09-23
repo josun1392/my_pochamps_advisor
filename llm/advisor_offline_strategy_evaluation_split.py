@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any
 
 from llm.advisor_offline_decision_point_provenance import (
@@ -125,6 +126,28 @@ def materialize_offline_strategy_evaluation_split(
         ),
         "limitations": LIMITATIONS,
     })
+
+
+def validates_materialized_evaluation_split(value: Any) -> bool:
+    """Rebuild a detached split from its retained records and explicit manifest."""
+    if not isinstance(value, MappingProxyType) or value.get("schema_version") != SCHEMA_VERSION:
+        return False
+    try:
+        assignments = value["ordered_assignments"]
+        if (not isinstance(assignments, tuple)
+                or any(not isinstance(pair, tuple) or len(pair) != 2 for pair in assignments)
+                or len({pair[0] for pair in assignments}) != len(assignments)):
+            return False
+        partitions = value["partitions"]
+        if not isinstance(partitions, Mapping) or set(partitions) != set(PARTITIONS):
+            return False
+        records = tuple(row for partition in PARTITIONS for row in partitions[partition]["records"])
+        rebuilt = materialize_offline_strategy_evaluation_split(
+            target_records=records, manifest=dict(assignments),
+        )
+        return rebuilt.get("status") == "validated" and rebuilt == value
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
 
 
 def _failure(reason: str) -> Mapping[str, Any]:
