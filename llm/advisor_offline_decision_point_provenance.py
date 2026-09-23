@@ -1,4 +1,4 @@
-"""Offline decision-point as-of shell; no production boundary producer exists yet.
+"""Offline decision-point as-of shell over supplied boundary certificates.
 
 The supplied boundary certificate is a contract input, not a proof that all
 decision opportunities were captured.  In particular, execution never creates
@@ -44,6 +44,7 @@ def materialize_offline_decision_point(
     legal_action_set: Mapping[str, Any],
     post_boundary_end_sequence: int,
     selected_choice_evidence: Mapping[str, Any] | None = None,
+    submitted_command_source: Any | None = None,
     execution_replay: Mapping[str, Any] | None = None,
 ) -> Mapping[str, Any]:
     """Separate a certified as-of prefix from later evidence, without inference."""
@@ -102,12 +103,26 @@ def materialize_offline_decision_point(
     choice = {"status": "none"} if selected_choice_evidence is None else selected_choice_evidence
     if not isinstance(choice, Mapping) or choice.get("status") not in CHOICE_EVIDENCE_STATUSES:
         return _failure("selected_choice_evidence_invalid")
+    direct_choice = None
     if choice["status"] == "direct":
-        # No trusted player-command producer/validator currently exists.
-        return _failure("direct_choice_producer_unavailable")
+        if submitted_command_source is None:
+            return _failure("direct_choice_producer_unavailable")
+        # Import locally: the command owner uses this materializer to validate
+        # opportunity records, while the materializer must check its live ledger.
+        from llm.advisor_session_submitted_command_evidence_source import SessionBoundSubmittedCommandEvidenceSource
+        if (not isinstance(submitted_command_source, SessionBoundSubmittedCommandEvidenceSource)
+                or not submitted_command_source.authenticates(choice, boundary)):
+            return _failure("direct_choice_authentication_invalid")
+        direct_choice = {
+            "status": "direct", "selected_choice": choice["command_payload"],
+            "command_id": choice["command_id"],
+            "source_command_id": choice["source_command_id"],
+            "command_source_id": choice["command_source_id"],
+            "source_provenance": choice["source_provenance"],
+        }
     if choice["status"] == "not_applicable":
         return _failure("not_applicable_choice_unproven")
-    if set(choice) != {"status"}:
+    if choice["status"] != "direct" and set(choice) != {"status"}:
         return _failure("selected_choice_evidence_invalid")
     execution_link = None
     if execution_replay is not None:
@@ -146,7 +161,7 @@ def materialize_offline_decision_point(
     }
     post = {
         "evidence_window": {"start_exclusive_sequence": cutoff, "end_inclusive_sequence": post_boundary_end_sequence},
-        "selected_choice_evidence": {"status": choice["status"], "selected_choice": None},
+        "selected_choice_evidence": direct_choice if direct_choice is not None else {"status": choice["status"], "selected_choice": None},
         "execution_replay_link": execution_link,
     }
     return _freeze({"status": "contract_validated", "schema_version": SCHEMA_VERSION,
