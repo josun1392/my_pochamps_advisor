@@ -17,6 +17,8 @@ from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
 
 
 SCHEMA_VERSION = "offline-strategy-transition-replay-v1"
+# A replay action is authenticated execution, never historical player choice.
+ACTION_IDENTITY_SEMANTICS = "observed_executed_action"
 _FEATURE_SCHEMA = "offline-learned-strategy-state-action-features-v1"
 
 
@@ -147,6 +149,7 @@ def materialize_offline_strategy_transition(
     return _freeze({
         "status": "resolved", "schema_version": SCHEMA_VERSION,
         "transition_id": transition_id, "completeness": "strict_observed_transition",
+        "action_identity_semantics": ACTION_IDENTITY_SEMANTICS,
         "decision_provenance": decision_provenance,
         "executed_action": action,
         "decision_feature_row": row,
