@@ -123,11 +123,7 @@ def validates_detached_encoded_feature_record(value: Any) -> bool:
         if (not isinstance(vector, tuple) or len(vector) != value["vector_dimension"]
                 or any(type(item) is not int for item in vector)
                 or not isinstance(value["source_semantic_feature_fingerprint"], str)
-                or len(value["source_semantic_feature_fingerprint"]) != 64
-                or set(label) != {"availability", "value", "semantics"}
-                or label["availability"] != "available" or type(label["value"]) is not int
-                or label["value"] not in {-1, 0, 1}
-                or label["semantics"] != "terminal_outcome_self_perspective"):
+                or len(value["source_semantic_feature_fingerprint"]) != 64):
             return False
     elif (not isinstance(availability.get("reason"), str)
           or set(availability) != {"availability", "reason"}
@@ -137,7 +133,12 @@ def validates_detached_encoded_feature_record(value: Any) -> bool:
     if label["availability"] == "unavailable":
         if set(label) != {"availability", "reason"} or not isinstance(label["reason"], str) or not label["reason"]:
             return False
-    elif label["availability"] != "available":
+    elif label["availability"] == "available":
+        if (set(label) != {"availability", "value", "semantics"}
+                or type(label["value"]) is not int or label["value"] not in {-1, 0, 1}
+                or label["semantics"] != "terminal_outcome_self_perspective"):
+            return False
+    else:
         return False
     identity = {"encoder_id": value["encoder_id"], "feature_record_id": audit["semantic_feature_record_id"],
                 "vector": value["vector"]}

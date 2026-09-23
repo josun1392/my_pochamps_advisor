@@ -198,6 +198,11 @@ def _valid_model(value: Any) -> bool:
     return value["model_id"] == "offline-linear-terminal-baseline:" + fingerprint_decision_contract_reference(model_data)
 
 
+def validates_detached_linear_terminal_outcome_model(value: Any) -> bool:
+    """Validate a frozen model without claiming to reprove live source retention."""
+    return _valid_model(value)
+
+
 def _model_failure(reason: str) -> Mapping[str, Any]:
     return MappingProxyType({"status": "rejected", "schema_version": MODEL_SCHEMA, "reason": reason})
 
