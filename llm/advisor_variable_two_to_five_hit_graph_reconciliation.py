@@ -215,6 +215,8 @@ def _validate_execution(obs,parent,r):
     if obs.get("session_id")!=r["session_id"] or obs.get("turn_number")!=r["turn_number"] or (obs.get("side"),obs.get("slot_index"),obs.get("pokemon_id"))!=(a["side"],a["slot_index"],a["pokemon_id"]): return "multi_hit_source_execution_identity_mismatch"
     if not isinstance(p,Mapping) or p.get("move_id")!=r["move_id"] or p.get("source_action_id")!=r["source_action_id"]: return "multi_hit_source_execution_payload_mismatch"
     if parent.get("payload",{}).get("source_execution_observation_id")!=obs.get("observation_id"): return "multi_hit_source_execution_link_mismatch"
+    if not _pos(obs.get("observation_sequence")) or not _pos(parent.get("observation_sequence")) or parent["observation_sequence"]<=obs["observation_sequence"]:
+        return "multi_hit_source_execution_order_invalid"
     return None
 
 def _validate_parent(obs,r):
@@ -224,6 +226,11 @@ def _validate_parent(obs,r):
     if p.get("family")!=FAMILY or p.get("predictive_artifact_fingerprint")!=r["predictive_artifact_fingerprint"]: return "multi_hit_parent_prediction_mismatch"
     if any(p.get(k)!=r[k] for k in ("decision_point","action_id","move_id")) or p.get("actor")!=r["actor"] or p.get("target")!=r["target"]: return "multi_hit_parent_identity_mismatch"
     if obs.get("session_id")!=r["session_id"] or obs.get("turn_number")!=r["turn_number"]: return "multi_hit_parent_session_turn_mismatch"
+    a=r["actor"]
+    if (obs.get("side"),obs.get("slot_index"),obs.get("pokemon_id"))!=(a["side"],a["slot_index"],a["pokemon_id"]):
+        return "multi_hit_parent_outer_actor_mismatch"
+    if not _pos(obs.get("observation_sequence")):
+        return "multi_hit_parent_observation_sequence_invalid"
     o,c,t=p.get("action_outcome"),p.get("landed_hit_count"),p.get("terminal_reason")
     if o=="miss": return None if c==0 and t=="action_miss" else "multi_hit_parent_miss_contract_invalid"
     if o!="landed" or c not in {1,2,3,4,5} or t not in TERMINAL_REASONS: return "multi_hit_parent_landed_contract_invalid"
@@ -233,7 +240,21 @@ def _validate_children(parent,hits,r):
     pp=parent["payload"]; c=pp["landed_hit_count"]
     if len(hits)!=c: return "multi_hit_ordered_hit_count_mismatch"
     for i,o in enumerate(hits,1):
-        p=o.get("payload") if isinstance(o,Mapping) else None
+        if (not isinstance(o,Mapping) or o.get("event_kind")!="multi_hit_ordered_hit_observed"
+                or o.get("source")!="ui_multi_hit_ordered_hit_confirmation"
+                or o.get("trust")!="user_confirmed_observation"
+                or o.get("confirmed") is not True or o.get("observed") is not True):
+            return "invalid_multi_hit_ordered_hit_observation"
+        a=r["actor"]
+        if o.get("session_id")!=r["session_id"] or o.get("turn_number")!=r["turn_number"]:
+            return "multi_hit_ordered_hit_session_turn_mismatch"
+        if (o.get("side"),o.get("slot_index"),o.get("pokemon_id"))!=(a["side"],a["slot_index"],a["pokemon_id"]):
+            return "multi_hit_ordered_hit_outer_actor_mismatch"
+        if not _pos(o.get("observation_sequence")) or o["observation_sequence"]<=parent.get("observation_sequence",0):
+            return "multi_hit_ordered_hit_order_invalid"
+        if i>1 and o["observation_sequence"]<=hits[i-2].get("observation_sequence",0):
+            return "multi_hit_ordered_hit_order_invalid"
+        p=o.get("payload")
         req={"family","decision_point","action_id","move_id","actor","target","parent_multi_hit_observation_id","hit_index","hp_before","hp_after","target_fainted_after_hit","critical_state","related_contact_observation_ids"}
         if not isinstance(p,Mapping) or set(p)!=req: return "invalid_multi_hit_ordered_hit_payload"
         if p["hit_index"]!=i: return "multi_hit_ordered_hit_index_invalid"

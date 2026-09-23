@@ -254,3 +254,89 @@ def test_crit_filter_and_source_graph_immutability():
         parent_observation=_parent(r,1,2,"first_miss_terminates_remaining_attempts"),attempt_observations=obs)
     assert rec["match_outcome"]=="incompatible_observation"
     assert a==before
+
+
+@pytest.mark.parametrize("value",[None,0,-1,False])
+def test_population_bomb_rejects_invalid_execution_observation_sequence(value):
+    r=_retain(_artifact(stop=2));execution=_execution(r);execution["observation_sequence"]=value
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=execution,
+        parent_observation=_parent(r,1,2,"first_miss_terminates_remaining_attempts"),
+        attempt_observations=_attempts(r,("hit","miss")))
+    assert rec=={"status":"rejected","reason":"multi_hit_source_execution_order_invalid"}
+
+
+@pytest.mark.parametrize("value",[None,0,-1,False])
+def test_population_bomb_rejects_invalid_parent_observation_sequence(value):
+    r=_retain(_artifact(stop=2));parent=_parent(r,1,2,"first_miss_terminates_remaining_attempts");parent["observation_sequence"]=value
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),parent_observation=parent,
+        attempt_observations=_attempts(r,("hit","miss")))
+    assert rec["status"]=="rejected"
+
+
+def test_population_bomb_rejects_parent_not_after_execution():
+    r=_retain(_artifact(stop=2));parent=_parent(r,1,2,"first_miss_terminates_remaining_attempts");parent["observation_sequence"]=1
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),parent_observation=parent,
+        attempt_observations=_attempts(r,("hit","miss")))
+    assert rec=={"status":"rejected","reason":"multi_hit_source_execution_order_invalid"}
+
+
+@pytest.mark.parametrize(("field","value"),[
+    ("side","opponent"),("slot_index",1),("pokemon_id","forged-attacker"),
+])
+def test_population_bomb_rejects_parent_outer_actor_mismatch(field,value):
+    r=_retain(_artifact(stop=2));parent=_parent(r,1,2,"first_miss_terminates_remaining_attempts");parent[field]=value
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),parent_observation=parent,
+        attempt_observations=_attempts(r,("hit","miss")))
+    assert rec["status"]=="rejected" and rec["reason"]=="multi_hit_parent_outer_actor_mismatch"
+
+
+@pytest.mark.parametrize(("field","value","reason"),[
+    ("session_id","other-session","population_bomb_attempt_session_turn_mismatch"),
+    ("turn_number",2,"population_bomb_attempt_session_turn_mismatch"),
+    ("side","opponent","population_bomb_attempt_outer_actor_mismatch"),
+    ("slot_index",1,"population_bomb_attempt_outer_actor_mismatch"),
+    ("pokemon_id","forged-attacker","population_bomb_attempt_outer_actor_mismatch"),
+    ("observation_sequence",0,"population_bomb_attempt_order_invalid"),
+])
+def test_population_bomb_rejects_forged_attempt_provenance(field,value,reason):
+    r=_retain(_artifact(stop=2));attempts=list(_attempts(r,("hit","miss")));attempts[0][field]=value
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),
+        parent_observation=_parent(r,1,2,"first_miss_terminates_remaining_attempts"),attempt_observations=attempts)
+    assert rec=={"status":"rejected","reason":reason}
+
+
+def test_population_bomb_rejects_missing_attempt_observation_sequence():
+    r=_retain(_artifact(stop=2));attempts=list(_attempts(r,("hit","miss")));attempts[0].pop("observation_sequence")
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),
+        parent_observation=_parent(r,1,2,"first_miss_terminates_remaining_attempts"),attempt_observations=attempts)
+    assert rec=={"status":"rejected","reason":"population_bomb_attempt_order_invalid"}
+
+
+def test_population_bomb_rejects_attempt_not_after_parent_and_nonmonotonic_attempts():
+    r=_retain(_artifact(stop=2));parent=_parent(r,1,2,"first_miss_terminates_remaining_attempts")
+    attempts=list(_attempts(r,("hit","miss")));attempts[0]["observation_sequence"]=parent["observation_sequence"]
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),parent_observation=parent,attempt_observations=attempts)
+    assert rec=={"status":"rejected","reason":"population_bomb_attempt_order_invalid"}
+    attempts=list(_attempts(r,("hit","miss")));attempts[1]["observation_sequence"]=attempts[0]["observation_sequence"]
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),parent_observation=parent,attempt_observations=attempts)
+    assert rec=={"status":"rejected","reason":"population_bomb_attempt_order_invalid"}
+
+
+def test_valid_population_bomb_provenance_preserves_graph_mass_and_no_normalization():
+    a=_artifact(stop=2);before=deepcopy(a);r=_retain(a)
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),
+        parent_observation=_parent(r,1,2,"first_miss_terminates_remaining_attempts"),
+        attempt_observations=_attempts(r,("hit","miss")))
+    assert rec["status"]=="resolved" and rec["compatible_source_paths"]
+    assert _mass(rec)==Fraction(1,4)
+    assert rec["probability_normalization"]=="none_preserve_original_mass"
+    assert a==before

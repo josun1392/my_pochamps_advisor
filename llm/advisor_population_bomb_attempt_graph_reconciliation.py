@@ -212,6 +212,8 @@ def _validate_execution(obs,parent,r):
         return "multi_hit_source_execution_payload_mismatch"
     if parent.get("payload",{}).get("source_execution_observation_id")!=obs.get("observation_id"):
         return "multi_hit_source_execution_link_mismatch"
+    if not _pos(obs.get("observation_sequence")) or not _pos(parent.get("observation_sequence")) or parent["observation_sequence"]<=obs["observation_sequence"]:
+        return "multi_hit_source_execution_order_invalid"
     return None
 
 
@@ -226,6 +228,11 @@ def _validate_parent(obs,r):
     if any(p.get(k)!=r[k] for k in ("decision_point","action_id","move_id")) or p.get("actor")!=r["actor"] or p.get("target")!=r["target"]:
         return "multi_hit_parent_identity_mismatch"
     if obs.get("session_id")!=r["session_id"] or obs.get("turn_number")!=r["turn_number"]:return "multi_hit_parent_session_turn_mismatch"
+    a=r["actor"]
+    if (obs.get("side"),obs.get("slot_index"),obs.get("pokemon_id"))!=(a["side"],a["slot_index"],a["pokemon_id"]):
+        return "multi_hit_parent_outer_actor_mismatch"
+    if not _pos(obs.get("observation_sequence")):
+        return "multi_hit_parent_observation_sequence_invalid"
     if p.get("action_outcome") not in {"landed","miss"} or not _nn(p.get("landed_hit_count")) or not _pos(p.get("attempt_count")) or p["attempt_count"]>10 or p.get("terminal_reason") not in TERMINAL_REASONS:
         return "population_bomb_parent_contract_invalid"
     if p["action_outcome"]=="miss" and (p["landed_hit_count"]!=0 or p["attempt_count"]!=1 or p["terminal_reason"]!="first_miss_terminates_remaining_attempts"):
@@ -241,6 +248,15 @@ def _validate_attempts(parent,attempts,r):
         if terminal_seen:return "population_bomb_attempt_after_terminal_invalid"
         if not isinstance(obs,Mapping) or obs.get("event_kind")!="multi_hit_ordered_attempt_observed" or obs.get("source")!="ui_multi_hit_ordered_attempt_confirmation" or obs.get("trust")!="user_confirmed_observation" or obs.get("confirmed") is not True or obs.get("observed") is not True:
             return "invalid_population_bomb_attempt_observation"
+        a=r["actor"]
+        if obs.get("session_id")!=r["session_id"] or obs.get("turn_number")!=r["turn_number"]:
+            return "population_bomb_attempt_session_turn_mismatch"
+        if (obs.get("side"),obs.get("slot_index"),obs.get("pokemon_id"))!=(a["side"],a["slot_index"],a["pokemon_id"]):
+            return "population_bomb_attempt_outer_actor_mismatch"
+        if not _pos(obs.get("observation_sequence")) or obs["observation_sequence"]<=parent.get("observation_sequence",0):
+            return "population_bomb_attempt_order_invalid"
+        if index>1 and obs["observation_sequence"]<=attempts[index-2].get("observation_sequence",0):
+            return "population_bomb_attempt_order_invalid"
         p=obs.get("payload")
         common={"family","decision_point","action_id","move_id","actor","target","parent_multi_hit_observation_id","attempt_index","attempt_outcome"}
         hit_keys=common|{"hit_index","hp_before","hp_after","target_fainted_after_hit","critical_state","related_contact_observation_ids"}

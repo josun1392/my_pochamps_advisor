@@ -230,3 +230,93 @@ def test_source_graph_is_immutable_and_fixed_validator_remains_strict():
         parent_observation=_parent(r,2,"selected_hit_count_reached"),hit_observations=_children(r,2,2))
     assert a==before
     assert retain_historical_fixed_two_hit_prediction(predictive_artifact=a,turn_number=1,decision_point="d")["status"]=="rejected"
+
+
+@pytest.mark.parametrize("value",[None,0,-1,False])
+def test_provenance_rejects_invalid_execution_observation_sequence(value):
+    r=_retained();execution=_execution(r);execution["observation_sequence"]=value
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=execution,
+        parent_observation=_parent(r,2,"selected_hit_count_reached"),hit_observations=_children(r,2,2))
+    assert rec=={"status":"rejected","reason":"multi_hit_source_execution_order_invalid"}
+
+
+def test_provenance_rejects_parent_not_after_execution():
+    r=_retained();parent=_parent(r,2,"selected_hit_count_reached");parent["observation_sequence"]=1
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),
+        parent_observation=parent,hit_observations=_children(r,2,2))
+    assert rec=={"status":"rejected","reason":"multi_hit_source_execution_order_invalid"}
+
+
+@pytest.mark.parametrize(("field","value"),[
+    ("side","opponent"),("slot_index",1),("pokemon_id","forged-attacker"),
+])
+def test_provenance_rejects_parent_outer_actor_mismatch(field,value):
+    r=_retained();parent=_parent(r,2,"selected_hit_count_reached");parent[field]=value
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),
+        parent_observation=parent,hit_observations=_children(r,2,2))
+    assert rec["status"]=="rejected" and rec["reason"]=="multi_hit_parent_outer_actor_mismatch"
+
+
+@pytest.mark.parametrize("value",[None,0,-1,False])
+def test_provenance_rejects_invalid_parent_observation_sequence(value):
+    r=_retained();parent=_parent(r,2,"selected_hit_count_reached");parent["observation_sequence"]=value
+    execution=_execution(r);execution["observation_sequence"]=1 if value not in (None,0,-1,False) else 2
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=execution,
+        parent_observation=parent,hit_observations=_children(r,2,2))
+    assert rec["status"]=="rejected"
+
+
+@pytest.mark.parametrize(("field","value","reason"),[
+    ("event_kind","forged","invalid_multi_hit_ordered_hit_observation"),
+    ("source","forged","invalid_multi_hit_ordered_hit_observation"),
+    ("trust","forged","invalid_multi_hit_ordered_hit_observation"),
+    ("confirmed",False,"invalid_multi_hit_ordered_hit_observation"),
+    ("observed",False,"invalid_multi_hit_ordered_hit_observation"),
+    ("session_id","other-session","multi_hit_ordered_hit_session_turn_mismatch"),
+    ("turn_number",2,"multi_hit_ordered_hit_session_turn_mismatch"),
+    ("side","opponent","multi_hit_ordered_hit_outer_actor_mismatch"),
+    ("slot_index",1,"multi_hit_ordered_hit_outer_actor_mismatch"),
+    ("pokemon_id","forged-attacker","multi_hit_ordered_hit_outer_actor_mismatch"),
+    ("observation_sequence",0,"multi_hit_ordered_hit_order_invalid"),
+])
+def test_provenance_rejects_forged_variable_child_record(field,value,reason):
+    r=_retained();children=list(_children(r,2,2));children[0][field]=value
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),
+        parent_observation=_parent(r,2,"selected_hit_count_reached"),hit_observations=children)
+    assert rec=={"status":"rejected","reason":reason}
+
+
+def test_provenance_rejects_missing_variable_child_observation_sequence():
+    r=_retained();children=list(_children(r,2,2));children[0].pop("observation_sequence")
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),
+        parent_observation=_parent(r,2,"selected_hit_count_reached"),hit_observations=children)
+    assert rec=={"status":"rejected","reason":"multi_hit_ordered_hit_order_invalid"}
+
+
+def test_provenance_rejects_variable_child_not_after_parent_and_nonmonotonic_children():
+    r=_retained();parent=_parent(r,2,"selected_hit_count_reached")
+    children=list(_children(r,2,2));children[0]["observation_sequence"]=parent["observation_sequence"]
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),parent_observation=parent,hit_observations=children)
+    assert rec=={"status":"rejected","reason":"multi_hit_ordered_hit_order_invalid"}
+    children=list(_children(r,2,2));children[1]["observation_sequence"]=children[0]["observation_sequence"]
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),parent_observation=parent,hit_observations=children)
+    assert rec=={"status":"rejected","reason":"multi_hit_ordered_hit_order_invalid"}
+
+
+def test_valid_variable_provenance_preserves_graph_mass_and_no_normalization():
+    a=_artifact();before=deepcopy(a);r=_retain(a);r["_test_early_reason"]=None
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),
+        parent_observation=_parent(r,2,"selected_hit_count_reached"),hit_observations=_children(r,2,2))
+    assert rec["status"]=="resolved" and rec["match_outcome"]=="uniquely_matched"
+    assert _mass(rec)==Fraction(1,4)
+    assert rec["probability_normalization"]=="none_preserve_original_mass"
+    assert a==before
