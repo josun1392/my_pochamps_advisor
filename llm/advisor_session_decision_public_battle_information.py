@@ -114,7 +114,7 @@ class SessionBoundDecisionPublicBattleInformationSource:
         if old is not None:
             if old != record:
                 return _failure("conflicting_public_snapshot")
-            return _freeze({"status": "duplicate", "schema_version": SCHEMA_VERSION, "evidence": old})
+            return MappingProxyType({"status": "duplicate", "schema_version": SCHEMA_VERSION, "evidence": old})
         current = self.opportunity_source.read_snapshot(captured_session_id=self.session_id)
         if len(current["channel_source"]["events"]) != boundary["prefix_event_count"]:
             return _failure("opportunity_prefix_advanced")
@@ -122,18 +122,20 @@ class SessionBoundDecisionPublicBattleInformationSource:
         if any(command["boundary_id"] == boundary["boundary_id"] for command in commands):
             return _failure("command_already_admitted")
         self._records[boundary["boundary_id"]] = record
-        return _freeze({"status": "admitted", "schema_version": SCHEMA_VERSION, "evidence": record})
+        return MappingProxyType({"status": "admitted", "schema_version": SCHEMA_VERSION, "evidence": record})
 
     def authenticates(self, evidence: Any, opportunity_record: Mapping[str, Any]) -> bool:
         opportunity = self._retained_opportunity(opportunity_record)
         if opportunity is None or not isinstance(evidence, MappingProxyType):
             return False
-        return self._records.get(opportunity["certificate"]["boundary_id"]) == evidence
+        return self._records.get(opportunity["certificate"]["boundary_id"]) is evidence
 
     def read_snapshot(self, *, captured_session_id: str) -> Mapping[str, Any]:
         if captured_session_id != self.session_id:
             return _failure("stale_or_foreign_session")
-        return _freeze({
+        # Retained evidence is already deeply frozen. Preserve its object identity
+        # so another equal-looking source instance cannot authenticate a copy.
+        return MappingProxyType({
             "status": "ready", "schema_version": SCHEMA_VERSION,
             "session_id": self.session_id, "battle_id": self.battle_id,
             "opportunity_source_id": self.opportunity_source.source_id,

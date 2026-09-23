@@ -84,6 +84,7 @@ def test_direct_public_snapshot_preserves_facts_and_availability(channel):
     assert evidence["scope_limitation"] == "v1_supported_public_surface_only"
     assert evidence["directness_limitation"] == "external_actor_visibility_not_independently_verified"
     assert source.authenticates(evidence, opportunity)
+    assert source.authenticates(source.read_snapshot(captured_session_id="session-a")["evidence"][0], opportunity)
 
 
 def test_missing_values_are_unavailable_and_not_defaults():
