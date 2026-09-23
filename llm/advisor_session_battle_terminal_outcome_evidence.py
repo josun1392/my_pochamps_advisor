@@ -149,6 +149,13 @@ class SessionBoundBattleTerminalOutcomeEvidenceSource:
             "terminality_availability": "observed" if terminal is not None else "unavailable",
         })
 
+    def authenticates(self, evidence: Any) -> bool:
+        """Check that a detached evidence record is retained by this live source."""
+        return isinstance(evidence, MappingProxyType) and any(
+            retained is not None and evidence == retained
+            for retained in (self._records.get("final"), self._records.get("stream_end"))
+        )
+
     def _scope(self, session_id: str, battle_id: str, source_id: str) -> str | None:
         if session_id != self.session_id:
             return "stale_or_foreign_session"
