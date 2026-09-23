@@ -94,6 +94,56 @@ def encode_semantic_feature_record(*, encoder: Mapping[str, Any], semantic_recor
     })
 
 
+def validates_detached_encoded_feature_record(value: Any) -> bool:
+    """Validate detached encoded structure, identity, and numeric finiteness.
+
+    This cannot independently reprove retention by the historical live sources.
+    """
+    if (not isinstance(value, MappingProxyType) or set(value) != {
+        "status", "schema_version", "encoded_record_id", "encoder_id",
+        "source_semantic_feature_fingerprint", "feature_availability", "vector", "vector_dimension",
+        "label", "evaluation_partition", "audit",
+    } or value["status"] != "encoded" or value["schema_version"] != ENCODED_SCHEMA
+            or not isinstance(value["encoder_id"], str) or not value["encoder_id"].startswith("train-only-numeric-encoder:")
+            or value["evaluation_partition"] not in {"train", "validation", "test"}
+            or type(value["vector_dimension"]) is not int or value["vector_dimension"] < 1):
+        return False
+    audit = value["audit"]
+    availability = value["feature_availability"]
+    label = value["label"]
+    if (not isinstance(audit, MappingProxyType) or set(audit) != {
+        "semantic_feature_record_id", "evaluation_split_id", "semantic_schema", "limitations",
+    } or not all(isinstance(audit[key], str) and audit[key] for key in (
+        "semantic_feature_record_id", "evaluation_split_id",
+    )) or audit["semantic_schema"] != SEMANTIC_SCHEMA or audit["limitations"] != LIMITATIONS
+            or not isinstance(availability, MappingProxyType) or not isinstance(label, MappingProxyType)):
+        return False
+    if availability == {"availability": "available"}:
+        vector = value["vector"]
+        if (not isinstance(vector, tuple) or len(vector) != value["vector_dimension"]
+                or any(type(item) is not int for item in vector)
+                or not isinstance(value["source_semantic_feature_fingerprint"], str)
+                or len(value["source_semantic_feature_fingerprint"]) != 64
+                or set(label) != {"availability", "value", "semantics"}
+                or label["availability"] != "available" or type(label["value"]) is not int
+                or label["value"] not in {-1, 0, 1}
+                or label["semantics"] != "terminal_outcome_self_perspective"):
+            return False
+    elif (not isinstance(availability.get("reason"), str)
+          or set(availability) != {"availability", "reason"}
+          or availability["availability"] != "unavailable" or value["vector"] is not None
+          or value["source_semantic_feature_fingerprint"] is not None):
+        return False
+    if label["availability"] == "unavailable":
+        if set(label) != {"availability", "reason"} or not isinstance(label["reason"], str) or not label["reason"]:
+            return False
+    elif label["availability"] != "available":
+        return False
+    identity = {"encoder_id": value["encoder_id"], "feature_record_id": audit["semantic_feature_record_id"],
+                "vector": value["vector"]}
+    return value["encoded_record_id"] == "encoded-semantic-feature:" + fingerprint_decision_contract_reference(identity)
+
+
 def _valid_encoder(value: Any) -> bool:
     if (not isinstance(value, MappingProxyType) or set(value) != {
         "status", "schema_version", "encoder_id", "encoding_policy_version", "evaluation_split_id", "vector_dimension",
