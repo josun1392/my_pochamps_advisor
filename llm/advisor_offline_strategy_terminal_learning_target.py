@@ -65,23 +65,7 @@ def materialize_offline_strategy_terminal_learning_target(
     binding = population_context["base_terminal_binding"]
     outcome = binding["terminal_outcome"]
     evidence = outcome["evidence"]
-    if (binding["base_episode_status"] != "resolved" or binding["continuity_gaps"]
-            or binding["status"] == "incomplete" and outcome["availability"] == "available"):
-        target = {"availability": "unavailable", "reason": "episode_incomplete"}
-    elif outcome["availability"] != "available":
-        target = {"availability": "unavailable", "reason": outcome["reason"]}
-    elif (binding["status"] != "resolved" or evidence is None
-          or evidence["authority"] != "direct_final_declaration"
-          or evidence["evidence_completeness"] != "final_declaration_observed"):
-        target = {"availability": "unavailable", "reason": "terminal_declaration_not_authenticated"}
-    elif evidence["termination_cause"] not in ADMITTED_TERMINATION_CAUSES:
-        target = {"availability": "unavailable", "reason": "termination_cause_not_admitted_v1"}
-    else:
-        target = {
-            "availability": "available",
-            "value": _RESULT_VALUES[evidence["declared_result"]],
-            "semantics": TARGET_SEMANTICS,
-        }
+    target = _target_for_binding(binding)
 
     identity = {
         "context_binding_id": population_context["context_binding_id"],
@@ -102,6 +86,69 @@ def materialize_offline_strategy_terminal_learning_target(
         "raw_terminal_outcome": outcome,
         "base_population_context": population_context,
     })
+
+
+def validates_materialized_terminal_learning_target(record: Any) -> bool:
+    """Validate a detached target; live source retention is not encoded in it."""
+    if not isinstance(record, MappingProxyType) or set(record) != {
+        "status", "schema_version", "target_record_id", "session_id", "battle_id",
+        "context_binding_id", "episode_terminal_binding_id", "target_policy_version",
+        "target_semantics", "target", "raw_terminal_outcome", "base_population_context",
+    }:
+        return False
+    try:
+        population = record["base_population_context"]
+        if (record["status"] != "materialized" or record["schema_version"] != SCHEMA_VERSION
+                or record["target_policy_version"] != TARGET_POLICY_VERSION
+                or record["target_semantics"] != TARGET_SEMANTICS
+                or not validates_materialized_population_context(population)):
+            return False
+        binding = population["base_terminal_binding"]
+        outcome = binding["terminal_outcome"]
+        evidence = outcome["evidence"]
+        if (record["session_id"] != population["session_id"]
+                or record["battle_id"] != population["battle_id"]
+                or record["context_binding_id"] != population["context_binding_id"]
+                or record["episode_terminal_binding_id"] != binding["binding_id"]
+                or not isinstance(record["raw_terminal_outcome"], MappingProxyType)
+                or record["raw_terminal_outcome"] != outcome
+                or not isinstance(record["target"], MappingProxyType)
+                or record["target"] != _target_for_binding(binding)):
+            return False
+        if record["target"].get("availability") == "available" and type(record["target"].get("value")) is not int:
+            return False
+        identity = {
+            "context_binding_id": population["context_binding_id"],
+            "episode_terminal_binding_id": binding["binding_id"],
+            "terminal_evidence_id": evidence["evidence_id"] if evidence is not None else None,
+            "target_policy_version": TARGET_POLICY_VERSION,
+        }
+        return record["target_record_id"] == (
+            "offline-terminal-learning-target:" + fingerprint_decision_contract_reference(identity)
+        )
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
+
+
+def _target_for_binding(binding: Mapping[str, Any]) -> dict[str, Any]:
+    outcome = binding["terminal_outcome"]
+    evidence = outcome["evidence"]
+    if (binding["base_episode_status"] != "resolved" or binding["continuity_gaps"]
+            or binding["status"] == "incomplete" and outcome["availability"] == "available"):
+        return {"availability": "unavailable", "reason": "episode_incomplete"}
+    if outcome["availability"] != "available":
+        return {"availability": "unavailable", "reason": outcome["reason"]}
+    if (binding["status"] != "resolved" or evidence is None
+          or evidence["authority"] != "direct_final_declaration"
+          or evidence["evidence_completeness"] != "final_declaration_observed"):
+        return {"availability": "unavailable", "reason": "terminal_declaration_not_authenticated"}
+    if evidence["termination_cause"] not in ADMITTED_TERMINATION_CAUSES:
+        return {"availability": "unavailable", "reason": "termination_cause_not_admitted_v1"}
+    return {
+        "availability": "available",
+        "value": _RESULT_VALUES[evidence["declared_result"]],
+        "semantics": TARGET_SEMANTICS,
+    }
 
 
 def _failure(reason: str) -> Mapping[str, Any]:
