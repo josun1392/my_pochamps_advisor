@@ -264,21 +264,30 @@ def _valid_payload(kind, payload):
     if kind == "multi_hit_action_result_observed":
         keys={"family","decision_point","action_id","move_id","actor","target","action_outcome","landed_hit_count","terminal_reason","source_execution_observation_id","predictive_artifact_fingerprint"}
         actor,target=payload.get("actor"),payload.get("target")
-        return (set(payload)==keys and payload.get("family")=="fixed_two_hit"
+        family=payload.get("family")
+        landed_count=payload.get("landed_hit_count")
+        fixed_landed=(landed_count in {1,2}
+                      and payload.get("terminal_reason") in {"target_fainted","attacker_fainted_from_contact_reactive_damage","effect_spore_sleep_cancels_remaining_hits","all_hits_landed"})
+        variable_landed=(landed_count in {1,2,3,4,5}
+                         and payload.get("terminal_reason") in {"target_fainted","attacker_fainted_from_contact_reactive_damage","effect_spore_sleep_cancels_remaining_hits","selected_hit_count_reached"})
+        return (set(payload)==keys and family in {"fixed_two_hit","variable_two_to_five"}
                 and all(isinstance(payload.get(k),str) and bool(payload[k]) for k in ("decision_point","action_id","move_id","source_execution_observation_id","predictive_artifact_fingerprint"))
                 and _valid_owner_payload(actor) and _valid_owner_payload(target) and actor.get("side")!=target.get("side")
                 and payload.get("action_outcome") in {"miss","landed"}
-                and isinstance(payload.get("landed_hit_count"),int) and not isinstance(payload.get("landed_hit_count"),bool)
-                and ((payload["action_outcome"]=="miss" and payload["landed_hit_count"]==0 and payload.get("terminal_reason")=="action_miss")
-                     or (payload["action_outcome"]=="landed" and payload["landed_hit_count"] in {1,2}
-                         and payload.get("terminal_reason") in {"target_fainted","attacker_fainted_from_contact_reactive_damage","effect_spore_sleep_cancels_remaining_hits","all_hits_landed"})))
+                and isinstance(landed_count,int) and not isinstance(landed_count,bool)
+                and ((payload["action_outcome"]=="miss" and landed_count==0 and payload.get("terminal_reason")=="action_miss")
+                     or (payload["action_outcome"]=="landed"
+                         and ((family=="fixed_two_hit" and fixed_landed)
+                              or (family=="variable_two_to_five" and variable_landed)))))
     if kind == "multi_hit_ordered_hit_observed":
         keys={"family","decision_point","action_id","move_id","actor","target","parent_multi_hit_observation_id","hit_index","hp_before","hp_after","target_fainted_after_hit","critical_state","related_contact_observation_ids"}
         actor,target=payload.get("actor"),payload.get("target"); related=payload.get("related_contact_observation_ids")
-        return (set(payload)==keys and payload.get("family")=="fixed_two_hit"
+        family=payload.get("family")
+        valid_hit_index=(payload.get("hit_index") in {1,2} if family=="fixed_two_hit" else payload.get("hit_index") in {1,2,3,4,5})
+        return (set(payload)==keys and family in {"fixed_two_hit","variable_two_to_five"}
                 and all(isinstance(payload.get(k),str) and bool(payload[k]) for k in ("decision_point","action_id","move_id","parent_multi_hit_observation_id"))
                 and _valid_owner_payload(actor) and _valid_owner_payload(target) and actor.get("side")!=target.get("side")
-                and payload.get("hit_index") in {1,2}
+                and valid_hit_index
                 and all(isinstance(payload.get(k),int) and not isinstance(payload.get(k),bool) and payload[k]>=0 for k in ("hp_before","hp_after"))
                 and payload["hp_after"]<=payload["hp_before"] and payload.get("target_fainted_after_hit") is (payload["hp_after"]==0)
                 and payload.get("critical_state") in {None,"critical","non_critical"}

@@ -65,7 +65,9 @@ from llm.advisor_confusion_self_hit_damage_runtime_admission import (
     admit_observed_confusion_self_hit_damage_result,
 )
 from llm.advisor_multi_hit_graph_reconciliation import retain_historical_fixed_two_hit_prediction
+from llm.advisor_variable_two_to_five_hit_graph_reconciliation import retain_historical_variable_two_to_five_prediction
 from llm.advisor_fixed_two_hit_observation_runtime_admission import admit_observed_fixed_two_hit_result
+from llm.advisor_variable_two_to_five_hit_observation_runtime_admission import admit_observed_variable_two_to_five_hit_result
 from llm.advisor_current_condition_observation import admit_current_condition_observation
 from llm.advisor_action_linked_condition_application_observation import admit_action_linked_condition_application_observation
 from llm.advisor_status_progression_observation import admit_champions_status_progression_observation
@@ -1652,6 +1654,9 @@ class MainWindow(QMainWindow):
         self._confirm_fixed_two_hit_result_action = QAction("Confirm Fixed Two-Hit Result", self)
         self._confirm_fixed_two_hit_result_action.triggered.connect(self._open_fixed_two_hit_result_confirmation)
         battle_menu.addAction(self._confirm_fixed_two_hit_result_action)
+        self._confirm_variable_two_to_five_hit_result_action = QAction("Confirm Variable 2-5 Hit Result", self)
+        self._confirm_variable_two_to_five_hit_result_action.triggered.connect(self._open_variable_two_to_five_hit_result_confirmation)
+        battle_menu.addAction(self._confirm_variable_two_to_five_hit_result_action)
         self._confirm_paralysis_result_action = QAction("Confirm Thunder Wave / Nuzzle Result", self)
         self._confirm_paralysis_result_action.triggered.connect(self._open_paralysis_result_confirmation)
         battle_menu.addAction(self._confirm_paralysis_result_action)
@@ -2035,7 +2040,7 @@ class MainWindow(QMainWindow):
         rows = manager.read_collection_snapshot().get("ordered_observations", [])
         candidates = []
         for retained in getattr(self, "_historical_multi_hit_predictions", {}).values():
-            if not isinstance(retained, dict) or retained.get("session_id") != session_id or retained.get("turn_number") != turn_number:
+            if not isinstance(retained, dict) or retained.get("family") != "fixed_two_hit" or retained.get("session_id") != session_id or retained.get("turn_number") != turn_number:
                 continue
             actor = retained.get("actor", {})
             executions = [
@@ -2140,6 +2145,123 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             "Fixed two-hit result applied" if result.get("status") == "resolved"
             else "Fixed two-hit confirmation failed or is incompatible"
+        )
+
+    @Slot()
+    def _open_variable_two_to_five_hit_result_confirmation(self) -> None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str) or not isinstance(turn_number, int):
+            self.statusBar().showMessage("Variable 2-5 hit confirmation failed: active session/turn unavailable")
+            return
+        rows = manager.read_collection_snapshot().get("ordered_observations", [])
+        candidates = []
+        for retained in getattr(self, "_historical_multi_hit_predictions", {}).values():
+            if not isinstance(retained, dict) or retained.get("family") != "variable_two_to_five" or retained.get("session_id") != session_id or retained.get("turn_number") != turn_number:
+                continue
+            actor = retained.get("actor", {})
+            executions = [
+                row for row in rows
+                if isinstance(row, dict)
+                and row.get("event_kind") == "executed_move_observed"
+                and row.get("session_id") == session_id
+                and row.get("turn_number") == turn_number
+                and (row.get("side"), row.get("slot_index"), row.get("pokemon_id"))
+                    == (actor.get("side"), actor.get("slot_index"), actor.get("pokemon_id"))
+                and row.get("payload", {}).get("move_id") == retained.get("move_id")
+                and row.get("payload", {}).get("source_action_id") == retained.get("source_action_id")
+            ]
+            if len(executions) == 1:
+                candidates.append((deepcopy(retained), deepcopy(executions[0])))
+        if not candidates:
+            self.statusBar().showMessage("Variable 2-5 hit confirmation failed: exact retained action/execution unavailable")
+            return
+        if len(candidates) > 1:
+            labels = [f"{retained['actor']['pokemon_id']} / {retained['move_id']} ({i + 1})" for i, (retained, _) in enumerate(candidates)]
+            label, ok = QInputDialog.getItem(self, "Confirm Variable 2-5 Hit Result", "Choose the observed action", labels, 0, False)
+            if not ok:
+                return
+            retained, execution = candidates[labels.index(label)]
+        else:
+            retained, execution = candidates[0]
+        outcome_label, ok = QInputDialog.getItem(
+            self, "Confirm Variable 2-5 Hit Result", "Observed action result", ["Action landed", "Action missed"], 0, False,
+        )
+        if not ok:
+            return
+        if outcome_label == "Action missed":
+            landed_count, terminal_reason, observed_hits = 0, "action_miss", ()
+        else:
+            count_label, ok = QInputDialog.getItem(
+                self, "Confirm Variable 2-5 Hit Result", "Observed landed hit count", ["2", "3", "4", "5", "1"], 0, False,
+            )
+            if not ok:
+                return
+            landed_count = int(count_label)
+            graph = retained.get("predictive_artifact", {})
+            first_hp_values = {
+                node.get("target_hp")
+                for node in graph.get("terminal_leaf_nodes", ())
+                if isinstance(node, dict) and node.get("completed_hit_count") == 0
+            }
+            if len(first_hp_values) != 1 or not all(isinstance(value, int) for value in first_hp_values):
+                self.statusBar().showMessage("Variable 2-5 hit confirmation failed: exact pre-hit HP unavailable")
+                return
+            hp_before = next(iter(first_hp_values))
+            observed = []
+            for hit_index in range(1, landed_count + 1):
+                hp_after, ok = QInputDialog.getInt(
+                    self, "Confirm Variable 2-5 Hit Result",
+                    f"Target HP after hit {hit_index} (before: {hp_before})",
+                    hp_before, 0, hp_before,
+                )
+                if not ok:
+                    return
+                observed.append({
+                    "hit_index": hit_index, "hp_before": hp_before, "hp_after": hp_after,
+                    "critical_state": None, "related_contact_observation_ids": (),
+                })
+                hp_before = hp_after
+            observed_hits = tuple(observed)
+            reasons = {
+                "Target fainted": "target_fainted",
+                "Attacker fainted from contact-reactive damage": "attacker_fainted_from_contact_reactive_damage",
+                "Effect Spore sleep cancelled remaining hits": "effect_spore_sleep_cancels_remaining_hits",
+            }
+            if landed_count >= 2:
+                reasons["Selected hit count was exhausted"] = "selected_hit_count_reached"
+            reason_label, ok = QInputDialog.getItem(
+                self, "Confirm Variable 2-5 Hit Result", "Observed terminal cause", list(reasons), 0, False,
+            )
+            if not ok:
+                return
+            terminal_reason = reasons[reason_label]
+        result = admit_observed_variable_two_to_five_hit_result(
+            runtime_session_manager=manager, captured_session_id=session_id,
+            retained_prediction=retained, turn_number=turn_number,
+            source_execution_observation=execution, action_outcome="miss" if landed_count == 0 else "landed",
+            landed_hit_count=landed_count, terminal_reason=terminal_reason, ordered_hits=observed_hits,
+        )
+        if result.get("status") == "resolved":
+            reconciliation = result.get("reconciliation")
+            if isinstance(reconciliation, dict):
+                self._last_observed_rng_reconciliation = deepcopy(reconciliation)
+            target = retained.get("target", {})
+            side = target.get("side")
+            if side in {"self", "opponent"}:
+                current_hp = dict(getattr(self, "_current_hp_confirmations", {}))
+                owners = dict(getattr(self, "_current_hp_confirmation_owners", {}))
+                current_hp.pop(side, None); owners.pop(side, None)
+                self._current_hp_confirmations = current_hp; self._current_hp_confirmation_owners = owners
+                update = getattr(self, "_update_current_hp_summary", None)
+                if callable(update):
+                    update()
+            self._retire_advice_presentation_authority()
+            self._recommendation_readiness_owner = None
+        self.statusBar().showMessage(
+            "Variable 2-5 hit result applied" if result.get("status") == "resolved"
+            else "Variable 2-5 hit confirmation failed or is incompatible"
         )
 
     def _resolve_pending_confusion_actor(self, runtime_snapshot: dict, *, session_id: str, side: object) -> dict:
@@ -2737,6 +2859,31 @@ class MainWindow(QMainWindow):
                 if len(source_links) > 1:
                     continue
                 retained = retain_historical_fixed_two_hit_prediction(
+                    predictive_artifact=prediction,
+                    turn_number=turn_number,
+                    decision_point=f"decision:{turn_number}:{actor.get('side')}",
+                    source_action_id=source_links[0]["source_action_id"] if source_links else action_id,
+                )
+                if retained.get("status") == "resolved":
+                    self._historical_multi_hit_predictions[action_id] = deepcopy(retained)
+        predictions = strategy_result.get("variable_two_to_five_hit_predictions")
+        if isinstance(predictions, dict):
+            for action_id, prediction in predictions.items():
+                actor = prediction.get("attacker") if isinstance(prediction, dict) else None
+                if not isinstance(actor, dict) or actor.get("session_id") != session_id:
+                    continue
+                source_links = [
+                    bundle.get("binding")
+                    for bundle in self._historical_predictive_action_bindings.values()
+                    if isinstance(bundle, dict)
+                    and isinstance(bundle.get("binding"), dict)
+                    and bundle["binding"].get("candidate_id") == action_id
+                    and bundle["binding"].get("actor") == actor
+                    and bundle["binding"].get("move_id") == prediction.get("move_id")
+                ]
+                if len(source_links) > 1:
+                    continue
+                retained = retain_historical_variable_two_to_five_prediction(
                     predictive_artifact=prediction,
                     turn_number=turn_number,
                     decision_point=f"decision:{turn_number}:{actor.get('side')}",
