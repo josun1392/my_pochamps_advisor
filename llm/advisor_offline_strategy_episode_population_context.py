@@ -16,6 +16,11 @@ from llm.advisor_offline_strategy_episode_terminal_binding import (
     SCHEMA_VERSION as TERMINAL_BINDING_SCHEMA,
     materialize_offline_strategy_episode_terminal_binding,
 )
+from llm.advisor_offline_strategy_episode_dataset import materialize_offline_strategy_episode
+from llm.advisor_session_battle_terminal_outcome_evidence import (
+    SCHEMA_VERSION as OUTCOME_SCHEMA,
+    TERMINATION_CAUSES,
+)
 from llm.advisor_session_battle_terminal_outcome_evidence import (
     SessionBoundBattleTerminalOutcomeEvidenceSource,
 )
@@ -118,6 +123,194 @@ def _sampling(value: Any) -> dict[str, Any] | None:
             return None
         normalized[field] = {"availability": "available", "value": raw}
     return normalized
+
+
+def validates_materialized_population_context(record: Any) -> bool:
+    """Check detached identity and structure; live source retention is not encoded here."""
+    if not _deep_read_only(record):
+        return False
+    try:
+        expected_keys = {
+            "status", "schema_version", "context_binding_id", "session_id", "battle_id",
+            "episode_terminal_binding_id", "rules_context", "rules_context_fingerprint",
+            "sampling_context", "sampling_context_fingerprint", "provenance", "base_terminal_binding",
+        }
+        if set(record) != expected_keys or record["schema_version"] != SCHEMA_VERSION:
+            return False
+        binding = record["base_terminal_binding"]
+        if (not isinstance(binding, MappingProxyType) or binding.get("schema_version") != TERMINAL_BINDING_SCHEMA
+                or binding.get("status") not in {"resolved", "incomplete"}
+                or record["status"] != binding["status"]
+                or record["session_id"] != binding.get("session_id")
+                or record["battle_id"] != binding.get("battle_id")
+                or record["episode_terminal_binding_id"] != binding.get("binding_id")):
+            return False
+        if not _valid_detached_terminal_binding(binding):
+            return False
+        rules = record["rules_context"]
+        sampling = record["sampling_context"]
+        if not _decision_context_valid(rules) or not _valid_normalized_sampling(sampling):
+            return False
+        rules_fp = fingerprint_decision_contract_reference(rules)
+        sampling_fp = fingerprint_decision_contract_reference(sampling)
+        if rules_fp != record["rules_context_fingerprint"] or sampling_fp != record["sampling_context_fingerprint"]:
+            return False
+        if record["provenance"] != {
+            "binding_basis": binding["binding_basis"],
+            "metadata_authority": "explicit_caller_supplied_unverified",
+            "decision_context_alignment": "not_proven_by_episode_transition_records",
+        }:
+            return False
+        identity = {
+            "session_id": record["session_id"], "battle_id": record["battle_id"],
+            "episode_terminal_binding_id": binding["binding_id"],
+            "rules_context_fingerprint": rules_fp, "sampling_context_fingerprint": sampling_fp,
+        }
+        return record["context_binding_id"] == (
+            "offline-episode-population-context:" + fingerprint_decision_contract_reference(identity)
+        )
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
+
+
+def _valid_normalized_sampling(value: Any) -> bool:
+    if not isinstance(value, MappingProxyType) or set(value) != {
+        "collection_mode", "competition_context", *OPTIONAL_FIELDS,
+    }:
+        return False
+    raw = {"collection_mode": value["collection_mode"], "competition_context": value["competition_context"]}
+    for field in OPTIONAL_FIELDS:
+        wrapper = value[field]
+        if not isinstance(wrapper, MappingProxyType):
+            return False
+        if wrapper == {"availability": "unavailable"}:
+            continue
+        if set(wrapper) != {"availability", "value"} or wrapper["availability"] != "available":
+            return False
+        raw[field] = wrapper["value"]
+    return _sampling(raw) == value
+
+
+def _valid_detached_terminal_binding(binding: Mapping[str, Any]) -> bool:
+    if set(binding) != {
+        "status", "schema_version", "binding_id", "episode_id", "session_id", "battle_id",
+        "binding_basis", "terminal_source", "base_episode_status", "base_episode_completeness",
+        "continuity_gaps", "terminal_outcome", "base_episode",
+    }:
+        return False
+    episode = binding.get("base_episode")
+    if not isinstance(episode, MappingProxyType):
+        return False
+    rebuilt_episode = materialize_offline_strategy_episode(episode.get("transitions"))
+    if rebuilt_episode.get("status") not in {"resolved", "incomplete"} or rebuilt_episode != episode:
+        return False
+    outcome, source = binding.get("terminal_outcome"), binding.get("terminal_source")
+    if (not isinstance(outcome, MappingProxyType) or not isinstance(source, MappingProxyType)
+            or set(source) != {"source_id", "source_kind"}
+            or not _token(source["source_id"])
+            or source["source_kind"] not in {"first_person_battle_stream", "simulator_output"}
+            or binding.get("session_id") != episode["session_id"]
+            or not _token(binding.get("battle_id"))
+            or binding.get("episode_id") != episode["episode_id"]
+            or binding.get("base_episode_status") != episode["status"]
+            or binding.get("base_episode_completeness") != episode["completeness"]
+            or binding.get("continuity_gaps") != episode["continuity_gaps"]
+            or binding.get("binding_basis") != "session_scoped_terminal_source"):
+        return False
+    evidence = outcome.get("evidence")
+    if evidence is not None:
+        if not _valid_detached_outcome_evidence(evidence, binding, source):
+            return False
+    available = evidence is not None and evidence["authority"] == "direct_final_declaration"
+    if available:
+        if outcome != {
+            "availability": "available", "evidence": evidence,
+            "declared_result": evidence["declared_result"],
+            "termination_cause": evidence["termination_cause"],
+            "evidence_completeness": evidence["evidence_completeness"],
+            "evidence_id": evidence["evidence_id"], "turn_number": evidence["turn_number"],
+        }:
+            return False
+        if evidence["turn_number"] is not None and evidence["turn_number"] < episode["final_next_state"]["turn_number"]:
+            return False
+    elif evidence is None:
+        if outcome != {"availability": "unavailable", "reason": "terminal_declaration_not_observed", "evidence": None}:
+            return False
+    elif outcome != {"availability": "unavailable", "reason": "stream_ended_without_declaration", "evidence": evidence}:
+        return False
+    expected_status = "resolved" if available and episode["status"] == "resolved" else "incomplete"
+    identity = {
+        "episode_id": episode["episode_id"],
+        "evidence_id": evidence["evidence_id"] if evidence is not None else None,
+        "binding_basis": binding["binding_basis"],
+        "session_id": episode["session_id"], "battle_id": binding["battle_id"],
+        "source_id": source["source_id"], "source_kind": source["source_kind"],
+    }
+    return (binding.get("status") == expected_status
+            and binding.get("binding_id") == "offline-episode-terminal-binding:" + fingerprint_decision_contract_reference(identity))
+
+
+def _valid_detached_outcome_evidence(
+    evidence: Any, binding: Mapping[str, Any], source: Mapping[str, Any],
+) -> bool:
+    if (not isinstance(evidence, MappingProxyType) or evidence.get("schema_version") != OUTCOME_SCHEMA
+            or evidence.get("session_id") != binding["session_id"]
+            or evidence.get("battle_id") != binding["battle_id"]
+            or evidence.get("source_id") != source["source_id"]
+            or evidence.get("source_kind") != source["source_kind"]):
+        return False
+    authority = evidence.get("authority")
+    if authority == "direct_final_declaration":
+        if set(evidence) != {
+            "schema_version", "evidence_id", "session_id", "battle_id", "source_id",
+            "source_kind", "authority", "source_terminal_event_id", "source_event_sequence",
+            "turn_number", "declared_result", "termination_cause", "raw_termination_cause",
+            "source_cause_event_id", "evidence_completeness", "battle_terminal",
+        }:
+            return False
+        if (evidence.get("battle_terminal") is not True
+                or evidence.get("evidence_completeness") != "final_declaration_observed"
+                or evidence.get("declared_result") not in {"self", "opponent", "tie"}
+                or evidence.get("termination_cause") not in TERMINATION_CAUSES
+                or not _token(evidence.get("source_terminal_event_id"))
+                or (evidence["termination_cause"] != "unknown"
+                    and not _token(evidence.get("source_cause_event_id")))):
+            return False
+        prefix = "battle-terminal:"
+    elif authority == "direct_stream_end_marker":
+        if set(evidence) != {
+            "schema_version", "evidence_id", "session_id", "battle_id", "source_id",
+            "source_kind", "authority", "source_stream_end_event_id", "source_event_sequence",
+            "turn_number", "declared_result", "termination_cause", "evidence_completeness",
+            "battle_terminal",
+        }:
+            return False
+        if (evidence.get("battle_terminal") is not False
+                or evidence.get("evidence_completeness") != "stream_ended_without_declaration"
+                or evidence.get("declared_result") != "none_observed"
+                or evidence.get("termination_cause") != "unknown"
+                or not _token(evidence.get("source_stream_end_event_id"))):
+            return False
+        prefix = "stream-end:"
+    else:
+        return False
+    if (not isinstance(evidence.get("source_event_sequence"), int)
+            or isinstance(evidence["source_event_sequence"], bool)
+            or evidence["source_event_sequence"] < 1):
+        return False
+    turn = evidence.get("turn_number")
+    if turn is not None and (not isinstance(turn, int) or isinstance(turn, bool) or turn < 1):
+        return False
+    facts = {key: value for key, value in evidence.items() if key not in {"schema_version", "evidence_id"}}
+    return evidence.get("evidence_id") == prefix + fingerprint_decision_contract_reference(facts)
+
+
+def _deep_read_only(value: Any) -> bool:
+    if isinstance(value, MappingProxyType):
+        return all(_deep_read_only(item) for item in value.values())
+    if isinstance(value, tuple):
+        return all(_deep_read_only(item) for item in value)
+    return value is None or type(value) in {str, int, float, bool}
 
 
 def _failure(reason: str) -> Mapping[str, Any]:
