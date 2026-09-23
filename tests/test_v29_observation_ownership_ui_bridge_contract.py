@@ -30,6 +30,9 @@ class _Harness:
     _retire_advice_presentation_authority = MainWindow._retire_advice_presentation_authority
     _reset_battle_presentation = MainWindow._reset_battle_presentation
 
+    def _linked_executed_predictive_bundle(self):
+        return {"status": "incomplete", "reason": "linked_execution_not_unique"}
+
     def __init__(self):
         self._battle_session_sequence = 0
         initial = create_unknown_bootstrap_battle_state("ui-session-0", "pikachu", "eevee")["state"]

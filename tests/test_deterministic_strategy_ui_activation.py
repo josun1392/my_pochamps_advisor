@@ -43,7 +43,10 @@ class _Harness:
         self._observation_runtime_session_manager = _manager()
         self.center_column = SimpleNamespace(llm_advice_panel=_Panel())
         self.messages = []
+        self.binding_installations = []
     def statusBar(self): return SimpleNamespace(showMessage=lambda message: self.messages.append(message))
+    def _install_historical_predictive_action_bindings(self, result):
+        self.binding_installations.append(result)
 
 
 def test_main_window_activation_delegates_only_to_closed_bridge(monkeypatch) -> None:
@@ -58,6 +61,7 @@ def test_main_window_activation_delegates_only_to_closed_bridge(monkeypatch) -> 
     assert calls[0]["decision_side"] == "self" and "decision_owner" not in calls[0]
     assert callable(calls[0]["selection_cycle_builder"])
     assert window.center_column.llm_advice_panel.explanations == [expected["explanation"]]
+    assert window.binding_installations == [expected]
     assert window.messages == ["전략 분석 완료"]
 
 
@@ -68,4 +72,5 @@ def test_main_window_activation_surfaces_stale_without_presenting_old_explanatio
     window._start_deterministic_strategy_analysis()
 
     assert window.center_column.llm_advice_panel.explanations == []
+    assert window.binding_installations == []
     assert "폐기" in window.center_column.llm_advice_panel.text[0]

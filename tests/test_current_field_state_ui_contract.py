@@ -104,6 +104,8 @@ def test_gravity_field_ui_emits_exact_active_and_inactive_without_duration(monke
 
 def test_locked_on_ui_explicit_inactive_and_active_exact_target(monkeypatch) -> None:
     window, _panel = _window()
+    messages = []
+    monkeypatch.setattr(MainWindow, "statusBar", lambda self: SimpleNamespace(showMessage=messages.append))
 
     inactive_answers = iter([("self", True), ("Inactive", True)])
     monkeypatch.setattr(main_window_module.QInputDialog, "getItem", lambda *args, **kwargs: next(inactive_answers))
@@ -122,10 +124,13 @@ def test_locked_on_ui_explicit_inactive_and_active_exact_target(monkeypatch) -> 
         "bound_target": {"session_id": "field-ui", "side": "opponent", "slot_index": 0, "pokemon_id": "opponent-a"},
     }
     assert window._locked_on_state_confirmation["status"] == "active"
+    assert messages == ["Locked On state applied", "Locked On state applied"]
 
 
 def test_locked_on_active_ui_refuses_missing_target_and_session_reset_clears_cache(monkeypatch) -> None:
     window, _panel = _window()
+    messages = []
+    monkeypatch.setattr(MainWindow, "statusBar", lambda self: SimpleNamespace(showMessage=messages.append))
     manager = window._observation_runtime_session_manager
     state = manager.read_state()["state"]
     state["opponent_side"]["pokemon"] = {}
@@ -136,6 +141,7 @@ def test_locked_on_active_ui_refuses_missing_target_and_session_reset_clears_cac
     monkeypatch.setattr(main_window_module.QInputDialog, "getItem", lambda *args, **kwargs: next(answers))
     window._open_locked_on_state_confirmation()
     assert window._locked_on_state_confirmation is None
+    assert messages == ["Locked On active confirmation refused: exact bound target identity unavailable"]
 
     window._locked_on_state_confirmation = {"status": "active", "sentinel": True}
     window._battle_session_sequence = 0

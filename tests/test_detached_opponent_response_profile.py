@@ -7,6 +7,7 @@ from llm.advisor_immediate_move_vs_move_action_pair import materialize_immediate
 from llm.advisor_exact_action_pair_descriptive_metrics import project_exact_immediate_action_pair_descriptive_metrics
 from llm.advisor_detached_deterministic_fixed_damage_attack_leaf import materialize_detached_deterministic_fixed_damage_attack_leaf
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_lifecycle_confirmation import GRAVITY_SOURCE
 from llm.advisor_predictive_attack_authority import build_predictive_fixed_damage_attack_authority
 from llm.advisor_reducer_state_model import project_atomic_transition, state_fingerprint
 from llm.advisor_runtime_d0_complete_opponent_response_set_authority import freeze_runtime_d0_complete_opponent_response_set_authority
@@ -75,13 +76,20 @@ def _complete_state(state):
     return result["projected_state"]
 
 
-def _inputs(*, equal_speed=False, own_hp=100, opponent_hp=100, own_move="tackle", own_ability="pressure"):
+def _inputs(*, equal_speed=False, own_hp=100, opponent_hp=100, own_move="tackle", own_ability="pressure", gravity_status=None):
     state = _complete_state(_state())
     state["self_side"]["pokemon"][0]["current_hp"] = own_hp
     state["self_side"]["pokemon"][0]["current_ability"] = own_ability
     state["opponent_side"]["pokemon"][0]["current_hp"] = opponent_hp
     if equal_speed:
         state["opponent_side"]["pokemon"][0]["current_final_stats"]["speed"]["value"] = 100
+    if gravity_status is not None:
+        state["field"]["gravity_status"] = gravity_status
+        state["field"]["gravity_status_provenance"] = {
+            "event_kind": "gravity_field_observed", "trust": "user_confirmed_observation",
+            "source": GRAVITY_SOURCE, "turn_number": 1,
+            "source_observation_id": "gravity:1", "source_sequence": 1,
+        }
     snapshot = _snapshot(state); d0 = freeze_runtime_strategy_d0(runtime_snapshot=snapshot, decision_owner=_owner(state, "self"))
     own = _owner(state, "self")
     own_metadata = _metadata(own_move) | {"candidate_id": f"attack:{own_move}", "active_attacker": own, "session_id": d0["session_id"], "source_runtime_fingerprint": d0["source_runtime_fingerprint"], "source_branch_fingerprint": d0["strategy_preview_fingerprint"], "decision_owner": d0["decision_owner"]}
@@ -609,8 +617,10 @@ def test_live_regular_crit_catalog_reaches_existing_secondary_and_stage_pair_lea
     )["status"] == "resolved"
 
 
-def test_immediate_pair_rejects_own_or_opponent_two_turn_terminal_damage():
-    state, snapshot, d0, own, response_set, orders = _inputs()
+def test_immediate_pair_executes_supported_two_turn_actions_detached_with_exact_mass():
+    state, snapshot, d0, own, response_set, orders = _inputs(gravity_status="inactive")
+    original_state = deepcopy(state)
+    original_snapshot = deepcopy(snapshot)
     opponent = response_set["actions"][0]
     order = orders[opponent["action_id"]]
 
@@ -626,9 +636,20 @@ def test_immediate_pair_rejects_own_or_opponent_two_turn_terminal_damage():
         strategy_d0=d0, runtime_snapshot=snapshot, own_action=guarded_own,
         opponent_action=opponent, action_order_authority=order,
     )
-    assert guarded_own_pair["status"] == "unsupported"
-    assert guarded_own_pair["reason"] == "two_turn_execution_unrepresented"
-    assert "terminal_branches" not in guarded_own_pair
+    assert guarded_own_pair["status"] == "evaluable"
+    assert guarded_own_pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=guarded_own_pair)["status"] == "evaluable"
+    own_charge_leaves = [
+        row["first_action_leaf"] for row in guarded_own_pair["terminal_branches"]
+        if "detached_standard_charge_lifecycle_context" in row["first_action_leaf"]["consequences"]
+    ]
+    assert own_charge_leaves
+    assert all(
+        leaf["consequences"]["detached_standard_charge_lifecycle_context"]["move_id"] == "solar-beam"
+        and leaf["consequences"]["detached_standard_charge_lifecycle_context"]["state"] == "charging"
+        and leaf["consequences"]["damage"] == 0
+        for leaf in own_charge_leaves
+    )
 
     guarded_opponent = deepcopy(opponent)
     guarded_opponent["move_id"] = "fly"
@@ -638,6 +659,19 @@ def test_immediate_pair_rejects_own_or_opponent_two_turn_terminal_damage():
         strategy_d0=d0, runtime_snapshot=snapshot, own_action=own,
         opponent_action=guarded_opponent, action_order_authority=order,
     )
-    assert guarded_opponent_pair["status"] == "unsupported"
-    assert guarded_opponent_pair["reason"] == "two_turn_execution_unrepresented"
-    assert guarded_opponent_pair["guarded_action"] == "opponent"
+    assert guarded_opponent_pair["status"] == "evaluable"
+    assert guarded_opponent_pair["terminal_probability_mass"] == {"numerator": 1, "denominator": 1}
+    assert normalize_exact_immediate_action_pair_outcome_ledger(pair=guarded_opponent_pair)["status"] == "evaluable"
+    opponent_charge_leaves = [
+        row["second_action"]["leaf"] for row in guarded_opponent_pair["terminal_branches"]
+        if isinstance(row["second_action"].get("leaf"), dict)
+        and "detached_standard_charge_lifecycle_context" in row["second_action"]["leaf"]["consequences"]
+    ]
+    assert opponent_charge_leaves
+    assert all(
+        leaf["consequences"]["detached_standard_charge_lifecycle_context"]["move_id"] == "fly"
+        and leaf["consequences"]["semi_invulnerable_charge_state"]["state"] == "active"
+        for leaf in opponent_charge_leaves
+    )
+    assert state == original_state
+    assert snapshot == original_snapshot

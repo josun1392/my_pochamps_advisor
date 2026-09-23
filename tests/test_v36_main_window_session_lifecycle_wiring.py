@@ -53,6 +53,9 @@ class _Harness:
     _cleanup_structured_worker = MainWindow._cleanup_structured_worker
     _delete_advice_thread_once = staticmethod(MainWindow._delete_advice_thread_once)
 
+    def _linked_executed_predictive_bundle(self):
+        return {"status": "incomplete", "reason": "linked_execution_not_unique"}
+
     def __init__(self, active=True, identities=True):
         self._battle_session_sequence = 0
         self._observation_runtime_session_manager = None
