@@ -66,8 +66,10 @@ from llm.advisor_confusion_self_hit_damage_runtime_admission import (
 )
 from llm.advisor_multi_hit_graph_reconciliation import retain_historical_fixed_two_hit_prediction
 from llm.advisor_variable_two_to_five_hit_graph_reconciliation import retain_historical_variable_two_to_five_prediction
+from llm.advisor_population_bomb_attempt_graph_reconciliation import retain_historical_population_bomb_prediction
 from llm.advisor_fixed_two_hit_observation_runtime_admission import admit_observed_fixed_two_hit_result
 from llm.advisor_variable_two_to_five_hit_observation_runtime_admission import admit_observed_variable_two_to_five_hit_result
+from llm.advisor_population_bomb_attempt_observation_runtime_admission import admit_observed_population_bomb_result
 from llm.advisor_current_condition_observation import admit_current_condition_observation
 from llm.advisor_action_linked_condition_application_observation import admit_action_linked_condition_application_observation
 from llm.advisor_status_progression_observation import admit_champions_status_progression_observation
@@ -1657,6 +1659,9 @@ class MainWindow(QMainWindow):
         self._confirm_variable_two_to_five_hit_result_action = QAction("Confirm Variable 2-5 Hit Result", self)
         self._confirm_variable_two_to_five_hit_result_action.triggered.connect(self._open_variable_two_to_five_hit_result_confirmation)
         battle_menu.addAction(self._confirm_variable_two_to_five_hit_result_action)
+        self._confirm_population_bomb_result_action = QAction("Confirm Population Bomb Result", self)
+        self._confirm_population_bomb_result_action.triggered.connect(self._open_population_bomb_result_confirmation)
+        battle_menu.addAction(self._confirm_population_bomb_result_action)
         self._confirm_paralysis_result_action = QAction("Confirm Thunder Wave / Nuzzle Result", self)
         self._confirm_paralysis_result_action.triggered.connect(self._open_paralysis_result_confirmation)
         battle_menu.addAction(self._confirm_paralysis_result_action)
@@ -2263,6 +2268,108 @@ class MainWindow(QMainWindow):
             "Variable 2-5 hit result applied" if result.get("status") == "resolved"
             else "Variable 2-5 hit confirmation failed or is incompatible"
         )
+
+    @Slot()
+    def _open_population_bomb_result_confirmation(self) -> None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        turn_number = getattr(self, "_current_trusted_turn_number", None)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or not isinstance(session_id, str) or not isinstance(turn_number, int):
+            self.statusBar().showMessage("Population Bomb confirmation failed: active session/turn unavailable")
+            return
+        rows = manager.read_collection_snapshot().get("ordered_observations", [])
+        candidates = []
+        for retained in getattr(self, "_historical_multi_hit_predictions", {}).values():
+            if not isinstance(retained, dict) or retained.get("family") != "population_bomb_attempt_graph" or retained.get("session_id") != session_id or retained.get("turn_number") != turn_number:
+                continue
+            actor = retained.get("actor", {})
+            executions = [
+                row for row in rows
+                if isinstance(row, dict) and row.get("event_kind") == "executed_move_observed"
+                and row.get("session_id") == session_id and row.get("turn_number") == turn_number
+                and (row.get("side"), row.get("slot_index"), row.get("pokemon_id")) == (actor.get("side"), actor.get("slot_index"), actor.get("pokemon_id"))
+                and row.get("payload", {}).get("move_id") == "population-bomb"
+                and row.get("payload", {}).get("source_action_id") == retained.get("source_action_id")
+            ]
+            if len(executions) == 1:
+                candidates.append((deepcopy(retained), deepcopy(executions[0])))
+        if not candidates:
+            self.statusBar().showMessage("Population Bomb confirmation failed: exact retained action/execution unavailable")
+            return
+        retained, execution = candidates[0]
+        if len(candidates) > 1:
+            labels = [f"{r['actor']['pokemon_id']} / population-bomb ({i + 1})" for i, (r, _) in enumerate(candidates)]
+            label, ok = QInputDialog.getItem(self, "Confirm Population Bomb Result", "Choose the observed action", labels, 0, False)
+            if not ok:
+                return
+            retained, execution = candidates[labels.index(label)]
+        attempt_count, ok = QInputDialog.getInt(self, "Confirm Population Bomb Result", "Observed attempt count", 1, 1, 10)
+        if not ok:
+            return
+        graph = retained.get("predictive_artifact", {})
+        first_hp_values = {n.get("target_hp") for n in graph.get("terminal_leaf_nodes", ()) if isinstance(n, dict) and n.get("attempt_index") == 1 and n.get("landed_hit_count") == 0}
+        if len(first_hp_values) != 1 or not all(isinstance(v, int) for v in first_hp_values):
+            self.statusBar().showMessage("Population Bomb confirmation failed: exact pre-hit HP unavailable")
+            return
+        hp_before = next(iter(first_hp_values)); attempts = []; landed = 0
+        for attempt_index in range(1, attempt_count + 1):
+            outcome, ok = QInputDialog.getItem(self, "Confirm Population Bomb Result", f"Attempt {attempt_index} outcome", ["Hit", "Miss"], 0, False)
+            if not ok:
+                return
+            if outcome == "Miss":
+                if attempt_index != attempt_count:
+                    self.statusBar().showMessage("Population Bomb confirmation failed: first miss must be terminal")
+                    return
+                attempts.append({"attempt_index": attempt_index, "attempt_outcome": "miss"})
+                continue
+            landed += 1
+            hp_after, ok = QInputDialog.getInt(self, "Confirm Population Bomb Result", f"Target HP after landed hit {landed} (before: {hp_before})", hp_before, 0, hp_before)
+            if not ok:
+                return
+            attempts.append({"attempt_index": attempt_index, "attempt_outcome": "hit", "hit_index": landed,
+                             "hp_before": hp_before, "hp_after": hp_after, "critical_state": None,
+                             "related_contact_observation_ids": ()})
+            hp_before = hp_after
+            if hp_after == 0 and attempt_index != attempt_count:
+                self.statusBar().showMessage("Population Bomb confirmation failed: no attempts may follow target KO")
+                return
+        last = attempts[-1]
+        if last["attempt_outcome"] == "miss":
+            terminal_reason = "first_miss_terminates_remaining_attempts"
+        else:
+            reasons = {
+                "Target fainted": "target_fainted",
+                "Attacker fainted from contact-reactive damage": "attacker_fainted_from_contact_reactive_damage",
+                "Effect Spore sleep cancelled remaining hits": "effect_spore_sleep_cancels_remaining_hits",
+                "Maximum ten attempts reached": "maximum_ten_attempts_reached",
+                "Planned hit count reached": "planned_hit_count_reached",
+            }
+            reason_label, ok = QInputDialog.getItem(self, "Confirm Population Bomb Result", "Observed terminal cause", list(reasons), 0, False)
+            if not ok:
+                return
+            terminal_reason = reasons[reason_label]
+        result = admit_observed_population_bomb_result(
+            runtime_session_manager=manager, captured_session_id=session_id, retained_prediction=retained,
+            turn_number=turn_number, source_execution_observation=execution,
+            action_outcome="miss" if landed == 0 else "landed", landed_hit_count=landed,
+            attempt_count=attempt_count, terminal_reason=terminal_reason, ordered_attempts=tuple(attempts),
+        )
+        if result.get("status") == "resolved":
+            reconciliation = result.get("reconciliation")
+            if isinstance(reconciliation, dict):
+                self._last_observed_rng_reconciliation = deepcopy(reconciliation)
+            target = retained.get("target", {}); side = target.get("side")
+            if side in {"self", "opponent"}:
+                current_hp = dict(getattr(self, "_current_hp_confirmations", {}))
+                owners = dict(getattr(self, "_current_hp_confirmation_owners", {}))
+                current_hp.pop(side, None); owners.pop(side, None)
+                self._current_hp_confirmations = current_hp; self._current_hp_confirmation_owners = owners
+                update = getattr(self, "_update_current_hp_summary", None)
+                if callable(update): update()
+            self._retire_advice_presentation_authority()
+            self._recommendation_readiness_owner = None
+        self.statusBar().showMessage("Population Bomb result applied" if result.get("status") == "resolved"
+                                     else "Population Bomb confirmation failed or is incompatible")
 
     def _resolve_pending_confusion_actor(self, runtime_snapshot: dict, *, session_id: str, side: object) -> dict:
         state = runtime_snapshot.get("state") if isinstance(runtime_snapshot, dict) else None
@@ -2886,6 +2993,30 @@ class MainWindow(QMainWindow):
                 retained = retain_historical_variable_two_to_five_prediction(
                     predictive_artifact=prediction,
                     turn_number=turn_number,
+                    decision_point=f"decision:{turn_number}:{actor.get('side')}",
+                    source_action_id=source_links[0]["source_action_id"] if source_links else action_id,
+                )
+                if retained.get("status") == "resolved":
+                    self._historical_multi_hit_predictions[action_id] = deepcopy(retained)
+        predictions = strategy_result.get("population_bomb_predictions")
+        if isinstance(predictions, dict):
+            for action_id, prediction in predictions.items():
+                actor = prediction.get("attacker") if isinstance(prediction, dict) else None
+                if not isinstance(actor, dict) or actor.get("session_id") != session_id:
+                    continue
+                source_links = [
+                    bundle.get("binding")
+                    for bundle in self._historical_predictive_action_bindings.values()
+                    if isinstance(bundle, dict)
+                    and isinstance(bundle.get("binding"), dict)
+                    and bundle["binding"].get("candidate_id") == action_id
+                    and bundle["binding"].get("actor") == actor
+                    and bundle["binding"].get("move_id") == prediction.get("move_id")
+                ]
+                if len(source_links) > 1:
+                    continue
+                retained = retain_historical_population_bomb_prediction(
+                    predictive_artifact=prediction, turn_number=turn_number,
                     decision_point=f"decision:{turn_number}:{actor.get('side')}",
                     source_action_id=source_links[0]["source_action_id"] if source_links else action_id,
                 )

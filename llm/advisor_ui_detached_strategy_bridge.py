@@ -87,6 +87,12 @@ from llm.advisor_runtime_d0_variable_two_to_five_hit_count_execution_authority i
 from llm.advisor_detached_variable_two_to_five_hit_per_hit_predictive_materialization import (
     materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves,
 )
+from llm.advisor_runtime_d0_population_bomb_per_hit_accuracy_execution_authority import (
+    freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority,
+)
+from llm.advisor_detached_population_bomb_per_hit_accuracy_predictive_graph_materialization import (
+    materialize_detached_population_bomb_per_hit_accuracy_predictive_graph,
+)
 from llm.advisor_runtime_d0_canonical_contact_classification_authority import (
     freeze_runtime_d0_canonical_contact_classification_authority,
 )
@@ -181,6 +187,9 @@ def run_current_ui_detached_strategy(
     variable_two_to_five_hit_predictions = _project_variable_two_to_five_hit_predictions(
         strategy_d0=d0, runtime_snapshot=capture, selection=selection, live_attacks=live_attacks,
     )
+    population_bomb_predictions = _project_population_bomb_predictions(
+        strategy_d0=d0, runtime_snapshot=capture, selection=selection, live_attacks=live_attacks,
+    )
     orchestration_attacks = {key: value for key, value in live_attacks.items() if key != "secondary_manifest_authorities"}
     provisional = run_detached_strategy_orchestration(
         decision_state=d0["strategy_state"], decision_owner=d0["decision_owner"],
@@ -222,6 +231,7 @@ def run_current_ui_detached_strategy(
         "opponent_response_profiles": deepcopy(response_profiles),
         "fixed_two_hit_predictions": deepcopy(fixed_two_hit_predictions),
         "variable_two_to_five_hit_predictions": deepcopy(variable_two_to_five_hit_predictions),
+        "population_bomb_predictions": deepcopy(population_bomb_predictions),
         "orchestration": deepcopy(orchestration), "explanation": deepcopy(explanation),
         "provenance": "runtime_d0_detached_strategy_ui_controller_bridge_v1",
     }
@@ -635,6 +645,43 @@ def _project_variable_two_to_five_hit_predictions(
         if contact.get("status") != "resolved":
             continue
         prediction = materialize_detached_variable_two_to_five_hit_per_hit_predictive_leaves(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+            execution_authority=execution,
+            sturdy_survival_authority=sturdy.get(action.get("action_id")),
+            focus_sash_survival_authority=sash.get(action.get("action_id")),
+            contact_reactive_contact_authority=contact,
+        )
+        if prediction.get("status") == "evaluable":
+            result[action["action_id"]] = prediction
+    return result
+
+
+def _project_population_bomb_predictions(
+    *, strategy_d0: Mapping[str, Any], runtime_snapshot: Mapping[str, Any],
+    selection: Mapping[str, Any], live_attacks: Mapping[str, Mapping[str, Mapping[str, Any]]],
+) -> dict[str, Mapping[str, Any]]:
+    result = {}
+    target_side = "opponent" if strategy_d0["decision_owner"]["side"] == "self" else "self"
+    target = strategy_d0.get("active_owners", {}).get(target_side)
+    if not isinstance(target, Mapping):
+        return result
+    sturdy = live_attacks.get("sturdy_survival_authorities", {})
+    sash = live_attacks.get("focus_sash_survival_authorities", {})
+    for action in selection.get("actions", ()):
+        if not isinstance(action, Mapping) or action.get("action_type") != "attack" or action.get("selection") != "selectable" or action.get("identity") != "population-bomb":
+            continue
+        execution = freeze_runtime_d0_population_bomb_per_hit_accuracy_execution_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+        )
+        if execution.get("status") != "resolved":
+            continue
+        contact = freeze_runtime_d0_canonical_contact_classification_authority(
+            strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
+            attacker=strategy_d0["decision_owner"], target=target,
+        )
+        if contact.get("status") != "resolved":
+            continue
+        prediction = materialize_detached_population_bomb_per_hit_accuracy_predictive_graph(
             strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, action=action,
             execution_authority=execution,
             sturdy_survival_authority=sturdy.get(action.get("action_id")),

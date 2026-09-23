@@ -50,6 +50,7 @@ PENDING_CONFUSION_ACTION_EXECUTION_SOURCE = "ui_pending_confusion_action_executi
 CONFUSION_SELF_HIT_DAMAGE_SOURCE = "ui_confusion_self_hit_damage_confirmation"
 MULTI_HIT_ACTION_RESULT_SOURCE = "ui_multi_hit_action_result_confirmation"
 MULTI_HIT_ORDERED_HIT_SOURCE = "ui_multi_hit_ordered_hit_confirmation"
+MULTI_HIT_ORDERED_ATTEMPT_SOURCE = "ui_multi_hit_ordered_attempt_confirmation"
 MAT_BLOCK_ACTIVE_ENTRY_ELIGIBILITY_SOURCE = "ui_mat_block_active_entry_eligibility_confirmation"
 FAKE_OUT_ACTIVE_ENTRY_ELIGIBILITY_SOURCE = "ui_fake_out_active_entry_eligibility_confirmation"
 SUPREME_OVERLORD_INITIAL_ACTIVE_SOURCE = "ui_supreme_overlord_initial_active_confirmation"
@@ -78,6 +79,7 @@ _KINDS["pending_confusion_action_execution_observed"] = "production_ready"
 _KINDS["confusion_self_hit_damage_observed"] = "production_ready"
 _KINDS["multi_hit_action_result_observed"] = "production_ready"
 _KINDS["multi_hit_ordered_hit_observed"] = "production_ready"
+_KINDS["multi_hit_ordered_attempt_observed"] = "production_ready"
 for _kind in {"taunt_restriction_applied_observed", "encore_restriction_applied_observed", "disable_restriction_applied_observed", "taunt_restricted_turn_completed_observed", "encore_restricted_turn_completed_observed", "disable_restricted_turn_completed_observed"}: _KINDS[_kind] = "production_ready"
 
 
@@ -101,7 +103,7 @@ class LifecycleConfirmationBoundary:
         if not _valid_turn_number(turn_number): return _result("invalid_provenance", "invalid_turn_number", readiness)
         if event_kind not in {"direct_move_damage_observed", "switch_hazards_observed", "tailwind_side_condition_observed", "trick_room_field_observed", "magic_room_field_observed", "gravity_field_observed", "first_end_of_turn_reached_observed", "current_weather_observed", "current_terrain_observed", "current_side_conditions_observed", "current_battle_format_observed", "doubles_active_topology_observed"} and not _owner_matches(self._owners, side, slot_index, pokemon_id): return _result("invalid_provenance", "owner_mismatch", readiness)
         if event_kind == "same_turn_event_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
-        if event_kind in {"executed_move_observed", "previous_action_result_observed", "flinch_causality_observed", "contact_reactive_status_result_observed", "contact_reactive_damage_result_observed", "multi_hit_action_result_observed", "multi_hit_ordered_hit_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
+        if event_kind in {"executed_move_observed", "previous_action_result_observed", "flinch_causality_observed", "contact_reactive_status_result_observed", "contact_reactive_damage_result_observed", "multi_hit_action_result_observed", "multi_hit_ordered_hit_observed", "multi_hit_ordered_attempt_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind.endswith("restriction_applied_observed") or event_kind.endswith("restricted_turn_completed_observed"):
             if not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1: return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "first_end_of_turn_reached_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
@@ -200,6 +202,7 @@ def _production_source_matches(kind, source):
     if kind == "previous_action_result_observed": return source == PREVIOUS_ACTION_RESULT_SOURCE
     if kind == "multi_hit_action_result_observed": return source == MULTI_HIT_ACTION_RESULT_SOURCE
     if kind == "multi_hit_ordered_hit_observed": return source == MULTI_HIT_ORDERED_HIT_SOURCE
+    if kind == "multi_hit_ordered_attempt_observed": return source == MULTI_HIT_ORDERED_ATTEMPT_SOURCE
     if kind == "flinch_causality_observed": return source == FLINCH_CAUSALITY_SOURCE
     if kind == "contact_reactive_status_result_observed": return source == CONTACT_REACTIVE_STATUS_RESULT_SOURCE
     if kind == "contact_reactive_damage_result_observed": return source == CONTACT_REACTIVE_DAMAGE_RESULT_SOURCE
@@ -262,7 +265,7 @@ def _valid_payload(kind, payload):
                 and payload["self_fainted"] is (payload["hp_after"]==0)
                 and payload.get("disguise_outcome") in {"not_applicable","already_broken","intact_to_broken"})
     if kind == "multi_hit_action_result_observed":
-        keys={"family","decision_point","action_id","move_id","actor","target","action_outcome","landed_hit_count","terminal_reason","source_execution_observation_id","predictive_artifact_fingerprint"}
+        base_keys={"family","decision_point","action_id","move_id","actor","target","action_outcome","landed_hit_count","terminal_reason","source_execution_observation_id","predictive_artifact_fingerprint"}
         actor,target=payload.get("actor"),payload.get("target")
         family=payload.get("family")
         landed_count=payload.get("landed_hit_count")
@@ -270,7 +273,17 @@ def _valid_payload(kind, payload):
                       and payload.get("terminal_reason") in {"target_fainted","attacker_fainted_from_contact_reactive_damage","effect_spore_sleep_cancels_remaining_hits","all_hits_landed"})
         variable_landed=(landed_count in {1,2,3,4,5}
                          and payload.get("terminal_reason") in {"target_fainted","attacker_fainted_from_contact_reactive_damage","effect_spore_sleep_cancels_remaining_hits","selected_hit_count_reached"})
-        return (set(payload)==keys and family in {"fixed_two_hit","variable_two_to_five"}
+        if family=="population_bomb_attempt_graph":
+            attempt_count=payload.get("attempt_count")
+            return (set(payload)==base_keys|{"attempt_count"}
+                    and all(isinstance(payload.get(k),str) and bool(payload[k]) for k in ("decision_point","action_id","move_id","source_execution_observation_id","predictive_artifact_fingerprint"))
+                    and payload.get("move_id")=="population-bomb"
+                    and _valid_owner_payload(actor) and _valid_owner_payload(target) and actor.get("side")!=target.get("side")
+                    and payload.get("action_outcome") in {"miss","landed"}
+                    and isinstance(landed_count,int) and not isinstance(landed_count,bool) and 0<=landed_count<=10
+                    and isinstance(attempt_count,int) and not isinstance(attempt_count,bool) and 1<=attempt_count<=10
+                    and payload.get("terminal_reason") in {"first_miss_terminates_remaining_attempts","target_fainted","attacker_fainted_from_contact_reactive_damage","effect_spore_sleep_cancels_remaining_hits","maximum_ten_attempts_reached","planned_hit_count_reached"})
+        return (set(payload)==base_keys and family in {"fixed_two_hit","variable_two_to_five"}
                 and all(isinstance(payload.get(k),str) and bool(payload[k]) for k in ("decision_point","action_id","move_id","source_execution_observation_id","predictive_artifact_fingerprint"))
                 and _valid_owner_payload(actor) and _valid_owner_payload(target) and actor.get("side")!=target.get("side")
                 and payload.get("action_outcome") in {"miss","landed"}
@@ -288,6 +301,23 @@ def _valid_payload(kind, payload):
                 and all(isinstance(payload.get(k),str) and bool(payload[k]) for k in ("decision_point","action_id","move_id","parent_multi_hit_observation_id"))
                 and _valid_owner_payload(actor) and _valid_owner_payload(target) and actor.get("side")!=target.get("side")
                 and valid_hit_index
+                and all(isinstance(payload.get(k),int) and not isinstance(payload.get(k),bool) and payload[k]>=0 for k in ("hp_before","hp_after"))
+                and payload["hp_after"]<=payload["hp_before"] and payload.get("target_fainted_after_hit") is (payload["hp_after"]==0)
+                and payload.get("critical_state") in {None,"critical","non_critical"}
+                and isinstance(related,(tuple,list)) and len(related)==len(set(related)) and all(isinstance(x,str) and bool(x) for x in related))
+    if kind == "multi_hit_ordered_attempt_observed":
+        common={"family","decision_point","action_id","move_id","actor","target","parent_multi_hit_observation_id","attempt_index","attempt_outcome"}
+        hit_keys=common|{"hit_index","hp_before","hp_after","target_fainted_after_hit","critical_state","related_contact_observation_ids"}
+        actor,target=payload.get("actor"),payload.get("target");outcome=payload.get("attempt_outcome")
+        if (payload.get("family")!="population_bomb_attempt_graph" or payload.get("move_id")!="population-bomb"
+                or not all(isinstance(payload.get(k),str) and bool(payload[k]) for k in ("decision_point","action_id","move_id","parent_multi_hit_observation_id"))
+                or not _valid_owner_payload(actor) or not _valid_owner_payload(target) or actor.get("side")==target.get("side")
+                or payload.get("attempt_index") not in set(range(1,11)) or outcome not in {"hit","miss"}):
+            return False
+        if outcome=="miss":
+            return set(payload)==common
+        related=payload.get("related_contact_observation_ids")
+        return (set(payload)==hit_keys and payload.get("hit_index") in set(range(1,11))
                 and all(isinstance(payload.get(k),int) and not isinstance(payload.get(k),bool) and payload[k]>=0 for k in ("hp_before","hp_after"))
                 and payload["hp_after"]<=payload["hp_before"] and payload.get("target_fainted_after_hit") is (payload["hp_after"]==0)
                 and payload.get("critical_state") in {None,"critical","non_critical"}

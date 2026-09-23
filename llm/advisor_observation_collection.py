@@ -36,6 +36,7 @@ _KINDS.update({
  "confusion_self_hit_damage_observed",
  "multi_hit_action_result_observed",
  "multi_hit_ordered_hit_observed",
+ "multi_hit_ordered_attempt_observed",
  "doubles_active_topology_observed",
  "selected_action_targeting_observed",
  "mat_block_active_entry_eligibility_observed",
