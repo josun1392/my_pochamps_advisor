@@ -7,7 +7,7 @@ from copy import deepcopy
 from fractions import Fraction
 from typing import Any, Mapping, Sequence
 
-from llm.advisor_multi_hit_graph_reconciliation import _related_contact_matches_hit
+from llm.advisor_multi_hit_graph_reconciliation import _consumed_related_observations, _related_contact_matches_hit
 
 RETENTION_SCHEMA="historical-multi-hit-predictive-graph-v1"
 RECONCILIATION_SCHEMA="observed-multi-hit-graph-reconciliation-v1"
@@ -83,8 +83,9 @@ def reconcile_observed_population_bomb_attempt_graph(*,retained_prediction:Mappi
         p=obs["payload"]
         if p["attempt_outcome"]=="hit" and any(oid not in related for oid in p.get("related_contact_observation_ids",())):
             return _result("rejected","multi_hit_related_contact_observation_missing")
+    consumed_related=_consumed_related_observations(attempts,related)
     compatible=_compatible_paths(r["predictive_artifact"],parent_observation["payload"],attempts,related,r)
-    return _reconciliation(r,compatible,(parent_observation,*attempts,*tuple(related.values())),_unresolved(compatible))
+    return _reconciliation(r,compatible,(parent_observation,*attempts,*consumed_related),_unresolved(compatible))
 
 
 def _validate_artifact(v:Any)->dict[str,Any]:
@@ -192,6 +193,15 @@ def _validate_artifact(v:Any)->dict[str,Any]:
         if not es:return _result("rejected","population_bomb_nonterminal_node_has_no_edges")
         if sum((_fraction(e["conditional_probability"]) or Fraction() for e in es),Fraction())!=1:
             return _result("rejected","population_bomb_outgoing_probability_mass_not_one")
+        hit_mass=sum((_fraction(e["conditional_probability"]) or Fraction() for e in es
+                      if e.get("attempt_outcome",{}).get("outcome")=="hit"),Fraction())
+        miss_mass=sum((_fraction(e["conditional_probability"]) or Fraction() for e in es
+                       if e.get("attempt_outcome",{}).get("outcome")=="miss"),Fraction())
+        accuracy_branch_applicable=kind=="existing_independent_multiaccuracy" or n["attempt_index"]==1
+        expected_hit=hit if accuracy_branch_applicable else Fraction(1,1)
+        expected_miss=miss if accuracy_branch_applicable else Fraction(0,1)
+        if hit_mass!=expected_hit or miss_mass!=expected_miss:
+            return _result("rejected","population_bomb_attempt_probability_split_mismatch")
     return {"status":"resolved","modifier_execution_plan":kind}
 
 

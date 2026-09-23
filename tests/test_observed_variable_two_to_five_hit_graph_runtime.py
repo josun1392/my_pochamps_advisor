@@ -36,6 +36,7 @@ def test_variable_production_admission_is_atomic_idempotent_and_conflict_rejecti
         turn_number=1,source_execution_observation=execution,action_outcome="landed",landed_hit_count=2,
         terminal_reason="selected_hit_count_reached",ordered_hits=hits)
     assert duplicate["status"]=="resolved" and duplicate["idempotent"] is True
+    assert duplicate["reconciliation"]["source_observation_ids"]==first["reconciliation"]["source_observation_ids"]
     changed=list(deepcopy(hits));changed[-1]["hp_after"]=85
     assert admit_observed_variable_two_to_five_hit_result(
         runtime_session_manager=manager,captured_session_id=retained["session_id"],retained_prediction=retained,

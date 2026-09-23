@@ -245,6 +245,7 @@ def test_exact_contact_reactive_link_filters_source_branch_without_double_count(
         parent_observation=_parent(r,10,10,"planned_hit_count_reached"),attempt_observations=obs,related_observations=(related,))
     assert rec["compatible_source_paths"]
     assert _mass(rec)==1
+    assert rec["source_observation_ids"]==("parent",*(x["observation_id"] for x in obs),"reactive-1")
 
 
 def test_crit_filter_and_source_graph_immutability():
@@ -340,3 +341,54 @@ def test_valid_population_bomb_provenance_preserves_graph_mass_and_no_normalizat
     assert _mass(rec)==Fraction(1,4)
     assert rec["probability_normalization"]=="none_preserve_original_mass"
     assert a==before
+
+
+def test_population_bomb_provenance_emits_only_consumed_observations():
+    r=_retain(_artifact(stop=2));parent=_parent(r,1,2,"first_miss_terminates_remaining_attempts")
+    attempts=_attempts(r,("hit","miss"))
+    extra=(
+        {"observation_id":"unrelated","event_kind":"executed_move_observed"},
+        {"observation_id":"attempt-1:hp","event_kind":"exact_hp_transition_observed"},
+        {"observation_id":"attempt-1:faint","event_kind":"faint_observed"},
+    )
+    rec=reconcile_observed_population_bomb_attempt_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),parent_observation=parent,
+        attempt_observations=attempts,related_observations=extra)
+    assert rec["status"]=="resolved"
+    assert rec["source_observation_ids"]==("parent",*(x["observation_id"] for x in attempts))
+
+
+def test_population_bomb_validator_binds_independent_accuracy_edge_split():
+    valid=_artifact(stop=2);before=deepcopy(valid)
+    assert _retain(valid)["status"]=="resolved"
+    assert valid==before
+
+    bad=deepcopy(valid)
+    root="root-10"
+    hit_edge=next(e for e in bad["terminal_leaf_edges"] if e["from_node_id"]==root and e["attempt_outcome"]["outcome"]=="hit")
+    miss_edge=next(e for e in bad["terminal_leaf_edges"] if e["from_node_id"]==root and e["attempt_outcome"]["outcome"]=="miss")
+    hit_edge["conditional_probability"]=_fd(4,5);miss_edge["conditional_probability"]=_fd(1,5)
+    rejected=_retain(bad)
+    assert rejected=={"status":"rejected","reason":"population_bomb_attempt_probability_split_mismatch"}
+
+
+def test_population_bomb_validator_rejects_wrong_hit_and_miss_splits_with_unit_mass():
+    valid=_artifact(stop=2)
+    for hit_probability,miss_probability in ((3,1),(1,3)):
+        bad=deepcopy(valid);root="root-10"
+        hit_edge=next(e for e in bad["terminal_leaf_edges"] if e["from_node_id"]==root and e["attempt_outcome"]["outcome"]=="hit")
+        miss_edge=next(e for e in bad["terminal_leaf_edges"] if e["from_node_id"]==root and e["attempt_outcome"]["outcome"]=="miss")
+        total=hit_probability+miss_probability
+        hit_edge["conditional_probability"]=_fd(hit_probability,total)
+        miss_edge["conditional_probability"]=_fd(miss_probability,total)
+        assert _retain(bad)=={"status":"rejected","reason":"population_bomb_attempt_probability_split_mismatch"}
+
+
+def test_population_bomb_guaranteed_plans_keep_initial_accuracy_and_late_guaranteed_hits():
+    for kind in ("single_accuracy_then_fixed_guaranteed_hits","single_accuracy_then_uniform_guaranteed_hits"):
+        artifact=_artifact(kind,terminal="planned_hit_count_reached")
+        before=deepcopy(artifact)
+        retained=_retain(artifact)
+        assert retained["status"]=="resolved",retained
+        assert artifact==before
+        assert retained["predictive_artifact"]["terminal_probability_mass"]==_fd(1)

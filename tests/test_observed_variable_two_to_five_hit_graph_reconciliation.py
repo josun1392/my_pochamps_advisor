@@ -213,6 +213,7 @@ def test_exact_contact_reactive_link_filters_existing_source_branch_without_prob
         parent_observation=_parent(r,2,"target_fainted"),hit_observations=children,related_observations=(related,))
     assert {x["selected_hit_count"] for x in rec["compatible_source_paths"]}=={3}
     assert _mass(rec)==Fraction(1,4)
+    assert rec["source_observation_ids"]==("parent","hit-1","hit-2","reactive-1")
 
 
 def test_graph_validation_rejects_tampered_node_edge_count_and_probability():
@@ -320,3 +321,17 @@ def test_valid_variable_provenance_preserves_graph_mass_and_no_normalization():
     assert _mass(rec)==Fraction(1,4)
     assert rec["probability_normalization"]=="none_preserve_original_mass"
     assert a==before
+
+
+def test_variable_provenance_emits_only_consumed_observations():
+    r=_retained(root_counts=(2,));parent=_parent(r,2,"selected_hit_count_reached");children=_children(r,2,2)
+    extra=(
+        {"observation_id":"unrelated","event_kind":"executed_move_observed"},
+        {"observation_id":"hit-1:hp","event_kind":"exact_hp_transition_observed"},
+        {"observation_id":"hit-1:faint","event_kind":"faint_observed"},
+    )
+    rec=reconcile_observed_variable_two_to_five_hit_graph(
+        retained_prediction=r,source_execution_observation=_execution(r),parent_observation=parent,
+        hit_observations=children,related_observations=extra)
+    assert rec["status"]=="resolved"
+    assert rec["source_observation_ids"]==("parent",*(x["observation_id"] for x in children))

@@ -118,6 +118,7 @@ def reconcile_observed_fixed_two_hit_graph(*, retained_prediction: Mapping[str,A
         for oid in child["payload"].get("related_contact_observation_ids",()):
             if oid not in related:
                 return _result("rejected","multi_hit_related_contact_observation_missing")
+    consumed_related=_consumed_related_observations(hits,related)
     payload=parent_observation["payload"]
     compatible=[]
     for leaf in leaves:
@@ -128,7 +129,25 @@ def reconcile_observed_fixed_two_hit_graph(*, retained_prediction: Mapping[str,A
         compatible.append(leaf)
     unresolved=_unresolved(compatible)
     return _reconciliation(retained=retained,status="resolved",reason=None,leaves=tuple(compatible),
-                           observations=(parent_observation,*hits,*tuple(related.values())),unresolved=unresolved)
+                           observations=(parent_observation,*hits,*consumed_related),unresolved=unresolved)
+
+
+def _consumed_related_observations(records: Sequence[Mapping[str,Any]],
+                                   related: Mapping[str,Mapping[str,Any]]) -> tuple[Mapping[str,Any],...]:
+    used=[]
+    seen=set()
+    for record in records:
+        payload=record.get("payload") if isinstance(record,Mapping) else None
+        if not isinstance(payload,Mapping):
+            continue
+        for observation_id in payload.get("related_contact_observation_ids",()):
+            if observation_id in seen:
+                continue
+            row=related.get(observation_id)
+            if row is not None:
+                used.append(row)
+                seen.add(observation_id)
+    return tuple(used)
 
 
 def _validate_fixed_artifact(value: Any) -> dict[str,Any]:

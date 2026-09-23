@@ -46,5 +46,6 @@ def test_production_double_hit_atomic_hp_duplicate_and_conflict():
     assert first["runtime_snapshot"]["state"]["opponent_side"]["pokemon"][0]["current_hp"]==hits[-1]["hp_after"]
     dup=admit_observed_fixed_two_hit_result(runtime_session_manager=manager,captured_session_id=state["session_id"],retained_prediction=ret,turn_number=1,source_execution_observation=execution,action_outcome="landed",landed_hit_count=len(hits),terminal_reason=leaf["consequences"]["terminal_reason"],ordered_hits=hits)
     assert dup["status"]=="resolved" and dup["idempotent"] is True
+    assert dup["reconciliation"]["source_observation_ids"]==first["reconciliation"]["source_observation_ids"]
     changed=list(deepcopy(hits));changed[-1]["hp_after"]=changed[-1]["hp_before"]
     assert admit_observed_fixed_two_hit_result(runtime_session_manager=manager,captured_session_id=state["session_id"],retained_prediction=ret,turn_number=1,source_execution_observation=execution,action_outcome="landed",landed_hit_count=len(hits),terminal_reason=leaf["consequences"]["terminal_reason"],ordered_hits=changed)["status"]=="rejected"

@@ -130,3 +130,39 @@ def test_first_hit_ko_rejects_second_hit_and_normal_two_hit_requires_order():
     _,artifact,_,_,_=_artifact();ret=_retain(artifact);leaf=artifact["terminal_leaves"][0];parent=_parent(ret)
     bad=list(_children(ret,leaf));bad[0],bad[1]=bad[1],bad[0]
     assert reconcile_observed_fixed_two_hit_graph(retained_prediction=ret,source_execution_observation=_execution(ret),parent_observation=parent,hit_observations=bad)["status"]=="rejected"
+
+
+def test_fixed_provenance_emits_only_consumed_observations():
+    _,artifact,_,_,_=_artifact();ret=_retain(artifact);leaf=artifact["terminal_leaves"][0]
+    parent=_parent(ret);children=_children(ret,leaf)
+    unrelated={"observation_id":"unrelated","event_kind":"executed_move_observed"}
+    derived_hp={"observation_id":"hit-1:hp","event_kind":"exact_hp_transition_observed"}
+    derived_faint={"observation_id":"hit-1:faint","event_kind":"faint_observed"}
+    rec=reconcile_observed_fixed_two_hit_graph(
+        retained_prediction=ret,source_execution_observation=_execution(ret),
+        parent_observation=parent,hit_observations=children,
+        related_observations=(unrelated,derived_hp,derived_faint))
+    assert rec["status"]=="resolved"
+    assert rec["source_observation_ids"]==("parent",*(x["observation_id"] for x in children))
+
+
+def test_fixed_explicit_related_contact_observation_is_retained_in_provenance():
+    _,artifact,_,_,_=_artifact();leaf=artifact["terminal_leaves"][0];hit=leaf["ordered_hits"][0]
+    hit["contact_reactive_status"]={"branch":"sleep","authority":{"reactive_ability":"effect-spore","source_hit":{
+        "hit_index":1,"actual_damage":hit["pre_hp"]-hit["post_hp"],"target_pre_hp":hit["pre_hp"],
+        "target_post_hp":hit["post_hp"],"target_routing":"target"}}}
+    ret=_retain(artifact);parent=_parent(ret);children=list(_children(ret,leaf))
+    children[0]["payload"]["related_contact_observation_ids"]=("reactive-1",)
+    a,t=ret["actor"],ret["target"]
+    related={"event_kind":"contact_reactive_status_result_observed","observation_id":"reactive-1","observation_sequence":9,
+        "session_id":ret["session_id"],"turn_number":1,"source":"runtime_observed_contact_reactive_status_result",
+        "trust":"user_confirmed_observation","confirmed":True,"observed":True,
+        "payload":{"source_action_id":ret["source_action_id"],"move_id":ret["move_id"],"reactive_ability":"effect-spore",
+            "outcome":"sleep","attacker_side":a["side"],"attacker_slot_index":a["slot_index"],"attacker_pokemon_id":a["pokemon_id"],
+            "defender_side":t["side"],"defender_slot_index":t["slot_index"],"defender_pokemon_id":t["pokemon_id"],
+            "hp_before":children[0]["payload"]["hp_before"],"hp_after":children[0]["payload"]["hp_after"]}}
+    rec=reconcile_observed_fixed_two_hit_graph(
+        retained_prediction=ret,source_execution_observation=_execution(ret),parent_observation=parent,
+        hit_observations=children,related_observations=(related,{"observation_id":"unrelated"}))
+    assert rec["compatible_source_paths"]
+    assert rec["source_observation_ids"]==("parent",*(x["observation_id"] for x in children),"reactive-1")

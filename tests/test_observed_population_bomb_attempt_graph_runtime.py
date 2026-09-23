@@ -40,6 +40,7 @@ def test_population_bomb_production_admission_atomic_idempotent_and_conflict_rej
         retained_prediction=r,turn_number=1,source_execution_observation=execution,action_outcome="landed",
         landed_hit_count=2,attempt_count=3,terminal_reason="first_miss_terminates_remaining_attempts",ordered_attempts=attempts)
     assert duplicate["status"]=="resolved" and duplicate["idempotent"] is True
+    assert duplicate["reconciliation"]["source_observation_ids"]==first["reconciliation"]["source_observation_ids"]
     changed=list(deepcopy(attempts));changed[-1]={"attempt_index":3,"attempt_outcome":"hit","hit_index":3,"hp_before":90,"hp_after":85,
                                                  "critical_state":None,"related_contact_observation_ids":()}
     assert admit_observed_population_bomb_result(runtime_session_manager=manager,captured_session_id=r["session_id"],

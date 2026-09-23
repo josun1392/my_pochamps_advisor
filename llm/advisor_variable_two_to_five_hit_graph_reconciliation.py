@@ -5,7 +5,7 @@ from copy import deepcopy
 from fractions import Fraction
 from typing import Any, Mapping, Sequence
 
-from llm.advisor_multi_hit_graph_reconciliation import _related_contact_matches_hit
+from llm.advisor_multi_hit_graph_reconciliation import _consumed_related_observations, _related_contact_matches_hit
 
 RETENTION_SCHEMA="historical-multi-hit-predictive-graph-v1"
 RECONCILIATION_SCHEMA="observed-multi-hit-graph-reconciliation-v1"
@@ -58,8 +58,9 @@ def reconcile_observed_variable_two_to_five_hit_graph(*,retained_prediction:Mapp
     related={x.get("observation_id"):x for x in (related_observations or ()) if isinstance(x,Mapping)}
     for h in hits:
         if any(oid not in related for oid in h["payload"].get("related_contact_observation_ids",())): return _result("rejected","multi_hit_related_contact_observation_missing")
+    consumed_related=_consumed_related_observations(hits,related)
     compatible=_compatible_paths(r["predictive_artifact"],parent_observation["payload"],hits,related,r)
-    return _reconciliation(r,"resolved",None,compatible,(parent_observation,*hits,*tuple(related.values())),_unresolved(compatible))
+    return _reconciliation(r,"resolved",None,compatible,(parent_observation,*hits,*consumed_related),_unresolved(compatible))
 
 def _validate_artifact(v:Any)->dict[str,Any]:
     if not isinstance(v,Mapping) or v.get("status")!="evaluable" or v.get("schema_version")!=PREDICTIVE_SCHEMA: return _result("rejected","invalid_variable_two_to_five_predictive_artifact")
