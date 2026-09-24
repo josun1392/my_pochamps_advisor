@@ -129,6 +129,67 @@ def materialize_offline_strategy_choice_outcome_example(
         return _failure("target_partition_membership_invalid")
     partition = memberships[0]
 
+    return _assemble_authenticated_choice(
+        opportunity_record=opportunity_record, opportunity=opportunity,
+        private_information=private_information, submitted_command=submitted_command,
+        terminal_target=terminal_target, evaluation_split=evaluation_split,
+        decision=decision, partition=partition,
+        source_ids={"opportunity": opportunity_source.source_id, "private": private_source.source_id,
+                    "command": command_source.source_id, "terminal": terminal_source.source_id},
+    )
+
+
+def materialize_offline_strategy_choice_outcome_example_from_archive(
+    *, ingestion: Mapping[str, Any], boundary_id: str, evaluation_split: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Join a strictly ingested historical ledger to an external split."""
+    from llm.advisor_c6_durable_archive_offline_ingestion import validates_c6_ingested_archive
+    if not validates_c6_ingested_archive(ingestion):
+        return _failure("archive_ingestion_invalid")
+    rows = [row for row in ingestion["boundaries"] if row["boundary_id"] == boundary_id]
+    if len(rows) != 1:
+        return _failure("boundary_not_ingested")
+    row = rows[0]
+    command = row["submitted_command"]
+    if command is None:
+        return _failure("direct_command_not_observed")
+    target = ingestion["terminal_target"]
+    if target is None:
+        return _failure("terminal_target_unavailable")
+    boundary = row["opportunity_record"]["certificate"]
+    if target["session_id"] != boundary["session_id"] or target["battle_id"] != boundary["battle_id"]:
+        return _failure("foreign_terminal_target")
+    if not validates_materialized_evaluation_split(evaluation_split):
+        return _failure("evaluation_split_invalid")
+    memberships = [partition for partition in PARTITIONS
+                   for candidate in evaluation_split["partitions"][partition]["records"]
+                   if candidate["target_record_id"] == target["target_record_id"] and candidate == target]
+    if len(memberships) != 1:
+        return _failure("target_partition_membership_invalid")
+    base = row["decision_point_without_choice"]
+    post = {**base["post_boundary"], "selected_choice_evidence": {
+        "status": "direct", "selected_choice": command["command_payload"],
+        "command_id": command["command_id"], "source_command_id": command["source_command_id"],
+        "command_source_id": command["command_source_id"],
+        "source_provenance": command["source_provenance"],
+    }}
+    decision = _freeze({**base, "post_boundary": post})
+    return _assemble_authenticated_choice(
+        opportunity_record=row["opportunity_record"], opportunity=row["opportunity_record"],
+        private_information=row["private_information"], submitted_command=command,
+        terminal_target=target, evaluation_split=evaluation_split, decision=decision,
+        partition=memberships[0],
+        source_ids={**row["source_ids"], "terminal": ingestion["archive"]["terminal_evidence_snapshot"]["source_id"]},
+    )
+
+
+def _assemble_authenticated_choice(
+    *, opportunity_record: Mapping[str, Any], opportunity: Mapping[str, Any],
+    private_information: Mapping[str, Any], submitted_command: Mapping[str, Any],
+    terminal_target: Mapping[str, Any], evaluation_split: Mapping[str, Any],
+    decision: Mapping[str, Any], partition: str, source_ids: Mapping[str, str],
+) -> Mapping[str, Any]:
+    boundary = opportunity["certificate"]
     pre = decision["pre_boundary"]
     if (pre["session_id"] != boundary["session_id"] or pre["battle_id"] != boundary["battle_id"]
             or pre["actor"] != boundary["actor"]
@@ -199,10 +260,10 @@ def materialize_offline_strategy_choice_outcome_example(
             "partition": partition,
         },
         "provenance": {
-            "opportunity_source_id": opportunity_source.source_id,
-            "private_source_id": private_source.source_id,
-            "command_source_id": command_source.source_id,
-            "terminal_source_id": terminal_source.source_id,
+            "opportunity_source_id": source_ids["opportunity"],
+            "private_source_id": source_ids["private"],
+            "command_source_id": source_ids["command"],
+            "terminal_source_id": source_ids["terminal"],
             "join_basis": "session_id_and_battle_id",
             "limitations": LIMITATIONS,
         },

@@ -150,6 +150,39 @@ def materialize_offline_strategy_model_feature_semantics(
         "session_id", "battle_id", "actor", "boundary_id", "decision_kind", "turn_number", "channel",
     )):
         return _failure("public_information_choice_mismatch")
+    return _project_authenticated_semantics(choice_example=choice_example,
+                                            public_information=public_information)
+
+
+def materialize_offline_strategy_model_feature_semantics_from_archive(
+    *, ingestion: Mapping[str, Any], boundary_id: str,
+    choice_example: Mapping[str, Any], evaluation_split: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Project the archived pre-command public facts after detached revalidation."""
+    from llm.advisor_c6_durable_archive_offline_ingestion import validates_c6_ingested_archive
+    from llm.advisor_offline_strategy_choice_outcome_example import (
+        materialize_offline_strategy_choice_outcome_example_from_archive,
+    )
+    if not validates_c6_ingested_archive(ingestion):
+        return _failure("archive_ingestion_invalid")
+    rebuilt = materialize_offline_strategy_choice_outcome_example_from_archive(
+        ingestion=ingestion, boundary_id=boundary_id, evaluation_split=evaluation_split)
+    if rebuilt.get("status") != "materialized" or rebuilt != choice_example:
+        return _failure("choice_example_revalidation_failed")
+    rows = [row for row in ingestion["boundaries"] if row["boundary_id"] == boundary_id]
+    if len(rows) != 1:
+        return _failure("boundary_not_ingested")
+    return _project_authenticated_semantics(
+        choice_example=choice_example, public_information=rows[0]["public_information"])
+
+
+def _project_authenticated_semantics(
+    *, choice_example: Mapping[str, Any], public_information: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    if any(public_information.get(key) != choice_example[key] for key in (
+        "session_id", "battle_id", "actor", "boundary_id", "decision_kind", "turn_number", "channel",
+    )):
+        return _failure("public_information_choice_mismatch")
     public = public_information["public_snapshot"]
     private = choice_example["decision_information"]["actor_private_snapshot"]
     actor = choice_example["actor"]
