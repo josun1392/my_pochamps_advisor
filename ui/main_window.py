@@ -97,6 +97,10 @@ from llm.advisor_action_restriction_observation import admit_action_restriction_
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_c6_production_decision_capture import ProductionDecisionCapture
 from llm.advisor_c6_production_transition_capture import ProductionObservedTransitionCapture
+from llm.advisor_c6_production_battle_export import (
+    materialize_c6_production_battle_export, write_c6_production_battle_export,
+)
+from llm.advisor_session_battle_terminal_outcome_evidence import SessionBoundBattleTerminalOutcomeEvidenceSource
 from llm.advisor_offline_decision_point_provenance import _context as _c6_context, _freeze as _c6_freeze
 from llm.advisor_session_decision_public_battle_information import CONDITIONS as _C6_CONDITIONS, WEATHER as _C6_WEATHER, TERRAIN as _C6_TERRAIN, STAT_STAGES as _C6_STAGES
 from llm.advisor_session_actor_private_decision_information import FINAL_STATS as _C6_FINAL_STATS
@@ -509,6 +513,7 @@ class MainWindow(QMainWindow):
         self._observation_runtime_session_manager: BattleObservationRuntimeSessionManager | None = None
         self._c6_decision_capture_owners: dict[tuple[int, str], ProductionDecisionCapture] = {}
         self._c6_transition_capture_owners: dict[tuple[int, str], ProductionObservedTransitionCapture] = {}
+        self._c6_terminal_outcome_source: SessionBoundBattleTerminalOutcomeEvidenceSource | None = None
         self._c6_explicit_context_reference: dict | None = None
         self._current_trusted_turn_number: int | None = None
         self._field_profiles: dict | None = None
@@ -3325,6 +3330,7 @@ class MainWindow(QMainWindow):
         self._battle_session_sequence = candidate_sequence
         self._c6_decision_capture_owners = {}
         self._c6_transition_capture_owners = {}
+        self._c6_terminal_outcome_source = None
         self._c6_explicit_context_reference = None
         self._retire_advice_presentation_authority()
         update_persistence_actions = getattr(self, "_update_persistence_action_state", None)
@@ -3557,6 +3563,79 @@ class MainWindow(QMainWindow):
                            "actor_transitions": tuple(owner.read_snapshot(
                                captured_session_id=session_id, captured_battle_id=session_id)
                                for _, owner in sorted(owners.items()))})
+
+    def _c6_battle_terminal_source(self):
+        session_id = MainWindow._active_session_id(self)
+        if session_id is None:
+            return None
+        source = getattr(self, "_c6_terminal_outcome_source", None)
+        if source is None:
+            created = SessionBoundBattleTerminalOutcomeEvidenceSource.create(
+                session_id=session_id, battle_id=session_id,
+                source_id=f"production:{session_id}:first-person-terminal",
+                source_kind="first_person_battle_stream")
+            if created["status"] != "source_ready":
+                return None
+            source = created["source"]
+            self._c6_terminal_outcome_source = source
+        return source if (source.session_id, source.battle_id) == (session_id, session_id) else None
+
+    def admit_c6_terminal_declaration(
+        self, *, captured_session_id: str, captured_battle_id: str,
+        declaring_source_id: str, source_terminal_event_id: str,
+        source_event_sequence: int, declared_result: str, termination_cause: str,
+        turn_number: int | None = None, raw_termination_cause: str | None = None,
+        source_cause_event_id: str | None = None,
+    ):
+        """Ingress for an actual first-person battle-stream final event only."""
+        source = MainWindow._c6_battle_terminal_source(self)
+        if source is None:
+            return _c6_freeze({"status": "rejected", "reason": "terminal_source_unavailable"})
+        return source.admit_final_declaration(
+            captured_session_id=captured_session_id, captured_battle_id=captured_battle_id,
+            declaring_source_id=declaring_source_id,
+            source_terminal_event_id=source_terminal_event_id,
+            source_event_sequence=source_event_sequence, declared_result=declared_result,
+            termination_cause=termination_cause, turn_number=turn_number,
+            raw_termination_cause=raw_termination_cause,
+            source_cause_event_id=source_cause_event_id)
+
+    def admit_c6_stream_end_without_declaration(
+        self, *, captured_session_id: str, captured_battle_id: str,
+        declaring_source_id: str, source_stream_end_event_id: str,
+        source_event_sequence: int, turn_number: int | None = None,
+    ):
+        """Only an explicit upstream stream-end marker reaches this API."""
+        source = MainWindow._c6_battle_terminal_source(self)
+        if source is None:
+            return _c6_freeze({"status": "rejected", "reason": "terminal_source_unavailable"})
+        return source.record_stream_end_without_declaration(
+            captured_session_id=captured_session_id, captured_battle_id=captured_battle_id,
+            declaring_source_id=declaring_source_id,
+            source_stream_end_event_id=source_stream_end_event_id,
+            source_event_sequence=source_event_sequence, turn_number=turn_number)
+
+    def materialize_c6_battle_export(self, *, competition_context: str,
+                                     optional_population_metadata=None):
+        session_id = MainWindow._active_session_id(self)
+        source = MainWindow._c6_battle_terminal_source(self)
+        if session_id is None or source is None:
+            return _c6_freeze({"status": "rejected", "reason": "battle_unavailable"})
+        return materialize_c6_production_battle_export(
+            session_id=session_id, battle_id=session_id,
+            decision_captures=tuple(getattr(self, "_c6_decision_capture_owners", {}).values()),
+            transition_captures=tuple(getattr(self, "_c6_transition_capture_owners", {}).values()),
+            terminal_source=source, competition_context=competition_context,
+            optional_population_metadata=optional_population_metadata)
+
+    def save_c6_battle_export(self, *, output_path, competition_context: str,
+                              optional_population_metadata=None):
+        bundle = MainWindow.materialize_c6_battle_export(
+            self, competition_context=competition_context,
+            optional_population_metadata=optional_population_metadata)
+        if bundle.get("status") != "materialized":
+            return bundle
+        return write_c6_production_battle_export(export_bundle=bundle, output_path=output_path)
 
     def _refresh_c6_observed_transitions(self) -> None:
         """Only actual collection/reducer evidence can resolve a retained anchor."""

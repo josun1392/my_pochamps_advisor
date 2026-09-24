@@ -199,6 +199,9 @@ class ProductionObservedTransitionCapture:
                         "pending_anchors": tuple(self._anchors[key] for key in sorted(self._anchors)
                                                  if key not in self._resolved),
                         "resolved_transitions": tuple(self._resolved[key] for key in sorted(self._resolved)),
+                        "resolved_transition_records": tuple(
+                            {"boundary_id": key, "transition": self._resolved[key]}
+                            for key in sorted(self._resolved)),
                         "latest_attempts": tuple({"boundary_id": key, "result": self._attempts[key]}
                                                  for key in sorted(self._attempts))})
 
