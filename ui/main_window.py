@@ -1590,38 +1590,55 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _open_current_hp_dialog(self) -> None:
+        session_id = self._active_session_id()
+        if session_id is None:
+            self.statusBar().showMessage("Current HP confirmation failed: active session unavailable")
+            return
+        if getattr(self, "_current_trusted_turn_number", None) is None:
+            self.statusBar().showMessage("Current HP confirmation failed: set the current turn first")
+            return
         owners = {side: self._current_hp_owner_for_side(side) for side in ("self", "opponent")}
         dialog = CurrentHPDialog(current_hp=getattr(self, "_current_hp_confirmations", {}), parent=self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        applied = False
+        entries = []
         for raw_entry in dialog.current_hp_confirmations:
             try:
                 entry = normalize_user_confirmed_current_hp(raw_entry)
             except ValueError:
-                continue
+                self.statusBar().showMessage("Current HP confirmation failed: invalid exact HP")
+                return
             owner = owners.get(entry["side"])
-            if owner is None or owner != self._current_hp_owner_for_side(entry["side"]):
-                continue
-            manager = getattr(self, "_observation_runtime_session_manager", None)
-            state = manager.read_state().get("state") if isinstance(manager, BattleObservationRuntimeSessionManager) else None
+            if owner is None or owner[0] != session_id or owner != self._current_hp_owner_for_side(entry["side"]) or self._active_session_id() != session_id:
+                self.statusBar().showMessage("Current HP confirmation failed: active owner or session changed")
+                return
+            entries.append((entry, owner))
+        if not entries:
+            self.statusBar().showMessage("Current HP confirmation failed: no side confirmed")
+            return
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        snapshot = manager.capture_runtime_state_snapshot(session_id) if isinstance(manager, BattleObservationRuntimeSessionManager) else {}
+        state = snapshot.get("state") if snapshot.get("status") == "runtime_snapshot_ready" else None
+        for entry, owner in entries:
             side_state = state.get(f"{entry['side']}_side") if isinstance(state, dict) else None
             roster = side_state.get("pokemon") if isinstance(side_state, dict) else None
-            current = roster.get(owner[1], roster.get(str(owner[1]))) if isinstance(roster, dict) else None
-            before = current.get("current_hp") if isinstance(current, dict) else None
-            maximum = current.get("max_hp") if isinstance(current, dict) else None
-            if not isinstance(before, int) or isinstance(before, bool) or maximum != entry["maximum_hp"]:
-                continue
-            event_kind = "exact_hp_recovery_observed" if entry["current_hp"] >= before else "exact_hp_transition_observed"
-            if not self._admit_current_state_fact(event_kind, {"hp_before": before, "hp_after": entry["current_hp"]}, entry["side"]):
-                continue
+            active_slot = side_state.get("active_slot_index") if isinstance(side_state, dict) else None
+            active = roster.get(active_slot, roster.get(str(active_slot))) if isinstance(roster, dict) else None
+            if not isinstance(active, dict) or (session_id, active_slot, active.get("pokemon_id", active.get("name_en"))) != owner:
+                self.statusBar().showMessage("Current HP confirmation failed: active owner or session changed")
+                return
+        facts = [{"event_kind": "current_hp_observed", "side": entry["side"],
+                  "payload": {"current_hp": entry["current_hp"], "maximum_hp": entry["maximum_hp"]}}
+                 for entry, _ in entries]
+        if not self._admit_current_state_facts(facts):
+            return
+        for entry, owner in entries:
             self._current_hp_confirmations[entry["side"]] = entry
             self._current_hp_confirmation_owners[entry["side"]] = owner
-            applied = True
-        if applied:
-            self._update_current_hp_summary()
-            if getattr(self, "_recommendation_readiness_owner", None) is not None:
-                self._check_structured_recommendation_readiness()
+        self._update_current_hp_summary()
+        self.statusBar().showMessage("Current HP snapshot confirmed")
+        if getattr(self, "_recommendation_readiness_owner", None) is not None:
+            self._check_structured_recommendation_readiness()
 
     @Slot()
     def _clear_current_hp_confirmations(self) -> None:
@@ -1665,6 +1682,9 @@ class MainWindow(QMainWindow):
         self._start_new_battle_action = QAction("Start / New Battle", self)
         self._start_new_battle_action.triggered.connect(self._open_new_battle)
         battle_menu.addAction(self._start_new_battle_action)
+        self._set_current_turn_action = QAction("Set Current Turn...", self)
+        self._set_current_turn_action.triggered.connect(self._open_current_turn)
+        battle_menu.addAction(self._set_current_turn_action)
         self._c6_begin_decision_capture_action = QAction("Capture Decision Opportunity", self)
         self._c6_begin_decision_capture_action.triggered.connect(self._open_c6_decision_capture)
         battle_menu.addAction(self._c6_begin_decision_capture_action)
@@ -1725,7 +1745,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_c6_export_battle_evidence_action", "_c6_begin_decision_capture_action", "_c6_confirm_submitted_command_action", "_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_fixed_two_hit_result_action", "_confirm_variable_two_to_five_hit_result_action", "_confirm_population_bomb_result_action", "_confirm_paralysis_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_set_current_turn_action", "_c6_export_battle_evidence_action", "_c6_begin_decision_capture_action", "_c6_confirm_submitted_command_action", "_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_fixed_two_hit_result_action", "_confirm_variable_two_to_five_hit_result_action", "_confirm_population_bomb_result_action", "_confirm_paralysis_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -1740,6 +1760,18 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("New battle failed: session could not be started.")
         else:
             self.statusBar().showMessage("New battle session ready")
+
+    @Slot()
+    def _open_current_turn(self) -> None:
+        if self._active_session_id() is None:
+            self.statusBar().showMessage("Current turn failed: active session unavailable")
+            return
+        current = getattr(self, "_current_trusted_turn_number", None)
+        turn, accepted = QInputDialog.getInt(self, "Set Current Turn", "Current turn number", current or 1, 1)
+        if not accepted:
+            return
+        self.set_current_turn_number(turn)
+        self.statusBar().showMessage(f"Current turn set to {turn}")
 
     @Slot()
     def _open_pokemon_switch_confirmation(self) -> None:

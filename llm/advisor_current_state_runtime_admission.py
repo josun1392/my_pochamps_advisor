@@ -5,7 +5,7 @@ from typing import Any, Mapping
 from llm.advisor_lifecycle_confirmation import (
     CURRENT_ABILITY_SOURCE, CURRENT_BATTLE_FORMAT_SOURCE, CURRENT_ITEM_SOURCE,
     CURRENT_LEVEL_SOURCE, CURRENT_SIDE_CONDITIONS_SOURCE, CURRENT_TERRAIN_SOURCE, CURRENT_TYPE_SOURCE,
-    CURRENT_WEATHER_SOURCE, FINAL_COMBAT_STAT_SOURCE, HP_RECOVERY_SOURCE, HP_TRANSITION_SOURCE,
+    CURRENT_WEATHER_SOURCE, FINAL_COMBAT_STAT_SOURCE, HP_RECOVERY_SOURCE, HP_TRANSITION_SOURCE, CURRENT_HP_SOURCE,
     STAT_STAGE_SOURCE, TAILWIND_SOURCE, TRICK_ROOM_SOURCE, GRAVITY_SOURCE, LOCKED_ON_SOURCE, USER_TRUST, LifecycleConfirmationBoundary,
 )
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
@@ -20,6 +20,7 @@ _SOURCES = {
     "current_level_observed": CURRENT_LEVEL_SOURCE,
     "exact_hp_transition_observed": HP_TRANSITION_SOURCE,
     "exact_hp_recovery_observed": HP_RECOVERY_SOURCE,
+    "current_hp_observed": CURRENT_HP_SOURCE,
     "current_weather_observed": CURRENT_WEATHER_SOURCE,
     "current_terrain_observed": CURRENT_TERRAIN_SOURCE,
     "current_side_conditions_observed": CURRENT_SIDE_CONDITIONS_SOURCE,

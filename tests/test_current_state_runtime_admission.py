@@ -95,6 +95,83 @@ def test_exact_current_hp_admission_uses_the_authoritative_prior_hp():
     assert manager.read_state()["state"]["opponent_side"]["pokemon"][0]["current_hp"] == 61
 
 
+def test_direct_current_hp_snapshot_establishes_and_supersedes_unknown_without_transition():
+    state = create_unknown_bootstrap_battle_state("hp-snapshot", "self-a", "opponent-a")["state"]
+    manager = BattleObservationRuntimeSessionManager.create("hp-snapshot", state)["manager"]
+    pokemon = manager.read_state()["state"]["self_side"]["pokemon"][0]
+    assert pokemon["current_hp"] == {"knowledge": "unknown"}
+    assert pokemon["max_hp"] == {"knowledge": "unknown"}
+    for current, maximum in ((20, 35), (18, 40), (0, 40)):
+        result = admit_current_state_observation(
+            runtime_session_manager=manager, captured_session_id="hp-snapshot",
+            event_kind="current_hp_observed", payload={"current_hp": current, "maximum_hp": maximum},
+            side="self", turn_number=1,
+        )
+        assert result["status"] == "resolved", result
+        observation = result["observation"]
+        assert observation["session_id"] == "hp-snapshot"
+        assert observation["pokemon_id"] == "self-a"
+        assert observation["source"] == "ui_current_hp_confirmation"
+        assert observation["trust"] == "user_confirmed_observation"
+        assert "hp_before" not in observation and "hp_after" not in observation
+        pokemon = manager.read_state()["state"]["self_side"]["pokemon"][0]
+        assert (pokemon["current_hp"], pokemon["max_hp"]) == (current, maximum)
+        for field in ("current_hp", "max_hp"):
+            assert pokemon[f"{field}_provenance"]["source_observation_id"] == observation["observation_id"]
+    assert manager.read_state()["state"]["self_side"]["pokemon"][0]["fainted"] == {"knowledge": "unknown"}
+
+
+@pytest.mark.parametrize("payload", [
+    {"current_hp": -1, "maximum_hp": 35},
+    {"current_hp": 36, "maximum_hp": 35},
+    {"current_hp": 0, "maximum_hp": 0},
+    {"current_hp": True, "maximum_hp": 35},
+    {"current_hp": 20, "maximum_hp": False},
+])
+def test_invalid_direct_hp_snapshot_rejects_without_runtime_mutation(payload):
+    manager = _manager(); before = deepcopy(manager.read_state())
+    result = admit_current_state_observation(
+        runtime_session_manager=manager, captured_session_id="current-state-ui",
+        event_kind="current_hp_observed", payload=payload, side="self", turn_number=1,
+    )
+    assert result["status"] == "rejected"
+    assert manager.read_state() == before
+
+
+def test_direct_hp_snapshot_rejects_foreign_session_and_atomic_second_side_failure():
+    manager = _manager(); before = deepcopy(manager.read_state())
+    assert admit_current_state_observation(
+        runtime_session_manager=manager, captured_session_id="foreign",
+        event_kind="current_hp_observed", payload={"current_hp": 20, "maximum_hp": 35},
+        side="self", turn_number=1,
+    )["status"] == "rejected"
+    result = admit_current_state_observations(
+        runtime_session_manager=manager, captured_session_id="current-state-ui", turn_number=1,
+        observations=(
+            {"event_kind": "current_hp_observed", "side": "self", "payload": {"current_hp": 20, "maximum_hp": 35}},
+            {"event_kind": "current_hp_observed", "side": "opponent", "payload": {"current_hp": 40, "maximum_hp": 35}},
+        ),
+    )
+    assert result["status"] == "rejected"
+    assert manager.read_state() == before
+
+
+def test_direct_hp_snapshots_commit_both_active_sides_atomically():
+    state = create_unknown_bootstrap_battle_state("hp-both", "self-a", "opponent-a")["state"]
+    manager = BattleObservationRuntimeSessionManager.create("hp-both", state)["manager"]
+    result = admit_current_state_observations(
+        runtime_session_manager=manager, captured_session_id="hp-both", turn_number=1,
+        observations=(
+            {"event_kind": "current_hp_observed", "side": "self", "payload": {"current_hp": 20, "maximum_hp": 35}},
+            {"event_kind": "current_hp_observed", "side": "opponent", "payload": {"current_hp": 30, "maximum_hp": 40}},
+        ),
+    )
+    assert result["status"] == "resolved", result
+    current = manager.read_state()["state"]
+    assert (current["self_side"]["pokemon"][0]["current_hp"], current["self_side"]["pokemon"][0]["max_hp"]) == (20, 35)
+    assert (current["opponent_side"]["pokemon"][0]["current_hp"], current["opponent_side"]["pokemon"][0]["max_hp"]) == (30, 40)
+
+
 def test_admitted_type_is_visible_to_frozen_d0_without_ui_object_aliasing():
     manager = _manager()
     payload = {"types": ["fire"]}

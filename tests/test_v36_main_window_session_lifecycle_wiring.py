@@ -151,6 +151,81 @@ def test_real_battle_menu_starts_and_rolls_over_only_on_explicit_action():
     window.close()
 
 
+def test_real_turn_action_is_explicit_and_resets_on_battle_rollover(monkeypatch):
+    QApplication.instance() or QApplication([])
+    window = MainWindow()
+    action = window._set_current_turn_action
+    assert action in window._battle_menu.actions()
+    assert action.text() == "Set Current Turn..." and not action.isEnabled()
+    window.my_team_column.panels[0].pokemon_view = SimpleNamespace(en="pikachu")
+    window.opponent_team_column.panels[0].pokemon_view = SimpleNamespace(en="eevee")
+    assert window._current_trusted_turn_number is None
+    window._start_new_battle_action.trigger()
+    assert action.isEnabled() and window._trusted_turn_context_snapshot()["status"] == "unavailable"
+    monkeypatch.setattr(main_window_module.QInputDialog, "getInt", lambda *args: (3, True))
+    action.trigger()
+    assert window._trusted_turn_context_snapshot()["turn_number"] == 3
+    assert window.statusBar().currentMessage() == "Current turn set to 3"
+    window._historical_multi_hit_predictions = {"old": object()}
+    monkeypatch.setattr(main_window_module.QInputDialog, "getInt", lambda *args: (4, True))
+    action.trigger()
+    assert window._historical_multi_hit_predictions == {}
+    window._start_new_battle_action.trigger()
+    assert window._trusted_turn_context_snapshot()["status"] == "unavailable"
+    window.close()
+
+
+def test_current_hp_dialog_applies_fresh_snapshot_and_reopens_without_local_mirror_on_failure(monkeypatch):
+    QApplication.instance() or QApplication([])
+    window = MainWindow()
+    window.my_team_column.panels[0].pokemon_view = SimpleNamespace(en="pikachu")
+    window.opponent_team_column.panels[0].pokemon_view = SimpleNamespace(en="eevee")
+    window._start_new_battle_action.trigger()
+    entry = {"side": "self", "current_hp": 20, "maximum_hp": 35,
+             "status": "user_confirmed", "source": "user_confirmed_current_hp", "confidence": "known"}
+    shown = []
+    class Dialog:
+        def __init__(self, current_hp, parent):
+            shown.append(deepcopy(current_hp))
+            self.current_hp_confirmations = [deepcopy(entry)]
+        def exec(self): return main_window_module.QDialog.DialogCode.Accepted
+    monkeypatch.setattr(main_window_module, "CurrentHPDialog", Dialog)
+    window._open_current_hp_dialog()
+    assert window._current_hp_confirmations == {}
+    assert "set the current turn" in window.statusBar().currentMessage()
+    window.set_current_turn_number(1)
+    window._open_current_hp_dialog()
+    pokemon = window._observation_runtime_session_manager.read_state()["state"]["self_side"]["pokemon"][0]
+    assert (pokemon["current_hp"], pokemon["max_hp"]) == (20, 35)
+    assert window.statusBar().currentMessage() == "Current HP snapshot confirmed"
+    window._open_current_hp_dialog()
+    assert shown[-1]["self"] == entry
+    assert window._current_hp_confirmations["self"] == entry
+    window.close()
+
+
+def test_current_hp_dialog_rejects_ui_owner_that_differs_from_active_runtime(monkeypatch):
+    QApplication.instance() or QApplication([])
+    window = MainWindow()
+    window.my_team_column.panels[0].pokemon_view = SimpleNamespace(en="pikachu")
+    window.opponent_team_column.panels[0].pokemon_view = SimpleNamespace(en="eevee")
+    window._start_new_battle_action.trigger()
+    window.set_current_turn_number(1)
+    before = deepcopy(window._observation_runtime_session_manager.read_state())
+    window.my_team_column.panels[0].pokemon_view = SimpleNamespace(en="raichu")
+    class Dialog:
+        def __init__(self, current_hp, parent):
+            self.current_hp_confirmations = [{"side": "self", "current_hp": 20, "maximum_hp": 35,
+                "status": "user_confirmed", "source": "user_confirmed_current_hp", "confidence": "known"}]
+        def exec(self): return main_window_module.QDialog.DialogCode.Accepted
+    monkeypatch.setattr(main_window_module, "CurrentHPDialog", Dialog)
+    window._open_current_hp_dialog()
+    assert window._observation_runtime_session_manager.read_state() == before
+    assert window._current_hp_confirmations == {}
+    assert "active owner or session changed" in window.statusBar().currentMessage()
+    window.close()
+
+
 def test_main_window_has_no_independent_mutable_observation_sequence():
     window = _Harness()
     assert not hasattr(window, "_observation_sequence") and window._observation_runtime_session_manager.last_allocated_sequence == 0
