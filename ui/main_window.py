@@ -100,6 +100,7 @@ from llm.advisor_c6_production_transition_capture import ProductionObservedTrans
 from llm.advisor_c6_production_battle_export import (
     materialize_c6_production_battle_export, write_c6_production_battle_export,
 )
+from llm.advisor_offline_strategy_episode_population_context import COMPETITION_CONTEXTS
 from llm.advisor_session_battle_terminal_outcome_evidence import SessionBoundBattleTerminalOutcomeEvidenceSource
 from llm.advisor_offline_decision_point_provenance import _context as _c6_context, _freeze as _c6_freeze
 from llm.advisor_session_decision_public_battle_information import CONDITIONS as _C6_CONDITIONS, WEATHER as _C6_WEATHER, TERRAIN as _C6_TERRAIN, STAT_STAGES as _C6_STAGES
@@ -1647,15 +1648,20 @@ class MainWindow(QMainWindow):
         return manager.session_id if isinstance(manager, BattleObservationRuntimeSessionManager) else None
 
     def _setup_persistence_actions(self) -> None:
-        """Install the two explicit persistence entry points; no action runs implicitly."""
+        """Install explicit persistence actions; no action runs implicitly."""
         file_menu = self.menuBar().addMenu("File")
+        self._file_menu = file_menu
         self._save_battle_state_action = QAction("Save Battle State", self)
         self._load_battle_state_action = QAction("Load Battle State", self)
         self._save_battle_state_action.triggered.connect(self._save_battle_state)
         self._load_battle_state_action.triggered.connect(self._load_battle_state)
         file_menu.addAction(self._save_battle_state_action)
         file_menu.addAction(self._load_battle_state_action)
+        self._c6_export_battle_evidence_action = QAction("Export C6 Battle Evidence...", self)
+        self._c6_export_battle_evidence_action.triggered.connect(self._open_c6_battle_export)
+        file_menu.addAction(self._c6_export_battle_evidence_action)
         battle_menu = self.menuBar().addMenu("Battle")
+        self._battle_menu = battle_menu
         self._c6_begin_decision_capture_action = QAction("Capture Decision Opportunity", self)
         self._c6_begin_decision_capture_action.triggered.connect(self._open_c6_decision_capture)
         battle_menu.addAction(self._c6_begin_decision_capture_action)
@@ -1716,7 +1722,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_c6_begin_decision_capture_action", "_c6_confirm_submitted_command_action", "_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_fixed_two_hit_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_c6_export_battle_evidence_action", "_c6_begin_decision_capture_action", "_c6_confirm_submitted_command_action", "_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_fixed_two_hit_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -3479,16 +3485,9 @@ class MainWindow(QMainWindow):
             if isinstance(trick_room, str) and trick_room in {"active", "inactive"}:
                 public_snapshot["field"]["trick_room"] = {"availability": "available", "value": trick_room == "active"}
             observed_moves = opponent_side["pokemon"][opponent_slot].get("known_move_ids", ())
-            known_moves = set()
             if isinstance(observed_moves, (list, tuple)) and all(isinstance(move, str) and move for move in observed_moves):
-                known_moves.update(observed_moves)
-            opponent_panel = self._slot_panel("team_enemy", opponent_slot)
-            for move in getattr(opponent_panel, "selected_moves", ()):
-                move_id = getattr(move, "move_id", None)
-                if isinstance(move_id, str) and move_id:
-                    known_moves.add(move_id)
-            if known_moves:
-                public_snapshot["opponent_revealed_moves"] = {"status": "partial", "move_ids": sorted(known_moves)}
+                if observed_moves:
+                    public_snapshot["opponent_revealed_moves"] = {"status": "partial", "move_ids": sorted(observed_moves)}
             owners = getattr(self, "_c6_decision_capture_owners", None)
             if owners is None:
                 owners = {}
@@ -3636,6 +3635,34 @@ class MainWindow(QMainWindow):
         if bundle.get("status") != "materialized":
             return bundle
         return write_c6_production_battle_export(export_bundle=bundle, output_path=output_path)
+
+    @Slot()
+    def _open_c6_battle_export(self) -> None:
+        """Export only on an explicit request with caller-chosen context and path."""
+        if MainWindow._active_session_id(self) is None:
+            self.statusBar().showMessage("C6 battle evidence export unavailable: start a battle first.")
+            return
+        contexts = ["unknown", *sorted(COMPETITION_CONTEXTS - {"unknown"})]
+        competition_context, confirmed = QInputDialog.getItem(
+            self, "Export C6 Battle Evidence", "Competition context", contexts, 0, False)
+        if not confirmed:
+            self.statusBar().showMessage("C6 battle evidence export cancelled.")
+            return
+        if competition_context not in COMPETITION_CONTEXTS:
+            self.statusBar().showMessage("C6 battle evidence export failed: competition context invalid.")
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export C6 Battle Evidence", "", "C6 Battle Evidence (*.json)")
+        if not path:
+            self.statusBar().showMessage("C6 battle evidence export cancelled.")
+            return
+        result = MainWindow.save_c6_battle_export(
+            self, output_path=path, competition_context=competition_context)
+        if result.get("status") == "written":
+            self.statusBar().showMessage("C6 battle evidence exported.")
+        else:
+            self.statusBar().showMessage(
+                f"C6 battle evidence export failed: {result.get('reason', 'unknown_error')}.")
 
     def _refresh_c6_observed_transitions(self) -> None:
         """Only actual collection/reducer evidence can resolve a retained anchor."""

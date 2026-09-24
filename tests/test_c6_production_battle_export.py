@@ -3,7 +3,12 @@ import json
 from types import MappingProxyType
 
 import pytest
+from PySide6.QtWidgets import QApplication
 
+import ui.main_window as main_window_module
+from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
+from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
+from llm.advisor_offline_strategy_episode_population_context import COMPETITION_CONTEXTS
 from llm.advisor_c6_production_battle_export import (
     materialize_c6_production_battle_export, write_c6_production_battle_export,
 )
@@ -226,3 +231,87 @@ def test_main_window_terminal_ingress_and_new_battle_reset_preserve_written_arch
     new_export = MainWindow.materialize_c6_battle_export(window, competition_context="unknown")
     assert new_export["terminal_evidence_snapshot"]["outcome_evidence"] is None
     assert new_export["export_id"] != empty["export_id"]
+
+
+def test_real_main_window_file_action_reaches_existing_c6_writer(monkeypatch, tmp_path):
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    window = MainWindow()
+    action = window._c6_export_battle_evidence_action
+    file_actions = window._file_menu.actions()
+    assert window._file_menu.menuAction() in window.menuBar().actions()
+    assert action in file_actions and action.text() == "Export C6 Battle Evidence..."
+    assert window._save_battle_state_action in file_actions
+    assert not action.isEnabled()
+    initial = create_unknown_bootstrap_battle_state("c6-export-ui", "pikachu", "eevee")["state"]
+    window._observation_runtime_session_manager = BattleObservationRuntimeSessionManager.create(
+        "c6-export-ui", initial)["manager"]
+    window._update_persistence_action_state()
+    assert action.isEnabled()
+    path = str(tmp_path / "battle.json")
+    calls = []
+    monkeypatch.setattr(main_window_module.QInputDialog, "getItem", lambda *args: ("unknown", True))
+    monkeypatch.setattr(main_window_module.QFileDialog, "getSaveFileName", lambda *args: (path, ""))
+    monkeypatch.setattr(MainWindow, "save_c6_battle_export", lambda self, **kwargs:
+                        calls.append(kwargs) or {"status": "written"})
+    action.trigger()
+    assert calls == [{"output_path": path, "competition_context": "unknown"}]
+    assert window.statusBar().currentMessage() == "C6 battle evidence exported."
+    window.close()
+
+
+def test_c6_export_action_requires_session_before_any_prompt(monkeypatch):
+    window = _Harness(active=False)
+    monkeypatch.setattr(main_window_module.QInputDialog, "getItem", lambda *_: pytest.fail("prompt"))
+    monkeypatch.setattr(MainWindow, "save_c6_battle_export", lambda *_a, **_k: pytest.fail("write"))
+    MainWindow._open_c6_battle_export(window)
+    assert window.status.messages[-1] == "C6 battle evidence export unavailable: start a battle first."
+
+
+def test_c6_export_prompt_cancellation_never_opens_file_or_writes(monkeypatch):
+    window = _Harness()
+    monkeypatch.setattr(main_window_module.QInputDialog, "getItem", lambda *_: ("", False))
+    monkeypatch.setattr(main_window_module.QFileDialog, "getSaveFileName", lambda *_: pytest.fail("file dialog"))
+    monkeypatch.setattr(MainWindow, "save_c6_battle_export", lambda *_a, **_k: pytest.fail("write"))
+    MainWindow._open_c6_battle_export(window)
+    assert window.status.messages[-1] == "C6 battle evidence export cancelled."
+
+
+def test_c6_export_file_cancellation_never_writes(monkeypatch):
+    window = _Harness()
+    monkeypatch.setattr(main_window_module.QInputDialog, "getItem", lambda *_: ("unknown", True))
+    monkeypatch.setattr(main_window_module.QFileDialog, "getSaveFileName", lambda *_: ("", ""))
+    monkeypatch.setattr(MainWindow, "save_c6_battle_export", lambda *_a, **_k: pytest.fail("write"))
+    MainWindow._open_c6_battle_export(window)
+    assert window.status.messages[-1] == "C6 battle evidence export cancelled."
+
+
+@pytest.mark.parametrize("context", ["unknown", "tournament"])
+def test_c6_export_passes_explicit_supported_context_and_path(monkeypatch, tmp_path, context):
+    window = _Harness()
+    path = str(tmp_path / "chosen.json")
+    calls = []
+    def choose_context(*args):
+        assert set(args[3]) == COMPETITION_CONTEXTS
+        return context, True
+    monkeypatch.setattr(main_window_module.QInputDialog, "getItem", choose_context)
+    monkeypatch.setattr(main_window_module.QFileDialog, "getSaveFileName", lambda *args: (path, ""))
+    monkeypatch.setattr(MainWindow, "save_c6_battle_export", lambda self, **kwargs:
+                        calls.append(kwargs) or {"status": "written"})
+    MainWindow._open_c6_battle_export(window)
+    assert calls == [{"output_path": path, "competition_context": context}]
+    assert window.status.messages[-1] == "C6 battle evidence exported."
+
+
+def test_c6_export_surfaces_writer_rejection_and_never_exports_on_reset(monkeypatch, tmp_path):
+    window = _Harness()
+    calls = []
+    monkeypatch.setattr(main_window_module.QInputDialog, "getItem", lambda *_: ("ladder", True))
+    monkeypatch.setattr(main_window_module.QFileDialog, "getSaveFileName", lambda *_: (str(tmp_path / "battle.json"), ""))
+    monkeypatch.setattr(MainWindow, "save_c6_battle_export", lambda self, **kwargs:
+                        calls.append(kwargs) or {"status": "rejected", "reason": "destination_content_conflict"})
+    MainWindow._open_c6_battle_export(window)
+    assert window.status.messages[-1] == "C6 battle evidence export failed: destination_content_conflict."
+    assert len(calls) == 1
+    MainWindow.begin_new_battle(window)
+    assert len(calls) == 1

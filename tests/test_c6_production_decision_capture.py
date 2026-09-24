@@ -133,13 +133,66 @@ def test_confirmed_own_move_is_private_and_later_ui_mutation_cannot_rewrite_it()
     assert _begin(window)["status"] == "rejected"  # same boundary cannot absorb later UI edits
 
 
-def test_only_user_confirmed_opponent_moves_enter_public_revealed_set():
+def _begin_with_reducer_known_opponent_moves(window, move_ids):
+    snapshot = window._observation_runtime_session_manager.capture_runtime_state_snapshot("ui-session-0")
+    snapshot["state"]["opponent_side"]["pokemon"][0]["known_move_ids"] = list(move_ids)
+    return MainWindow.begin_c6_decision_capture(window, runtime_snapshot=snapshot)
+
+
+def test_panel_selected_opponent_move_alone_is_not_public_revealed_evidence():
     window = _window()
-    window._panels[("team_enemy", 0)].selected_moves = [SimpleNamespace(move_id="shadow-ball")]
+    panel = window._panels[("team_enemy", 0)]
+    panel.selected_moves = [SimpleNamespace(move_id="shadow-ball")]
     record = _begin(window)
     assert record["status"] == "captured"
     assert record["public_information"]["public_snapshot"]["opponent_revealed_moves"] == {
+        "status": "unknown", "move_ids": ()}
+    assert panel.selected_moves[0].move_id == "shadow-ball"
+
+
+def test_non_c6_opponent_move_selection_context_remains_available():
+    window = _window()
+    panel = window._panels[("team_enemy", 0)]
+    panel.selected_moves = [SimpleNamespace(
+        move_id="shadow-ball", name_en="Shadow Ball", name_ko=None, type="ghost",
+        category="special", power=80, accuracy=100, pp=15, priority=0,
+        drain=None, min_hits=None, max_hits=None, healing=None)]
+    window.champions_move_pool_repo = SimpleNamespace(
+        status_for_pokemon=lambda *_: {"status": "ready"})
+    window._panel_moves_payload = MainWindow._panel_moves_payload
+    window._opponent_candidate_moves = lambda *_: []
+    payload = MainWindow._opponent_moves_payload(window, panel)
+    assert payload["known_moves"][0]["move_id"] == "shadow-ball"
+    assert payload["known_moves"][0]["source"] == "user_confirmed"
+
+
+def test_reducer_known_opponent_move_is_preserved_without_panel_selection():
+    window = _window()
+    record = _begin_with_reducer_known_opponent_moves(window, ("shadow-ball",))
+    assert record["status"] == "captured", record
+    assert record["public_information"]["public_snapshot"]["opponent_revealed_moves"] == {
         "status": "partial", "move_ids": ("shadow-ball",)}
+
+
+def test_panel_selection_and_candidate_cannot_expand_reducer_known_moves():
+    window = _window()
+    panel = window._panels[("team_enemy", 0)]
+    panel.selected_moves = [SimpleNamespace(move_id="candidate-move")]
+    window._opponent_candidate_moves = lambda *_: ["another-candidate"]
+    record = _begin_with_reducer_known_opponent_moves(window, ("shadow-ball",))
+    assert record["status"] == "captured", record
+    assert record["public_information"]["public_snapshot"]["opponent_revealed_moves"] == {
+        "status": "partial", "move_ids": ("shadow-ball",)}
+    assert panel.selected_moves[0].move_id == "candidate-move"
+
+
+def test_empty_reducer_known_moves_remain_unknown_despite_panel_selection():
+    window = _window()
+    window._panels[("team_enemy", 0)].selected_moves = [SimpleNamespace(move_id="candidate-move")]
+    record = _begin_with_reducer_known_opponent_moves(window, ())
+    assert record["status"] == "captured", record
+    assert record["public_information"]["public_snapshot"]["opponent_revealed_moves"] == {
+        "status": "unknown", "move_ids": ()}
 
 
 def test_capture_snapshot_is_deeply_read_only_and_context_is_copied():
