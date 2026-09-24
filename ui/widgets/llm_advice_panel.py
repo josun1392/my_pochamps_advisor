@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QPushButton, QTextEdit, QVBoxLayout
+from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QLayout, QPushButton, QScrollArea, QTextEdit, QVBoxLayout, QWidget
 from ui.strategy_explanation_presentation import present_strategy_explanation, render_strategy_explanation
 
 
@@ -231,37 +231,61 @@ class LLMAdvicePanel(QFrame):
         layout.addWidget(self.readiness_button)
         layout.addWidget(self.readiness_label)
         layout.addLayout(self.readiness_input_layout)
-        layout.addWidget(self.field_profile_button)
-        layout.addWidget(self.item_event_button)
-        layout.addWidget(self.clear_item_events_button)
-        layout.addWidget(self.current_condition_button)
-        layout.addWidget(self.clear_current_conditions_button)
-        layout.addWidget(self.status_progression_button)
-        layout.addWidget(self.pending_status_action_result_button)
-        layout.addWidget(self.current_ability_button)
-        layout.addWidget(self.current_persistent_effect_button)
-        layout.addWidget(self.switch_permission_button)
-        layout.addWidget(self.clear_current_abilities_button)
-        layout.addWidget(self.current_type_button)
-        layout.addWidget(self.clear_current_types_button)
-        layout.addWidget(self.current_stat_stage_button)
-        layout.addWidget(self.clear_current_stat_stages_button)
-        layout.addWidget(self.current_field_state_button)
-        layout.addWidget(self.clear_current_field_state_button)
-        layout.addWidget(self.current_final_stat_button)
-        layout.addWidget(self.clear_current_final_stats_button)
-        layout.addWidget(self.current_hp_button)
-        layout.addWidget(self.clear_current_hp_button)
-        layout.addWidget(self.current_battle_format_button)
-        layout.addWidget(self.clear_current_battle_format_button)
-        layout.addWidget(self.current_observed_damage_button)
-        layout.addWidget(self.clear_current_observed_damage_button)
-        layout.addWidget(self.contact_status_result_button)
-        layout.addWidget(self.contact_reactive_damage_button)
-        layout.addWidget(self.battle_counter_button)
-        layout.addWidget(self.clear_battle_counter_button)
-        layout.addWidget(self.turn_pipeline_checkbox)
-        layout.addWidget(self.turn_pipeline_status_label)
+
+        self.auxiliary_scroll_area = QScrollArea()
+        self.auxiliary_scroll_area.setObjectName("auxiliaryBattleInputScrollArea")
+        self.auxiliary_scroll_area.setWidgetResizable(True)
+        self.auxiliary_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.auxiliary_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        self.auxiliary_controls_widget = QWidget()
+        self.auxiliary_controls_widget.setObjectName("auxiliaryBattleInputControls")
+        auxiliary_layout = QVBoxLayout(self.auxiliary_controls_widget)
+        auxiliary_layout.setContentsMargins(0, 0, 0, 0)
+        auxiliary_layout.setSpacing(6)
+        auxiliary_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+
+        self._auxiliary_input_buttons = [
+            self.field_profile_button,
+            self.item_event_button,
+            self.clear_item_events_button,
+            self.current_condition_button,
+            self.clear_current_conditions_button,
+            self.status_progression_button,
+            self.pending_status_action_result_button,
+            self.current_ability_button,
+            self.current_persistent_effect_button,
+            self.switch_permission_button,
+            self.clear_current_abilities_button,
+            self.current_type_button,
+            self.clear_current_types_button,
+            self.current_stat_stage_button,
+            self.clear_current_stat_stages_button,
+            self.current_field_state_button,
+            self.clear_current_field_state_button,
+            self.current_final_stat_button,
+            self.clear_current_final_stats_button,
+            self.current_hp_button,
+            self.clear_current_hp_button,
+            self.current_battle_format_button,
+            self.clear_current_battle_format_button,
+            self.current_observed_damage_button,
+            self.clear_current_observed_damage_button,
+            self.contact_status_result_button,
+            self.contact_reactive_damage_button,
+            self.battle_counter_button,
+            self.clear_battle_counter_button,
+        ]
+        for button in self._auxiliary_input_buttons:
+            button.setMinimumHeight(32)
+            auxiliary_layout.addWidget(button)
+        auxiliary_layout.addWidget(self.turn_pipeline_checkbox)
+        self.turn_pipeline_status_label.setWordWrap(True)
+        auxiliary_layout.addWidget(self.turn_pipeline_status_label)
+        auxiliary_layout.addStretch(1)
+        self.auxiliary_scroll_area.setWidget(self.auxiliary_controls_widget)
+
+        layout.addWidget(self.auxiliary_scroll_area, 1)
         layout.addWidget(self.output_edit, 1)
         layout.addWidget(self.cost_label)
         self.setStyleSheet(self._build_stylesheet())
