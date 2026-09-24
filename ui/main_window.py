@@ -96,6 +96,7 @@ from llm.advisor_observed_contact_reactive_damage_runtime_admission import admit
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
 from llm.advisor_c6_production_decision_capture import ProductionDecisionCapture
+from llm.advisor_c6_production_transition_capture import ProductionObservedTransitionCapture
 from llm.advisor_offline_decision_point_provenance import _context as _c6_context, _freeze as _c6_freeze
 from llm.advisor_session_decision_public_battle_information import CONDITIONS as _C6_CONDITIONS, WEATHER as _C6_WEATHER, TERRAIN as _C6_TERRAIN, STAT_STAGES as _C6_STAGES
 from llm.advisor_session_actor_private_decision_information import FINAL_STATS as _C6_FINAL_STATS
@@ -507,6 +508,7 @@ class MainWindow(QMainWindow):
         self._battle_session_sequence = 0
         self._observation_runtime_session_manager: BattleObservationRuntimeSessionManager | None = None
         self._c6_decision_capture_owners: dict[tuple[int, str], ProductionDecisionCapture] = {}
+        self._c6_transition_capture_owners: dict[tuple[int, str], ProductionObservedTransitionCapture] = {}
         self._c6_explicit_context_reference: dict | None = None
         self._current_trusted_turn_number: int | None = None
         self._field_profiles: dict | None = None
@@ -1289,6 +1291,10 @@ class MainWindow(QMainWindow):
             turn_number=getattr(self, "_current_trusted_turn_number", None),
         )
         if result.get("status") == "resolved":
+            try:
+                MainWindow._refresh_c6_observed_transitions(self)
+            except Exception:
+                pass
             return True
         try:
             self.statusBar().showMessage("Current-state confirmation failed: authoritative runtime rejected it")
@@ -1306,6 +1312,10 @@ class MainWindow(QMainWindow):
             turn_number=getattr(self, "_current_trusted_turn_number", None),
         )
         if result.get("status") == "resolved":
+            try:
+                MainWindow._refresh_c6_observed_transitions(self)
+            except Exception:
+                pass
             return True
         try:
             self.statusBar().showMessage("Current-state confirmation failed: authoritative runtime rejected it")
@@ -2853,6 +2863,10 @@ class MainWindow(QMainWindow):
         self._historical_confusion_self_hit_predictions = {}
         self._historical_multi_hit_predictions = {}
         self._retire_advice_presentation_authority()
+        try:
+            MainWindow._refresh_c6_observed_transitions(self)
+        except Exception:
+            pass
         self._recommendation_readiness_owner = None
         try:
             self.center_column.llm_advice_panel.clear_recommendation_readiness()
@@ -2900,6 +2914,11 @@ class MainWindow(QMainWindow):
         if result.get("status") == "resolved" and linked.get("status") == "resolved":
             result = {**result, "predictive_action_binding": deepcopy(linked["binding"])}
             self._reconcile_linked_predictive_action(source_action_id)
+        if result.get("status") == "resolved":
+            try:
+                MainWindow._refresh_c6_observed_transitions(self)
+            except Exception:
+                pass
         return result
 
     def _install_historical_predictive_action_bindings(self, strategy_result: dict) -> None:
@@ -3305,6 +3324,7 @@ class MainWindow(QMainWindow):
                 return None
         self._battle_session_sequence = candidate_sequence
         self._c6_decision_capture_owners = {}
+        self._c6_transition_capture_owners = {}
         self._c6_explicit_context_reference = None
         self._retire_advice_presentation_authority()
         update_persistence_actions = getattr(self, "_update_persistence_action_state", None)
@@ -3481,12 +3501,26 @@ class MainWindow(QMainWindow):
             if not isinstance(fingerprint, str) or not fingerprint:
                 return {"status": "rejected", "reason": "runtime_fingerprint_unavailable"}
             opportunity_id = f"turn:{turn}:kind:{decision_kind}:runtime:{fingerprint}"
-            return dict(owner.begin_decision_capture(
+            result = owner.begin_decision_capture(
                 captured_session_id=session_id, captured_battle_id=session_id, actor=actor,
                 opportunity_id=opportunity_id, decision_kind=decision_kind, turn_number=turn,
                 simultaneity_group_id=f"turn:{turn}", context_reference=context,
                 legal_action_set=legal_action_set if legal_action_set is not None else {"status": "unknown", "action_ids": []},
-                public_snapshot=public_snapshot, private_snapshot=private_snapshot))
+                public_snapshot=public_snapshot, private_snapshot=private_snapshot)
+            if result["status"] in {"captured", "duplicate"}:
+                transition_owners = getattr(self, "_c6_transition_capture_owners", None)
+                if transition_owners is None:
+                    transition_owners = {}
+                    self._c6_transition_capture_owners = transition_owners
+                transition_owner = transition_owners.setdefault(key, ProductionObservedTransitionCapture(owner))
+                boundary_id = result["opportunity"]["certificate"]["boundary_id"]
+                retained = {row["boundary_id"] for row in transition_owner.read_snapshot(
+                    captured_session_id=session_id, captured_battle_id=session_id)["pending_anchors"]}
+                if boundary_id not in retained:
+                    transition_owner.retain_decision_anchor(
+                        opportunity_record=result["opportunity"], decision_runtime_snapshot=runtime_snapshot,
+                        decision_turn_number=turn)
+            return dict(result)
         except (KeyError, TypeError, ValueError, AttributeError):
             return {"status": "rejected", "reason": "decision_facts_unavailable"}
 
@@ -3513,6 +3547,31 @@ class MainWindow(QMainWindow):
                            "actor_captures": tuple(owner.read_capture_snapshot(
                                captured_session_id=session_id, captured_battle_id=session_id)
                                for _, owner in sorted(owners.items()))})
+
+    def read_c6_observed_transition_snapshot(self):
+        session_id = MainWindow._active_session_id(self)
+        if session_id is None:
+            return _c6_freeze({"status": "unavailable", "reason": "session_unavailable"})
+        owners = getattr(self, "_c6_transition_capture_owners", {})
+        return _c6_freeze({"status": "ready", "session_id": session_id, "battle_id": session_id,
+                           "actor_transitions": tuple(owner.read_snapshot(
+                               captured_session_id=session_id, captured_battle_id=session_id)
+                               for _, owner in sorted(owners.items()))})
+
+    def _refresh_c6_observed_transitions(self) -> None:
+        """Only actual collection/reducer evidence can resolve a retained anchor."""
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            return
+        observations = manager.read_collection_snapshot()
+        next_snapshot = manager.capture_runtime_state_snapshot(session_id)
+        for owner in getattr(self, "_c6_transition_capture_owners", {}).values():
+            pending = owner.read_snapshot(captured_session_id=session_id, captured_battle_id=session_id)["pending_anchors"]
+            for anchor in pending:
+                owner.attempt_observed_transition(
+                    boundary_id=anchor["boundary_id"], observation_snapshot=observations,
+                    next_runtime_snapshot=next_snapshot)
 
     def _open_c6_decision_capture(self) -> None:
         """Explicit opportunity admission; no move selection is read as a command."""
@@ -4286,6 +4345,8 @@ class MainWindow(QMainWindow):
             panel.set_advice_text("전략 분석을 위한 현재 런타임 상태를 사용할 수 없습니다.")
             self.statusBar().showMessage("전략 분석 실패: 현재 런타임 상태 없음")
             return
+        decision_snapshot = manager.capture_runtime_state_snapshot(session_id)
+        c6_capture = MainWindow.begin_c6_decision_capture(self, runtime_snapshot=decision_snapshot)
 
         def build_selection_cycle(capture: dict, runtime_snapshot: dict) -> dict:
             my_slot_index = self.selected_slots.get("team_my")
@@ -4311,6 +4372,24 @@ class MainWindow(QMainWindow):
         )
         if result.get("status") == "resolved":
             self._install_historical_predictive_action_bindings(result)
+            if (c6_capture.get("status") in {"captured", "duplicate"}
+                    and result.get("source_runtime_fingerprint") == decision_snapshot.get("state_fingerprint")):
+                try:
+                    owner_key = (c6_capture["opportunity"]["certificate"]["actor"]["slot_index"],
+                                 c6_capture["opportunity"]["certificate"]["actor"]["pokemon_id"])
+                    transition_owner = self._c6_transition_capture_owners[owner_key]
+                    bundles = {bundle["ledger"]["candidate_id"]: bundle for bundle in
+                               self._historical_predictive_action_bindings.values()
+                               if isinstance(bundle, dict) and isinstance(bundle.get("ledger"), dict)
+                               and bundle["ledger"].get("status") == "evaluable"}
+                    transition_owner.retain_strategy_evidence(
+                        boundary_id=c6_capture["opportunity"]["certificate"]["boundary_id"],
+                        strategy_result=result["orchestration"],
+                        exact_outcome_ledgers=result["exact_outcome_ledgers"],
+                        descriptive_metrics=result["descriptive_metrics"],
+                        historical_attack_bundles=bundles)
+                except (KeyError, TypeError, ValueError, AttributeError):
+                    pass
             panel.set_strategy_explanation(result["explanation"])
             self.statusBar().showMessage("전략 분석 완료")
         elif result.get("status") == "stale":
