@@ -95,6 +95,10 @@ from llm.advisor_observed_contact_reactive_status_runtime_admission import admit
 from llm.advisor_observed_contact_reactive_damage_runtime_admission import admit_observed_contact_reactive_damage_result
 from llm.advisor_action_restriction_observation import admit_action_restriction_observation
 from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
+from llm.advisor_c6_production_decision_capture import ProductionDecisionCapture
+from llm.advisor_offline_decision_point_provenance import _context as _c6_context, _freeze as _c6_freeze
+from llm.advisor_session_decision_public_battle_information import CONDITIONS as _C6_CONDITIONS, WEATHER as _C6_WEATHER, TERRAIN as _C6_TERRAIN, STAT_STAGES as _C6_STAGES
+from llm.advisor_session_actor_private_decision_information import FINAL_STATS as _C6_FINAL_STATS
 from llm.advisor_lifecycle_confirmation import EXECUTED_MOVE_SOURCE, USER_TRUST
 from llm.advisor_runtime_state_projection import build_runtime_advice_state_projection
 from llm.advisor_turn_snapshot import capture_ui_current_state_provenance
@@ -502,6 +506,8 @@ class MainWindow(QMainWindow):
         self._is_closing = False
         self._battle_session_sequence = 0
         self._observation_runtime_session_manager: BattleObservationRuntimeSessionManager | None = None
+        self._c6_decision_capture_owners: dict[tuple[int, str], ProductionDecisionCapture] = {}
+        self._c6_explicit_context_reference: dict | None = None
         self._current_trusted_turn_number: int | None = None
         self._field_profiles: dict | None = None
         self._item_event_confirmations: list[dict] = []
@@ -1635,6 +1641,12 @@ class MainWindow(QMainWindow):
         file_menu.addAction(self._save_battle_state_action)
         file_menu.addAction(self._load_battle_state_action)
         battle_menu = self.menuBar().addMenu("Battle")
+        self._c6_begin_decision_capture_action = QAction("Capture Decision Opportunity", self)
+        self._c6_begin_decision_capture_action.triggered.connect(self._open_c6_decision_capture)
+        battle_menu.addAction(self._c6_begin_decision_capture_action)
+        self._c6_confirm_submitted_command_action = QAction("Confirm Submitted Battle Command", self)
+        self._c6_confirm_submitted_command_action.triggered.connect(self._open_c6_submitted_command_confirmation)
+        battle_menu.addAction(self._c6_confirm_submitted_command_action)
         self._confirm_pokemon_switch_action = QAction("Confirm Pokémon Switch", self)
         self._confirm_pokemon_switch_action.triggered.connect(self._open_pokemon_switch_confirmation)
         battle_menu.addAction(self._confirm_pokemon_switch_action)
@@ -1689,7 +1701,7 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_fixed_two_hit_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_c6_begin_decision_capture_action", "_c6_confirm_submitted_command_action", "_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_fixed_two_hit_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
@@ -3292,6 +3304,8 @@ class MainWindow(QMainWindow):
             if rolled.get("status") != "session_replaced":
                 return None
         self._battle_session_sequence = candidate_sequence
+        self._c6_decision_capture_owners = {}
+        self._c6_explicit_context_reference = None
         self._retire_advice_presentation_authority()
         update_persistence_actions = getattr(self, "_update_persistence_action_state", None)
         if callable(update_persistence_actions):
@@ -3336,6 +3350,227 @@ class MainWindow(QMainWindow):
     def begin_new_battle(self) -> str | None:
         """Application lifecycle entry point for one explicit new battle."""
         return self._begin_new_battle_session()
+
+    def set_c6_decision_capture_context(self, context_reference: dict) -> bool:
+        """Accept only explicit battle rules/protocol metadata; never infer it."""
+        if MainWindow._active_session_id(self) is None or not _c6_context(context_reference):
+            return False
+        prior = getattr(self, "_c6_explicit_context_reference", None)
+        if prior is not None and prior != context_reference and getattr(self, "_c6_decision_capture_owners", {}):
+            return False
+        self._c6_explicit_context_reference = deepcopy(context_reference)
+        return True
+
+    def begin_c6_decision_capture(self, *, runtime_snapshot: dict, decision_kind: str = "turn_start",
+                                  legal_action_set: dict | None = None,
+                                  explicit_turn_number: int | None = None) -> dict:
+        """Capture a current decision independently of recommendation and submission."""
+        session_id = MainWindow._active_session_id(self)
+        context = getattr(self, "_c6_explicit_context_reference", None)
+        turn = explicit_turn_number if explicit_turn_number is not None else getattr(self, "_current_trusted_turn_number", None)
+        if session_id is None or context is None or not isinstance(turn, int) or isinstance(turn, bool) or turn < 1:
+            return {"status": "unavailable", "reason": "explicit_decision_context_unavailable"}
+        if runtime_snapshot.get("status") != "runtime_snapshot_ready":
+            return {"status": "rejected", "reason": "runtime_snapshot_unavailable"}
+        state = runtime_snapshot.get("state", {})
+        if state.get("session_id") != session_id:
+            return {"status": "rejected", "reason": "stale_runtime_session"}
+        try:
+            self_side = state["self_side"]
+            opponent_side = state["opponent_side"]
+            self_slot = self_side["active_slot_index"]
+            opponent_slot = opponent_side["active_slot_index"]
+            self_id = self_side["pokemon"][self_slot]["pokemon_id"]
+            opponent_id = opponent_side["pokemon"][opponent_slot]["pokemon_id"]
+            actor = {"session_id": session_id, "side": "self", "slot_index": self_slot, "pokemon_id": self_id}
+            if self.selected_slots.get("team_my") != self_slot or self.selected_slots.get("team_enemy") != opponent_slot:
+                return {"status": "rejected", "reason": "ui_runtime_identity_mismatch"}
+            if (MainWindow._selected_identity(self, "team_my") != {"pokemon_id": self_id}
+                    or MainWindow._selected_identity(self, "team_enemy") != {"pokemon_id": opponent_id}):
+                return {"status": "rejected", "reason": "ui_runtime_identity_mismatch"}
+            private_rows = []
+            for slot, pokemon in sorted(self_side["pokemon"].items()):
+                moves = []
+                if slot == self_slot:
+                    panel = self._slot_panel("team_my", slot)
+                    for index, move in enumerate(getattr(panel, "selected_moves", ())):
+                        move_id = getattr(move, "move_id", None)
+                        if isinstance(move_id, str) and move_id:
+                            moves.append({"move_slot": index + 1, "move_id": move_id})
+                row = {"slot_index": slot, "pokemon_id": pokemon["pokemon_id"], "moves": moves}
+                if isinstance(pokemon.get("current_ability"), str) and pokemon["current_ability"]:
+                    row["current_ability"] = {"availability": "available", "value": pokemon["current_ability"]}
+                level = pokemon.get("current_level")
+                if isinstance(level, int) and not isinstance(level, bool) and 1 <= level <= 100:
+                    row["current_level"] = {"availability": "available", "value": level}
+                item = pokemon.get("known_item")
+                if isinstance(pokemon.get("known_item_provenance"), dict) and (item is None or isinstance(item, str)):
+                    row["known_item"] = {"availability": "available", "value": item}
+                stats = pokemon.get("current_final_stats", {})
+                if isinstance(stats, dict):
+                    row["current_final_stats"] = {
+                        stat: {"availability": "available", "value": value}
+                        for stat, value in stats.items()
+                        if stat in _C6_FINAL_STATS and isinstance(value, int) and not isinstance(value, bool) and value >= 1
+                    }
+                private_rows.append(row)
+            private_snapshot = {"roster_scope": {"status": "partial", "slot_indices": [row["slot_index"] for row in private_rows]},
+                                "own_roster": private_rows}
+            public_snapshot = {
+                "active": {
+                    "self": {"session_id": session_id, "slot_index": self_slot, "pokemon_id": self_id},
+                    "opponent": {"session_id": session_id, "slot_index": opponent_slot, "pokemon_id": opponent_id},
+                },
+                "field": {}, "sides": {"self": {}, "opponent": {}},
+                "opponent_revealed_moves": {"status": "unknown", "move_ids": []},
+            }
+            for side_name, side_state, slot in (("self", self_side, self_slot),
+                                                ("opponent", opponent_side, opponent_slot)):
+                pokemon = side_state["pokemon"][slot]
+                row = public_snapshot["active"][side_name]
+                for field_name, minimum in (("current_hp", 0), ("max_hp", 1)):
+                    value = pokemon.get(field_name)
+                    if isinstance(value, int) and not isinstance(value, bool) and value >= minimum:
+                        row[field_name] = {"availability": "available", "value": value}
+                if isinstance(pokemon.get("fainted"), bool):
+                    row["fainted"] = {"availability": "available", "value": pokemon["fainted"]}
+                if isinstance(pokemon.get("condition"), str) and pokemon["condition"] in _C6_CONDITIONS:
+                    row["condition"] = {"availability": "available", "value": pokemon["condition"]}
+                stages = pokemon.get("stat_stages", {})
+                if isinstance(stages, dict):
+                    row["stat_stages"] = {name: {"availability": "available", "value": value}
+                                          for name, value in stages.items() if name in _C6_STAGES
+                                          and isinstance(value, int) and not isinstance(value, bool) and -6 <= value <= 6}
+                tailwind = side_state.get("tailwind_status")
+                if isinstance(tailwind, str) and tailwind in {"active", "inactive"}:
+                    public_snapshot["sides"][side_name]["tailwind"] = {"availability": "available", "value": tailwind == "active"}
+            field_state = state.get("field", {})
+            for name, vocabulary in (("weather", _C6_WEATHER), ("terrain", _C6_TERRAIN)):
+                value = field_state.get(name)
+                if isinstance(value, str) and value in vocabulary:
+                    public_snapshot["field"][name] = {"availability": "available", "value": value}
+            trick_room = field_state.get("trick_room_status")
+            if isinstance(trick_room, str) and trick_room in {"active", "inactive"}:
+                public_snapshot["field"]["trick_room"] = {"availability": "available", "value": trick_room == "active"}
+            observed_moves = opponent_side["pokemon"][opponent_slot].get("known_move_ids", ())
+            known_moves = set()
+            if isinstance(observed_moves, (list, tuple)) and all(isinstance(move, str) and move for move in observed_moves):
+                known_moves.update(observed_moves)
+            opponent_panel = self._slot_panel("team_enemy", opponent_slot)
+            for move in getattr(opponent_panel, "selected_moves", ()):
+                move_id = getattr(move, "move_id", None)
+                if isinstance(move_id, str) and move_id:
+                    known_moves.add(move_id)
+            if known_moves:
+                public_snapshot["opponent_revealed_moves"] = {"status": "partial", "move_ids": sorted(known_moves)}
+            owners = getattr(self, "_c6_decision_capture_owners", None)
+            if owners is None:
+                owners = {}
+                self._c6_decision_capture_owners = owners
+            key = (self_slot, self_id)
+            owner = owners.get(key)
+            if owner is None:
+                created = ProductionDecisionCapture.create(
+                    session_id=session_id, battle_id=session_id, actor=actor,
+                    source_id=f"production:{session_id}:self:{self_slot}:{self_id}")
+                if created["status"] != "source_ready":
+                    return dict(created)
+                owner = created["source"]
+                owners[key] = owner
+            fingerprint = runtime_snapshot.get("state_fingerprint")
+            if not isinstance(fingerprint, str) or not fingerprint:
+                return {"status": "rejected", "reason": "runtime_fingerprint_unavailable"}
+            opportunity_id = f"turn:{turn}:kind:{decision_kind}:runtime:{fingerprint}"
+            return dict(owner.begin_decision_capture(
+                captured_session_id=session_id, captured_battle_id=session_id, actor=actor,
+                opportunity_id=opportunity_id, decision_kind=decision_kind, turn_number=turn,
+                simultaneity_group_id=f"turn:{turn}", context_reference=context,
+                legal_action_set=legal_action_set if legal_action_set is not None else {"status": "unknown", "action_ids": []},
+                public_snapshot=public_snapshot, private_snapshot=private_snapshot))
+        except (KeyError, TypeError, ValueError, AttributeError):
+            return {"status": "rejected", "reason": "decision_facts_unavailable"}
+
+    def confirm_c6_submitted_command(self, *, captured_session_id: str, captured_battle_id: str,
+                                     boundary_id: str, confirmation_event_id: str, command_payload: dict) -> dict:
+        """Separate explicit user confirmation; UI selection never calls this."""
+        if captured_session_id != MainWindow._active_session_id(self) or captured_battle_id != captured_session_id:
+            return {"status": "rejected", "reason": "stale_or_foreign_battle"}
+        for owner in getattr(self, "_c6_decision_capture_owners", {}).values():
+            opportunities = owner.opportunity_source.read_snapshot(captured_session_id=captured_session_id)["opportunities"]
+            if any(row["certificate"]["boundary_id"] == boundary_id for row in opportunities):
+                return dict(owner.confirm_submitted_command(
+                    captured_session_id=captured_session_id, captured_battle_id=captured_battle_id,
+                    boundary_id=boundary_id, actor=owner.opportunity_source.actor,
+                    confirmation_event_id=confirmation_event_id, command_payload=command_payload))
+        return {"status": "rejected", "reason": "boundary_not_retained"}
+
+    def read_c6_decision_capture_snapshot(self) -> dict:
+        session_id = MainWindow._active_session_id(self)
+        if session_id is None:
+            return {"status": "unavailable", "reason": "session_unavailable"}
+        owners = getattr(self, "_c6_decision_capture_owners", {})
+        return _c6_freeze({"status": "ready", "session_id": session_id, "battle_id": session_id,
+                           "actor_captures": tuple(owner.read_capture_snapshot(
+                               captured_session_id=session_id, captured_battle_id=session_id)
+                               for _, owner in sorted(owners.items()))})
+
+    def _open_c6_decision_capture(self) -> None:
+        """Explicit opportunity admission; no move selection is read as a command."""
+        session_id = MainWindow._active_session_id(self)
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        if session_id is None or not isinstance(manager, BattleObservationRuntimeSessionManager):
+            return
+        context = getattr(self, "_c6_explicit_context_reference", None)
+        if context is None:
+            context = {}
+            for key, label in (("ruleset_id", "Ruleset ID"), ("mechanics_version", "Mechanics version"),
+                               ("protocol_version", "Protocol version"), ("battle_format_id", "Battle format ID")):
+                value, confirmed = QInputDialog.getText(self, "C6 decision context", label)
+                if not confirmed or not value.strip():
+                    return
+                context[key] = value.strip()
+            if not MainWindow.set_c6_decision_capture_context(self, context):
+                self.statusBar().showMessage("C6 decision context rejected")
+                return
+        turn, confirmed = QInputDialog.getInt(self, "C6 decision opportunity", "Observed turn number", 1, 1)
+        if not confirmed:
+            return
+        snapshot = manager.capture_runtime_state_snapshot(session_id)
+        result = MainWindow.begin_c6_decision_capture(self, runtime_snapshot=snapshot, explicit_turn_number=turn)
+        self.statusBar().showMessage(f"C6 decision capture: {result['status']}")
+
+    def _open_c6_submitted_command_confirmation(self) -> None:
+        """A separate explicit report of the command actually submitted in battle."""
+        session_id = MainWindow._active_session_id(self)
+        if session_id is None:
+            return
+        snapshot = MainWindow.read_c6_decision_capture_snapshot(self)
+        boundaries = sorted({boundary_id for capture in snapshot["actor_captures"]
+                             for boundary_id in capture["submitted_commands"]["command_unknown_boundary_ids"]})
+        if not boundaries:
+            self.statusBar().showMessage("No unconfirmed C6 decision opportunity")
+            return
+        boundary_id, confirmed = QInputDialog.getItem(
+            self, "Confirm submitted command", "Decision boundary", boundaries, 0, False)
+        if not confirmed:
+            return
+        kind, confirmed = QInputDialog.getItem(
+            self, "Confirm submitted command", "Command actually submitted", ["attack", "switch"], 0, False)
+        if not confirmed:
+            return
+        if kind == "attack":
+            slot, confirmed = QInputDialog.getInt(self, "Confirm submitted attack", "Submitted move slot (1–4)", 1, 1, 4)
+            payload = {"kind": "attack", "move_slot": slot}
+        else:
+            slot, confirmed = QInputDialog.getInt(self, "Confirm submitted switch", "Submitted roster slot (0–5)", 0, 0, 5)
+            payload = {"kind": "switch", "incoming_slot_index": slot}
+        if not confirmed:
+            return
+        result = MainWindow.confirm_c6_submitted_command(
+            self, captured_session_id=session_id, captured_battle_id=session_id,
+            boundary_id=boundary_id, confirmation_event_id=f"ui-confirmed:{boundary_id}:{kind}:{slot}",
+            command_payload=payload)
+        self.statusBar().showMessage(f"C6 submitted command: {result['status']}")
 
     def _retire_advice_presentation_authority(self) -> None:
         self._active_advice_owner = None
@@ -4262,6 +4497,11 @@ class MainWindow(QMainWindow):
             battle_input["current_state_session_id"] = captured_session_id
             observation_snapshot = manager.read_collection_snapshot()
             trusted_turn_context = self._trusted_turn_context_snapshot()
+            # C6 is detached and optional; a missing explicit context cannot block advice.
+            try:
+                MainWindow.begin_c6_decision_capture(self, runtime_snapshot=runtime_snapshot)
+            except Exception:
+                pass
         except ValueError:
             panel.set_error("구조화 추천 입력을 준비하지 못했습니다.")
             return
