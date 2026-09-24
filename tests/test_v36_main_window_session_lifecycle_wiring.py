@@ -4,6 +4,7 @@ import ast
 import inspect
 
 import pytest
+from PySide6.QtWidgets import QApplication
 
 import ui.main_window as main_window_module
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
@@ -100,6 +101,54 @@ def test_main_window_uses_session_manager_as_single_session_authority():
     window = _Harness()
     assert window._active_session_id() == "ui-session-0"
     assert not hasattr(window, "_current_battle_session_id") and not hasattr(window, "_current_state_session_id")
+
+
+def test_real_battle_menu_starts_and_rolls_over_only_on_explicit_action():
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+    window = MainWindow()
+    action = window._start_new_battle_action
+    local_actions = (
+        window._confirm_variable_two_to_five_hit_result_action,
+        window._confirm_population_bomb_result_action,
+        window._confirm_paralysis_result_action,
+    )
+    assert window._battle_menu.menuAction() in window.menuBar().actions()
+    assert action in window._battle_menu.actions()
+    assert action.text() == "Start / New Battle" and action.isEnabled()
+    assert window._active_session_id() is None
+    assert all(not local_action.isEnabled() for local_action in local_actions)
+
+    action.trigger()
+    assert window._active_session_id() is None
+    assert window.statusBar().currentMessage() == "New battle failed: select self and opponent Pokémon first."
+    window.my_team_column.panels[0].pokemon_view = SimpleNamespace(en="pikachu")
+    window.opponent_team_column.panels[0].pokemon_view = SimpleNamespace(en="eevee")
+    assert window._active_session_id() is None  # Selection itself never starts a battle.
+
+    action.trigger()
+    assert window._active_session_id() == "ui-session-1"
+    assert window.statusBar().currentMessage() == "New battle session ready"
+    assert action.isEnabled() and all(local_action.isEnabled() for local_action in local_actions)
+    original = window._observation_runtime_session_manager.read_state()
+    window.opponent_team_column.panels[0].pokemon_view = None
+    action.trigger()
+    assert window._active_session_id() == "ui-session-1"
+    assert window._observation_runtime_session_manager.read_state() == original
+    assert window.statusBar().currentMessage() == "New battle failed: select self and opponent Pokémon first."
+    window.opponent_team_column.panels[0].pokemon_view = SimpleNamespace(en="eevee")
+    window._c6_decision_capture_owners = {"old": object()}
+    window._c6_transition_capture_owners = {"old": object()}
+    window._c6_terminal_outcome_source = object()
+    window._historical_multi_hit_predictions = {"old": object()}
+    action.trigger()
+    assert window._active_session_id() == "ui-session-2"
+    assert window._c6_decision_capture_owners == {}
+    assert window._c6_transition_capture_owners == {}
+    assert window._c6_terminal_outcome_source is None
+    assert window._historical_multi_hit_predictions == {}
+    assert action.isEnabled() and all(local_action.isEnabled() for local_action in local_actions)
+    window.close()
 
 
 def test_main_window_has_no_independent_mutable_observation_sequence():

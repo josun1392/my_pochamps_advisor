@@ -1662,6 +1662,9 @@ class MainWindow(QMainWindow):
         file_menu.addAction(self._c6_export_battle_evidence_action)
         battle_menu = self.menuBar().addMenu("Battle")
         self._battle_menu = battle_menu
+        self._start_new_battle_action = QAction("Start / New Battle", self)
+        self._start_new_battle_action.triggered.connect(self._open_new_battle)
+        battle_menu.addAction(self._start_new_battle_action)
         self._c6_begin_decision_capture_action = QAction("Capture Decision Opportunity", self)
         self._c6_begin_decision_capture_action.triggered.connect(self._open_c6_decision_capture)
         battle_menu.addAction(self._c6_begin_decision_capture_action)
@@ -1722,10 +1725,21 @@ class MainWindow(QMainWindow):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
-        for name in ("_c6_export_battle_evidence_action", "_c6_begin_decision_capture_action", "_c6_confirm_submitted_command_action", "_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_fixed_two_hit_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
+        for name in ("_c6_export_battle_evidence_action", "_c6_begin_decision_capture_action", "_c6_confirm_submitted_command_action", "_confirm_pokemon_switch_action", "_confirm_forced_switch_action", "_confirm_locked_on_state_action", "_confirm_confusion_state_action", "_confirm_confusion_action_result_action", "_confirm_confusion_self_hit_damage_action", "_confirm_fixed_two_hit_result_action", "_confirm_variable_two_to_five_hit_result_action", "_confirm_population_bomb_result_action", "_confirm_paralysis_result_action", "_confirm_previous_action_action", "_confirm_action_restriction_action", "_confirm_opponent_response_set_action", "_confirm_opponent_switch_response_set_action", "_confirm_combined_opponent_response_universe_action"):
             action = getattr(self, name, None)
             if action is not None:
                 action.setEnabled(active)
+
+    @Slot()
+    def _open_new_battle(self) -> None:
+        """Start or roll over a battle only through the existing lifecycle."""
+        if (MainWindow._selected_identity(self, "team_my") is None
+                or MainWindow._selected_identity(self, "team_enemy") is None):
+            self.statusBar().showMessage("New battle failed: select self and opponent Pokémon first.")
+        elif MainWindow.begin_new_battle(self) is None:
+            self.statusBar().showMessage("New battle failed: session could not be started.")
+        else:
+            self.statusBar().showMessage("New battle session ready")
 
     @Slot()
     def _open_pokemon_switch_confirmation(self) -> None:
