@@ -15,7 +15,7 @@ def test_current_hp_dialog_records_exact_snapshot_without_provider() -> None:
 def test_current_hp_panel_count_does_not_emit_advice_request() -> None:
     QApplication.instance() or QApplication([])
     panel = LLMAdvicePanel(); emitted = []; panel.advice_requested.connect(lambda: emitted.append(True)); panel.set_current_hp_count(2)
-    assert panel.current_hp_button.text() == "Current HP (2)" and emitted == []
+    assert panel.current_hp_button.text() == "현재 HP (2)" and emitted == []
 
 
 def test_current_hp_dialog_can_confirm_both_active_sides_without_combining_records() -> None:

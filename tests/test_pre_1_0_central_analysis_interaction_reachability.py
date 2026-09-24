@@ -206,13 +206,14 @@ def test_llm_advice_dense_auxiliary_controls_are_scroll_contained_and_reachable(
 
     assert isinstance(panel.auxiliary_scroll_area, QScrollArea)
     assert panel.auxiliary_scroll_area.widget() is panel.auxiliary_controls_widget
-    assert len(panel._auxiliary_input_buttons) == 29
+    assert len(panel._auxiliary_input_buttons) == 31
     assert all(button.parentWidget() is panel.auxiliary_controls_widget for button in panel._auxiliary_input_buttons)
     assert all(button.minimumHeight() >= 32 for button in panel._auxiliary_input_buttons)
     assert all(button.height() >= 32 for button in panel._auxiliary_input_buttons)
 
-    assert panel.request_button.parentWidget() is panel
-    assert panel.structured_request_button.parentWidget() is panel
+    assert panel.request_button.parentWidget() is panel.auxiliary_controls_widget
+    assert panel.structured_request_button.parentWidget() is panel.auxiliary_controls_widget
+    assert panel.readiness_button.parentWidget() is panel
     assert panel.deterministic_strategy_button.parentWidget() is panel
     assert panel.output_edit.parentWidget() is panel
 
@@ -229,7 +230,7 @@ def test_llm_advice_representative_control_text_and_signal_behavior_survive_scro
     emitted: list[str] = []
     panel.current_hp_requested.connect(lambda: emitted.append("hp"))
 
-    assert panel.current_hp_button.text() == "Current HP"
+    assert panel.current_hp_button.text() == "현재 HP"
     assert panel.current_hp_button in panel._auxiliary_input_buttons
     panel.current_hp_button.click()
 

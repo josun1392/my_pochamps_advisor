@@ -73,12 +73,12 @@ def test_panel_exposes_readiness_and_routes_only_existing_confirmation_actions()
     emitted: list[str] = []
     panel.readiness_input_requested.connect(emitted.append)
     panel.set_recommendation_readiness({"status": "incomplete", "missing": [{"label": "Current type needed", "action": "current_type"}], "unsupported": [], "action": "current_type"})
-    assert "Current type needed" in panel.readiness_label.text()
+    assert "현재 타입" in panel.readiness_label.text()
     assert panel.readiness_input_button.isVisible() is False  # parent is not shown
     panel._request_readiness_input()
     assert emitted == ["current_type"]
     panel.clear_recommendation_readiness()
-    assert "has not been checked" in panel.readiness_label.text()
+    assert "아직 확인되지" in panel.readiness_label.text()
 
 
 def test_panel_groups_multiple_readiness_gaps_with_distinct_routes_and_unavailable_reasons():
@@ -98,11 +98,11 @@ def test_panel_groups_multiple_readiness_gaps_with_distinct_routes_and_unavailab
         "action": "current_item",
     })
     text = panel.readiness_label.text()
-    assert "Can confirm: Current HP needed; Held item unknown" in text
-    assert "Still unavailable: Toxic progression authority missing" in text
-    assert "Unsupported: This selected mechanic is not supported yet" in text
-    assert panel.readiness_input_button.text() == "Open: Current HP needed"
-    assert [button.text() for button in panel._readiness_extra_input_buttons] == ["Open: Held item unknown"]
+    assert "입력 가능: 현재 HP; 현재 지닌 도구" in text
+    assert "현재 직접 입력 경로 없음: 독성 진행 정보" in text
+    assert "선택한 기술의 일부 메커니즘은 아직 지원되지 않습니다." in text
+    assert panel.readiness_input_button.text() == "입력하기: 현재 HP"
+    assert [button.text() for button in panel._readiness_extra_input_buttons] == ["입력하기: 현재 지닌 도구"]
     panel._request_readiness_input()
     panel._readiness_extra_input_buttons[0].click()
     assert emitted == ["current_hp", "current_item"]

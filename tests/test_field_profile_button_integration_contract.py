@@ -127,7 +127,7 @@ def test_field_profile_button_exists_and_emits_field_profile_request_without_pro
     panel.advice_requested.connect(record_advice_request)
     panel.field_profile_requested.connect(record_field_profile_request)
 
-    assert panel.field_profile_button.text() == "Field state"
+    assert panel.field_profile_button.text() == "추가 필드 프로필 (위험물/벽)"
     assert panel.field_profile_button.objectName() == "fieldProfileButton"
     assert panel.turn_pipeline_checkbox.isChecked() is False
 

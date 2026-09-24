@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QMessageBox,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -447,13 +448,45 @@ class AnalysisColumn(QFrame):
 
         self.search_box = PokemonSearchBox(search_engine, available_pokemon_ids)
         self.move_search_box = MoveSearchBox(search_engine, move_repository)
+
+        self.workflow_status_label = QLabel("배틀: 비활성 · 턴: 미확인")
+        self.workflow_status_label.setObjectName("battleWorkflowStatusLabel")
+        self.workflow_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.workflow_status_label.setStyleSheet(
+            "color: #334155; font-size: 12px; font-weight: 700; "
+            "background-color: #F8FAFC; border: 1px solid #D8E0EA; "
+            "border-radius: 6px; padding: 6px;"
+        )
+        workflow_actions = QHBoxLayout()
+        workflow_actions.setContentsMargins(0, 0, 0, 0)
+        workflow_actions.setSpacing(6)
+        self.start_battle_button = QPushButton("배틀 시작 / 새 배틀")
+        self.start_battle_button.setObjectName("centralStartBattleButton")
+        self.start_battle_button.setToolTip("기존 Battle > Start / New Battle 동작을 실행합니다.")
+        self.set_turn_button = QPushButton("현재 턴 설정")
+        self.set_turn_button.setObjectName("centralSetTurnButton")
+        self.set_turn_button.setToolTip("기존 Battle > Set Current Turn 동작을 실행합니다.")
+        workflow_actions.addWidget(self.start_battle_button)
+        workflow_actions.addWidget(self.set_turn_button)
+
         self.analysis_panel = AnalysisPanel()
         self.llm_advice_panel = LLMAdvicePanel()
         layout.addWidget(title_label)
         layout.addWidget(self.search_box)
         layout.addWidget(self.move_search_box)
+        layout.addWidget(self.workflow_status_label)
+        layout.addLayout(workflow_actions)
         layout.addWidget(self.analysis_panel, 1)
         layout.addWidget(self.llm_advice_panel, 1)
+
+    def set_battle_workflow_status(self, *, active: bool, turn_number: int | None) -> None:
+        battle_text = "진행 중" if active else "비활성"
+        turn_text = (
+            str(turn_number)
+            if isinstance(turn_number, int) and not isinstance(turn_number, bool) and turn_number >= 1
+            else "미확인"
+        )
+        self.workflow_status_label.setText(f"배틀: {battle_text} · 턴: {turn_text}")
 
     def set_active(self, active: bool) -> None:
         self.is_active = active
@@ -581,6 +614,9 @@ class MainWindow(QMainWindow):
         self._connect_slot_clicks()
         self.center_column.search_box.pokemon_selected.connect(self._on_pokemon_selected)
         self.center_column.move_search_box.move_selected.connect(self._on_move_selected)
+        self.center_column.start_battle_button.clicked.connect(self._open_new_battle)
+        self.center_column.set_turn_button.clicked.connect(self._open_current_turn)
+        self._refresh_battle_workflow_status()
         self.center_column.llm_advice_panel.advice_requested.connect(self._start_llm_advice)
         self.center_column.llm_advice_panel.structured_advice_requested.connect(self._start_structured_recommendation)
         self.center_column.llm_advice_panel.deterministic_strategy_requested.connect(self._start_deterministic_strategy_analysis)
@@ -1750,6 +1786,15 @@ class MainWindow(QMainWindow):
             if action is not None:
                 action.setEnabled(active)
 
+    def _refresh_battle_workflow_status(self) -> None:
+        try:
+            self.center_column.set_battle_workflow_status(
+                active=MainWindow._active_session_id(self) is not None,
+                turn_number=getattr(self, "_current_trusted_turn_number", None),
+            )
+        except (AttributeError, RuntimeError):
+            pass
+
     @Slot()
     def _open_new_battle(self) -> None:
         """Start or roll over a battle only through the existing lifecycle."""
@@ -1760,20 +1805,21 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("New battle failed: session could not be started.")
         else:
             self.statusBar().showMessage("New battle session ready")
-
+        self._refresh_battle_workflow_status()
     @Slot()
     def _open_current_turn(self) -> None:
         if self._active_session_id() is None:
             self.statusBar().showMessage("Current turn failed: active session unavailable")
+            self._refresh_battle_workflow_status()
             return
         current = getattr(self, "_current_trusted_turn_number", None)
         turn, accepted = QInputDialog.getInt(self, "Set Current Turn", "Current turn number", current or 1, 1)
         if not accepted:
+            self._refresh_battle_workflow_status()
             return
         self.set_current_turn_number(turn)
         self.statusBar().showMessage(f"Current turn set to {turn}")
-
-    @Slot()
+        self._refresh_battle_workflow_status()
     def _open_pokemon_switch_confirmation(self) -> None:
         """Collect an explicit side and incoming roster identity before switching."""
         manager = getattr(self, "_observation_runtime_session_manager", None)
@@ -3796,6 +3842,9 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("New battle session ready")
         except (AttributeError, RuntimeError):
             pass
+        refresh_workflow_status = getattr(self, "_refresh_battle_workflow_status", None)
+        if callable(refresh_workflow_status):
+            refresh_workflow_status()
 
     def set_current_turn_number(self, turn_number: int | None) -> None:
         """Set session-local turn identity; no request or observation infers it."""
@@ -3812,6 +3861,9 @@ class MainWindow(QMainWindow):
             self._historical_multi_hit_predictions = {}
             self._last_observed_rng_reconciliation = None
         self._current_trusted_turn_number = turn_number
+        refresh_workflow_status = getattr(self, "_refresh_battle_workflow_status", None)
+        if callable(refresh_workflow_status):
+            refresh_workflow_status()
 
     def advance_turn(self) -> int:
         """Advance only an already explicit turn; unavailable state never becomes one implicitly."""

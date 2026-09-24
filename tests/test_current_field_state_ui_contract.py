@@ -68,7 +68,7 @@ def test_field_session_apply_cancel_clear_and_count(monkeypatch) -> None:
     monkeypatch.setattr(main_window_module, "CurrentFieldStateDialog", lambda **kwargs: dialogs.pop(0))
     window._open_current_field_state_dialog(); window._open_current_field_state_dialog(); window._open_current_field_state_dialog()
     assert window._current_field_state_confirmation["weather"] == "sun"
-    assert panel.current_field_state_button.text() == "Field state (3)"
+    assert panel.current_field_state_button.text() == "현재 전장 상태 (3)"
     window._grounded_context_confirmation = {
         "self": {"status": "known_grounded", "provenance": "user_confirmed_current"},
         "opponent": {"status": "known_ungrounded", "provenance": "user_confirmed_current"},
@@ -79,7 +79,7 @@ def test_field_session_apply_cancel_clear_and_count(monkeypatch) -> None:
         "self": {"status": "unknown", "provenance": "unknown"},
         "opponent": {"status": "unknown", "provenance": "unknown"},
     }
-    assert panel.current_field_state_button.text() == "Field state"
+    assert panel.current_field_state_button.text() == "현재 전장 상태"
 
 
 def test_gravity_field_ui_emits_exact_active_and_inactive_without_duration(monkeypatch) -> None:

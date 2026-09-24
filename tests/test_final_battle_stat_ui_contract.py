@@ -19,5 +19,5 @@ def test_final_stat_panel_count_does_not_emit_advice_request() -> None:
     panel = LLMAdvicePanel(); emitted = []
     panel.advice_requested.connect(lambda: emitted.append(True))
     panel.set_current_final_stat_count(2)
-    assert panel.current_final_stat_button.text() == "Final stats (2)"
+    assert panel.current_final_stat_button.text() == "확정 실능력치 (랭크 제외) (2)"
     assert emitted == []

@@ -97,7 +97,7 @@ def test_main_window_apply_replaces_side_and_keeps_other_side(monkeypatch: pytes
         "self": _ability(ability="mold-breaker"),
         "opponent": _ability(side="opponent", ability="unknown"),
     }
-    assert panel.current_ability_button.text() == "Ability (2)"
+    assert panel.current_ability_button.text() == "현재 특성 (2)"
 
 
 def test_cancel_invalid_apply_and_clear_preserve_or_reset_state_without_advice_request(
@@ -126,7 +126,7 @@ def test_cancel_invalid_apply_and_clear_preserve_or_reset_state_without_advice_r
     panel.current_ability_session_reset_requested.connect(window._clear_current_ability_confirmations)
     panel.clear_current_abilities_button.click()
     assert window._current_ability_confirmations == {}
-    assert panel.current_ability_button.text() == "Ability"
+    assert panel.current_ability_button.text() == "현재 특성"
     assert advice_requests == 0
 
 

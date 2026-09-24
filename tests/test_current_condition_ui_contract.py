@@ -102,7 +102,7 @@ def test_main_window_apply_replaces_same_side_and_keeps_other_side(monkeypatch: 
         "self": _condition(condition_type="sleep"),
         "opponent": _condition(side="opponent", condition_type="freeze"),
     }
-    assert panel.current_condition_button.text() == "Condition (2)"
+    assert panel.current_condition_button.text() == "현재 상태이상 (2)"
 
 
 def test_cancel_and_invalid_apply_preserve_existing_current_condition_state(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -183,7 +183,7 @@ def test_clear_action_resets_state_count_and_payload_candidate_without_advice_re
     panel.clear_current_conditions_button.click()
 
     assert window._current_condition_confirmations == {}
-    assert panel.current_condition_button.text() == "Condition"
+    assert panel.current_condition_button.text() == "현재 상태이상"
     assert build_current_condition_context_from_confirmations([]) is None
     assert advice_requests == 0
 

@@ -50,7 +50,7 @@ def test_session_replaces_side_stat_keeps_others_cancel_and_clear(monkeypatch) -
     monkeypatch.setattr(main_window_module, "CurrentStatStageDialog", lambda **kwargs: queue.pop(0))
     window._open_current_stat_stage_dialog(); window._open_current_stat_stage_dialog(); window._open_current_stat_stage_dialog(); window._open_current_stat_stage_dialog()
     assert window._current_stat_stage_confirmations == {("self", "attack"): {**_stage(stage=2), "confidence": "known"}, ("opponent", "speed"): {**_stage("opponent", "speed", 2), "confidence": "known"}}
-    assert panel.current_stat_stage_button.text() == "Stat stages (2)"
+    assert panel.current_stat_stage_button.text() == "현재 랭크 변화 (2)"
     window._clear_current_stat_stage_confirmations()
     assert window._current_stat_stage_confirmations == {}
-    assert panel.current_stat_stage_button.text() == "Stat stages"
+    assert panel.current_stat_stage_button.text() == "현재 랭크 변화"
