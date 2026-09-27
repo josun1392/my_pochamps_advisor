@@ -30,6 +30,33 @@ def _battle(*, complete: bool = True) -> MainWindow:
     return window
 
 
+def test_minimal_garchomp_earthquake_tyranitar_bypasses_spurious_prankster_readiness() -> None:
+    window = _window()
+    window.my_team_column.panels[0].pokemon_view = window.repo.get("garchomp")
+    window.opponent_team_column.panels[0].pokemon_view = window.repo.get("tyranitar")
+    own_panel = window.my_team_column.panels[0]
+    own_panel.set_move(0, window.move_repo.get("earthquake"))
+
+    window.center_column.start_battle_button.click()
+    own_panel.select_move(0)
+    window._refresh_guided_turn_workspace()
+
+    assert window._current_trusted_turn_number == 1
+    assert window._guided_considered_action["move_id"] == "earthquake"
+    paths = [entry.get("path") for entry in window._guided_readiness.get("missing", [])]
+    assert "self.prankster_applied" not in paths
+    assert paths
+    assert any(
+        isinstance(entry.get("action"), str)
+        for entry in window._guided_readiness.get("missing", [])
+        if isinstance(entry, dict)
+    )
+    assert window.center_column.guided_turn_workspace.readiness_input_button.isVisibleTo(
+        window.center_column.guided_turn_workspace
+    )
+    window.close()
+
+
 def test_new_battle_uses_selected_nonzero_active_slot_without_reordering_or_switch_observation() -> None:
     window = _window(complete=False)
     own_ids = ["pikachu", "raichu", "eevee", "vaporeon", "jolteon", "flareon"]
@@ -238,9 +265,9 @@ def test_explicit_strategy_updates_board_and_failed_retry_clears_star(monkeypatc
     assert calls == [True] and len(stage.candidate_rows) == 3
     stage.analysis_button.click()
     assert calls == [True, True]
-    assert stage.candidate_rows == [] and "분석을 완료하지 못" in stage.board_empty_label.text()
+    assert stage.candidate_rows == [] and "분석을 완료" in stage.board_empty_label.text()
     assert "★" not in stage.board_empty_label.text()
-    assert "분석을 완료하지 못" in window.center_column.analysis_panel.output_edit.toPlainText()
+    assert "분석을 완료" in window.center_column.analysis_panel.output_edit.toPlainText()
     window.close()
 
 

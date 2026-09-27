@@ -602,21 +602,21 @@ def _dark_type_prankster_target_relevance(metadata: Any) -> dict[str, Any]:
 
 
 def _dark_type_prankster_source(snapshot: Mapping[str, Any], metadata: Any, action_order: Any) -> dict[str, Any] | None:
-    """Resolve only Dark-target immunity for an already-applied self Prankster modifier."""
+    """Resolve Dark-target immunity only when the current move can use Prankster."""
     context = snapshot.get("current_type_context")
     if not isinstance(context, Mapping) or "current_types" not in context:
         return None
+    if _metadata_value(metadata, "category") != "status":
+        return {"status": "allowed", "move_success_status": "allowed"}
+    relevance = _dark_type_prankster_target_relevance(metadata)
+    if relevance.get("status") != "opposing_single":
+        return relevance
     if isinstance(action_order, Mapping) and action_order.get("status") == "unsupported_mechanic":
         return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "prankster_applied_evidence"}
     if not isinstance(action_order, Mapping) or action_order.get("self_prankster_applied") is not True:
         if isinstance(action_order, Mapping) and action_order.get("status") == "insufficient_context":
             return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["self.prankster_applied"]}
         return {"status": "allowed", "move_success_status": "allowed"}
-    if _metadata_value(metadata, "category") != "status":
-        return {"status": "unsupported_mechanic", "move_success_status": None, "unsupported_reason": "prankster_category_evidence"}
-    relevance = _dark_type_prankster_target_relevance(metadata)
-    if relevance.get("status") != "opposing_single":
-        return relevance
     membership = classify_current_type_dark_membership(context, side="opponent")
     if membership == "unknown":
         return {"status": "insufficient_context", "move_success_status": None, "missing_inputs": ["opponent.current_type"]}
