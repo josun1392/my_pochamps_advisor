@@ -5037,6 +5037,8 @@ class MainWindow(QMainWindow):
             "current_type": self._open_current_type_dialog,
             "current_condition": self._open_current_condition_dialog,
             "current_stat_stage": self._open_current_stat_stage_dialog,
+            "current_final_stat": self._open_current_final_stat_dialog,
+            "current_battle_format": self._open_current_battle_format_dialog,
             "current_field_state": self._open_current_field_state_dialog,
             "current_ability": self._open_current_ability_dialog,
             "switch_permission": self._open_switch_permission_dialog,

@@ -5,6 +5,27 @@ from copy import deepcopy
 from typing import Any, Mapping
 
 
+_EXACT_MISSING_FACTS = {
+    "attacker.status": ("Attacker current condition needed", "current_condition"),
+    "defender.status": ("Defender current condition needed", "current_condition"),
+    "attacker.condition": ("Attacker current condition needed", "current_condition"),
+    "defender.condition": ("Defender current condition needed", "current_condition"),
+    "self_paralysis": ("Self paralysis state needed", "current_condition"),
+    "opponent_paralysis": ("Opponent paralysis state needed", "current_condition"),
+    "attacker.boosts": ("Attacker stat stages needed", "current_stat_stage"),
+    "defender.boosts": ("Defender stat stages needed", "current_stat_stage"),
+    "self_speed_stage": ("Self Speed stage needed", "current_stat_stage"),
+    "opponent_speed_stage": ("Opponent Speed stage needed", "current_stat_stage"),
+    "attacker.final_stats": ("Attacker final stats needed", "current_final_stat"),
+    "defender.final_stats": ("Defender final stats needed", "current_final_stat"),
+    "self_final_speed": ("Self final Speed needed", "current_final_stat"),
+    "opponent_final_speed": ("Opponent final Speed needed", "current_final_stat"),
+    "battle_format": ("Battle format not confirmed", "current_battle_format"),
+    "effective_priority": ("Priority/action context needed", None),
+    "opponent_action": ("Opponent action context needed for this mechanic", None),
+}
+
+
 _MISSING_FACTS = {
     "current_hp": ("Current HP needed", "current_hp"),
     "max_hp": ("Maximum HP needed", "current_hp"),
@@ -27,6 +48,9 @@ _MISSING_FACTS = {
 
 def _fact(path: str) -> tuple[str, str | None]:
     token = path.lower()
+    exact = _EXACT_MISSING_FACTS.get(token)
+    if exact is not None:
+        return exact
     for needle, result in _MISSING_FACTS.items():
         if needle in token:
             return result

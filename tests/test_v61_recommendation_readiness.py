@@ -175,6 +175,95 @@ def test_real_psychic_terrain_move_success_missing_authority_remains_blocking_wi
     assert "effective_priority" in [entry["path"] for entry in readiness["missing"]]
 
 
+def test_readiness_routes_canonical_condition_stage_final_stat_and_battle_format_paths():
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared({
+        "mechanics_result": {
+            "status": "insufficient_context",
+            "missing_inputs": [
+                "opponent_final_speed",
+                "opponent_speed_stage",
+                "opponent_paralysis",
+                "battle_format",
+                "attacker.final_stats",
+                "defender.status",
+                "attacker.boosts",
+            ],
+        },
+    }))
+
+    by_path = {entry["path"]: entry for entry in readiness["missing"]}
+    assert by_path["opponent_final_speed"]["action"] == "current_final_stat"
+    assert by_path["opponent_speed_stage"]["action"] == "current_stat_stage"
+    assert by_path["opponent_paralysis"]["action"] == "current_condition"
+    assert by_path["battle_format"]["action"] == "current_battle_format"
+    assert by_path["attacker.final_stats"]["action"] == "current_final_stat"
+    assert by_path["defender.status"]["action"] == "current_condition"
+    assert by_path["attacker.boosts"]["action"] == "current_stat_stage"
+    assert all(entry["label"] != "Required deterministic authority is unavailable" for entry in readiness["missing"])
+
+
+def test_derived_priority_and_move_success_opponent_action_are_specific_but_non_actionable():
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared({
+        "mechanics_result": {"status": "known"},
+        "action_order": {
+            "status": "insufficient_context",
+            "missing_inputs": ["opponent_action"],
+        },
+        "move_success": {
+            "status": "insufficient_context",
+            "missing_inputs": ["effective_priority", "opponent_action"],
+        },
+    }))
+
+    assert readiness["status"] == "incomplete"
+    by_path = {entry["path"]: entry for entry in readiness["missing"]}
+    assert by_path["effective_priority"] == {
+        "path": "effective_priority",
+        "label": "Priority/action context needed",
+        "action": None,
+    }
+    assert by_path["opponent_action"] == {
+        "path": "opponent_action",
+        "label": "Opponent action context needed for this mechanic",
+        "action": None,
+    }
+
+
+def test_existing_readiness_route_families_remain_unchanged():
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared({
+        "mechanics_result": {
+            "status": "insufficient_context",
+            "missing_inputs": [
+                "attacker.current_hp",
+                "attacker.current_type",
+                "attacker.condition",
+                "attacker.stat_stage",
+                "field.weather",
+                "field.terrain",
+                "opponent.grounded",
+                "attacker.ability",
+                "attacker.item",
+                "switch_permission",
+                "previous_damage",
+            ],
+        },
+    }))
+    by_path = {entry["path"]: entry["action"] for entry in readiness["missing"]}
+    assert by_path == {
+        "attacker.current_hp": "current_hp",
+        "attacker.current_type": "current_type",
+        "attacker.condition": "current_condition",
+        "attacker.stat_stage": "current_stat_stage",
+        "field.weather": "current_field_state",
+        "field.terrain": "current_field_state",
+        "opponent.grounded": "current_field_state",
+        "attacker.ability": "current_ability",
+        "attacker.item": "current_item",
+        "switch_permission": "switch_permission",
+        "previous_damage": "current_observed_damage",
+    }
+
+
 def test_panel_exposes_readiness_and_routes_only_existing_confirmation_actions():
     QApplication.instance() or QApplication([])
     panel = LLMAdvicePanel()
@@ -216,6 +305,73 @@ def test_panel_groups_multiple_readiness_gaps_with_distinct_routes_and_unavailab
     assert emitted == ["current_hp", "current_item"]
     panel.clear_recommendation_readiness()
     assert panel._readiness_extra_input_buttons == []
+
+
+def test_panel_groups_new_actionable_and_non_actionable_readiness_gaps_without_generic_fallback():
+    QApplication.instance() or QApplication([])
+    panel = LLMAdvicePanel()
+    emitted: list[str] = []
+    panel.readiness_input_requested.connect(emitted.append)
+    panel.set_recommendation_readiness({
+        "status": "incomplete",
+        "missing": [
+            {"path": "opponent_final_speed", "label": "Opponent final Speed needed", "action": "current_final_stat"},
+            {"path": "attacker.condition", "label": "Attacker current condition needed", "action": "current_condition"},
+            {"path": "field.terrain", "label": "Terrain not confirmed", "action": "current_field_state"},
+            {"path": "effective_priority", "label": "Priority/action context needed", "action": None},
+            {"path": "opponent_action", "label": "Opponent action context needed for this mechanic", "action": None},
+            {"path": "defender.final_stats", "label": "Defender final stats needed", "action": "current_final_stat"},
+        ],
+        "unsupported": [],
+        "action": "current_final_stat",
+    })
+
+    text = panel.readiness_label.text()
+    assert "입력 가능: 확정 실능력치; 현재 상태이상; 현재 전장 상태" in text
+    assert "현재 직접 입력 경로 없음: 우선도 판정에 필요한 전투 정보; 이 기술 판정에 필요한 상대 행동 정보" in text
+    assert "현재 직접 확인할 수 없는 추가 전투 정보" not in text
+    assert panel.readiness_input_button.text() == "입력하기: 확정 실능력치"
+    assert [button.text() for button in panel._readiness_extra_input_buttons] == [
+        "입력하기: 현재 상태이상",
+        "입력하기: 현재 전장 상태",
+    ]
+    panel._request_readiness_input()
+    panel._readiness_extra_input_buttons[0].click()
+    panel._readiness_extra_input_buttons[1].click()
+    assert emitted == ["current_final_stat", "current_condition", "current_field_state"]
+
+
+def test_main_window_readiness_routes_existing_final_stat_and_battle_format_dialogs():
+    source = inspect.getsource(MainWindow._open_readiness_input)
+    assert '"current_final_stat": self._open_current_final_stat_dialog' in source
+    assert '"current_battle_format": self._open_current_battle_format_dialog' in source
+    assert "handler()" in source
+    assert "self._check_structured_recommendation_readiness()" in source
+
+
+def test_panel_emits_final_stat_and_battle_format_readiness_actions():
+    QApplication.instance() or QApplication([])
+    panel = LLMAdvicePanel()
+    emitted: list[str] = []
+    panel.readiness_input_requested.connect(emitted.append)
+
+    panel.set_recommendation_readiness({
+        "status": "incomplete",
+        "missing": [{"path": "opponent_final_speed", "label": "Opponent final Speed needed", "action": "current_final_stat"}],
+        "unsupported": [],
+        "action": "current_final_stat",
+    })
+    panel._request_readiness_input()
+
+    panel.set_recommendation_readiness({
+        "status": "incomplete",
+        "missing": [{"path": "battle_format", "label": "Battle format not confirmed", "action": "current_battle_format"}],
+        "unsupported": [],
+        "action": "current_battle_format",
+    })
+    panel._request_readiness_input()
+
+    assert emitted == ["current_final_stat", "current_battle_format"]
 
 
 def test_main_window_readiness_uses_frozen_preparation_without_a_provider_call():

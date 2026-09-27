@@ -449,6 +449,8 @@ class LLMAdvicePanel(QFrame):
             "current_type": "현재 타입",
             "current_condition": "현재 상태이상",
             "current_stat_stage": "현재 랭크 변화",
+            "current_final_stat": "확정 실능력치",
+            "current_battle_format": "배틀 형식",
             "current_field_state": "현재 전장 상태",
             "current_ability": "현재 특성",
             "current_item": "현재 지닌 도구",
@@ -461,6 +463,8 @@ class LLMAdvicePanel(QFrame):
         special = {
             "Toxic progression authority missing": "독성 진행 정보",
             "Opponent move/result authority missing": "상대 기술/결과 관측 정보",
+            "Priority/action context needed": "우선도 판정에 필요한 전투 정보",
+            "Opponent action context needed for this mechanic": "이 기술 판정에 필요한 상대 행동 정보",
             "Required deterministic authority is unavailable": "현재 직접 확인할 수 없는 추가 전투 정보",
         }
         return special.get(label, label)
