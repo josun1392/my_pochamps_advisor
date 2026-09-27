@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QApplication
 import inspect
 from types import SimpleNamespace
 
+from llm.advisor_candidate_contract import evaluate_move_candidate
 from llm.advisor_recommendation_readiness import build_recommendation_readiness
 from ui.main_window import MainWindow
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
@@ -65,6 +66,113 @@ def test_readiness_projects_canonical_missing_inputs_from_nonselectable_candidat
         "unsupported": [],
         "action": "current_item",
     }
+
+
+def test_legacy_action_order_missing_opponent_action_is_not_a_global_readiness_blocker():
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared({
+        "mechanics_result": {"status": "known"},
+        "action_order": {
+            "status": "insufficient_context",
+            "missing_inputs": ["opponent_action"],
+        },
+        "move_success": {"status": "resolved"},
+    }))
+
+    assert readiness == {
+        "status": "ready",
+        "missing": [],
+        "unsupported": [],
+        "action": None,
+    }
+
+
+def test_other_action_order_missing_authority_remains_globally_blocking():
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared({
+        "mechanics_result": {"status": "known"},
+        "action_order": {
+            "status": "insufficient_context",
+            "missing_inputs": ["opponent_action", "opponent_final_speed"],
+        },
+    }))
+
+    assert readiness["status"] == "incomplete"
+    assert [entry["path"] for entry in readiness["missing"]] == ["opponent_final_speed"]
+
+
+def test_move_success_missing_opponent_action_remains_blocking_even_when_action_order_copy_is_filtered():
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared({
+        "mechanics_result": {"status": "known"},
+        "action_order": {
+            "status": "insufficient_context",
+            "missing_inputs": ["opponent_action"],
+        },
+        "move_success": {
+            "status": "insufficient_context",
+            "missing_inputs": ["opponent_action"],
+        },
+    }))
+
+    assert readiness["status"] == "incomplete"
+    assert [entry["path"] for entry in readiness["missing"]] == ["opponent_action"]
+
+
+def test_exact_selected_opponent_action_readiness_behavior_is_unchanged():
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared({
+        "mechanics_result": {"status": "known"},
+        "action_order": {"status": "acts_first", "missing_inputs": []},
+        "move_success": {"status": "resolved"},
+    }))
+
+    assert readiness == {
+        "status": "ready",
+        "missing": [],
+        "unsupported": [],
+        "action": None,
+    }
+
+
+def test_real_psychic_terrain_move_success_missing_authority_remains_blocking_without_selected_opponent_action():
+    candidate = evaluate_move_candidate(
+        slot_index=0,
+        move="quick",
+        battle_snapshot={
+            "field_state_context": {
+                "current_field": {
+                    "weather": "none",
+                    "terrain": "psychic",
+                    "global_effects": [],
+                    "side_effects": [],
+                    "status": "user_confirmed",
+                    "source": "user_confirmed_current_field_state",
+                    "confidence": "known",
+                }
+            },
+            "grounded_context": {
+                "opponent": {"status": "unknown", "provenance": "unknown"},
+            },
+        },
+        repositories={
+            "quick": {
+                "category": "physical",
+                "power": 40,
+                "type": "normal",
+                "target": "selected-pokemon",
+                "priority": 1,
+            },
+        },
+    )
+
+    assert candidate["action_order"]["status"] == "insufficient_context"
+    assert "opponent_action" in candidate["action_order"]["missing_inputs"]
+    assert candidate["move_success"] == {
+        "status": "insufficient_context",
+        "move_success_status": None,
+        "missing_inputs": ["effective_priority"],
+    }
+
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared(candidate))
+    assert readiness["status"] == "incomplete"
+    assert "effective_priority" in [entry["path"] for entry in readiness["missing"]]
 
 
 def test_panel_exposes_readiness_and_routes_only_existing_confirmation_actions():

@@ -220,6 +220,49 @@ def test_first_supported_ordinary_case_reaches_known_mechanics_rankable_and_read
     assert level["source"] == level["trust"] == "deterministic_rules_metadata"
 
 
+def test_first_supported_ordinary_case_is_ready_without_hidden_exact_opponent_command():
+    battle = _battle()
+    battle["moves"].pop("opponent_selected_move")
+    move_repo = {
+        "tackle": {
+            "move_id": "tackle",
+            "category": "physical",
+            "power": 40,
+            "type": "normal",
+            "accuracy": 100,
+            "priority": 0,
+            "target": "selected-pokemon",
+        }
+    }
+
+    prepared = prepare_ui_recommendation_cycle(
+        selected_moves=[{"move_id": "tackle"}],
+        battle_input=battle,
+        move_repository=move_repo,
+        species_repository=_Species(),
+    )
+
+    candidate = prepared["candidates"][0]
+    assert prepared["status"] == "ready"
+    assert candidate["mechanics_result"]["status"] == "known"
+    assert candidate["mechanics_result"]["missing_inputs"] == []
+    assert candidate["action_order"]["status"] == "insufficient_context"
+    assert candidate["action_order"]["missing_inputs"] == ["opponent_action"]
+    move_success = candidate.get("move_success")
+    assert not (
+        isinstance(move_success, dict)
+        and move_success.get("status") in {"insufficient_context", "unsupported_mechanic"}
+    )
+
+    readiness = build_recommendation_readiness(prepared_cycle=prepared)
+    assert readiness == {
+        "status": "ready",
+        "missing": [],
+        "unsupported": [],
+        "action": None,
+    }
+
+
 def test_garchomp_earthquake_into_tyranitar_is_supported_and_rankable_with_exact_context():
     battle = _battle()
     battle["pokemon"] = {

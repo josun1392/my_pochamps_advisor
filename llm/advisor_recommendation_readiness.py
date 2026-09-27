@@ -33,6 +33,11 @@ def _fact(path: str) -> tuple[str, str | None]:
     return ("Required deterministic authority is unavailable", None)
 
 
+def _is_globally_blocking_missing(*, source_name: str, path: str) -> bool:
+    """Keep legacy scalar evidence from becoming a false global prerequisite."""
+    return not (source_name == "action_order" and path == "opponent_action")
+
+
 def build_recommendation_readiness(*, prepared_cycle: Mapping[str, Any]) -> dict[str, Any]:
     """Project canonical candidate incompleteness without evaluating new rules."""
     if not isinstance(prepared_cycle, Mapping) or prepared_cycle.get("status") not in {"ready", "no_selectable_candidates"}:
@@ -52,12 +57,17 @@ def build_recommendation_readiness(*, prepared_cycle: Mapping[str, Any]) -> dict
     for candidate in candidates:
         if not isinstance(candidate, Mapping):
             continue
-        for source in (candidate.get("mechanics_result"), candidate.get("action_order"), candidate.get("move_success")):
+        for source_name in ("mechanics_result", "action_order", "move_success"):
+            source = candidate.get(source_name)
             if not isinstance(source, Mapping):
                 continue
             if source.get("status") == "insufficient_context":
                 for path in source.get("missing_inputs", ()):
-                    if not isinstance(path, str) or path in seen_missing:
+                    if (
+                        not isinstance(path, str)
+                        or path in seen_missing
+                        or not _is_globally_blocking_missing(source_name=source_name, path=path)
+                    ):
                         continue
                     seen_missing.add(path)
                     label, action = _fact(path)
