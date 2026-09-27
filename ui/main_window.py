@@ -52,6 +52,10 @@ from llm.advisor_battle_state_context import (
 )
 from llm.opponent_assumptions import build_opponent_assumptions_payload
 from llm.advisor_payload_contract import ADVISOR_KNOWN_LIMITATIONS, ADVISOR_PAYLOAD_MODE
+from llm.advisor_champions_rules import (
+    CHAMPIONS_RULES_CONTEXT,
+    build_champions_trusted_level_context,
+)
 from llm.advisor_client import format_recommendation_presentation_text, run_structured_ui_recommendation, run_ui_selected_advice
 from llm.advisor_initial_battle_state import create_unknown_bootstrap_battle_state
 from llm.advisor_pokemon_switch_observation import admit_pokemon_switch_observation
@@ -4878,8 +4882,11 @@ class MainWindow(QMainWindow):
             my_slot_index = self.selected_slots.get("team_my")
             if not isinstance(my_slot_index, int):
                 raise ValueError("missing selected Pokemon")
-            battle_input = self._build_llm_battle_input()
-            battle_input["current_state_session_id"] = session_id
+            runtime_projection = build_runtime_advice_state_projection(runtime_snapshot.get("state"))
+            battle_input = self._build_current_structured_analysis_battle_input(
+                session_id=session_id,
+                runtime_projection=runtime_projection,
+            )
             battle_input["switch_candidate_context"] = build_switch_candidate_context_projection(runtime_snapshot["state"])
             return prepare_ui_recommendation_cycle(
                 selected_moves=list(self._slot_panel("team_my", my_slot_index).selected_moves),
@@ -4974,22 +4981,10 @@ class MainWindow(QMainWindow):
                 or projection.get("runtime_fingerprint") != runtime_snapshot.get("state_fingerprint")
             ):
                 raise ValueError("runtime projection unavailable")
-            battle_input = self._build_llm_battle_input(
-                include_item_event_confirmations=True,
-                include_current_condition_confirmations=True,
-                include_current_ability_confirmations=True,
-                include_current_stat_stage_confirmations=True,
-                include_current_field_state_confirmation=True,
-                include_current_final_stat_confirmations=True,
-                include_current_hp_confirmations=True,
-                include_current_battle_format_confirmation=True,
-                include_observed_previous_damage_confirmation=True,
-                include_direct_mechanics_context=True,
+            battle_input = self._build_current_structured_analysis_battle_input(
+                session_id=session_id,
+                runtime_projection=projection,
             )
-            if not MainWindow._runtime_projection_matches_battle_input(
-                projection["runtime_advice_state"], battle_input
-            ):
-                raise ValueError("runtime identity mismatch")
             my_slot = self.selected_slots.get("team_my")
             if my_slot is None:
                 raise ValueError("missing selected Pokemon")
@@ -4997,21 +4992,6 @@ class MainWindow(QMainWindow):
             current_pokemon_id = getattr(current_view, "en", None)
             if not isinstance(current_pokemon_id, str) or not current_pokemon_id:
                 raise ValueError("missing selected Pokemon identity")
-            battle_input["runtime_advice_state"] = deepcopy(projection["runtime_advice_state"])
-            battle_input = capture_ui_current_state_provenance(
-                deepcopy(battle_input),
-                session_id=session_id,
-                observed_events=deepcopy(getattr(self, "_item_event_confirmations", [])),
-                final_stat_confirmations=deepcopy(list(getattr(self, "_structured_final_stat_confirmations", {}).values())),
-                ability_confirmations=deepcopy(list(getattr(self, "_structured_ability_confirmations", {}).values())),
-                current_type_confirmations=deepcopy([
-                    *list(getattr(self, "_structured_type_confirmations", {}).values()),
-                    *[entry for entry in getattr(self, "_current_type_confirmations", {}).values()
-                      if isinstance(entry, dict) and entry.get("state") == "unknown"],
-                ]),
-                observed_damage_confirmations=deepcopy(getattr(self, "_structured_observed_damage_confirmations", [])),
-            )
-            battle_input["current_state_session_id"] = session_id
             prepared = prepare_ui_recommendation_cycle(
                 selected_moves=list(self._slot_panel("team_my", my_slot).selected_moves),
                 battle_input=battle_input,
@@ -5091,47 +5071,14 @@ class MainWindow(QMainWindow):
                 or runtime_projection.get("runtime_fingerprint") != runtime_snapshot.get("state_fingerprint")
             ):
                 raise ValueError("runtime projection unavailable")
-            battle_input = self._build_llm_battle_input(
-                include_item_event_confirmations=True,
-                include_current_condition_confirmations=True,
-                include_current_ability_confirmations=True,
-                include_current_stat_stage_confirmations=True,
-                include_current_field_state_confirmation=True,
-                include_current_final_stat_confirmations=True,
-                include_current_hp_confirmations=True,
-                include_current_battle_format_confirmation=True,
-                include_observed_previous_damage_confirmation=True,
-                include_direct_mechanics_context=True,
+            battle_input = self._build_current_structured_analysis_battle_input(
+                session_id=captured_session_id,
+                runtime_projection=runtime_projection,
             )
-            if not MainWindow._runtime_projection_matches_battle_input(
-                runtime_projection["runtime_advice_state"],
-                battle_input,
-            ):
-                raise ValueError("runtime identity mismatch")
-            battle_input["runtime_advice_state"] = deepcopy(runtime_projection["runtime_advice_state"])
             my_slot_index = self.selected_slots.get("team_my")
             if my_slot_index is None:
                 raise ValueError("missing selected Pokemon")
             selected_moves = list(self._slot_panel("team_my", my_slot_index).selected_moves)
-            battle_input = capture_ui_current_state_provenance(
-                deepcopy(battle_input),
-                session_id=captured_session_id,
-                observed_events=deepcopy(getattr(self, "_item_event_confirmations", [])),
-                final_stat_confirmations=deepcopy(
-                    list(getattr(self, "_structured_final_stat_confirmations", {}).values())
-                ),
-                ability_confirmations=deepcopy(
-                    list(getattr(self, "_structured_ability_confirmations", {}).values())
-                ),
-                current_type_confirmations=deepcopy([
-                    *list(getattr(self, "_structured_type_confirmations", {}).values()),
-                    *[entry for entry in getattr(self, "_current_type_confirmations", {}).values() if isinstance(entry, dict) and entry.get("state") == "unknown"],
-                ]),
-                observed_damage_confirmations=deepcopy(
-                    getattr(self, "_structured_observed_damage_confirmations", [])
-                ),
-            )
-            battle_input["current_state_session_id"] = captured_session_id
             observation_snapshot = manager.read_collection_snapshot()
             trusted_turn_context = self._trusted_turn_context_snapshot()
             # C6 is detached and optional; a missing explicit context cannot block advice.
@@ -5310,6 +5257,67 @@ class MainWindow(QMainWindow):
         """Return each live advice thread once; one field exists for each mode."""
         threads = (self._llm_thread, self._structured_thread)
         return tuple(thread for index, thread in enumerate(threads) if thread is not None and thread not in threads[:index])
+
+    def _build_current_structured_analysis_battle_input(
+        self, *, session_id: str, runtime_projection: dict,
+    ) -> dict:
+        """Build the one canonical current-state input used by readiness and analysis."""
+        if (
+            not isinstance(session_id, str)
+            or not session_id
+            or not isinstance(runtime_projection, dict)
+            or runtime_projection.get("status") != "runtime_projection_ready"
+            or runtime_projection.get("session_id") != session_id
+        ):
+            raise ValueError("runtime projection unavailable")
+        battle_input = self._build_llm_battle_input(
+            include_item_event_confirmations=True,
+            include_current_condition_confirmations=True,
+            include_current_ability_confirmations=True,
+            include_current_stat_stage_confirmations=True,
+            include_current_field_state_confirmation=True,
+            include_current_final_stat_confirmations=True,
+            include_current_hp_confirmations=True,
+            include_current_battle_format_confirmation=True,
+            include_observed_previous_damage_confirmation=True,
+            include_direct_mechanics_context=True,
+        )
+        if not MainWindow._runtime_projection_matches_battle_input(
+            runtime_projection["runtime_advice_state"], battle_input
+        ):
+            raise ValueError("runtime identity mismatch")
+        battle_input["runtime_advice_state"] = deepcopy(runtime_projection["runtime_advice_state"])
+        trusted_levels = build_champions_trusted_level_context(
+            rules_context=CHAMPIONS_RULES_CONTEXT,
+            session_id=session_id,
+            pokemon=battle_input.get("pokemon", {}),
+        )
+        if trusted_levels is None:
+            raise ValueError("champions rules authority unavailable")
+        battle_input["trusted_level_context"] = trusted_levels
+        battle_input = capture_ui_current_state_provenance(
+            deepcopy(battle_input),
+            session_id=session_id,
+            observed_events=deepcopy(getattr(self, "_item_event_confirmations", [])),
+            final_stat_confirmations=deepcopy(
+                list(getattr(self, "_structured_final_stat_confirmations", {}).values())
+            ),
+            ability_confirmations=deepcopy(
+                list(getattr(self, "_structured_ability_confirmations", {}).values())
+            ),
+            current_type_confirmations=deepcopy([
+                *list(getattr(self, "_structured_type_confirmations", {}).values()),
+                *[
+                    entry for entry in getattr(self, "_current_type_confirmations", {}).values()
+                    if isinstance(entry, dict) and entry.get("state") == "unknown"
+                ],
+            ]),
+            observed_damage_confirmations=deepcopy(
+                getattr(self, "_structured_observed_damage_confirmations", [])
+            ),
+        )
+        battle_input["current_state_session_id"] = session_id
+        return battle_input
 
     def _build_llm_battle_input(
         self,

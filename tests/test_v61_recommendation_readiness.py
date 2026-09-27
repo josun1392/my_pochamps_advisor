@@ -115,9 +115,11 @@ def test_main_window_readiness_uses_frozen_preparation_without_a_provider_call()
     assert "prepare_ui_recommendation_cycle" in source
     assert "build_recommendation_readiness" in source
     assert "run_structured_ui_recommendation" not in source
-    assert "include_current_field_state_confirmation=True" in source
-    assert "include_current_hp_confirmations=True" in source
-    assert "include_direct_mechanics_context=True" in source
+    assert "_build_current_structured_analysis_battle_input" in source
+    shared = inspect.getsource(MainWindow._build_current_structured_analysis_battle_input)
+    assert "include_current_field_state_confirmation=True" in shared
+    assert "include_current_hp_confirmations=True" in shared
+    assert "include_direct_mechanics_context=True" in shared
 
 
 def test_item_shortcut_reuses_existing_item_profile_flow_with_identity_check():
