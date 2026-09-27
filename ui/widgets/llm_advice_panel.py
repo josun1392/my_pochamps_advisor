@@ -461,7 +461,7 @@ class LLMAdvicePanel(QFrame):
         special = {
             "Toxic progression authority missing": "독성 진행 정보",
             "Opponent move/result authority missing": "상대 기술/결과 관측 정보",
-            "Required deterministic authority is unavailable": "추가 결정론 권한 정보",
+            "Required deterministic authority is unavailable": "현재 직접 확인할 수 없는 추가 전투 정보",
         }
         return special.get(label, label)
 

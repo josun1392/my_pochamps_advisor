@@ -5,19 +5,19 @@ from llm.advisor_battle_state_context import normalize_user_confirmed_battle_for
 from llm.advisor_reducer_state_model import STATE_MODEL_VERSION, make_unknown_battle_fact
 
 
-def create_unknown_bootstrap_battle_state(session_id, self_identity, opponent_identity, *, battle_format=None, self_roster=None, opponent_roster=None):
+def create_unknown_bootstrap_battle_state(session_id, self_identity, opponent_identity, *, battle_format=None, self_roster=None, opponent_roster=None, self_active_slot_index=0, opponent_active_slot_index=0):
     """Create battle-state-v1 without inferring unconfirmed battle facts."""
     self_id = _identity(self_identity)
     opponent_id = _identity(opponent_identity)
-    self_roster_ids = _roster_identities(self_roster, self_id)
-    opponent_roster_ids = _roster_identities(opponent_roster, opponent_id)
+    self_roster_ids = _roster_identities(self_roster, self_id, self_active_slot_index)
+    opponent_roster_ids = _roster_identities(opponent_roster, opponent_id, opponent_active_slot_index)
     if not isinstance(session_id, str) or not session_id or self_id is None or opponent_id is None or self_roster_ids is None or opponent_roster_ids is None:
         return {"status": "invalid_initial_state", "session_id": None, "state": None}
     state = {
         "state_version": STATE_MODEL_VERSION,
         "session_id": session_id,
-        "self_side": _side(self_roster_ids),
-        "opponent_side": _side(opponent_roster_ids),
+        "self_side": _side(self_roster_ids, self_active_slot_index),
+        "opponent_side": _side(opponent_roster_ids, opponent_active_slot_index),
         "field": {"weather": make_unknown_battle_fact(), "terrain": make_unknown_battle_fact(), "battle_format": make_unknown_battle_fact(), "trick_room_status": make_unknown_battle_fact(), "magic_room_status": make_unknown_battle_fact(), "gravity_status": make_unknown_battle_fact()},
         "last_applied_observation_sequence": None,
     }
@@ -39,9 +39,11 @@ def _identity(value):
     return None
 
 
-def _roster_identities(value, active_id):
+def _roster_identities(value, active_id, active_slot_index):
+    if not isinstance(active_slot_index, int) or isinstance(active_slot_index, bool) or active_slot_index < 0:
+        return None
     if value is None:
-        return {0: active_id}
+        return {0: active_id} if active_slot_index == 0 else None
     if not isinstance(value, dict):
         return None
     rows = {}
@@ -49,7 +51,7 @@ def _roster_identities(value, active_id):
         if not isinstance(slot, int) or isinstance(slot, bool) or slot < 0 or not isinstance(pokemon_id, str) or not pokemon_id:
             return None
         rows[slot] = pokemon_id
-    return rows if rows.get(0) == active_id else None
+    return rows if active_slot_index in rows and rows[active_slot_index] == active_id else None
 
 
 def _pokemon(pokemon_id):
@@ -71,9 +73,9 @@ def _pokemon(pokemon_id):
     }
 
 
-def _side(roster_ids):
+def _side(roster_ids, active_slot_index):
     return {
-        "active_slot_index": 0,
+        "active_slot_index": active_slot_index,
         "pokemon": {slot: _pokemon(pokemon_id) for slot, pokemon_id in roster_ids.items()},
         "side_conditions": make_unknown_battle_fact(),
         "tailwind_status": make_unknown_battle_fact(),

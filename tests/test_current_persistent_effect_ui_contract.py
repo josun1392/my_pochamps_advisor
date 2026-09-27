@@ -32,7 +32,7 @@ def test_dialog_summary_is_identity_bound_presentation_only_and_panel_running_st
     dialog = CurrentPersistentEffectDialog(current_effects=effects)
     assert "self:1:raichu:aqua_ring: active" in dialog.summary_label.text()
     panel = LLMAdvicePanel(); panel.set_current_persistent_effect_count(1)
-    assert panel.current_persistent_effect_button.text() == "Persistent Effects (1)"
+    assert panel.current_persistent_effect_button.text() == "지속 효과 (1)"
     panel.set_running(True); assert not panel.current_persistent_effect_button.isEnabled()
     panel.set_running(False); assert panel.current_persistent_effect_button.isEnabled()
 
@@ -54,10 +54,10 @@ def test_mainwindow_resolved_admission_updates_count_cancel_and_rejection_preser
     window, panel = _window(); row = {"side": "self", "family": "aqua_ring", "persistent_state": "active"}
     monkeypatch.setattr(main_window_module, "CurrentPersistentEffectDialog", lambda **_: _Dialog(row))
     window._open_current_persistent_effect_dialog()
-    assert len(window._current_persistent_effect_confirmations) == 1 and panel.current_persistent_effect_button.text() == "Persistent Effects (1)"
+    assert len(window._current_persistent_effect_confirmations) == 1 and panel.current_persistent_effect_button.text() == "지속 효과 (1)"
     before = dict(window._current_persistent_effect_confirmations)
     monkeypatch.setattr(main_window_module, "CurrentPersistentEffectDialog", lambda **_: _Dialog(row, accepted=False)); window._open_current_persistent_effect_dialog()
-    assert window._current_persistent_effect_confirmations == before and panel.current_persistent_effect_button.text() == "Persistent Effects (1)"
+    assert window._current_persistent_effect_confirmations == before and panel.current_persistent_effect_button.text() == "지속 효과 (1)"
     bad = {"side": "self", "family": "leech_seed", "persistent_state": "active", "source_side": "self", "source_slot_index": 0}
     monkeypatch.setattr(main_window_module, "CurrentPersistentEffectDialog", lambda **_: _Dialog(bad)); window._open_current_persistent_effect_dialog()
-    assert window._current_persistent_effect_confirmations == before and panel.current_persistent_effect_button.text() == "Persistent Effects (1)"
+    assert window._current_persistent_effect_confirmations == before and panel.current_persistent_effect_button.text() == "지속 효과 (1)"

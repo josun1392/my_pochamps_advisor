@@ -10,6 +10,7 @@ from llm.advisor_battle_state_store import _valid_state
 from llm.advisor_observation_replay_persistence_commands import ObservationReplayPersistenceCommands
 from llm.advisor_observation_replay_runtime import ObservationReplayRuntime
 from llm.advisor_reducer_state_model import UNKNOWN_BATTLE_FACT, make_unknown_battle_fact, state_fingerprint
+from llm.advisor_switch_candidates import build_switch_candidate_context_projection
 
 
 def bootstrap(session="bootstrap"):
@@ -46,6 +47,57 @@ def test_unknown_bootstrap_factory_uses_only_explicit_selected_identity():
     assert state["self_side"]["active_slot_index"] == 0
     assert state["self_side"]["pokemon"][0]["pokemon_id"] == "pikachu"
     assert state["opponent_side"]["pokemon"][0]["pokemon_id"] == "eevee"
+
+
+def test_unknown_bootstrap_accepts_opponent_active_at_original_slot_five():
+    opponent_roster = {0: "meowscarada", 1: "eevee", 5: "torkoal"}
+    result = create_unknown_bootstrap_battle_state(
+        "bootstrap", "pikachu", "torkoal",
+        self_roster={0: "pikachu", 3: "raichu"}, opponent_roster=opponent_roster,
+        opponent_active_slot_index=5,
+    )
+    assert result["status"] == "initial_state_ready"
+    state = result["state"]
+    assert state["self_side"]["active_slot_index"] == 0
+    assert state["opponent_side"]["active_slot_index"] == 5
+    assert {slot: row["pokemon_id"] for slot, row in state["opponent_side"]["pokemon"].items()} == opponent_roster
+    assert _valid_state(state)
+    assert ObservationReplayRuntime.create(state)["status"] == "ready"
+    for side in ("self_side", "opponent_side"):
+        for pokemon in state[side]["pokemon"].values():
+            assert all(unknown(pokemon[key]) for key in ("current_hp", "max_hp", "known_item", "condition"))
+
+
+def test_unknown_bootstrap_accepts_both_nonzero_slots_without_remapping_switch_candidates():
+    self_roster = {0: "pikachu", 2: "raichu", 5: "eevee"}
+    opponent_roster = {0: "meowscarada", 5: "torkoal"}
+    result = create_unknown_bootstrap_battle_state(
+        "bootstrap", "raichu", "torkoal", self_roster=self_roster,
+        opponent_roster=opponent_roster, self_active_slot_index=2, opponent_active_slot_index=5,
+    )
+    assert result["status"] == "initial_state_ready"
+    state = result["state"]
+    assert state["self_side"]["active_slot_index"] == 2
+    assert state["opponent_side"]["active_slot_index"] == 5
+    assert {slot: row["pokemon_id"] for slot, row in state["self_side"]["pokemon"].items()} == self_roster
+    projection = build_switch_candidate_context_projection(state)
+    assert projection["self_active_slot_index"] == 2
+    assert [(row["slot_index"], row["pokemon_id"]) for row in projection["self_pokemon"]] == list(self_roster.items())
+
+
+@pytest.mark.parametrize("active_slot,active_id", [(-1, "torkoal"), (True, "torkoal"), ("5", "torkoal"), (None, "torkoal"), (4, "torkoal"), (5, "meowscarada")])
+def test_unknown_bootstrap_rejects_invalid_or_mismatched_active_slot(active_slot, active_id):
+    result = create_unknown_bootstrap_battle_state(
+        "bootstrap", "pikachu", active_id,
+        self_roster={0: "pikachu"}, opponent_roster={0: "meowscarada", 5: "torkoal"},
+        opponent_active_slot_index=active_slot,
+    )
+    assert result["status"] == "invalid_initial_state" and result["state"] is None
+
+
+def test_unknown_bootstrap_without_roster_rejects_nonzero_active_slot():
+    result = create_unknown_bootstrap_battle_state("bootstrap", "pikachu", "torkoal", opponent_active_slot_index=5)
+    assert result["status"] == "invalid_initial_state" and result["state"] is None
 
 
 def test_unknown_bootstrap_factory_marks_unconfirmed_facts_unknown():

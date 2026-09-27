@@ -4446,7 +4446,7 @@ def test_turn_pipeline_dev_flag_widget_defaults_off_and_does_not_auto_call() -> 
 
     assert panel.turn_pipeline_enabled() is False
     assert panel.turn_pipeline_checkbox.isChecked() is False
-    assert panel.turn_pipeline_checkbox.text() == "제한 컨텍스트 포함"
+    assert panel.turn_pipeline_checkbox.text() == "고급 LLM 컨텍스트 포함"
     assert panel.turn_pipeline_checkbox.toolTip() == TURN_PIPELINE_HELP_TEXT
     assert "후보 이벤트" in panel.turn_pipeline_checkbox.toolTip()
     assert "선후공 보조 정보" in panel.turn_pipeline_checkbox.toolTip()
@@ -4744,7 +4744,7 @@ def test_turn_pipeline_dev_flag_is_default_off_and_wired_only_through_advice_req
     llm_worker_source = inspect.getsource(LLMAdviceWorker)
 
     assert "QCheckBox" in panel_source
-    assert "제한 컨텍스트 포함" in panel_source
+    assert "고급 LLM 컨텍스트 포함" in panel_source
     assert "setToolTip(TURN_PIPELINE_HELP_TEXT)" in panel_source
     assert "setChecked(True)" not in panel_source
     assert "turn_pipeline_checkbox.toggled.connect(self.set_turn_pipeline_status_enabled)" in panel_source

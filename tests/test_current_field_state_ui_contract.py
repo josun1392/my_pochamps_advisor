@@ -35,6 +35,7 @@ def _window() -> tuple[MainWindow, LLMAdvicePanel]:
     state = create_unknown_bootstrap_battle_state("field-ui", "self-a", "opponent-a")["state"]
     window._observation_runtime_session_manager = BattleObservationRuntimeSessionManager.create("field-ui", state)["manager"]
     window._current_trusted_turn_number = 1
+    window.selected_slots = {"team_my": 0, "team_enemy": 0}
     return window, panel
 
 

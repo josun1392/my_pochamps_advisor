@@ -3,9 +3,22 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from PySide6.QtWidgets import QCheckBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtGui import QIntValidator
+from PySide6.QtWidgets import QCheckBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from llm.advisor_battle_state_context import normalize_user_confirmed_current_hp
+
+
+class _ExactHPInput(QLineEdit):
+    """Blank until an exact value is supplied; setValue retains UI test compatibility."""
+
+    def __init__(self, minimum: int) -> None:
+        super().__init__()
+        self.setValidator(QIntValidator(minimum, 9999, self))
+        self.setPlaceholderText("미입력")
+
+    def setValue(self, value: int) -> None:
+        self.setText(str(value))
 
 
 class CurrentHPDialog(QDialog):
@@ -25,18 +38,18 @@ class CurrentHPDialog(QDialog):
         layout.addWidget(self._side_group("Self", self.confirm_self, self.self_current_spin, self.self_maximum_spin))
         layout.addWidget(self._side_group("Opponent", self.confirm_opponent, self.opponent_current_spin, self.opponent_maximum_spin))
         layout.addWidget(QLabel("Records exact user-confirmed current and maximum HP; visible percent is not converted. Unticked sides are unchanged."))
+        self.error_label = QLabel("")
+        self.error_label.setStyleSheet("color: #B42318;")
+        layout.addWidget(self.error_label)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel); apply = QPushButton("Apply"); buttons.addButton(apply, QDialogButtonBox.ButtonRole.AcceptRole); buttons.accepted.connect(self._save); buttons.rejected.connect(self.reject); layout.addWidget(buttons)
         self._load(); self._refresh()
 
     @staticmethod
-    def _spin_pair() -> tuple[QSpinBox, QSpinBox]:
-        current, maximum = QSpinBox(), QSpinBox()
-        for spin in (current, maximum): spin.setRange(0, 9999)
-        maximum.setMinimum(1)
-        return current, maximum
+    def _spin_pair() -> tuple[_ExactHPInput, _ExactHPInput]:
+        return _ExactHPInput(0), _ExactHPInput(1)
 
     @staticmethod
-    def _side_group(title: str, confirm: QCheckBox, current: QSpinBox, maximum: QSpinBox) -> QGroupBox:
+    def _side_group(title: str, confirm: QCheckBox, current: _ExactHPInput, maximum: _ExactHPInput) -> QGroupBox:
         group = QGroupBox(title); form = QFormLayout(group); form.addRow(confirm); form.addRow("Current HP", current); form.addRow("Maximum HP", maximum); return group
 
     @property
@@ -56,17 +69,29 @@ class CurrentHPDialog(QDialog):
             ("opponent", self.confirm_opponent, self.opponent_current_spin, self.opponent_maximum_spin),
         ):
             entry = self._current.get(side, {})
-            maximum.setValue(entry.get("maximum_hp", 1)); current.setValue(entry.get("current_hp", 0))
+            if "maximum_hp" in entry:
+                maximum.setValue(entry["maximum_hp"])
+            if "current_hp" in entry:
+                current.setValue(entry["current_hp"])
             confirm.setChecked(side in self._current)
 
     def _save(self) -> None:
+        self.error_label.clear()
         results = []
         for side, confirm, current, maximum in (
             ("self", self.confirm_self, self.self_current_spin, self.self_maximum_spin),
             ("opponent", self.confirm_opponent, self.opponent_current_spin, self.opponent_maximum_spin),
         ):
             if confirm.isChecked():
-                results.append(normalize_user_confirmed_current_hp({"side": side, "current_hp": current.value(), "maximum_hp": maximum.value(), "status": "user_confirmed", "source": "user_confirmed_current_hp"}))
+                current_text, maximum_text = current.text().strip(), maximum.text().strip()
+                if not current_text or not maximum_text:
+                    self.error_label.setText(f"{side}: 현재 HP와 최대 HP를 모두 입력하세요.")
+                    return
+                try:
+                    results.append(normalize_user_confirmed_current_hp({"side": side, "current_hp": int(current_text), "maximum_hp": int(maximum_text), "status": "user_confirmed", "source": "user_confirmed_current_hp"}))
+                except ValueError:
+                    self.error_label.setText(f"{side}: HP는 0 이상이며 최대 HP를 넘을 수 없습니다.")
+                    return
         self._results = results
         self._result = next((entry for entry in results if entry["side"] == "self"), results[0] if results else None)
         if results:

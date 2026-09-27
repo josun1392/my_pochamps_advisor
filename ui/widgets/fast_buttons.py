@@ -23,7 +23,6 @@ class FastButtonGroup(QWidget):
             layout.addWidget(button)
             self._buttons[value] = button
 
-        self.set_hp(100)
 
     def set_hp(self, hp: int) -> None:
         self._on_hp_changed(hp)

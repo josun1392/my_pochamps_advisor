@@ -396,7 +396,7 @@ def test_item_event_button_exists_and_emits_item_event_request_without_advice_or
 
     assert panel.turn_pipeline_checkbox.isChecked() is False
     assert panel.field_profile_button.objectName() == "fieldProfileButton"
-    assert panel.item_event_button.text() == "Item event"
+    assert panel.item_event_button.text() == "도구 이벤트 기록"
     assert panel.item_event_button.objectName() == "itemEventButton"
 
     panel.item_event_button.click()

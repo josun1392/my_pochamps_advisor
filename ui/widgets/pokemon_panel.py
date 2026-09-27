@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -36,14 +37,15 @@ class PokemonPanel(QFrame):
         self.slot_number = slot_number
         self.is_selected = False
         self.pokemon_view: PokemonView | None = None
-        self._current_hp = 100
+        self._current_hp: int | None = None
+        self._runtime_exact_hp: tuple[int, int] | None = None
         self.selected_move_index: int | None = None
         self.selected_moves: list[MoveView | None] = [None, None, None, None]
         self.final_stats: dict[str, int] | None = None
         self.item_profile: dict | None = None
         self.move_buttons: list[QPushButton] = []
 
-        self.setFixedHeight(136)
+        self.setFixedHeight(146)
         self.setFrameShape(QFrame.Shape.StyledPanel)
 
         root_layout = QVBoxLayout(self)
@@ -53,17 +55,18 @@ class PokemonPanel(QFrame):
         top_row = QHBoxLayout()
         top_row.setSpacing(6)
 
-        title_column = QVBoxLayout()
-        title_column.setContentsMargins(0, 0, 0, 0)
-        title_column.setSpacing(0)
-
         self.name_label = QLabel(f"포켓몬 #{slot_number}")
+        self.name_label.setMinimumWidth(0)
+        self.name_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.name_label.setStyleSheet("font-weight: 700; color: #17202A;")
 
+        metadata_row = QHBoxLayout()
+        metadata_row.setSpacing(3)
+
         self.detail_label = QLabel("타입 / 스탯 대기")
+        self.detail_label.setMinimumWidth(0)
+        self.detail_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.detail_label.setStyleSheet("font-size: 10px; color: #52616F;")
-        title_column.addWidget(self.name_label)
-        title_column.addWidget(self.detail_label)
 
         self.type_badges: list[QLabel] = []
         type_row = QHBoxLayout()
@@ -111,7 +114,7 @@ class PokemonPanel(QFrame):
             """
         )
 
-        active_indicator = QLabel("●" if is_active else "○")
+        self.active_indicator = QLabel("●" if is_active else "○")
         self.item_button = QPushButton("Item")
         self.item_button.setFixedHeight(20)
         self.item_button.setFixedWidth(50)
@@ -135,33 +138,37 @@ class PokemonPanel(QFrame):
             """
         )
 
-        active_indicator.setStyleSheet(
+        self.active_indicator.setStyleSheet(
             "color: #2ECC71; font-size: 13px;" if is_active else "color: #B0B8C1; font-size: 13px;"
         )
-        active_indicator.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.active_indicator.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
-        top_row.addLayout(title_column, 1)
-        top_row.addStretch()
-        top_row.addLayout(type_row)
+        top_row.addWidget(self.name_label, 1)
         top_row.addWidget(self.item_button)
         top_row.addWidget(self.stats_button)
-        top_row.addWidget(active_indicator)
+        top_row.addWidget(self.active_indicator)
         root_layout.addLayout(top_row)
+
+        metadata_row.addWidget(self.detail_label, 1)
+        metadata_row.addLayout(type_row)
+        metadata_row.addStretch()
+        root_layout.addLayout(metadata_row)
 
         middle_row = QHBoxLayout()
         middle_row.setSpacing(6)
 
         self.hp_bar = QProgressBar()
         self.hp_bar.setRange(0, 100)
-        self.hp_bar.setValue(100)
+        self.hp_bar.setValue(0)
         self.hp_bar.setTextVisible(True)
         self.hp_bar.setFixedHeight(18)
-        self.hp_bar.setFormat("%p%")
-        self._apply_normal_style()
+        self.hp_bar.setFormat("미확인")
+        self._apply_unknown_style()
 
         self.hp_spinbox = QSpinBox()
-        self.hp_spinbox.setRange(0, 100)
-        self.hp_spinbox.setValue(100)
+        self.hp_spinbox.setRange(-1, 100)
+        self.hp_spinbox.setSpecialValueText("미입력")
+        self.hp_spinbox.setValue(-1)
         self.hp_spinbox.setSuffix(" %")
         self.hp_spinbox.setFixedWidth(86)
         self.hp_spinbox.setFixedHeight(20)
@@ -177,11 +184,12 @@ class PokemonPanel(QFrame):
         self.fast_buttons = FastButtonGroup(self.set_hp)
         self.fast_buttons.setFixedHeight(22)
         root_layout.addWidget(self.fast_buttons)
+        self._show_hp_presentation()
 
         move_row = QGridLayout()
         move_row.setContentsMargins(0, 0, 0, 2)
         move_row.setHorizontalSpacing(6)
-        move_row.setVerticalSpacing(7)
+        move_row.setVerticalSpacing(5)
         move_row.setColumnStretch(0, 1)
         move_row.setColumnStretch(1, 1)
 
@@ -202,6 +210,8 @@ class PokemonPanel(QFrame):
         super().mousePressEvent(event)
 
     def set_pokemon(self, view: PokemonView) -> None:
+        self._current_hp = None
+        self._runtime_exact_hp = None
         self.pokemon_view = view
         self.selected_move_index = None
         self.selected_moves = [None, None, None, None]
@@ -210,11 +220,7 @@ class PokemonPanel(QFrame):
         self.stats_button.setText("Stats")
         self.item_button.setText("Item")
         self.name_label.setText(view.ko)
-        stats = view.base_stats
-        self.detail_label.setText(
-            f"{view.en} · HP{stats['hp']} A{stats['attack']} B{stats['defense']} "
-            f"C{stats['special-attack']} D{stats['special-defense']} S{stats['speed']}"
-        )
+        self.detail_label.setText(view.en)
         for index, badge in enumerate(self.type_badges):
             if index < len(view.types_ko):
                 badge.setText(view.types_ko[index])
@@ -223,8 +229,11 @@ class PokemonPanel(QFrame):
                 badge.hide()
 
         self._reset_move_buttons()
+        self._show_hp_presentation()
 
     def clear_pokemon(self) -> None:
+        self._current_hp = None
+        self._runtime_exact_hp = None
         self.pokemon_view = None
         self.selected_move_index = None
         self.selected_moves = [None, None, None, None]
@@ -238,29 +247,57 @@ class PokemonPanel(QFrame):
             badge.clear()
             badge.hide()
         self._reset_move_buttons()
+        self._show_hp_presentation()
 
     @property
-    def current_hp_percent(self) -> int:
+    def current_hp_percent(self) -> int | None:
         return self._current_hp
 
     def set_hp(self, value: int) -> None:
         value = max(0, min(100, value))
+        self._current_hp = value
+        self._show_hp_presentation()
+        print(f"HP 직접/동기화 입력: 포켓몬 {self.slot_number}번 / {value}%")
+
+    def set_runtime_exact_hp(self, current: int | None, maximum: int | None = None) -> None:
+        """Project authoritative active HP; never write it into local percentage input."""
+        exact = (current, maximum) if (isinstance(current, int) and not isinstance(current, bool)
+                and isinstance(maximum, int) and not isinstance(maximum, bool)
+                and maximum >= 1 and 0 <= current <= maximum) else None
+        if exact == self._runtime_exact_hp:
+            return
+        self._runtime_exact_hp = exact
+        self._show_hp_presentation()
+
+    def _show_hp_presentation(self) -> None:
         self.hp_bar.blockSignals(True)
         self.hp_spinbox.blockSignals(True)
-
-        self.hp_bar.setValue(value)
-        self.hp_spinbox.setValue(value)
-        self._current_hp = value
-
+        if self._runtime_exact_hp is not None:
+            current, maximum = self._runtime_exact_hp
+            percent = round(current * 100 / maximum)
+            self.hp_bar.setValue(percent)
+            self.hp_bar.setFormat(f"{current}/{maximum} 확정")
+            self.hp_spinbox.setValue(percent)
+            self.hp_spinbox.setEnabled(False)
+            self.fast_buttons.setEnabled(False)
+            self._apply_ko_style() if current == 0 else self._apply_normal_style()
+        elif self._current_hp is not None:
+            self.hp_bar.setValue(self._current_hp)
+            self.hp_bar.setFormat(f"{self._current_hp}% 입력")
+            self.hp_spinbox.setValue(self._current_hp)
+            self.hp_spinbox.setEnabled(True)
+            self.fast_buttons.setEnabled(True)
+            self._apply_ko_style() if self._current_hp == 0 else self._apply_normal_style()
+        else:
+            self.hp_bar.setValue(0)
+            self.hp_bar.setFormat("미확인")
+            self.hp_spinbox.setValue(-1)
+            self.hp_spinbox.setEnabled(True)
+            self.fast_buttons.setEnabled(True)
+            self._apply_unknown_style()
         self.hp_bar.blockSignals(False)
         self.hp_spinbox.blockSignals(False)
-
-        self._sync_fast_button_styles(value)
-        if value == 0:
-            self._apply_ko_style()
-        else:
-            self._apply_normal_style()
-        print(f"HP 직접/동기화 입력: 포켓몬 {self.slot_number}번 / {value}%")
+        self._sync_fast_button_styles(self._current_hp if self._runtime_exact_hp is None else -1)
 
     def set_selected(self, selected: bool) -> None:
         self.is_selected = selected
@@ -285,6 +322,11 @@ class PokemonPanel(QFrame):
         for index, button in enumerate(self.move_buttons):
             is_active = show_selected and index == self.selected_move_index
             button.setStyleSheet(self._move_style(active=is_active))
+
+    def clear_move_selection(self) -> None:
+        """Retire the UI selection cursor without clearing assigned moves."""
+        self.selected_move_index = None
+        self.refresh_move_selection_style(show_selected=False)
 
     def set_move(self, move_index: int, move: MoveView) -> None:
         if not 0 <= move_index < len(self.selected_moves):
@@ -362,6 +404,13 @@ class PokemonPanel(QFrame):
                 border-radius: 3px;
             }
             """
+        )
+
+    def _apply_unknown_style(self) -> None:
+        self.hp_bar.setStyleSheet(
+            "QProgressBar { border: 1px solid #CAD6E2; border-radius: 4px; "
+            "background-color: #F7F9FC; color: #52616F; text-align: center; font-size: 11px; } "
+            "QProgressBar::chunk { background-color: #CAD6E2; }"
         )
 
     def _apply_ko_style(self) -> None:

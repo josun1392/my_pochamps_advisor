@@ -11,6 +11,9 @@ class _Panel:
     def __init__(self, pokemon_id):
         self.pokemon_view = SimpleNamespace(en=pokemon_id)
 
+    def clear_move_selection(self):
+        pass
+
 
 class _Dialog:
     def __init__(self, **_):
@@ -41,7 +44,11 @@ class _Harness:
         self._structured_observed_damage_confirmations = []
         self._active_advice_owner = self._active_advice_request_token = self._active_advice_terminal_token = None
         self.selected_slots = {"team_my": 0, "team_enemy": 1}
-        self._panels = {("team_my", 0): _Panel("pikachu"), ("team_enemy", 1): _Panel("eevee")}
+        self._panels = {
+            ("team_my", 0): _Panel("pikachu"),
+            ("team_enemy", 0): _Panel("meowscarada"),
+            ("team_enemy", 1): _Panel("eevee"),
+        }
         self._current_condition_confirmations = {}
         self._current_ability_confirmations = {}
         self._structured_ability_confirmations = {}

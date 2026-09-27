@@ -45,18 +45,18 @@ def test_central_shortcuts_reuse_existing_battle_and_turn_handlers(monkeypatch) 
     window.center_column.start_battle_button.click()
     first_session = window._active_session_id()
     assert first_session == "ui-session-1"
-    assert window.center_column.workflow_status_label.text() == "배틀: 진행 중 · 턴: 미확인"
-
-    monkeypatch.setattr(main_window_module.QInputDialog, "getInt", lambda *args: (1, True))
-    window.center_column.set_turn_button.click()
-    assert window._current_trusted_turn_number == 1
     assert window.center_column.workflow_status_label.text() == "배틀: 진행 중 · 턴: 1"
+
+    monkeypatch.setattr(main_window_module.QInputDialog, "getInt", lambda *args: (4, True))
+    window.center_column.set_turn_button.click()
+    assert window._current_trusted_turn_number == 4
+    assert window.center_column.workflow_status_label.text() == "배틀: 진행 중 · 턴: 4"
 
     window.center_column.start_battle_button.click()
     assert window._active_session_id() == "ui-session-2"
     assert window._active_session_id() != first_session
-    assert window._current_trusted_turn_number is None
-    assert window.center_column.workflow_status_label.text() == "배틀: 진행 중 · 턴: 미확인"
+    assert window._current_trusted_turn_number == 1
+    assert window.center_column.workflow_status_label.text() == "배틀: 진행 중 · 턴: 1"
     window.close()
 
 

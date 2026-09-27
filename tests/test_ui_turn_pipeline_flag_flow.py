@@ -67,11 +67,11 @@ def test_limited_context_checkbox_copy_describes_combined_candidate_context() ->
     assert app is not None
     panel = LLMAdvicePanel()
 
-    assert panel.turn_pipeline_checkbox.text() == "제한 컨텍스트 포함"
+    assert panel.turn_pipeline_checkbox.text() == "고급 LLM 컨텍스트 포함"
     assert panel.turn_pipeline_checkbox.toolTip() == TURN_PIPELINE_HELP_TEXT
     assert panel.turn_pipeline_status_label.text() == TURN_PIPELINE_STATUS_TEXT
 
-    assert panel.turn_pipeline_checkbox.text() == "제한 컨텍스트 포함"
+    assert panel.turn_pipeline_checkbox.text() == "고급 LLM 컨텍스트 포함"
     assert panel.turn_pipeline_checkbox.isChecked() is False
 
     combined_copy = " ".join(

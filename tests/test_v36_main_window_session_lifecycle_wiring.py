@@ -161,7 +161,7 @@ def test_real_turn_action_is_explicit_and_resets_on_battle_rollover(monkeypatch)
     window.opponent_team_column.panels[0].pokemon_view = SimpleNamespace(en="eevee")
     assert window._current_trusted_turn_number is None
     window._start_new_battle_action.trigger()
-    assert action.isEnabled() and window._trusted_turn_context_snapshot()["status"] == "unavailable"
+    assert action.isEnabled() and window._trusted_turn_context_snapshot()["turn_number"] == 1
     monkeypatch.setattr(main_window_module.QInputDialog, "getInt", lambda *args: (3, True))
     action.trigger()
     assert window._trusted_turn_context_snapshot()["turn_number"] == 3
@@ -171,7 +171,7 @@ def test_real_turn_action_is_explicit_and_resets_on_battle_rollover(monkeypatch)
     action.trigger()
     assert window._historical_multi_hit_predictions == {}
     window._start_new_battle_action.trigger()
-    assert window._trusted_turn_context_snapshot()["status"] == "unavailable"
+    assert window._trusted_turn_context_snapshot()["turn_number"] == 1
     window.close()
 
 
@@ -190,6 +190,7 @@ def test_current_hp_dialog_applies_fresh_snapshot_and_reopens_without_local_mirr
             self.current_hp_confirmations = [deepcopy(entry)]
         def exec(self): return main_window_module.QDialog.DialogCode.Accepted
     monkeypatch.setattr(main_window_module, "CurrentHPDialog", Dialog)
+    window.set_current_turn_number(None)  # Explicitly unavailable turn still fails closed.
     window._open_current_hp_dialog()
     assert window._current_hp_confirmations == {}
     assert "set the current turn" in window.statusBar().currentMessage()
@@ -243,6 +244,7 @@ def test_main_window_session_reads_are_derived_from_manager():
 def test_main_window_creates_session_only_from_explicit_selected_identities():
     window = _Harness(active=False)
     assert window.begin_new_battle() == "ui-session-1"
+    assert window._current_trusted_turn_number == 1
     state = window._observation_runtime_session_manager.read_state()["state"]
     assert state["self_side"]["pokemon"][0]["pokemon_id"] == "pikachu"
     assert state["opponent_side"]["pokemon"][0]["pokemon_id"] == "eevee"
@@ -252,6 +254,7 @@ def test_main_window_does_not_fabricate_identity_before_valid_selection():
     window = _Harness(active=False, identities=False); before = deepcopy(window._item_event_confirmations)
     assert window.begin_new_battle() is None
     assert window._observation_runtime_session_manager is None and window._item_event_confirmations == before
+    assert window._current_trusted_turn_number is None
 
 
 def test_main_window_bootstrap_preserves_unknown_battle_facts():
@@ -262,8 +265,10 @@ def test_main_window_bootstrap_preserves_unknown_battle_facts():
 
 def test_invalid_bootstrap_does_not_publish_partial_session_or_reset_ui():
     window = _Harness(active=True, identities=False); before = _core_values(window); ui_before = deepcopy(window._item_event_confirmations)
+    window._current_trusted_turn_number = 8
     assert window.begin_new_battle() is None
     assert _core_values(window) == before and window._item_event_confirmations == ui_before
+    assert window._current_trusted_turn_number == 8
 
 
 def test_begin_new_battle_publishes_core_session_before_ui_reset():

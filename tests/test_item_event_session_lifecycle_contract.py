@@ -82,9 +82,9 @@ def test_summary_count_and_dialog_summary_do_not_expose_raw_event_dicts() -> Non
     assert app is not None
     panel = LLMAdvicePanel()
     panel.set_item_event_count(0)
-    assert panel.item_event_button.text() == "Item event"
+    assert panel.item_event_button.text() == "도구 이벤트 기록"
     panel.set_item_event_count(2)
-    assert panel.item_event_button.text() == "Item event (2)"
+    assert panel.item_event_button.text() == "도구 이벤트 기록 (2)"
 
     dialog = ItemEventDialog(current_events=[_event(), _event(item="leftovers", event_type="item_recovery_observed", turn=7)])
     summaries = [dialog.event_list.item(index).text() for index in range(dialog.event_list.count())]
@@ -233,7 +233,7 @@ def test_main_window_lifecycle_changes_flow_to_payload_and_mocked_provider_promp
     monkeypatch.setattr(main_window_module, "ItemEventDialog", lambda *, current_events, parent: dialogs.pop(0))
 
     window._open_item_event_dialog()
-    assert panel.item_event_button.text() == "Item event (1)"
+    assert panel.item_event_button.text() == "도구 이벤트 기록 (1)"
     prompt, calls = _capture_prompt_with_mocked_provider(
         monkeypatch,
         window._build_llm_battle_input(include_item_event_confirmations=True),
@@ -262,7 +262,7 @@ def test_main_window_lifecycle_changes_flow_to_payload_and_mocked_provider_promp
         deleted_input,
         limited_context_enabled=True,
     )
-    assert panel.item_event_button.text() == "Item event"
+    assert panel.item_event_button.text() == "도구 이벤트 기록"
     assert "item_event_confirmations" not in deleted_input
     assert "item_event_context" not in _prompt_payload(deleted_prompt)
     assert "If item_event_context is present" not in deleted_prompt
@@ -285,7 +285,7 @@ def test_checkbox_gate_preserves_session_state_and_restores_event_prompt_when_re
     off_input = window._build_llm_battle_input(include_item_event_confirmations=panel.turn_pipeline_enabled())
     off_prompt, _ = _capture_prompt_with_mocked_provider(monkeypatch, off_input, limited_context_enabled=False)
     assert window._item_event_confirmations == [event]
-    assert panel.item_event_button.text() == "Item event (1)"
+    assert panel.item_event_button.text() == "도구 이벤트 기록 (1)"
     assert "item_event_confirmations" not in off_input
     assert "If item_event_context is present" not in off_prompt
 
@@ -324,7 +324,7 @@ def test_clear_resets_summary_dialog_payload_and_prompt_without_advice_request(
 
     assert advice_requests == 0
     assert calls == 1
-    assert panel.item_event_button.text() == "Item event"
+    assert panel.item_event_button.text() == "도구 이벤트 기록"
     assert dialog.event_list.count() == 0
     assert "item_event_confirmations" not in cleared_input
     assert "item_event_context" not in _prompt_payload(cleared_prompt)

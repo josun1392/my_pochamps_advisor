@@ -370,8 +370,14 @@ def test_new_battle_clears_ui_local_progression_state():
         "self": {"established_turn": 1, "prior_attempts": 0, "sleep_duration": 3}
     }
     window.selected_slots = {"team_my": 0, "team_enemy": 0}
-    self_panel = SimpleNamespace(pokemon_view=SimpleNamespace(en="self-a"))
-    opponent_panel = SimpleNamespace(pokemon_view=SimpleNamespace(en="opponent-a"))
+    self_panel = SimpleNamespace(
+        pokemon_view=SimpleNamespace(en="self-a"),
+        clear_move_selection=lambda: None,
+    )
+    opponent_panel = SimpleNamespace(
+        pokemon_view=SimpleNamespace(en="opponent-a"),
+        clear_move_selection=lambda: None,
+    )
     window._panels = {
         ("team_my", 0): self_panel,
         ("team_enemy", 0): opponent_panel,

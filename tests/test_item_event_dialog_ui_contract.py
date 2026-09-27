@@ -349,7 +349,7 @@ def test_item_event_dialog_ui_contract_keeps_panel_button_separate_from_advice_a
     panel.item_event_requested.connect(record_item_event_request)
 
     assert panel.turn_pipeline_checkbox.isChecked() is False
-    assert panel.item_event_button.text() == "Item event"
+    assert panel.item_event_button.text() == "도구 이벤트 기록"
     assert panel.item_event_button.objectName() == "itemEventButton"
 
     panel.item_event_button.click()

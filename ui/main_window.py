@@ -6,7 +6,7 @@ from pathlib import Path
 from copy import deepcopy
 
 import requests
-from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
+from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -128,6 +128,7 @@ from llm.advisor_current_action_paralysis_opportunity_authority import (
 from ui.shortcuts import GlobalShortcuts
 from ui.widgets.analysis_panel import AnalysisPanel
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
+from ui.widgets.guided_turn_workspace import GuidedTurnWorkspace
 from ui.widgets.item_profile_dialog import (
     default_item_profile_for_role,
     item_button_text,
@@ -471,13 +472,14 @@ class AnalysisColumn(QFrame):
 
         self.analysis_panel = AnalysisPanel()
         self.llm_advice_panel = LLMAdvicePanel()
+        self.guided_turn_workspace = GuidedTurnWorkspace()
+        self.guided_turn_workspace.install_details(self.analysis_panel, self.llm_advice_panel)
         layout.addWidget(title_label)
         layout.addWidget(self.search_box)
         layout.addWidget(self.move_search_box)
-        layout.addWidget(self.workflow_status_label)
+        self.workflow_status_label.hide()  # The same status is visible in the stage header.
         layout.addLayout(workflow_actions)
-        layout.addWidget(self.analysis_panel, 1)
-        layout.addWidget(self.llm_advice_panel, 1)
+        layout.addWidget(self.guided_turn_workspace, 1)
 
     def set_battle_workflow_status(self, *, active: bool, turn_number: int | None) -> None:
         battle_text = "진행 중" if active else "비활성"
@@ -487,6 +489,7 @@ class AnalysisColumn(QFrame):
             else "미확인"
         )
         self.workflow_status_label.setText(f"배틀: {battle_text} · 턴: {turn_text}")
+        self.guided_turn_workspace.header_label.setText(self.workflow_status_label.text())
 
     def set_active(self, active: bool) -> None:
         self.is_active = active
@@ -510,8 +513,8 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Master Ball Advisor v0.14")
-        self.setMinimumSize(1500, 980)
-        self.resize(1500, 980)
+        self.setMinimumSize(1120, 650)
+        self.resize(1280, 720)
 
         self.cache = CacheManager()
         self.ko_loader = KoMappingLoader()
@@ -568,6 +571,12 @@ class MainWindow(QMainWindow):
         self._current_hp_confirmations: dict[str, dict] = {}
         self._current_hp_confirmation_owners: dict[str, tuple[str | None, int, str]] = {}
         self._recommendation_readiness_owner: tuple[str, int, str] | None = None
+        self._guided_considered_action: dict | None = None
+        self._guided_action_revision = 0
+        self._guided_basis: tuple | None = None
+        self._guided_analysis_basis: tuple | None = None
+        self._guided_analysis_text: str | None = None
+        self._guided_readiness: dict = {"status": "unavailable", "missing": [], "unsupported": []}
         self._current_battle_format_confirmation: dict | None = None
         self._current_observed_damage_confirmation: dict[str, object] | None = None
         self._structured_observed_damage_confirmations: list[dict] = []
@@ -607,9 +616,9 @@ class MainWindow(QMainWindow):
             "team_enemy": "상대 팀",
         }
 
-        layout.addWidget(self.my_team_column, 35)
-        layout.addWidget(self.center_column, 30)
-        layout.addWidget(self.opponent_team_column, 35)
+        layout.addWidget(self.my_team_column, 25)
+        layout.addWidget(self.center_column, 50)
+        layout.addWidget(self.opponent_team_column, 25)
 
         self._connect_slot_clicks()
         self.center_column.search_box.pokemon_selected.connect(self._on_pokemon_selected)
@@ -617,6 +626,19 @@ class MainWindow(QMainWindow):
         self.center_column.start_battle_button.clicked.connect(self._open_new_battle)
         self.center_column.set_turn_button.clicked.connect(self._open_current_turn)
         self._refresh_battle_workflow_status()
+        guided = self.center_column.guided_turn_workspace
+        guided.analysis_requested.connect(self._start_deterministic_strategy_analysis)
+        guided.record_commit_requested.connect(self._commit_guided_previous_action)
+        guided.current_hp_requested.connect(self._open_current_hp_dialog)
+        guided.switch_requested.connect(self._open_pokemon_switch_confirmation)
+        guided.condition_requested.connect(self._open_current_condition_dialog)
+        guided.next_turn_requested.connect(self._advance_guided_turn)
+        guided.readiness_input_requested.connect(self._open_readiness_input)
+        self._guided_refresh_timer = QTimer(self)
+        self._guided_refresh_timer.setInterval(700)
+        self._guided_refresh_timer.timeout.connect(self._refresh_guided_turn_workspace)
+        self._guided_refresh_timer.start()
+        self._refresh_guided_turn_workspace()
         self.center_column.llm_advice_panel.advice_requested.connect(self._start_llm_advice)
         self.center_column.llm_advice_panel.structured_advice_requested.connect(self._start_structured_recommendation)
         self.center_column.llm_advice_panel.deterministic_strategy_requested.connect(self._start_deterministic_strategy_analysis)
@@ -722,6 +744,8 @@ class MainWindow(QMainWindow):
             panel.set_selected(index == slot_index)
         self._refresh_move_selection_styles()
         self._sync_move_search_candidates()
+        if column_name == "team_my":
+            self._refresh_guided_turn_workspace()
 
     def _on_pokemon_selected(self, en_id: str) -> None:
         self._recommendation_readiness_owner = None
@@ -739,6 +763,7 @@ class MainWindow(QMainWindow):
 
         slot.set_pokemon(view)
         self._sync_move_search_candidates()
+        self._refresh_guided_turn_workspace()
         print(f"포켓몬 바인딩 완료: {view.ko} ({view.en})")
 
 
@@ -751,6 +776,8 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Failed | Select a move slot first.")
             return
         slot.set_move(slot.selected_move_index, move)
+        if self._active_column_name == "team_my":
+            self._set_guided_considered_from_ui()
         self.statusBar().showMessage(f"Move set | {move.name_ko or move.name_en}")
 
     @Slot()
@@ -1794,6 +1821,249 @@ class MainWindow(QMainWindow):
             )
         except (AttributeError, RuntimeError):
             pass
+        refresh_guided = getattr(self, "_refresh_guided_turn_workspace", None)
+        if callable(refresh_guided):
+            refresh_guided()
+
+    def _guided_runtime_view(self) -> tuple[dict, dict]:
+        session_id = MainWindow._active_session_id(self)
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        if session_id is None or not isinstance(manager, BattleObservationRuntimeSessionManager):
+            return {}, {}
+        snapshot = manager.capture_runtime_state_snapshot(session_id)
+        if snapshot.get("status") != "runtime_snapshot_ready" or snapshot.get("session_id") != session_id:
+            return {}, {}
+        state = snapshot.get("state")
+        return snapshot, state if isinstance(state, dict) else {}
+
+    @staticmethod
+    def _guided_active_row(state: dict, side: str) -> tuple[int | None, dict]:
+        side_state = state.get("self_side" if side == "self" else "opponent_side")
+        if not isinstance(side_state, dict):
+            return None, {}
+        slot = side_state.get("active_slot_index")
+        roster = side_state.get("pokemon")
+        row = roster.get(slot) if isinstance(roster, dict) else None
+        return slot if isinstance(slot, int) and not isinstance(slot, bool) else None, row if isinstance(row, dict) else {}
+
+    def _guided_current_basis(self) -> tuple:
+        snapshot, state = self._guided_runtime_view()
+        own_slot, own = self._guided_active_row(state, "self")
+        opponent_slot, opponent = self._guided_active_row(state, "opponent")
+        considered = getattr(self, "_guided_considered_action", None)
+        action_key = None
+        if isinstance(considered, dict):
+            action_key = (considered.get("session_id"), considered.get("turn_number"),
+                          considered.get("owner_slot"), considered.get("owner_id"),
+                          considered.get("move_slot"), considered.get("move_id"),
+                          considered.get("revision"))
+        return (MainWindow._active_session_id(self), getattr(self, "_current_trusted_turn_number", None),
+                own_slot, own.get("pokemon_id"), opponent_slot, opponent.get("pokemon_id"),
+                snapshot.get("state_fingerprint"), action_key)
+
+    def _set_guided_considered_from_ui(self) -> None:
+        """A selected move is local consideration, never submitted or observed evidence."""
+        _, state = self._guided_runtime_view()
+        active_slot, active = self._guided_active_row(state, "self")
+        selected_slot = self.selected_slots.get("team_my")
+        payload = None
+        if active_slot == selected_slot and isinstance(active.get("pokemon_id"), str):
+            panel = self._slot_panel("team_my", selected_slot)
+            if getattr(getattr(panel, "pokemon_view", None), "en", None) == active["pokemon_id"]:
+                payload = self._selected_move_payload(panel)
+        self._guided_action_revision = getattr(self, "_guided_action_revision", 0) + 1
+        self._guided_considered_action = (
+            {"session_id": MainWindow._active_session_id(self),
+             "turn_number": getattr(self, "_current_trusted_turn_number", None),
+             "owner_slot": active_slot, "owner_id": active["pokemon_id"],
+             "move_slot": payload["slot_index"] + 1, "move_id": payload["move_id"],
+             "name": payload.get("name_ko") or payload.get("name_en") or payload["move_id"],
+             "revision": self._guided_action_revision}
+            if payload is not None else None
+        )
+        self._refresh_guided_turn_workspace()
+
+    def _refresh_guided_turn_workspace(self) -> None:
+        guided = getattr(getattr(self, "center_column", None), "guided_turn_workspace", None)
+        if guided is None:
+            return
+        snapshot, state = self._guided_runtime_view()
+        session_id = MainWindow._active_session_id(self)
+        turn = getattr(self, "_current_trusted_turn_number", None)
+        own_slot, own = self._guided_active_row(state, "self")
+        opponent_slot, opponent = self._guided_active_row(state, "opponent")
+        self._sync_active_card_exact_hp("team_my", own_slot, own)
+        self._sync_active_card_exact_hp("team_enemy", opponent_slot, opponent)
+        def hp_text(row: dict) -> str:
+            hp, maximum = row.get("current_hp"), row.get("max_hp")
+            if (isinstance(hp, int) and not isinstance(hp, bool) and
+                    isinstance(maximum, int) and not isinstance(maximum, bool) and maximum > 0 and 0 <= hp <= maximum):
+                return f"HP {hp}/{maximum}"
+            return "HP 미확인"
+        def identity_text(row: dict) -> str:
+            name = row.get("pokemon_id") if isinstance(row.get("pokemon_id"), str) else None
+            details = [hp_text(row)]
+            current_type = row.get("current_type")
+            if isinstance(current_type, (tuple, list)) and current_type and all(isinstance(item, str) for item in current_type):
+                details.append("타입 " + "/".join(current_type))
+            condition = row.get("condition")
+            if isinstance(condition, str) and condition in {"burn", "poison", "toxic", "paralysis", "sleep", "freeze"}:
+                details.append("상태이상 " + condition)
+            elif condition is None and isinstance(row.get("condition_provenance"), dict):
+                details.append("상태이상 없음")
+            return f"{name or '미확인'} ({' · '.join(details)})"
+        guided.situation_label.setText(
+            f"내 포켓몬: {identity_text(own)}  VS  상대: {identity_text(opponent)}"
+        )
+        considered = getattr(self, "_guided_considered_action", None)
+        if isinstance(considered, dict) and (considered.get("session_id") != session_id or
+                considered.get("turn_number") != turn or considered.get("owner_slot") != own_slot or
+                considered.get("owner_id") != own.get("pokemon_id")):
+            self._guided_considered_action = None
+            considered = None
+        guided.set_considered_action(considered)
+        basis = self._guided_current_basis()
+        if getattr(self, "_guided_analysis_basis", None) is not None and self._guided_analysis_basis != basis:
+            self._guided_analysis_basis = None
+            self._guided_analysis_text = "상태가 변경되어 다시 분석이 필요합니다."
+            self.center_column.llm_advice_panel.set_advice_text("이전 전략 분석 — 현재 상태에서 다시 분석하세요.")
+            self.center_column.analysis_panel.output_edit.setPlainText("이전 전략 분석 — 현재 상태에서 다시 분석하세요.")
+            guided.set_board_state("상태가 변경되어 다시 분석이 필요합니다.")
+            guided.set_probability_metrics(None)
+        guided.analysis_label.setText(getattr(self, "_guided_analysis_text", None) or "아직 분석하지 않음")
+        if session_id is not None and basis != getattr(self, "_guided_basis", None):
+            self._guided_basis = basis
+            self._check_structured_recommendation_readiness()
+        message, action, label = self._guided_readiness_prompt() if session_id is not None else ("배틀을 시작하면 필요한 정보를 확인합니다.", None, None)
+        readiness = getattr(self, "_guided_readiness", {})
+        allow_unknown = session_id is not None and isinstance(readiness, dict) and readiness.get("status") == "incomplete"
+        guided.set_readiness(message, action, label, basis, allow_unknown=allow_unknown)
+
+    def _sync_active_card_exact_hp(self, column_name: str, active_slot: int | None, active: dict) -> None:
+        column = getattr(self, "my_team_column" if column_name == "team_my" else "opponent_team_column", None)
+        panels = getattr(column, "panels", ())
+        for slot, panel in enumerate(panels):
+            setter = getattr(panel, "set_runtime_exact_hp", None)
+            if not callable(setter):
+                continue
+            view = getattr(panel, "pokemon_view", None)
+            owner_matches = (slot == active_slot and getattr(view, "en", None) == active.get("pokemon_id"))
+            setter(active.get("current_hp") if owner_matches else None,
+                   active.get("max_hp") if owner_matches else None)
+
+    def _guided_strategy_failure_prompt(self) -> str:
+        """Classify a failed strategy attempt from existing readiness only."""
+        readiness = getattr(self, "_guided_readiness", {})
+        status = readiness.get("status") if isinstance(readiness, dict) else "unavailable"
+        if status == "incomplete":
+            missing = readiness.get("missing", [])
+            for entry in missing if isinstance(missing, list) else []:
+                if isinstance(entry, dict) and isinstance(entry.get("action"), str):
+                    label = LLMAdvicePanel._readiness_user_label(entry.get("label", ""), entry["action"])
+                    return (
+                        "현재 정보만으로는 분석을 완료하기 어렵습니다. "
+                        f"{label}을 알고 있다면 입력할 수 있습니다. "
+                        "모르면 그대로 두어도 됩니다."
+                    )
+            return (
+                "분석 제한 · 추가 정보 미확인\n"
+                "일부 전투 정보를 확인할 수 없어 분석을 완료하지 못했습니다. "
+                "현재 직접 입력할 수 없는 정보입니다. "
+                "모르면 그대로 두고 다른 기술을 검토하거나 현재 판단으로 진행할 수 있습니다."
+            )
+        if status == "unsupported":
+            return "선택한 기술이나 현재 상황의 일부 메커니즘은 아직 완전히 지원되지 않습니다."
+        if status == "ready":
+            return "필요한 정보는 확인되었지만 이번 상황의 분석을 완료하지 못했습니다."
+        return "현재 상태에서는 분석을 완료하지 못했습니다. 상황 정보를 확인한 뒤 다시 시도할 수 있습니다."
+
+    def _guided_readiness_prompt(self) -> tuple[str, str | None, str | None]:
+        readiness = getattr(self, "_guided_readiness", {})
+        status = readiness.get("status") if isinstance(readiness, dict) else "unavailable"
+        if status == "ready":
+            return "현재 정보로 전략 분석을 시도할 수 있습니다.", None, None
+        if status == "incomplete":
+            for entry in readiness.get("missing", []):
+                if isinstance(entry, dict) and isinstance(entry.get("action"), str):
+                    label = LLMAdvicePanel._readiness_user_label(entry.get("label", ""), entry["action"])
+                    return f"{label}을 알고 있다면 입력할 수 있습니다. 모르면 그대로 두세요.", entry["action"], label
+            return (
+                "추가 정보 미확인 · 현재 직접 입력할 수 없는 정보입니다. "
+                "모르면 그대로 두고 다른 기술을 검토하거나 현재 판단으로 진행할 수 있습니다."
+            ), None, None
+        if status == "unsupported":
+            return "일부 조건은 현재 완전히 계산할 수 없습니다. 계산 가능한 결과만 표시합니다.", None, None
+        return "현재 정보로 필요 조건을 확인할 수 없습니다. 알려진 정보만 사용합니다.", None, None
+
+    @Slot()
+    def _advance_guided_turn(self) -> None:
+        if getattr(self, "_current_trusted_turn_number", None) is None:
+            self._open_current_turn()
+            return
+        guided = self.center_column.guided_turn_workspace
+        if not guided._recorded:
+            choice = QMessageBox.question(
+                self, "다음 턴", "기록하지 않은 결과는 미확인 상태로 남습니다.\n다음 턴으로 이동할까요?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel)
+            if choice != QMessageBox.StandardButton.Yes:
+                return
+        self.advance_turn()
+        guided.set_record_status(recorded=False)
+        guided.clear_record_draft()
+        guided.set_board_state("전략 분석을 실행하면 평가 가능한 행동이 여기에 표시됩니다.")
+        guided.set_probability_metrics(None)
+        guided.set_phase("decide")
+        self._refresh_guided_turn_workspace()
+
+    @Slot(object)
+    def _commit_guided_previous_action(self, draft: object) -> None:
+        """Admit only the explicitly confirmed own execution/result draft."""
+        guided = self.center_column.guided_turn_workspace
+        considered = getattr(self, "_guided_considered_action", None)
+        if (not isinstance(draft, dict) or "result_class" not in draft or not isinstance(considered, dict)
+                or draft.get("considered") != considered or guided._recorded):
+            guided.record_status_label.setText("기록할 기술이 현재 상황과 달라졌습니다. 다시 확인하세요.")
+            return
+        result_class = draft.get("result_class")
+        if result_class not in {None, "success", "accuracy_miss", "protection_block"}:
+            return
+        _, state = self._guided_runtime_view()
+        active_slot, active = self._guided_active_row(state, "self")
+        if (considered.get("session_id") != MainWindow._active_session_id(self)
+                or considered.get("turn_number") != getattr(self, "_current_trusted_turn_number", None)
+                or considered.get("owner_slot") != active_slot
+                or considered.get("owner_id") != active.get("pokemon_id")):
+            guided.record_status_label.setText("활성 포켓몬이 달라졌습니다. 다시 확인하세요.")
+            return
+        move_id = considered.get("move_id")
+        if not isinstance(move_id, str) or not move_id:
+            return
+        result = self._confirm_previous_action_history(
+            side="self", execution_move_id=move_id, selected_move_id=move_id,
+            result_class=result_class,
+        )
+        if result.get("status") == "resolved":
+            guided.set_record_status(recorded=True, result_known=result_class is not None)
+            self.statusBar().showMessage("실제 실행 기록 완료")
+        else:
+            guided.record_status_label.setText("기록하지 못했습니다. 현재 상황을 확인하세요.")
+        self._refresh_guided_turn_workspace()
+
+    @staticmethod
+    def _guided_strategy_summary(presentation: dict) -> str:
+        status = presentation.get("overall_status") if presentation.get("status") == "resolved" else None
+        frontier = presentation.get("preferred_frontier", [])
+        candidates = presentation.get("candidates", [])
+        names = [row.get("label", row.get("candidate_id")) for row in candidates
+                 if isinstance(row, dict) and row.get("candidate_id") in frontier]
+        if status == "uniquely_preferred" and len(names) == 1:
+            return f"분석 완료 · 분석상 선호: {names[0]}"
+        if status == "tied_preferred_set" and names:
+            return "분석 완료 · 공동 선호: " + ", ".join(names)
+        if status in {"selection_incomplete", "incomplete_comparison_set", "no_selectable_candidates"}:
+            return "분석 불완전 / 비교할 수 없는 후보 있음"
+        return "분석 불완전 / 지원되지 않음"
 
     @Slot()
     def _open_new_battle(self) -> None:
@@ -1802,7 +2072,10 @@ class MainWindow(QMainWindow):
                 or MainWindow._selected_identity(self, "team_enemy") is None):
             self.statusBar().showMessage("New battle failed: select self and opponent Pokémon first.")
         elif MainWindow.begin_new_battle(self) is None:
-            self.statusBar().showMessage("New battle failed: session could not be started.")
+            if getattr(self, "_new_battle_failure_reason", None) == "invalid_initial_state":
+                self.statusBar().showMessage("배틀 시작 실패: 선택한 선두 포켓몬과 팀 슬롯 정보를 확인하세요.")
+            else:
+                self.statusBar().showMessage("New battle failed: session could not be started.")
         else:
             self.statusBar().showMessage("New battle session ready")
         self._refresh_battle_workflow_status()
@@ -3404,6 +3677,7 @@ class MainWindow(QMainWindow):
 
     def _begin_new_battle_session(self) -> str | None:
         """Publish a validated core bundle before clearing battle-local UI state."""
+        self._new_battle_failure_reason = None
         candidate_sequence = getattr(self, "_battle_session_sequence", 0) + 1
         candidate_session_id = f"ui-session-{candidate_sequence}"
         initial = create_unknown_bootstrap_battle_state(
@@ -3412,8 +3686,11 @@ class MainWindow(QMainWindow):
             MainWindow._selected_identity(self, "team_enemy"),
             self_roster=MainWindow._loaded_roster_identities(self, "team_my"),
             opponent_roster=MainWindow._loaded_roster_identities(self, "team_enemy"),
+            self_active_slot_index=self.selected_slots.get("team_my"),
+            opponent_active_slot_index=self.selected_slots.get("team_enemy"),
         )
         if initial.get("status") != "initial_state_ready":
+            self._new_battle_failure_reason = "invalid_initial_state"
             return None
         manager = getattr(self, "_observation_runtime_session_manager", None)
         if manager is None:
@@ -3469,6 +3746,8 @@ class MainWindow(QMainWindow):
         self._battle_counter_confirmation = None
         self._consecutive_use_confirmation = None
         self._reset_battle_presentation()
+        # Starting a new battle is the user's explicit confirmation of its first turn.
+        MainWindow.set_current_turn_number(self, 1)
         return self._active_session_id()
 
     def begin_new_battle(self) -> str | None:
@@ -3834,7 +4113,15 @@ class MainWindow(QMainWindow):
         self._active_advice_request_token = None
         self._active_advice_terminal_token = None
 
+    def _retire_move_selection_presentation(self) -> None:
+        """Retire turn-local move selection UI without changing assigned moves."""
+        for column_name in ("my_team_column", "opponent_team_column"):
+            team_column = getattr(self, column_name, None)
+            for panel in getattr(team_column, "panels", ()):
+                panel.clear_move_selection()
+
     def _reset_battle_presentation(self) -> None:
+        MainWindow._retire_move_selection_presentation(self)
         try:
             panel = self.center_column.llm_advice_panel
             panel.set_running(False)
@@ -3842,6 +4129,16 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("New battle session ready")
         except (AttributeError, RuntimeError):
             pass
+        guided = getattr(getattr(self, "center_column", None), "guided_turn_workspace", None)
+        if guided is not None:
+            self._guided_analysis_basis = None
+            self._guided_analysis_text = None
+            self._guided_considered_action = None
+            self._guided_basis = None
+            guided.set_record_status(recorded=False)
+            guided.set_board_state("전략 분석을 실행하면 평가 가능한 행동이 여기에 표시됩니다.")
+            guided.set_probability_metrics(None)
+            guided.set_phase("decide")
         refresh_workflow_status = getattr(self, "_refresh_battle_workflow_status", None)
         if callable(refresh_workflow_status):
             refresh_workflow_status()
@@ -3854,6 +4151,18 @@ class MainWindow(QMainWindow):
             raise ValueError("turn_number must be a positive integer or None")
         prior = getattr(self, "_current_trusted_turn_number", None)
         if prior != turn_number:
+            MainWindow._retire_move_selection_presentation(self)
+            if getattr(self, "_guided_analysis_basis", None) is not None:
+                self.center_column.llm_advice_panel.set_advice_text("이전 전략 분석 — 현재 턴에서 다시 분석하세요.")
+            self._guided_considered_action = None
+            self._guided_analysis_basis = None
+            self._guided_analysis_text = None
+            guided = getattr(getattr(self, "center_column", None), "guided_turn_workspace", None)
+            if guided is not None:
+                guided.set_record_status(recorded=False)
+                guided.set_board_state("전략 분석을 실행하면 평가 가능한 행동이 여기에 표시됩니다.")
+                guided.set_probability_metrics(None)
+                guided.set_phase("decide")
             self._historical_predictive_action_bindings = {}
             self._historical_sleep_freeze_action_gates = {}
             self._historical_confusion_action_gates = {}
@@ -4542,11 +4851,24 @@ class MainWindow(QMainWindow):
     @Slot()
     def _start_deterministic_strategy_analysis(self) -> None:
         """Run the closed offline bridge; Gemini signals/workers stay untouched."""
+        guided_active = getattr(self.center_column, "guided_turn_workspace", None) is not None
+        if guided_active:
+            self._refresh_guided_turn_workspace()
+            guided = self.center_column.guided_turn_workspace
+            guided.set_board_state("전략 분석 중...")
+            guided.set_probability_metrics(None)
+            self.center_column.analysis_panel.output_edit.setPlainText("전략 분석 중...")
+        guided_basis = self._guided_current_basis() if guided_active else None
         panel = self.center_column.llm_advice_panel
         manager = getattr(self, "_observation_runtime_session_manager", None)
         session_id = MainWindow._active_session_id(self)
         if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
             panel.set_advice_text("전략 분석을 위한 현재 런타임 상태를 사용할 수 없습니다.")
+            if guided_active:
+                self._guided_analysis_text = "현재 배틀이 없어 분석할 수 없습니다."
+                guided.set_board_state("현재 배틀이 없어 분석할 수 없습니다.")
+                self.center_column.analysis_panel.output_edit.setPlainText("현재 배틀이 없어 분석할 수 없습니다.")
+                self._refresh_guided_turn_workspace()
             self.statusBar().showMessage("전략 분석 실패: 현재 런타임 상태 없음")
             return
         decision_snapshot = manager.capture_runtime_state_snapshot(session_id)
@@ -4594,14 +4916,43 @@ class MainWindow(QMainWindow):
                         historical_attack_bundles=bundles)
                 except (KeyError, TypeError, ValueError, AttributeError):
                     pass
-            panel.set_strategy_explanation(result["explanation"])
+            presentation = panel.set_strategy_explanation(result["explanation"])
+            if guided_active:
+                summary = self._guided_strategy_summary(presentation)
+                if guided_basis == self._guided_current_basis():
+                    self._guided_analysis_basis = guided_basis
+                    self._guided_analysis_text = summary
+                    guided.set_recommendation(presentation)
+                    guided.set_probability_metrics(result.get("descriptive_metrics"))
+                    self.center_column.analysis_panel.output_edit.setPlainText(panel.output_edit.toPlainText())
+                else:
+                    self._guided_analysis_basis = None
+                    self._guided_analysis_text = "상태가 변경되어 다시 분석이 필요합니다."
+                    guided.set_board_state(self._guided_analysis_text)
+                    guided.set_probability_metrics(None)
+                    self.center_column.analysis_panel.output_edit.setPlainText(self._guided_analysis_text)
             self.statusBar().showMessage("전략 분석 완료")
         elif result.get("status") == "stale":
             panel.set_advice_text("현재 상태가 변경되어 전략 분석 결과를 폐기했습니다.")
+            self._guided_analysis_basis = None
+            self._guided_analysis_text = "상태가 변경되어 다시 분석이 필요합니다."
+            if guided_active:
+                guided.set_board_state(self._guided_analysis_text)
+                guided.set_probability_metrics(None)
+                self.center_column.analysis_panel.output_edit.setPlainText(self._guided_analysis_text)
             self.statusBar().showMessage("전략 분석 결과 폐기: 현재 상태 변경")
         else:
-            panel.set_advice_text("전략 분석을 완료하지 못했습니다. 현재 권한 상태를 확인하세요.")
+            failure_guidance = self._guided_strategy_failure_prompt()
+            panel.set_advice_text(failure_guidance)
+            self._guided_analysis_basis = None
+            self._guided_analysis_text = failure_guidance
+            if guided_active:
+                guided.set_board_state(self._guided_analysis_text)
+                guided.set_probability_metrics(None)
+                self.center_column.analysis_panel.output_edit.setPlainText(self._guided_analysis_text)
             self.statusBar().showMessage("전략 분석 실패")
+        if guided_active:
+            self._refresh_guided_turn_workspace()
 
     @Slot()
     def _check_structured_recommendation_readiness(self) -> None:
@@ -4610,7 +4961,8 @@ class MainWindow(QMainWindow):
         manager = getattr(self, "_observation_runtime_session_manager", None)
         session_id = MainWindow._active_session_id(self)
         if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
-            panel.set_recommendation_readiness({"status": "unavailable"})
+            self._guided_readiness = {"status": "unavailable", "missing": [], "unsupported": []}
+            panel.set_recommendation_readiness(self._guided_readiness)
             return
         try:
             runtime_snapshot = manager.capture_runtime_state_snapshot(session_id)
@@ -4670,10 +5022,12 @@ class MainWindow(QMainWindow):
             )
         except ValueError:
             self._recommendation_readiness_owner = None
-            panel.set_recommendation_readiness({"status": "unavailable"})
+            self._guided_readiness = {"status": "unavailable", "missing": [], "unsupported": []}
+            panel.set_recommendation_readiness(self._guided_readiness)
             return
         self._recommendation_readiness_owner = (session_id, my_slot, current_pokemon_id)
-        panel.set_recommendation_readiness(build_recommendation_readiness(prepared_cycle=prepared))
+        self._guided_readiness = build_recommendation_readiness(prepared_cycle=prepared)
+        panel.set_recommendation_readiness(self._guided_readiness)
 
     @Slot(str)
     def _open_readiness_input(self, action: str) -> None:
@@ -4938,6 +5292,9 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         """Suppress callbacks and request cooperative shutdown without blocking close."""
         self._is_closing = True
+        guided_timer = getattr(self, "_guided_refresh_timer", None)
+        if guided_timer is not None:
+            guided_timer.stop()
         self._active_advice_owner = None
         self._active_advice_request_token = None
         self._active_advice_terminal_token = None
@@ -5203,6 +5560,9 @@ class MainWindow(QMainWindow):
         view = getattr(panel, "pokemon_view", None)
         if view is None:
             raise ValueError("\uC120\uD0DD\uB41C \uD3EC\uCF13\uBAAC \uC815\uBCF4\uB97C \uC77D\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.")
+        required = ("en", "ko", "types_en", "types_ko", "base_stats", "abilities_en", "abilities_ko")
+        if any(not hasattr(view, field) for field in required):
+            raise ValueError("\uD3EC\uCF13\uBAAC \uAE30\uBCF8 \uC815\uBCF4\uAC00 \uBD80\uC871\uD569\uB2C8\uB2E4.")
         if not view.types_en or not view.base_stats:
             raise ValueError("\uD3EC\uCF13\uBAAC \uAE30\uBCF8 \uC815\uBCF4\uAC00 \uBD80\uC871\uD569\uB2C8\uB2E4.")
         return {
@@ -5257,9 +5617,10 @@ class MainWindow(QMainWindow):
 
     @Slot(str, int, int)
     def _on_move_slot_selected(self, column_name: str, slot_index: int, move_index: int) -> None:
-        del move_index
         self.select_slot(column_name, slot_index)
         self._sync_move_search_candidates()
+        if column_name == "team_my":
+            self._set_guided_considered_from_ui()
 
     @Slot(str, int)
     def _on_stat_profile_requested(self, column_name: str, slot_index: int) -> None:
@@ -5287,7 +5648,6 @@ class MainWindow(QMainWindow):
     @Slot(str, int)
     def _on_item_profile_requested(self, column_name: str, slot_index: int) -> None:
         panel = self._slot_panel(column_name, slot_index)
-        self.select_slot(column_name, slot_index)
         view = getattr(panel, "pokemon_view", None)
         if view is None:
             self.statusBar().showMessage("Failed | Select a Pokemon first.")
@@ -5303,15 +5663,15 @@ class MainWindow(QMainWindow):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         profile = dialog.item_profile
-        if not self._is_current_runtime_active_panel(column_name, slot_index, view):
-            self.statusBar().showMessage("Item confirmation failed: select the current active Pokémon")
-            return
-        if profile.get("status") == "user_confirmed":
-            if not self._admit_current_state_fact("current_item_observed", {"status": "known", "item": profile.get("item_id")}, "opponent" if column_name == "team_enemy" else "self"):
-                return
-        elif profile.get("status") == "none":
-            if not self._admit_current_state_fact("current_item_observed", {"status": "known_absent"}, "opponent" if column_name == "team_enemy" else "self"):
-                return
+        # Roster setup is local. Only an exact current runtime owner may confirm
+        # a present-tense held-item fact through the existing admission boundary.
+        if self._is_current_runtime_active_panel(column_name, slot_index, view):
+            if profile.get("status") == "user_confirmed":
+                if not self._admit_current_state_fact("current_item_observed", {"status": "known", "item": profile.get("item_id")}, "opponent" if column_name == "team_enemy" else "self"):
+                    return
+            elif profile.get("status") == "none":
+                if not self._admit_current_state_fact("current_item_observed", {"status": "known_absent"}, "opponent" if column_name == "team_enemy" else "self"):
+                    return
         panel.set_item_profile(
             profile,
             item_button_text(profile, role_key=role_key),

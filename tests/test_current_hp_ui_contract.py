@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QDialog
 
 from ui.widgets.current_hp_dialog import CurrentHPDialog
 from ui.widgets.llm_advice_panel import LLMAdvicePanel
@@ -37,3 +37,44 @@ def test_current_hp_dialog_leaves_unticked_opponent_unknown_and_unwritten() -> N
     dialog.confirm_opponent.setChecked(False); dialog.opponent_current_spin.setValue(1); dialog.opponent_maximum_spin.setValue(1)
     dialog._save()
     assert [entry["side"] for entry in dialog.current_hp_confirmations] == ["self"]
+
+
+def test_unknown_exact_hp_is_blank_and_untouched_confirmation_is_rejected() -> None:
+    QApplication.instance() or QApplication([])
+    dialog = CurrentHPDialog(current_hp={})
+    assert dialog.current_spin.text() == dialog.maximum_spin.text() == ""
+    dialog.confirm_self.setChecked(True)
+    dialog._save()
+    assert dialog.result() != QDialog.DialogCode.Accepted
+    assert dialog.current_hp_confirmations == []
+    assert dialog.error_label.text()
+
+
+def test_exact_zero_of_one_requires_deliberate_entry_and_reopens() -> None:
+    QApplication.instance() or QApplication([])
+    dialog = CurrentHPDialog(current_hp={})
+    dialog.confirm_self.setChecked(True)
+    dialog.current_spin.setText("0")
+    dialog._save()
+    assert dialog.current_hp_confirmations == []
+    dialog.maximum_spin.setText("1")
+    dialog._save()
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    assert (dialog.current_hp_confirmation["current_hp"], dialog.current_hp_confirmation["maximum_hp"]) == (0, 1)
+    reopened = CurrentHPDialog(current_hp={"self": dialog.current_hp_confirmation})
+    assert reopened.confirm_self.isChecked()
+    assert reopened.current_spin.text() == "0"
+    assert reopened.maximum_spin.text() == "1"
+
+
+def test_invalid_or_cancelled_exact_hp_never_yields_a_result() -> None:
+    QApplication.instance() or QApplication([])
+    dialog = CurrentHPDialog(current_hp={})
+    dialog.confirm_self.setChecked(True)
+    dialog.current_spin.setText("3")
+    dialog.maximum_spin.setText("1")
+    dialog._save()
+    assert dialog.current_hp_confirmations == []
+    assert dialog.error_label.text()
+    dialog.reject()
+    assert dialog.result() == QDialog.DialogCode.Rejected

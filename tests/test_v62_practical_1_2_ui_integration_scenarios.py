@@ -42,8 +42,10 @@ def _hp_runtime_window(*, readiness_owner=None):
         _observation_runtime_session_manager=manager,
         _current_trusted_turn_number=2,
         _active_session_id=lambda: manager.session_id,
+        statusBar=lambda: SimpleNamespace(showMessage=lambda _message: None),
     )
     window._admit_current_state_fact = lambda event_kind, payload, side=None: MainWindow._admit_current_state_fact(window, event_kind, payload, side)
+    window._admit_current_state_facts = lambda facts: MainWindow._admit_current_state_facts(window, facts)
     return window, manager, updates
 
 
@@ -73,9 +75,9 @@ def test_readiness_multi_gap_presentation_preserves_routes_until_each_canonical_
     assert initial["missing"][0]["path"] == "attacker.current_hp"
     panel.set_recommendation_readiness(initial)
     assert initial["status"] == "incomplete"
-    assert "Can confirm: Current HP needed; Held item unknown" in panel.readiness_label.text()
-    assert "Still unavailable: Toxic progression authority missing" in panel.readiness_label.text()
-    assert "Unsupported: This selected mechanic is not supported yet" in panel.readiness_label.text()
+    assert "입력 가능: 현재 HP; 현재 지닌 도구" in panel.readiness_label.text()
+    assert "현재 직접 입력 경로 없음: 독성 진행 정보" in panel.readiness_label.text()
+    assert "지원 범위: 선택한 기술의 일부 메커니즘은 아직 지원되지 않습니다." in panel.readiness_label.text()
     panel._request_readiness_input()
     panel._readiness_extra_input_buttons[0].click()
     assert requested == ["current_hp", "current_item"]
@@ -84,9 +86,9 @@ def test_readiness_multi_gap_presentation_preserves_routes_until_each_canonical_
         _missing("defender.item", "attacker.toxic_progression", unsupported=True),
     ))
     panel.set_recommendation_readiness(after_hp)
-    assert "Current HP needed" not in panel.readiness_label.text()
-    assert "Held item unknown" in panel.readiness_label.text()
-    assert "Toxic progression authority missing" in panel.readiness_label.text()
+    assert "현재 HP" not in panel.readiness_label.text()
+    assert "현재 지닌 도구" in panel.readiness_label.text()
+    assert "독성 진행 정보" in panel.readiness_label.text()
 
     ready = build_recommendation_readiness(prepared_cycle=_prepared({"mechanics_result": {"status": "known"}}))
     panel.set_recommendation_readiness(ready)
@@ -110,7 +112,7 @@ def test_readiness_never_reports_ready_when_canonical_preparation_is_unavailable
         "unsupported": ["Recommendation context unavailable"],
         "action": None,
     }
-    assert "unavailable" in panel.readiness_label.text().lower()
+    assert "필요 정보를 확인할 수 없습니다" in panel.readiness_label.text()
     assert not panel.readiness_input_button.isVisible()
 
 
@@ -158,7 +160,7 @@ def test_paired_hp_confirmation_applies_only_valid_active_owners_and_cancel_is_r
     assert manager.read_state() == runtime_before
 
 
-def test_stale_paired_hp_record_is_rejected_without_blocking_the_other_active_side(monkeypatch):
+def test_stale_paired_hp_record_is_rejected_atomically_when_an_active_owner_changes(monkeypatch):
     window, manager, _updates = _hp_runtime_window()
 
     class PartlyStaleDialog:
@@ -177,14 +179,14 @@ def test_stale_paired_hp_record_is_rejected_without_blocking_the_other_active_si
 
     monkeypatch.setattr(main_window_module, "CurrentHPDialog", PartlyStaleDialog)
     MainWindow._open_current_hp_dialog(window)
-    assert set(window._current_hp_confirmations) == {"self"}
-    assert window._current_hp_confirmation_owners["self"] == ("hp-ui", 0, "pikachu")
+    assert window._current_hp_confirmations == {}
+    assert window._current_hp_confirmation_owners == {}
     state = manager.read_state()["state"]
-    assert state["self_side"]["pokemon"][0]["current_hp"] == 40
+    assert state["self_side"]["pokemon"][0]["current_hp"] == 80
     assert state["opponent_side"]["pokemon"][1]["current_hp"] == 80
-    # The rejected stale row does not reserve a committed reducer sequence:
-    # switch is sequence 1 and the surviving self confirmation is sequence 2.
-    assert state["last_applied_observation_sequence"] == 2
+    # The dialog snapshot is rejected before HP admission; only the intervening
+    # opponent switch is committed.
+    assert state["last_applied_observation_sequence"] == 1
 
 
 def test_item_readiness_route_rejects_a_replacement_before_the_existing_item_flow(monkeypatch):

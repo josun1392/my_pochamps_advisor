@@ -38,7 +38,7 @@ class _Harness:
         self._active_advice_owner = self._active_advice_request_token = self._active_advice_terminal_token = None
         self._is_closing = False
         self.selected_slots = {"team_my": 0, "team_enemy": 1}
-        self._panels = {("team_my", 0): _Panel("pikachu"), ("team_enemy", 1): _Panel("eevee")}
+        self._panels = {("team_my", 0): _Panel("pikachu"), ("team_enemy", 0): _Panel("meowscarada"), ("team_enemy", 1): _Panel("eevee")}
         self._current_condition_confirmations = self._current_ability_confirmations = self._structured_ability_confirmations = {}
         self._current_stat_stage_confirmations = self._current_final_stat_confirmations = self._structured_final_stat_confirmations = {}
         self._current_hp_confirmations = self._item_event_confirmations = []
@@ -83,8 +83,8 @@ def test_new_battle_resets_turn_and_turn_snapshot_context_is_detached():
     window = _Harness(); window.set_current_turn_number(3)
     context = window._trusted_turn_context_snapshot()
     frozen = build_turn_snapshot_from_battle_input(_battle(), trusted_turn_context=context).to_dict()
-    window._begin_new_battle_session()
-    assert window._current_trusted_turn_number is None
+    assert window._begin_new_battle_session() == "ui-session-1"
+    assert window._current_trusted_turn_number == 1
     assert frozen["current_state"]["trusted_turn_context"]["turn_number"] == 3
     assert build_turn_snapshot_from_battle_input(_battle(), trusted_turn_context={**context, "session_id": "old"}).to_dict().get("current_state", {}).get("trusted_turn_context") is None
 
