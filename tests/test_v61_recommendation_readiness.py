@@ -175,6 +175,74 @@ def test_real_psychic_terrain_move_success_missing_authority_remains_blocking_wi
     assert "effective_priority" in [entry["path"] for entry in readiness["missing"]]
 
 
+def test_relevant_direct_mechanics_stat_stage_paths_route_to_current_stat_stage_with_specific_labels():
+    paths = [
+        "attacker.attack_stage",
+        "attacker.special-attack_stage",
+        "attacker.defense_stage",
+        "defender.attack_stage",
+        "defender.defense_stage",
+        "defender.special-defense_stage",
+    ]
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared({
+        "mechanics_result": {
+            "status": "insufficient_context",
+            "missing_inputs": paths,
+        },
+    }))
+
+    by_path = {entry["path"]: entry for entry in readiness["missing"]}
+    assert by_path == {
+        "attacker.attack_stage": {
+            "path": "attacker.attack_stage",
+            "label": "Attacker Attack stage needed",
+            "action": "current_stat_stage",
+        },
+        "attacker.special-attack_stage": {
+            "path": "attacker.special-attack_stage",
+            "label": "Attacker Special Attack stage needed",
+            "action": "current_stat_stage",
+        },
+        "attacker.defense_stage": {
+            "path": "attacker.defense_stage",
+            "label": "Attacker Defense stage needed",
+            "action": "current_stat_stage",
+        },
+        "defender.attack_stage": {
+            "path": "defender.attack_stage",
+            "label": "Defender Attack stage needed",
+            "action": "current_stat_stage",
+        },
+        "defender.defense_stage": {
+            "path": "defender.defense_stage",
+            "label": "Defender Defense stage needed",
+            "action": "current_stat_stage",
+        },
+        "defender.special-defense_stage": {
+            "path": "defender.special-defense_stage",
+            "label": "Defender Special Defense stage needed",
+            "action": "current_stat_stage",
+        },
+    }
+    assert readiness["action"] == "current_stat_stage"
+
+
+def test_unrelated_unknown_path_keeps_generic_non_actionable_fallback():
+    readiness = build_recommendation_readiness(prepared_cycle=_prepared({
+        "mechanics_result": {
+            "status": "insufficient_context",
+            "missing_inputs": ["defender.future_unmapped_authority"],
+        },
+    }))
+
+    assert readiness["missing"] == [{
+        "path": "defender.future_unmapped_authority",
+        "label": "Required deterministic authority is unavailable",
+        "action": None,
+    }]
+    assert readiness["action"] is None
+
+
 def test_readiness_routes_canonical_condition_stage_final_stat_and_battle_format_paths():
     readiness = build_recommendation_readiness(prepared_cycle=_prepared({
         "mechanics_result": {

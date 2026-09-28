@@ -53,16 +53,28 @@ def test_garchomp_earthquake_tyranitar_after_ability_and_attack_stage_has_no_pri
         def exec(self):
             return QDialog.DialogCode.Accepted
 
+    stage_confirmations = [
+        {
+            "side": "self",
+            "stat": "attack",
+            "stage": 0,
+            "status": "user_confirmed",
+            "source": "user_confirmed_current_stat_stage",
+            "confidence": "known",
+        },
+        {
+            "side": "opponent",
+            "stat": "defense",
+            "stage": 0,
+            "status": "user_confirmed",
+            "source": "user_confirmed_current_stat_stage",
+            "confidence": "known",
+        },
+    ]
+
     class StageDialog:
         def __init__(self, **_kwargs):
-            self.current_stat_stage_confirmation = {
-                "side": "self",
-                "stat": "attack",
-                "stage": 0,
-                "status": "user_confirmed",
-                "source": "user_confirmed_current_stat_stage",
-                "confidence": "known",
-            }
+            self.current_stat_stage_confirmation = stage_confirmations.pop(0)
 
         def exec(self):
             return QDialog.DialogCode.Accepted
@@ -88,7 +100,21 @@ def test_garchomp_earthquake_tyranitar_after_ability_and_attack_stage_has_no_pri
         for entry in window._guided_readiness["missing"]
         if entry.get("path") == "defender.defense_stage"
     )
-    assert defender_stage["action"] is None
+    assert defender_stage["action"] == "current_stat_stage"
+
+    window._open_readiness_input("current_stat_stage")
+    window._refresh_guided_turn_workspace()
+
+    after_paths = [
+        entry.get("path")
+        for entry in window._guided_readiness.get("missing", [])
+        if isinstance(entry, dict)
+    ]
+    assert "defender.defense_stage" not in after_paths, window._guided_readiness
+    assert "self_move_priority" not in after_paths, window._guided_readiness
+    assert window._guided_readiness["unsupported"] == []
+    assert ("opponent", "defense") in window._current_stat_stage_confirmations
+    assert window._current_stat_stage_confirmations[("opponent", "defense")]["stage"] == 0
     window.close()
 
 
