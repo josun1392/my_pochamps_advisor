@@ -556,7 +556,11 @@ def _relevant_stage_context(*, current: Mapping[str, Any], category: Any, offens
         if not isinstance(entry, Mapping):
             result["unsupported_reason"] = "stat_stage_context"; return result
         try:
-            normalized = normalize_user_confirmed_current_stat_stage({key: value for key, value in entry.items() if key != "provenance"})
+            normalized = normalize_user_confirmed_current_stat_stage({
+                key: value
+                for key, value in entry.items()
+                if key not in {"provenance", "slot_index"}
+            })
         except ValueError:
             result["unsupported_reason"] = "stat_stage_context"; return result
         key = (normalized["side"], normalized["stat"])

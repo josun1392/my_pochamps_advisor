@@ -80,12 +80,15 @@ def test_garchomp_earthquake_tyranitar_after_ability_and_attack_stage_has_no_pri
         if isinstance(entry, dict)
     ]
     assert "self_move_priority" not in paths, window._guided_readiness
-    assert window._guided_readiness == {
-        "status": "unsupported",
-        "missing": [],
-        "unsupported": ["This selected mechanic is not supported yet"],
-        "action": None,
-    }
+    assert "defender.defense_stage" in paths, window._guided_readiness
+    assert window._guided_readiness["status"] == "incomplete"
+    assert window._guided_readiness["unsupported"] == []
+    defender_stage = next(
+        entry
+        for entry in window._guided_readiness["missing"]
+        if entry.get("path") == "defender.defense_stage"
+    )
+    assert defender_stage["action"] is None
     window.close()
 
 
