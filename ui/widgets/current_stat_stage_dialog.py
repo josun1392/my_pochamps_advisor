@@ -9,7 +9,9 @@ from llm.advisor_battle_state_context import normalize_user_confirmed_current_st
 
 
 class CurrentStatStageDialog(QDialog):
-    def __init__(self, *, current_stages: dict[tuple[str, str], dict[str, Any]] | None = None, parent: QWidget | None = None) -> None:
+    def __init__(self, *, current_stages: dict[tuple[str, str], dict[str, Any]] | None = None,
+                 initial_side: str | None = None, initial_stat: str | None = None,
+                 parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Current Stat Stages")
         self._current_stages = deepcopy(current_stages or {})
@@ -26,6 +28,12 @@ class CurrentStatStageDialog(QDialog):
         self.stat_combo = QComboBox()
         for stat in ("attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion"):
             self.stat_combo.addItem(stat, stat)
+        if (isinstance(initial_side, str) and isinstance(initial_stat, str)
+                and initial_side in {"self", "opponent"} and initial_stat in {
+                    "attack", "defense", "special-attack", "special-defense", "speed", "accuracy", "evasion"
+                }):
+            self.side_combo.setCurrentIndex(self.side_combo.findData(initial_side))
+            self.stat_combo.setCurrentIndex(self.stat_combo.findData(initial_stat))
         self.stage_spin = QSpinBox()
         self.stage_spin.setRange(-6, 6)
         self.side_combo.currentIndexChanged.connect(self._load_selected)

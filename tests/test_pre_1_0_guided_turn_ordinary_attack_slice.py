@@ -72,8 +72,11 @@ def test_garchomp_earthquake_tyranitar_after_ability_and_attack_stage_has_no_pri
         },
     ]
 
+    stage_dialog_kwargs = []
+
     class StageDialog:
-        def __init__(self, **_kwargs):
+        def __init__(self, **kwargs):
+            stage_dialog_kwargs.append(kwargs)
             self.current_stat_stage_confirmation = stage_confirmations.pop(0)
 
         def exec(self):
@@ -101,8 +104,15 @@ def test_garchomp_earthquake_tyranitar_after_ability_and_attack_stage_has_no_pri
         if entry.get("path") == "defender.defense_stage"
     )
     assert defender_stage["action"] == "current_stat_stage"
+    guided = window.center_column.guided_turn_workspace
+    assert window._guided_readiness["action"] == "current_item"
+    assert "현재 지닌 도구" in guided.readiness_label.text()
+    assert guided.readiness_input_button.text() == "현재 지닌 도구 입력"
+    assert ("opponent", "defense") not in window._current_stat_stage_confirmations
 
-    window._open_readiness_input("current_stat_stage")
+    # The separately confirmed stage still removes its missing requirement;
+    # the guided CTA must not bypass canonical item precedence to collect it.
+    window._open_current_stat_stage_dialog()
     window._refresh_guided_turn_workspace()
 
     after_paths = [
@@ -379,7 +389,7 @@ def test_contextual_readiness_skip_and_input_route_are_read_only(monkeypatch) ->
     window = _battle()
     stage = window.center_column.guided_turn_workspace
     window._guided_basis = window._guided_current_basis()
-    window._guided_readiness = {"status": "incomplete", "missing": [{"label": "Current HP needed", "action": "current_hp"}]}
+    window._guided_readiness = {"status": "incomplete", "action": "current_hp", "missing": [{"label": "Current HP needed", "action": "current_hp"}]}
     window._refresh_guided_turn_workspace()
     assert "현재 HP" in stage.readiness_label.text()
     assert stage.readiness_input_button.text() == "현재 HP 입력"

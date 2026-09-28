@@ -57,6 +57,7 @@ def test_actionable_failure_reuses_guided_readiness_cta_and_unknown_escape() -> 
     stage = GuidedTurnWorkspace()
     harness = SimpleNamespace(_guided_readiness={
         "status": "incomplete",
+        "action": "current_hp",
         "missing": [{"label": "Current HP needed", "action": "current_hp"}],
         "unsupported": [],
     })

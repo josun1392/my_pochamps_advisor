@@ -1538,9 +1538,11 @@ class MainWindow(QMainWindow):
         }
 
     @Slot()
-    def _open_current_stat_stage_dialog(self) -> None:
+    def _open_current_stat_stage_dialog(self, *, initial_side: str | None = None,
+                                        initial_stat: str | None = None) -> None:
         current_stages = getattr(self, "_current_stat_stage_confirmations", {})
-        dialog = CurrentStatStageDialog(current_stages=current_stages, parent=self)
+        dialog = CurrentStatStageDialog(current_stages=current_stages, initial_side=initial_side,
+                                        initial_stat=initial_stat, parent=self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         stage = dialog.current_stat_stage_confirmation
@@ -1981,16 +1983,44 @@ class MainWindow(QMainWindow):
             return "필요한 정보는 확인되었지만 이번 상황의 분석을 완료하지 못했습니다."
         return "현재 상태에서는 분석을 완료하지 못했습니다. 상황 정보를 확인한 뒤 다시 시도할 수 있습니다."
 
+    @staticmethod
+    def _stat_stage_readiness_context(path: object) -> tuple[str, str, str] | None:
+        return {
+            "attacker.attack_stage": ("self", "attack", "내 포켓몬의 공격 랭크"),
+            "attacker.special-attack_stage": ("self", "special-attack", "내 포켓몬의 특수공격 랭크"),
+            "attacker.defense_stage": ("self", "defense", "내 포켓몬의 방어 랭크"),
+            "defender.attack_stage": ("opponent", "attack", "상대 포켓몬의 공격 랭크"),
+            "defender.defense_stage": ("opponent", "defense", "상대 포켓몬의 방어 랭크"),
+            "defender.special-defense_stage": ("opponent", "special-defense", "상대 포켓몬의 특수방어 랭크"),
+        }.get(path) if isinstance(path, str) else None
+
+    def _selected_guided_readiness_entry(self) -> dict | None:
+        readiness = getattr(self, "_guided_readiness", {})
+        missing = readiness.get("missing", []) if isinstance(readiness, dict) else []
+        selected_action = readiness.get("action") if isinstance(readiness, dict) else None
+        if not isinstance(missing, list) or not isinstance(selected_action, str):
+            return None
+        first = next((entry for entry in missing if isinstance(entry, dict) and
+                      entry.get("action") == selected_action), None)
+        if first is None or selected_action != "current_stat_stage":
+            return first
+        return next((entry for entry in missing if isinstance(entry, dict) and
+                     entry.get("action") == "current_stat_stage" and
+                     MainWindow._stat_stage_readiness_context(entry.get("path")) is not None), first)
+
     def _guided_readiness_prompt(self) -> tuple[str, str | None, str | None]:
         readiness = getattr(self, "_guided_readiness", {})
         status = readiness.get("status") if isinstance(readiness, dict) else "unavailable"
         if status == "ready":
             return "현재 정보로 전략 분석을 시도할 수 있습니다.", None, None
         if status == "incomplete":
-            for entry in readiness.get("missing", []):
-                if isinstance(entry, dict) and isinstance(entry.get("action"), str):
-                    label = LLMAdvicePanel._readiness_user_label(entry.get("label", ""), entry["action"])
-                    return f"{label}을 알고 있다면 입력할 수 있습니다. 모르면 그대로 두세요.", entry["action"], label
+            entry = MainWindow._selected_guided_readiness_entry(self)
+            if entry is not None:
+                context = MainWindow._stat_stage_readiness_context(entry.get("path")) if entry["action"] == "current_stat_stage" else None
+                label = context[2] if context else LLMAdvicePanel._readiness_user_label(entry.get("label", ""), entry["action"])
+                if context:
+                    return f"{label}를 알고 있다면 입력할 수 있습니다. 모르면 그대로 두세요.", entry["action"], label
+                return f"{label}을 알고 있다면 입력할 수 있습니다. 모르면 그대로 두세요.", entry["action"], label
             return (
                 "추가 정보 미확인 · 현재 직접 입력할 수 없는 정보입니다. "
                 "모르면 그대로 두고 다른 기술을 검토하거나 현재 판단으로 진행할 수 있습니다."
@@ -5011,6 +5041,17 @@ class MainWindow(QMainWindow):
 
     @Slot(str)
     def _open_readiness_input(self, action: str) -> None:
+        selected = MainWindow._selected_guided_readiness_entry(self)
+        if action == "current_stat_stage":
+            context = (MainWindow._stat_stage_readiness_context(selected.get("path"))
+                       if selected is not None and selected.get("action") == action else None)
+            self._open_current_stat_stage_dialog(
+                initial_side=context[0] if context else None,
+                initial_stat=context[1] if context else None,
+            )
+            if getattr(self, "_recommendation_readiness_owner", None) is not None:
+                self._check_structured_recommendation_readiness()
+            return
         if action == "current_item":
             owner = getattr(self, "_recommendation_readiness_owner", None)
             if not isinstance(owner, tuple) or len(owner) != 3:
@@ -5036,7 +5077,6 @@ class MainWindow(QMainWindow):
             "current_hp": self._open_current_hp_dialog,
             "current_type": self._open_current_type_dialog,
             "current_condition": self._open_current_condition_dialog,
-            "current_stat_stage": self._open_current_stat_stage_dialog,
             "current_final_stat": self._open_current_final_stat_dialog,
             "current_battle_format": self._open_current_battle_format_dialog,
             "current_field_state": self._open_current_field_state_dialog,
