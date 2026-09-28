@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from core.cache_manager import CacheManager
 from core.champions_move_pool import ChampionsMovePoolRepository
 from core.ko_mapping_loader import KoMappingLoader
@@ -71,19 +73,24 @@ def test_cached_pokeapi_priority_is_explicit_and_survives_move_repository_reload
     assert _move_payload(repository.get("thunderbolt"), 0)["priority"] == 0
 
 
-def test_missing_or_malformed_cached_priority_stays_unknown(tmp_path: Path) -> None:
+def test_missing_cached_priority_uses_canonical_and_malformed_cached_priority_fails(tmp_path: Path) -> None:
     cache = CacheManager(tmp_path / "cache" / "pokeapi")
     missing = PokeAPIFetcher._normalize_move(_raw_move("missing-priority", 1, None))
     malformed = PokeAPIFetcher._normalize_move(_raw_move("malformed-priority", 2, "0"))
     cache.put("moves", 1, missing)
     cache.put("moves", 2, malformed)
-    repository = MoveRepository(cache, KoMappingLoader())
+    repository = MoveRepository(
+        cache,
+        KoMappingLoader(),
+        canonical_move_metadata=_CanonicalPriority({"missing-priority": 0, "malformed-priority": 0}),
+    )
 
-    assert repository.get("missing-priority").priority is None
-    assert repository.get("malformed-priority").priority is None
+    assert repository.get("missing-priority").priority == 0
+    with pytest.raises(RuntimeError, match="Cached move priority is malformed"):
+        repository.get("malformed-priority")
 
 
-def test_champions_fallback_forwards_only_explicit_priority(tmp_path: Path) -> None:
+def test_champions_fallback_priority_is_not_authoritative(tmp_path: Path) -> None:
     cache_dir = tmp_path / "champions"
     cache_dir.mkdir()
     (cache_dir / "fixture.json").write_text(json.dumps({"moves": [
@@ -93,16 +100,27 @@ def test_champions_fallback_forwards_only_explicit_priority(tmp_path: Path) -> N
     repository = MoveRepository(
         CacheManager(tmp_path / "cache" / "pokeapi"), KoMappingLoader(),
         ChampionsMovePoolRepository(cache_dir=cache_dir),
+        canonical_move_metadata=_CanonicalPriority({"quick-attack": 0, "unknown-priority": -1}),
     )
 
-    assert repository.get("quick-attack").priority == 1
-    assert repository.get("unknown-priority").priority is None
+    assert repository.get("quick-attack").priority == 0
+    assert repository.get("unknown-priority").priority == -1
 
 
 def test_fixture_path_can_be_overridden(tmp_path: Path) -> None:
     repo = ChampionsMovePoolRepository(cache_dir=tmp_path)
 
     assert repo.get_allowed_move_ids_for_pokemon("charizard") == set()
+
+
+class _CanonicalPriority:
+    def __init__(self, priorities: dict[str, int]) -> None:
+        self.priorities = priorities
+
+    def get_priority(self, move_id: str) -> int:
+        if move_id not in self.priorities:
+            raise RuntimeError(f"Canonical move priority is unavailable: {move_id}")
+        return self.priorities[move_id]
 
 
 def _raw_move(name: str, identifier: int, priority: int | str | None) -> dict:

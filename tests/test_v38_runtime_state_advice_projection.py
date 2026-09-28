@@ -139,7 +139,17 @@ def test_current_fingerprint_remains_eligible_and_projection_source_has_no_provi
 
 
 def test_main_window_structured_request_captures_projection_and_fingerprint_without_payload_exposure():
-    source = inspect.getsource(MainWindow._start_structured_recommendation)
-    assert "capture_runtime_state_snapshot" in source and "build_runtime_advice_state_projection" in source
-    assert 'battle_input["runtime_advice_state"]' in source and "runtime_fingerprint=runtime_projection" in source
+    start_source = inspect.getsource(MainWindow._start_structured_recommendation)
+    builder_source = inspect.getsource(MainWindow._build_current_structured_analysis_battle_input)
+
+    assert "capture_runtime_state_snapshot" in start_source
+    assert "build_runtime_advice_state_projection" in start_source
+    assert "_build_current_structured_analysis_battle_input" in start_source
+    assert "StructuredRecommendationWorker(" in start_source
+    assert 'runtime_fingerprint=runtime_projection["runtime_fingerprint"]' in start_source
+
+    assert '_runtime_projection_matches_battle_input(' in builder_source
+    assert 'runtime_projection["runtime_advice_state"]' in builder_source
+    assert 'battle_input["runtime_advice_state"] = deepcopy(runtime_projection["runtime_advice_state"])' in builder_source
+
     assert "runtime_fingerprint" not in inspect.getsource(build_turn_snapshot_from_battle_input)

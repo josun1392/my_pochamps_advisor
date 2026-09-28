@@ -30,6 +30,65 @@ def _battle(*, complete: bool = True) -> MainWindow:
     return window
 
 
+def test_garchomp_earthquake_tyranitar_after_ability_and_attack_stage_has_no_priority_gap(monkeypatch) -> None:
+    window = _window()
+    window.my_team_column.panels[0].pokemon_view = window.repo.get("garchomp")
+    window.opponent_team_column.panels[0].pokemon_view = window.repo.get("tyranitar")
+    own_panel = window.my_team_column.panels[0]
+    own_panel.set_move(0, window.move_repo.get("earthquake"))
+
+    window.center_column.start_battle_button.click()
+    own_panel.select_move(0)
+
+    class AbilityDialog:
+        def __init__(self, **_kwargs):
+            self.current_ability_confirmation = {
+                "side": "self",
+                "ability": "rough-skin",
+                "status": "user_confirmed",
+                "source": "user_confirmed_current_ability",
+                "confidence": "known",
+            }
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+    class StageDialog:
+        def __init__(self, **_kwargs):
+            self.current_stat_stage_confirmation = {
+                "side": "self",
+                "stat": "attack",
+                "stage": 0,
+                "status": "user_confirmed",
+                "source": "user_confirmed_current_stat_stage",
+                "confidence": "known",
+            }
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(main_window_module, "CurrentAbilityDialog", AbilityDialog)
+    monkeypatch.setattr(main_window_module, "CurrentStatStageDialog", StageDialog)
+    window._open_current_ability_dialog()
+    window._open_current_stat_stage_dialog()
+    window._refresh_guided_turn_workspace()
+
+    assert window.move_repo.get("earthquake").priority == 0
+    paths = [
+        entry.get("path")
+        for entry in window._guided_readiness.get("missing", [])
+        if isinstance(entry, dict)
+    ]
+    assert "self_move_priority" not in paths, window._guided_readiness
+    assert window._guided_readiness == {
+        "status": "unsupported",
+        "missing": [],
+        "unsupported": ["This selected mechanic is not supported yet"],
+        "action": None,
+    }
+    window.close()
+
+
 def test_minimal_garchomp_earthquake_tyranitar_bypasses_spurious_prankster_readiness() -> None:
     window = _window()
     window.my_team_column.panels[0].pokemon_view = window.repo.get("garchomp")

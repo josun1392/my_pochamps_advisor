@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from core.cache_manager import CacheManager
+from core.canonical_move_metadata import CanonicalMoveMetadataRepository
 from core.champions_move_pool import ChampionsMovePoolRepository
 from core.ko_mapping_loader import KoMappingLoader
 
@@ -36,15 +37,25 @@ class MoveRepository:
         cache_manager: CacheManager,
         ko_loader: KoMappingLoader,
         champions_move_pool: ChampionsMovePoolRepository | None = None,
+        canonical_move_metadata: CanonicalMoveMetadataRepository | None = None,
     ) -> None:
         self.cache_manager = cache_manager
         self.ko_loader = ko_loader
         self.champions_move_pool = champions_move_pool or ChampionsMovePoolRepository()
+        self.canonical_move_metadata = canonical_move_metadata or CanonicalMoveMetadataRepository()
 
     def get(self, move_id: str) -> MoveView:
+        canonical_priority = self.canonical_move_metadata.get_priority(move_id)
         data = self.cache_manager.get("moves", move_id)
         if data is None:
-            return self._get_from_champions_movepool(move_id)
+            return self._get_from_champions_movepool(move_id, canonical_priority=canonical_priority)
+
+        cached_priority = _cached_priority(data.get("priority"), move_id=move_id)
+        if cached_priority is not None and cached_priority != canonical_priority:
+            raise RuntimeError(
+                f"Move priority metadata conflict for {move_id}: "
+                f"canonical={canonical_priority} cached={cached_priority}"
+            )
 
         name = _required_str(data, "name")
         move_type = _required_str(data, "type")
@@ -58,7 +69,7 @@ class MoveRepository:
             power=_optional_int(data.get("power")),
             accuracy=_optional_int(data.get("accuracy")),
             pp=_optional_int(data.get("pp")),
-            priority=_optional_int(data.get("priority")),
+            priority=canonical_priority,
             drain=_optional_int(data.get("meta", {}).get("drain") if isinstance(data.get("meta"), dict) else None),
             min_hits=_optional_int(data.get("meta", {}).get("min_hits") if isinstance(data.get("meta"), dict) else None),
             max_hits=_optional_int(data.get("meta", {}).get("max_hits") if isinstance(data.get("meta"), dict) else None),
@@ -70,7 +81,7 @@ class MoveRepository:
             effect_chance=_optional_int(data.get("effect_chance")),
         )
 
-    def _get_from_champions_movepool(self, move_id: str) -> MoveView:
+    def _get_from_champions_movepool(self, move_id: str, *, canonical_priority: int) -> MoveView:
         data = self.champions_move_pool.get_move_metadata(move_id)
         if data is None:
             raise RuntimeError(f"Move is missing from cache: {move_id}")
@@ -86,7 +97,7 @@ class MoveRepository:
             power=_optional_int(data.get("power")),
             accuracy=_optional_int(data.get("accuracy")),
             pp=_optional_int(data.get("pp")),
-            priority=_optional_int(data.get("priority")),
+            priority=canonical_priority,
             drain=_optional_int(data.get("drain")),
             min_hits=_optional_int(data.get("min_hits")), max_hits=_optional_int(data.get("max_hits")),
             healing=_optional_int(data.get("healing")),
@@ -106,7 +117,15 @@ def _required_str(data: dict[str, Any], key: str) -> str:
 
 
 def _optional_int(value: Any) -> int | None:
-    return value if isinstance(value, int) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _cached_priority(value: Any, *, move_id: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not -7 <= value <= 7:
+        raise RuntimeError(f"Cached move priority is malformed: {move_id}={value!r}")
+    return value
 
 
 def _optional_str(value: Any) -> str | None:

@@ -1,0 +1,1979 @@
+{
+  "moves": {
+    "accelerock": {
+      "pokeapi_id": 709,
+      "priority": 1
+    },
+    "acid-armor": {
+      "pokeapi_id": 151,
+      "priority": 0
+    },
+    "acid-spray": {
+      "pokeapi_id": 491,
+      "priority": 0
+    },
+    "acrobatics": {
+      "pokeapi_id": 512,
+      "priority": 0
+    },
+    "acupressure": {
+      "pokeapi_id": 367,
+      "priority": 0
+    },
+    "aerial-ace": {
+      "pokeapi_id": 332,
+      "priority": 0
+    },
+    "after-you": {
+      "pokeapi_id": 495,
+      "priority": 0
+    },
+    "agility": {
+      "pokeapi_id": 97,
+      "priority": 0
+    },
+    "air-cutter": {
+      "pokeapi_id": 314,
+      "priority": 0
+    },
+    "air-slash": {
+      "pokeapi_id": 403,
+      "priority": 0
+    },
+    "alluring-voice": {
+      "pokeapi_id": 914,
+      "priority": 0
+    },
+    "ally-switch": {
+      "pokeapi_id": 502,
+      "priority": 2
+    },
+    "amnesia": {
+      "pokeapi_id": 133,
+      "priority": 0
+    },
+    "ancient-power": {
+      "pokeapi_id": 246,
+      "priority": 0
+    },
+    "apple-acid": {
+      "pokeapi_id": 787,
+      "priority": 0
+    },
+    "aqua-cutter": {
+      "pokeapi_id": 895,
+      "priority": 0
+    },
+    "aqua-jet": {
+      "pokeapi_id": 453,
+      "priority": 1
+    },
+    "aqua-ring": {
+      "pokeapi_id": 392,
+      "priority": 0
+    },
+    "aqua-step": {
+      "pokeapi_id": 872,
+      "priority": 0
+    },
+    "aqua-tail": {
+      "pokeapi_id": 401,
+      "priority": 0
+    },
+    "armor-cannon": {
+      "pokeapi_id": 890,
+      "priority": 0
+    },
+    "aromatic-mist": {
+      "pokeapi_id": 597,
+      "priority": 0
+    },
+    "assurance": {
+      "pokeapi_id": 372,
+      "priority": 0
+    },
+    "attract": {
+      "pokeapi_id": 213,
+      "priority": 0
+    },
+    "aura-sphere": {
+      "pokeapi_id": 396,
+      "priority": 0
+    },
+    "aura-wheel": {
+      "pokeapi_id": 783,
+      "priority": 0
+    },
+    "aurora-veil": {
+      "pokeapi_id": 694,
+      "priority": 0
+    },
+    "avalanche": {
+      "pokeapi_id": 419,
+      "priority": -4
+    },
+    "axe-kick": {
+      "pokeapi_id": 853,
+      "priority": 0
+    },
+    "baby-doll-eyes": {
+      "pokeapi_id": 608,
+      "priority": 1
+    },
+    "baneful-bunker": {
+      "pokeapi_id": 661,
+      "priority": 4
+    },
+    "baton-pass": {
+      "pokeapi_id": 226,
+      "priority": 0
+    },
+    "beak-blast": {
+      "pokeapi_id": 690,
+      "priority": -3
+    },
+    "beat-up": {
+      "pokeapi_id": 251,
+      "priority": 0
+    },
+    "belch": {
+      "pokeapi_id": 562,
+      "priority": 0
+    },
+    "belly-drum": {
+      "pokeapi_id": 187,
+      "priority": 0
+    },
+    "bind": {
+      "pokeapi_id": 20,
+      "priority": 0
+    },
+    "bite": {
+      "pokeapi_id": 44,
+      "priority": 0
+    },
+    "bitter-blade": {
+      "pokeapi_id": 891,
+      "priority": 0
+    },
+    "bitter-malice": {
+      "pokeapi_id": 841,
+      "priority": 0
+    },
+    "blast-burn": {
+      "pokeapi_id": 307,
+      "priority": 0
+    },
+    "blaze-kick": {
+      "pokeapi_id": 299,
+      "priority": 0
+    },
+    "blizzard": {
+      "pokeapi_id": 59,
+      "priority": 0
+    },
+    "block": {
+      "pokeapi_id": 335,
+      "priority": 0
+    },
+    "body-press": {
+      "pokeapi_id": 776,
+      "priority": 0
+    },
+    "body-slam": {
+      "pokeapi_id": 34,
+      "priority": 0
+    },
+    "bone-rush": {
+      "pokeapi_id": 198,
+      "priority": 0
+    },
+    "boomburst": {
+      "pokeapi_id": 586,
+      "priority": 0
+    },
+    "bounce": {
+      "pokeapi_id": 340,
+      "priority": 0
+    },
+    "brave-bird": {
+      "pokeapi_id": 413,
+      "priority": 0
+    },
+    "breaking-swipe": {
+      "pokeapi_id": 784,
+      "priority": 0
+    },
+    "brick-break": {
+      "pokeapi_id": 280,
+      "priority": 0
+    },
+    "brutal-swing": {
+      "pokeapi_id": 693,
+      "priority": 0
+    },
+    "bug-bite": {
+      "pokeapi_id": 450,
+      "priority": 0
+    },
+    "bug-buzz": {
+      "pokeapi_id": 405,
+      "priority": 0
+    },
+    "bulk-up": {
+      "pokeapi_id": 339,
+      "priority": 0
+    },
+    "bulldoze": {
+      "pokeapi_id": 523,
+      "priority": 0
+    },
+    "bullet-punch": {
+      "pokeapi_id": 418,
+      "priority": 1
+    },
+    "bullet-seed": {
+      "pokeapi_id": 331,
+      "priority": 0
+    },
+    "burn-up": {
+      "pokeapi_id": 682,
+      "priority": 0
+    },
+    "burning-jealousy": {
+      "pokeapi_id": 807,
+      "priority": 0
+    },
+    "calm-mind": {
+      "pokeapi_id": 347,
+      "priority": 0
+    },
+    "ceaseless-edge": {
+      "pokeapi_id": 845,
+      "priority": 0
+    },
+    "charge": {
+      "pokeapi_id": 268,
+      "priority": 0
+    },
+    "charge-beam": {
+      "pokeapi_id": 451,
+      "priority": 0
+    },
+    "charm": {
+      "pokeapi_id": 204,
+      "priority": 0
+    },
+    "chilling-water": {
+      "pokeapi_id": 886,
+      "priority": 0
+    },
+    "chilly-reception": {
+      "pokeapi_id": 881,
+      "priority": 0
+    },
+    "circle-throw": {
+      "pokeapi_id": 509,
+      "priority": -6
+    },
+    "clanging-scales": {
+      "pokeapi_id": 691,
+      "priority": 0
+    },
+    "clangorous-soul": {
+      "pokeapi_id": 775,
+      "priority": 0
+    },
+    "clear-smog": {
+      "pokeapi_id": 499,
+      "priority": 0
+    },
+    "close-combat": {
+      "pokeapi_id": 370,
+      "priority": 0
+    },
+    "coaching": {
+      "pokeapi_id": 811,
+      "priority": 0
+    },
+    "coil": {
+      "pokeapi_id": 489,
+      "priority": 0
+    },
+    "comeuppance": {
+      "pokeapi_id": 894,
+      "priority": 0
+    },
+    "confuse-ray": {
+      "pokeapi_id": 109,
+      "priority": 0
+    },
+    "copycat": {
+      "pokeapi_id": 383,
+      "priority": 0
+    },
+    "corrosive-gas": {
+      "pokeapi_id": 810,
+      "priority": 0
+    },
+    "cosmic-power": {
+      "pokeapi_id": 322,
+      "priority": 0
+    },
+    "cotton-guard": {
+      "pokeapi_id": 538,
+      "priority": 0
+    },
+    "cotton-spore": {
+      "pokeapi_id": 178,
+      "priority": 0
+    },
+    "counter": {
+      "pokeapi_id": 68,
+      "priority": -5
+    },
+    "covet": {
+      "pokeapi_id": 343,
+      "priority": 0
+    },
+    "crabhammer": {
+      "pokeapi_id": 152,
+      "priority": 0
+    },
+    "cross-chop": {
+      "pokeapi_id": 238,
+      "priority": 0
+    },
+    "cross-poison": {
+      "pokeapi_id": 440,
+      "priority": 0
+    },
+    "crunch": {
+      "pokeapi_id": 242,
+      "priority": 0
+    },
+    "crush-claw": {
+      "pokeapi_id": 306,
+      "priority": 0
+    },
+    "curse": {
+      "pokeapi_id": 174,
+      "priority": 0
+    },
+    "dark-pulse": {
+      "pokeapi_id": 399,
+      "priority": 0
+    },
+    "darkest-lariat": {
+      "pokeapi_id": 663,
+      "priority": 0
+    },
+    "dazzling-gleam": {
+      "pokeapi_id": 605,
+      "priority": 0
+    },
+    "decorate": {
+      "pokeapi_id": 777,
+      "priority": 0
+    },
+    "defog": {
+      "pokeapi_id": 432,
+      "priority": 0
+    },
+    "destiny-bond": {
+      "pokeapi_id": 194,
+      "priority": 0
+    },
+    "detect": {
+      "pokeapi_id": 197,
+      "priority": 4
+    },
+    "dig": {
+      "pokeapi_id": 91,
+      "priority": 0
+    },
+    "dire-claw": {
+      "pokeapi_id": 827,
+      "priority": 0
+    },
+    "disable": {
+      "pokeapi_id": 50,
+      "priority": 0
+    },
+    "discharge": {
+      "pokeapi_id": 435,
+      "priority": 0
+    },
+    "dive": {
+      "pokeapi_id": 291,
+      "priority": 0
+    },
+    "double-edge": {
+      "pokeapi_id": 38,
+      "priority": 0
+    },
+    "double-hit": {
+      "pokeapi_id": 458,
+      "priority": 0
+    },
+    "double-team": {
+      "pokeapi_id": 104,
+      "priority": 0
+    },
+    "draco-meteor": {
+      "pokeapi_id": 434,
+      "priority": 0
+    },
+    "dragon-cheer": {
+      "pokeapi_id": 913,
+      "priority": 0
+    },
+    "dragon-claw": {
+      "pokeapi_id": 337,
+      "priority": 0
+    },
+    "dragon-dance": {
+      "pokeapi_id": 349,
+      "priority": 0
+    },
+    "dragon-darts": {
+      "pokeapi_id": 751,
+      "priority": 0
+    },
+    "dragon-pulse": {
+      "pokeapi_id": 406,
+      "priority": 0
+    },
+    "dragon-rush": {
+      "pokeapi_id": 407,
+      "priority": 0
+    },
+    "dragon-tail": {
+      "pokeapi_id": 525,
+      "priority": -6
+    },
+    "drain-punch": {
+      "pokeapi_id": 409,
+      "priority": 0
+    },
+    "draining-kiss": {
+      "pokeapi_id": 577,
+      "priority": 0
+    },
+    "drill-peck": {
+      "pokeapi_id": 65,
+      "priority": 0
+    },
+    "drill-run": {
+      "pokeapi_id": 529,
+      "priority": 0
+    },
+    "dual-wingbeat": {
+      "pokeapi_id": 814,
+      "priority": 0
+    },
+    "dynamic-punch": {
+      "pokeapi_id": 223,
+      "priority": 0
+    },
+    "earth-power": {
+      "pokeapi_id": 414,
+      "priority": 0
+    },
+    "earthquake": {
+      "pokeapi_id": 89,
+      "priority": 0
+    },
+    "eerie-impulse": {
+      "pokeapi_id": 598,
+      "priority": 0
+    },
+    "eerie-spell": {
+      "pokeapi_id": 826,
+      "priority": 0
+    },
+    "electric-terrain": {
+      "pokeapi_id": 604,
+      "priority": 0
+    },
+    "electrify": {
+      "pokeapi_id": 582,
+      "priority": 0
+    },
+    "electro-ball": {
+      "pokeapi_id": 486,
+      "priority": 0
+    },
+    "electro-shot": {
+      "pokeapi_id": 905,
+      "priority": 0
+    },
+    "electroweb": {
+      "pokeapi_id": 527,
+      "priority": 0
+    },
+    "encore": {
+      "pokeapi_id": 227,
+      "priority": 0
+    },
+    "endeavor": {
+      "pokeapi_id": 283,
+      "priority": 0
+    },
+    "endure": {
+      "pokeapi_id": 203,
+      "priority": 4
+    },
+    "energy-ball": {
+      "pokeapi_id": 412,
+      "priority": 0
+    },
+    "entrainment": {
+      "pokeapi_id": 494,
+      "priority": 0
+    },
+    "eruption": {
+      "pokeapi_id": 284,
+      "priority": 0
+    },
+    "expanding-force": {
+      "pokeapi_id": 797,
+      "priority": 0
+    },
+    "explosion": {
+      "pokeapi_id": 153,
+      "priority": 0
+    },
+    "extrasensory": {
+      "pokeapi_id": 326,
+      "priority": 0
+    },
+    "extreme-speed": {
+      "pokeapi_id": 245,
+      "priority": 2
+    },
+    "facade": {
+      "pokeapi_id": 263,
+      "priority": 0
+    },
+    "fairy-lock": {
+      "pokeapi_id": 587,
+      "priority": 0
+    },
+    "fake-out": {
+      "pokeapi_id": 252,
+      "priority": 3
+    },
+    "fake-tears": {
+      "pokeapi_id": 313,
+      "priority": 0
+    },
+    "feather-dance": {
+      "pokeapi_id": 297,
+      "priority": 0
+    },
+    "feint": {
+      "pokeapi_id": 364,
+      "priority": 2
+    },
+    "fell-stinger": {
+      "pokeapi_id": 565,
+      "priority": 0
+    },
+    "fickle-beam": {
+      "pokeapi_id": 907,
+      "priority": 0
+    },
+    "fiery-dance": {
+      "pokeapi_id": 552,
+      "priority": 0
+    },
+    "final-gambit": {
+      "pokeapi_id": 515,
+      "priority": 0
+    },
+    "fire-blast": {
+      "pokeapi_id": 126,
+      "priority": 0
+    },
+    "fire-fang": {
+      "pokeapi_id": 424,
+      "priority": 0
+    },
+    "fire-lash": {
+      "pokeapi_id": 680,
+      "priority": 0
+    },
+    "fire-punch": {
+      "pokeapi_id": 7,
+      "priority": 0
+    },
+    "fire-spin": {
+      "pokeapi_id": 83,
+      "priority": 0
+    },
+    "first-impression": {
+      "pokeapi_id": 660,
+      "priority": 2
+    },
+    "fissure": {
+      "pokeapi_id": 90,
+      "priority": 0
+    },
+    "flail": {
+      "pokeapi_id": 175,
+      "priority": 0
+    },
+    "flame-charge": {
+      "pokeapi_id": 488,
+      "priority": 0
+    },
+    "flamethrower": {
+      "pokeapi_id": 53,
+      "priority": 0
+    },
+    "flare-blitz": {
+      "pokeapi_id": 394,
+      "priority": 0
+    },
+    "flash-cannon": {
+      "pokeapi_id": 430,
+      "priority": 0
+    },
+    "flatter": {
+      "pokeapi_id": 260,
+      "priority": 0
+    },
+    "fling": {
+      "pokeapi_id": 374,
+      "priority": 0
+    },
+    "flip-turn": {
+      "pokeapi_id": 812,
+      "priority": 0
+    },
+    "flower-trick": {
+      "pokeapi_id": 870,
+      "priority": 0
+    },
+    "fly": {
+      "pokeapi_id": 19,
+      "priority": 0
+    },
+    "flying-press": {
+      "pokeapi_id": 560,
+      "priority": 0
+    },
+    "focus-blast": {
+      "pokeapi_id": 411,
+      "priority": 0
+    },
+    "focus-energy": {
+      "pokeapi_id": 116,
+      "priority": 0
+    },
+    "focus-punch": {
+      "pokeapi_id": 264,
+      "priority": -3
+    },
+    "follow-me": {
+      "pokeapi_id": 266,
+      "priority": 2
+    },
+    "forests-curse": {
+      "pokeapi_id": 571,
+      "priority": 0
+    },
+    "foul-play": {
+      "pokeapi_id": 492,
+      "priority": 0
+    },
+    "freeze-dry": {
+      "pokeapi_id": 573,
+      "priority": 0
+    },
+    "frenzy-plant": {
+      "pokeapi_id": 338,
+      "priority": 0
+    },
+    "frost-breath": {
+      "pokeapi_id": 524,
+      "priority": 0
+    },
+    "future-sight": {
+      "pokeapi_id": 248,
+      "priority": 0
+    },
+    "gastro-acid": {
+      "pokeapi_id": 380,
+      "priority": 0
+    },
+    "giga-drain": {
+      "pokeapi_id": 202,
+      "priority": 0
+    },
+    "giga-impact": {
+      "pokeapi_id": 416,
+      "priority": 0
+    },
+    "gigaton-hammer": {
+      "pokeapi_id": 893,
+      "priority": 0
+    },
+    "glare": {
+      "pokeapi_id": 137,
+      "priority": 0
+    },
+    "grass-knot": {
+      "pokeapi_id": 447,
+      "priority": 0
+    },
+    "grassy-glide": {
+      "pokeapi_id": 803,
+      "priority": 0
+    },
+    "grassy-terrain": {
+      "pokeapi_id": 580,
+      "priority": 0
+    },
+    "grav-apple": {
+      "pokeapi_id": 788,
+      "priority": 0
+    },
+    "gravity": {
+      "pokeapi_id": 356,
+      "priority": 0
+    },
+    "growth": {
+      "pokeapi_id": 74,
+      "priority": 0
+    },
+    "guard-split": {
+      "pokeapi_id": 470,
+      "priority": 0
+    },
+    "guard-swap": {
+      "pokeapi_id": 385,
+      "priority": 0
+    },
+    "guillotine": {
+      "pokeapi_id": 12,
+      "priority": 0
+    },
+    "gunk-shot": {
+      "pokeapi_id": 441,
+      "priority": 0
+    },
+    "gyro-ball": {
+      "pokeapi_id": 360,
+      "priority": 0
+    },
+    "hammer-arm": {
+      "pokeapi_id": 359,
+      "priority": 0
+    },
+    "hard-press": {
+      "pokeapi_id": 912,
+      "priority": 0
+    },
+    "haze": {
+      "pokeapi_id": 114,
+      "priority": 0
+    },
+    "head-smash": {
+      "pokeapi_id": 457,
+      "priority": 0
+    },
+    "headlong-rush": {
+      "pokeapi_id": 838,
+      "priority": 0
+    },
+    "heal-bell": {
+      "pokeapi_id": 215,
+      "priority": 0
+    },
+    "heal-pulse": {
+      "pokeapi_id": 505,
+      "priority": 0
+    },
+    "healing-wish": {
+      "pokeapi_id": 361,
+      "priority": 0
+    },
+    "heat-crash": {
+      "pokeapi_id": 535,
+      "priority": 0
+    },
+    "heat-wave": {
+      "pokeapi_id": 257,
+      "priority": 0
+    },
+    "heavy-slam": {
+      "pokeapi_id": 484,
+      "priority": 0
+    },
+    "helping-hand": {
+      "pokeapi_id": 270,
+      "priority": 5
+    },
+    "hex": {
+      "pokeapi_id": 506,
+      "priority": 0
+    },
+    "high-horsepower": {
+      "pokeapi_id": 667,
+      "priority": 0
+    },
+    "high-jump-kick": {
+      "pokeapi_id": 136,
+      "priority": 0
+    },
+    "horn-drill": {
+      "pokeapi_id": 32,
+      "priority": 0
+    },
+    "horn-leech": {
+      "pokeapi_id": 532,
+      "priority": 0
+    },
+    "howl": {
+      "pokeapi_id": 336,
+      "priority": 0
+    },
+    "hurricane": {
+      "pokeapi_id": 542,
+      "priority": 0
+    },
+    "hydro-cannon": {
+      "pokeapi_id": 308,
+      "priority": 0
+    },
+    "hydro-pump": {
+      "pokeapi_id": 56,
+      "priority": 0
+    },
+    "hyper-beam": {
+      "pokeapi_id": 63,
+      "priority": 0
+    },
+    "hyper-voice": {
+      "pokeapi_id": 304,
+      "priority": 0
+    },
+    "hypnosis": {
+      "pokeapi_id": 95,
+      "priority": 0
+    },
+    "ice-beam": {
+      "pokeapi_id": 58,
+      "priority": 0
+    },
+    "ice-fang": {
+      "pokeapi_id": 423,
+      "priority": 0
+    },
+    "ice-hammer": {
+      "pokeapi_id": 665,
+      "priority": 0
+    },
+    "ice-punch": {
+      "pokeapi_id": 8,
+      "priority": 0
+    },
+    "ice-shard": {
+      "pokeapi_id": 420,
+      "priority": 1
+    },
+    "ice-spinner": {
+      "pokeapi_id": 861,
+      "priority": 0
+    },
+    "icicle-crash": {
+      "pokeapi_id": 556,
+      "priority": 0
+    },
+    "icicle-spear": {
+      "pokeapi_id": 333,
+      "priority": 0
+    },
+    "icy-wind": {
+      "pokeapi_id": 196,
+      "priority": 0
+    },
+    "imprison": {
+      "pokeapi_id": 286,
+      "priority": 0
+    },
+    "infernal-parade": {
+      "pokeapi_id": 844,
+      "priority": 0
+    },
+    "inferno": {
+      "pokeapi_id": 517,
+      "priority": 0
+    },
+    "infestation": {
+      "pokeapi_id": 611,
+      "priority": 0
+    },
+    "ingrain": {
+      "pokeapi_id": 275,
+      "priority": 0
+    },
+    "instruct": {
+      "pokeapi_id": 689,
+      "priority": 0
+    },
+    "iron-defense": {
+      "pokeapi_id": 334,
+      "priority": 0
+    },
+    "iron-head": {
+      "pokeapi_id": 442,
+      "priority": 0
+    },
+    "iron-tail": {
+      "pokeapi_id": 231,
+      "priority": 0
+    },
+    "jet-punch": {
+      "pokeapi_id": 857,
+      "priority": 1
+    },
+    "kings-shield": {
+      "pokeapi_id": 588,
+      "priority": 4
+    },
+    "knock-off": {
+      "pokeapi_id": 282,
+      "priority": 0
+    },
+    "kowtow-cleave": {
+      "pokeapi_id": 869,
+      "priority": 0
+    },
+    "lash-out": {
+      "pokeapi_id": 808,
+      "priority": 0
+    },
+    "last-resort": {
+      "pokeapi_id": 387,
+      "priority": 0
+    },
+    "last-respects": {
+      "pokeapi_id": 854,
+      "priority": 0
+    },
+    "lava-plume": {
+      "pokeapi_id": 436,
+      "priority": 0
+    },
+    "leaf-blade": {
+      "pokeapi_id": 348,
+      "priority": 0
+    },
+    "leaf-storm": {
+      "pokeapi_id": 437,
+      "priority": 0
+    },
+    "leech-life": {
+      "pokeapi_id": 141,
+      "priority": 0
+    },
+    "leech-seed": {
+      "pokeapi_id": 73,
+      "priority": 0
+    },
+    "life-dew": {
+      "pokeapi_id": 791,
+      "priority": 0
+    },
+    "light-of-ruin": {
+      "pokeapi_id": 617,
+      "priority": 0
+    },
+    "light-screen": {
+      "pokeapi_id": 113,
+      "priority": 0
+    },
+    "liquidation": {
+      "pokeapi_id": 710,
+      "priority": 0
+    },
+    "lock-on": {
+      "pokeapi_id": 199,
+      "priority": 0
+    },
+    "low-kick": {
+      "pokeapi_id": 67,
+      "priority": 0
+    },
+    "low-sweep": {
+      "pokeapi_id": 490,
+      "priority": 0
+    },
+    "lumina-crash": {
+      "pokeapi_id": 855,
+      "priority": 0
+    },
+    "lunge": {
+      "pokeapi_id": 679,
+      "priority": 0
+    },
+    "mach-punch": {
+      "pokeapi_id": 183,
+      "priority": 1
+    },
+    "magic-powder": {
+      "pokeapi_id": 750,
+      "priority": 0
+    },
+    "magic-room": {
+      "pokeapi_id": 478,
+      "priority": 0
+    },
+    "magnet-rise": {
+      "pokeapi_id": 393,
+      "priority": 0
+    },
+    "magnetic-flux": {
+      "pokeapi_id": 602,
+      "priority": 0
+    },
+    "matcha-gotcha": {
+      "pokeapi_id": 902,
+      "priority": 0
+    },
+    "mean-look": {
+      "pokeapi_id": 212,
+      "priority": 0
+    },
+    "mega-kick": {
+      "pokeapi_id": 25,
+      "priority": 0
+    },
+    "megahorn": {
+      "pokeapi_id": 224,
+      "priority": 0
+    },
+    "memento": {
+      "pokeapi_id": 262,
+      "priority": 0
+    },
+    "metal-burst": {
+      "pokeapi_id": 368,
+      "priority": 0
+    },
+    "metal-sound": {
+      "pokeapi_id": 319,
+      "priority": 0
+    },
+    "meteor-beam": {
+      "pokeapi_id": 800,
+      "priority": 0
+    },
+    "meteor-mash": {
+      "pokeapi_id": 309,
+      "priority": 0
+    },
+    "minimize": {
+      "pokeapi_id": 107,
+      "priority": 0
+    },
+    "mirror-coat": {
+      "pokeapi_id": 243,
+      "priority": -5
+    },
+    "misty-explosion": {
+      "pokeapi_id": 802,
+      "priority": 0
+    },
+    "misty-terrain": {
+      "pokeapi_id": 581,
+      "priority": 0
+    },
+    "moonblast": {
+      "pokeapi_id": 585,
+      "priority": 0
+    },
+    "moonlight": {
+      "pokeapi_id": 236,
+      "priority": 0
+    },
+    "morning-sun": {
+      "pokeapi_id": 234,
+      "priority": 0
+    },
+    "mortal-spin": {
+      "pokeapi_id": 866,
+      "priority": 0
+    },
+    "mountain-gale": {
+      "pokeapi_id": 836,
+      "priority": 0
+    },
+    "mud-shot": {
+      "pokeapi_id": 341,
+      "priority": 0
+    },
+    "mud-slap": {
+      "pokeapi_id": 189,
+      "priority": 0
+    },
+    "muddy-water": {
+      "pokeapi_id": 330,
+      "priority": 0
+    },
+    "mystical-fire": {
+      "pokeapi_id": 595,
+      "priority": 0
+    },
+    "nasty-plot": {
+      "pokeapi_id": 417,
+      "priority": 0
+    },
+    "night-daze": {
+      "pokeapi_id": 539,
+      "priority": 0
+    },
+    "night-shade": {
+      "pokeapi_id": 101,
+      "priority": 0
+    },
+    "night-slash": {
+      "pokeapi_id": 400,
+      "priority": 0
+    },
+    "noble-roar": {
+      "pokeapi_id": 568,
+      "priority": 0
+    },
+    "nuzzle": {
+      "pokeapi_id": 609,
+      "priority": 0
+    },
+    "outrage": {
+      "pokeapi_id": 200,
+      "priority": 0
+    },
+    "overheat": {
+      "pokeapi_id": 315,
+      "priority": 0
+    },
+    "pain-split": {
+      "pokeapi_id": 220,
+      "priority": 0
+    },
+    "parabolic-charge": {
+      "pokeapi_id": 570,
+      "priority": 0
+    },
+    "parting-shot": {
+      "pokeapi_id": 575,
+      "priority": 0
+    },
+    "payback": {
+      "pokeapi_id": 371,
+      "priority": 0
+    },
+    "perish-song": {
+      "pokeapi_id": 195,
+      "priority": 0
+    },
+    "petal-blizzard": {
+      "pokeapi_id": 572,
+      "priority": 0
+    },
+    "petal-dance": {
+      "pokeapi_id": 80,
+      "priority": 0
+    },
+    "phantom-force": {
+      "pokeapi_id": 566,
+      "priority": 0
+    },
+    "pin-missile": {
+      "pokeapi_id": 42,
+      "priority": 0
+    },
+    "play-rough": {
+      "pokeapi_id": 583,
+      "priority": 0
+    },
+    "pluck": {
+      "pokeapi_id": 365,
+      "priority": 0
+    },
+    "poison-fang": {
+      "pokeapi_id": 305,
+      "priority": 0
+    },
+    "poison-jab": {
+      "pokeapi_id": 398,
+      "priority": 0
+    },
+    "poison-powder": {
+      "pokeapi_id": 77,
+      "priority": 0
+    },
+    "pollen-puff": {
+      "pokeapi_id": 676,
+      "priority": 0
+    },
+    "poltergeist": {
+      "pokeapi_id": 809,
+      "priority": 0
+    },
+    "population-bomb": {
+      "pokeapi_id": 860,
+      "priority": 0
+    },
+    "pounce": {
+      "pokeapi_id": 884,
+      "priority": 0
+    },
+    "pound": {
+      "pokeapi_id": 1,
+      "priority": 0
+    },
+    "power-gem": {
+      "pokeapi_id": 408,
+      "priority": 0
+    },
+    "power-split": {
+      "pokeapi_id": 471,
+      "priority": 0
+    },
+    "power-swap": {
+      "pokeapi_id": 384,
+      "priority": 0
+    },
+    "power-trick": {
+      "pokeapi_id": 379,
+      "priority": 0
+    },
+    "power-trip": {
+      "pokeapi_id": 681,
+      "priority": 0
+    },
+    "power-whip": {
+      "pokeapi_id": 438,
+      "priority": 0
+    },
+    "protect": {
+      "pokeapi_id": 182,
+      "priority": 4
+    },
+    "psych-up": {
+      "pokeapi_id": 244,
+      "priority": 0
+    },
+    "psychic": {
+      "pokeapi_id": 94,
+      "priority": 0
+    },
+    "psychic-fangs": {
+      "pokeapi_id": 706,
+      "priority": 0
+    },
+    "psychic-noise": {
+      "pokeapi_id": 917,
+      "priority": 0
+    },
+    "psychic-terrain": {
+      "pokeapi_id": 678,
+      "priority": 0
+    },
+    "psycho-cut": {
+      "pokeapi_id": 427,
+      "priority": 0
+    },
+    "psyshield-bash": {
+      "pokeapi_id": 828,
+      "priority": 0
+    },
+    "psyshock": {
+      "pokeapi_id": 473,
+      "priority": 0
+    },
+    "quash": {
+      "pokeapi_id": 511,
+      "priority": 0
+    },
+    "quick-attack": {
+      "pokeapi_id": 98,
+      "priority": 1
+    },
+    "quick-guard": {
+      "pokeapi_id": 501,
+      "priority": 3
+    },
+    "quiver-dance": {
+      "pokeapi_id": 483,
+      "priority": 0
+    },
+    "rage-powder": {
+      "pokeapi_id": 476,
+      "priority": 2
+    },
+    "raging-bull": {
+      "pokeapi_id": 873,
+      "priority": 0
+    },
+    "raging-fury": {
+      "pokeapi_id": 833,
+      "priority": 0
+    },
+    "rain-dance": {
+      "pokeapi_id": 240,
+      "priority": 0
+    },
+    "rapid-spin": {
+      "pokeapi_id": 229,
+      "priority": 0
+    },
+    "razor-shell": {
+      "pokeapi_id": 534,
+      "priority": 0
+    },
+    "recover": {
+      "pokeapi_id": 105,
+      "priority": 0
+    },
+    "recycle": {
+      "pokeapi_id": 278,
+      "priority": 0
+    },
+    "reflect": {
+      "pokeapi_id": 115,
+      "priority": 0
+    },
+    "reflect-type": {
+      "pokeapi_id": 513,
+      "priority": 0
+    },
+    "rest": {
+      "pokeapi_id": 156,
+      "priority": 0
+    },
+    "reversal": {
+      "pokeapi_id": 179,
+      "priority": 0
+    },
+    "rising-voltage": {
+      "pokeapi_id": 804,
+      "priority": 0
+    },
+    "roar": {
+      "pokeapi_id": 46,
+      "priority": -6
+    },
+    "rock-blast": {
+      "pokeapi_id": 350,
+      "priority": 0
+    },
+    "rock-polish": {
+      "pokeapi_id": 397,
+      "priority": 0
+    },
+    "rock-slide": {
+      "pokeapi_id": 157,
+      "priority": 0
+    },
+    "rock-tomb": {
+      "pokeapi_id": 317,
+      "priority": 0
+    },
+    "rock-wrecker": {
+      "pokeapi_id": 439,
+      "priority": 0
+    },
+    "role-play": {
+      "pokeapi_id": 272,
+      "priority": 0
+    },
+    "roost": {
+      "pokeapi_id": 355,
+      "priority": 0
+    },
+    "round": {
+      "pokeapi_id": 496,
+      "priority": 0
+    },
+    "sacred-sword": {
+      "pokeapi_id": 533,
+      "priority": 0
+    },
+    "safeguard": {
+      "pokeapi_id": 219,
+      "priority": 0
+    },
+    "salt-cure": {
+      "pokeapi_id": 864,
+      "priority": 0
+    },
+    "sand-tomb": {
+      "pokeapi_id": 328,
+      "priority": 0
+    },
+    "sandstorm": {
+      "pokeapi_id": 201,
+      "priority": 0
+    },
+    "scald": {
+      "pokeapi_id": 503,
+      "priority": 0
+    },
+    "scale-shot": {
+      "pokeapi_id": 799,
+      "priority": 0
+    },
+    "scary-face": {
+      "pokeapi_id": 184,
+      "priority": 0
+    },
+    "scorching-sands": {
+      "pokeapi_id": 815,
+      "priority": 0
+    },
+    "screech": {
+      "pokeapi_id": 103,
+      "priority": 0
+    },
+    "seed-bomb": {
+      "pokeapi_id": 402,
+      "priority": 0
+    },
+    "seismic-toss": {
+      "pokeapi_id": 69,
+      "priority": 0
+    },
+    "self-destruct": {
+      "pokeapi_id": 120,
+      "priority": 0
+    },
+    "shadow-ball": {
+      "pokeapi_id": 247,
+      "priority": 0
+    },
+    "shadow-claw": {
+      "pokeapi_id": 421,
+      "priority": 0
+    },
+    "shadow-punch": {
+      "pokeapi_id": 325,
+      "priority": 0
+    },
+    "shadow-sneak": {
+      "pokeapi_id": 425,
+      "priority": 1
+    },
+    "shed-tail": {
+      "pokeapi_id": 880,
+      "priority": 0
+    },
+    "sheer-cold": {
+      "pokeapi_id": 329,
+      "priority": 0
+    },
+    "shell-side-arm": {
+      "pokeapi_id": 801,
+      "priority": 0
+    },
+    "shell-smash": {
+      "pokeapi_id": 504,
+      "priority": 0
+    },
+    "shelter": {
+      "pokeapi_id": 842,
+      "priority": 0
+    },
+    "simple-beam": {
+      "pokeapi_id": 493,
+      "priority": 0
+    },
+    "sing": {
+      "pokeapi_id": 47,
+      "priority": 0
+    },
+    "skill-swap": {
+      "pokeapi_id": 285,
+      "priority": 0
+    },
+    "skitter-smack": {
+      "pokeapi_id": 806,
+      "priority": 0
+    },
+    "sky-attack": {
+      "pokeapi_id": 143,
+      "priority": 0
+    },
+    "slack-off": {
+      "pokeapi_id": 303,
+      "priority": 0
+    },
+    "sleep-powder": {
+      "pokeapi_id": 79,
+      "priority": 0
+    },
+    "sleep-talk": {
+      "pokeapi_id": 214,
+      "priority": 0
+    },
+    "sludge-bomb": {
+      "pokeapi_id": 188,
+      "priority": 0
+    },
+    "sludge-wave": {
+      "pokeapi_id": 482,
+      "priority": 0
+    },
+    "smack-down": {
+      "pokeapi_id": 479,
+      "priority": 0
+    },
+    "smart-strike": {
+      "pokeapi_id": 684,
+      "priority": 0
+    },
+    "snap-trap": {
+      "pokeapi_id": 779,
+      "priority": 0
+    },
+    "snarl": {
+      "pokeapi_id": 555,
+      "priority": 0
+    },
+    "snore": {
+      "pokeapi_id": 173,
+      "priority": 0
+    },
+    "snowscape": {
+      "pokeapi_id": 883,
+      "priority": 0
+    },
+    "soak": {
+      "pokeapi_id": 487,
+      "priority": 0
+    },
+    "solar-beam": {
+      "pokeapi_id": 76,
+      "priority": 0
+    },
+    "solar-blade": {
+      "pokeapi_id": 669,
+      "priority": 0
+    },
+    "sparkling-aria": {
+      "pokeapi_id": 664,
+      "priority": 0
+    },
+    "speed-swap": {
+      "pokeapi_id": 683,
+      "priority": 0
+    },
+    "spicy-extract": {
+      "pokeapi_id": 858,
+      "priority": 0
+    },
+    "spikes": {
+      "pokeapi_id": 191,
+      "priority": 0
+    },
+    "spiky-shield": {
+      "pokeapi_id": 596,
+      "priority": 4
+    },
+    "spirit-shackle": {
+      "pokeapi_id": 662,
+      "priority": 0
+    },
+    "spit-up": {
+      "pokeapi_id": 255,
+      "priority": 0
+    },
+    "spite": {
+      "pokeapi_id": 180,
+      "priority": 0
+    },
+    "stealth-rock": {
+      "pokeapi_id": 446,
+      "priority": 0
+    },
+    "steel-beam": {
+      "pokeapi_id": 796,
+      "priority": 0
+    },
+    "steel-roller": {
+      "pokeapi_id": 798,
+      "priority": 0
+    },
+    "steel-wing": {
+      "pokeapi_id": 211,
+      "priority": 0
+    },
+    "sticky-web": {
+      "pokeapi_id": 564,
+      "priority": 0
+    },
+    "stockpile": {
+      "pokeapi_id": 254,
+      "priority": 0
+    },
+    "stomping-tantrum": {
+      "pokeapi_id": 707,
+      "priority": 0
+    },
+    "stone-axe": {
+      "pokeapi_id": 830,
+      "priority": 0
+    },
+    "stone-edge": {
+      "pokeapi_id": 444,
+      "priority": 0
+    },
+    "stored-power": {
+      "pokeapi_id": 500,
+      "priority": 0
+    },
+    "storm-throw": {
+      "pokeapi_id": 480,
+      "priority": 0
+    },
+    "strength-sap": {
+      "pokeapi_id": 668,
+      "priority": 0
+    },
+    "string-shot": {
+      "pokeapi_id": 81,
+      "priority": 0
+    },
+    "struggle-bug": {
+      "pokeapi_id": 522,
+      "priority": 0
+    },
+    "stuff-cheeks": {
+      "pokeapi_id": 747,
+      "priority": 0
+    },
+    "stun-spore": {
+      "pokeapi_id": 78,
+      "priority": 0
+    },
+    "substitute": {
+      "pokeapi_id": 164,
+      "priority": 0
+    },
+    "sucker-punch": {
+      "pokeapi_id": 389,
+      "priority": 1
+    },
+    "sunny-day": {
+      "pokeapi_id": 241,
+      "priority": 0
+    },
+    "super-fang": {
+      "pokeapi_id": 162,
+      "priority": 0
+    },
+    "supercell-slam": {
+      "pokeapi_id": 916,
+      "priority": 0
+    },
+    "superpower": {
+      "pokeapi_id": 276,
+      "priority": 0
+    },
+    "surf": {
+      "pokeapi_id": 57,
+      "priority": 0
+    },
+    "swagger": {
+      "pokeapi_id": 207,
+      "priority": 0
+    },
+    "swallow": {
+      "pokeapi_id": 256,
+      "priority": 0
+    },
+    "sweet-kiss": {
+      "pokeapi_id": 186,
+      "priority": 0
+    },
+    "sweet-scent": {
+      "pokeapi_id": 230,
+      "priority": 0
+    },
+    "switcheroo": {
+      "pokeapi_id": 415,
+      "priority": 0
+    },
+    "swords-dance": {
+      "pokeapi_id": 14,
+      "priority": 0
+    },
+    "synthesis": {
+      "pokeapi_id": 235,
+      "priority": 0
+    },
+    "syrup-bomb": {
+      "pokeapi_id": 903,
+      "priority": 0
+    },
+    "tail-slap": {
+      "pokeapi_id": 541,
+      "priority": 0
+    },
+    "tailwind": {
+      "pokeapi_id": 366,
+      "priority": 0
+    },
+    "taunt": {
+      "pokeapi_id": 269,
+      "priority": 0
+    },
+    "tearful-look": {
+      "pokeapi_id": 715,
+      "priority": 0
+    },
+    "teatime": {
+      "pokeapi_id": 752,
+      "priority": 0
+    },
+    "teeter-dance": {
+      "pokeapi_id": 298,
+      "priority": 0
+    },
+    "temper-flare": {
+      "pokeapi_id": 915,
+      "priority": 0
+    },
+    "terrain-pulse": {
+      "pokeapi_id": 805,
+      "priority": 0
+    },
+    "thief": {
+      "pokeapi_id": 168,
+      "priority": 0
+    },
+    "thrash": {
+      "pokeapi_id": 37,
+      "priority": 0
+    },
+    "throat-chop": {
+      "pokeapi_id": 675,
+      "priority": 0
+    },
+    "thunder": {
+      "pokeapi_id": 87,
+      "priority": 0
+    },
+    "thunder-fang": {
+      "pokeapi_id": 422,
+      "priority": 0
+    },
+    "thunder-punch": {
+      "pokeapi_id": 9,
+      "priority": 0
+    },
+    "thunder-wave": {
+      "pokeapi_id": 86,
+      "priority": 0
+    },
+    "thunderbolt": {
+      "pokeapi_id": 85,
+      "priority": 0
+    },
+    "tickle": {
+      "pokeapi_id": 321,
+      "priority": 0
+    },
+    "tidy-up": {
+      "pokeapi_id": 882,
+      "priority": 0
+    },
+    "torch-song": {
+      "pokeapi_id": 871,
+      "priority": 0
+    },
+    "torment": {
+      "pokeapi_id": 259,
+      "priority": 0
+    },
+    "toxic": {
+      "pokeapi_id": 92,
+      "priority": 0
+    },
+    "toxic-spikes": {
+      "pokeapi_id": 390,
+      "priority": 0
+    },
+    "toxic-thread": {
+      "pokeapi_id": 672,
+      "priority": 0
+    },
+    "trailblaze": {
+      "pokeapi_id": 885,
+      "priority": 0
+    },
+    "transform": {
+      "pokeapi_id": 144,
+      "priority": 0
+    },
+    "tri-attack": {
+      "pokeapi_id": 161,
+      "priority": 0
+    },
+    "trick": {
+      "pokeapi_id": 271,
+      "priority": 0
+    },
+    "trick-or-treat": {
+      "pokeapi_id": 567,
+      "priority": 0
+    },
+    "trick-room": {
+      "pokeapi_id": 433,
+      "priority": -7
+    },
+    "triple-arrows": {
+      "pokeapi_id": 843,
+      "priority": 0
+    },
+    "triple-axel": {
+      "pokeapi_id": 813,
+      "priority": 0
+    },
+    "trop-kick": {
+      "pokeapi_id": 688,
+      "priority": 0
+    },
+    "twin-beam": {
+      "pokeapi_id": 888,
+      "priority": 0
+    },
+    "u-turn": {
+      "pokeapi_id": 369,
+      "priority": 0
+    },
+    "upper-hand": {
+      "pokeapi_id": 918,
+      "priority": 3
+    },
+    "uproar": {
+      "pokeapi_id": 253,
+      "priority": 0
+    },
+    "vacuum-wave": {
+      "pokeapi_id": 410,
+      "priority": 1
+    },
+    "venoshock": {
+      "pokeapi_id": 474,
+      "priority": 0
+    },
+    "volt-switch": {
+      "pokeapi_id": 521,
+      "priority": 0
+    },
+    "volt-tackle": {
+      "pokeapi_id": 344,
+      "priority": 0
+    },
+    "water-pulse": {
+      "pokeapi_id": 352,
+      "priority": 0
+    },
+    "water-shuriken": {
+      "pokeapi_id": 594,
+      "priority": 1
+    },
+    "water-spout": {
+      "pokeapi_id": 323,
+      "priority": 0
+    },
+    "waterfall": {
+      "pokeapi_id": 127,
+      "priority": 0
+    },
+    "wave-crash": {
+      "pokeapi_id": 834,
+      "priority": 0
+    },
+    "weather-ball": {
+      "pokeapi_id": 311,
+      "priority": 0
+    },
+    "whirlpool": {
+      "pokeapi_id": 250,
+      "priority": 0
+    },
+    "whirlwind": {
+      "pokeapi_id": 18,
+      "priority": -6
+    },
+    "wide-guard": {
+      "pokeapi_id": 469,
+      "priority": 3
+    },
+    "wild-charge": {
+      "pokeapi_id": 528,
+      "priority": 0
+    },
+    "will-o-wisp": {
+      "pokeapi_id": 261,
+      "priority": 0
+    },
+    "wish": {
+      "pokeapi_id": 273,
+      "priority": 0
+    },
+    "wonder-room": {
+      "pokeapi_id": 472,
+      "priority": 0
+    },
+    "wood-hammer": {
+      "pokeapi_id": 452,
+      "priority": 0
+    },
+    "worry-seed": {
+      "pokeapi_id": 388,
+      "priority": 0
+    },
+    "wrap": {
+      "pokeapi_id": 35,
+      "priority": 0
+    },
+    "x-scissor": {
+      "pokeapi_id": 404,
+      "priority": 0
+    },
+    "yawn": {
+      "pokeapi_id": 281,
+      "priority": 0
+    },
+    "zap-cannon": {
+      "pokeapi_id": 192,
+      "priority": 0
+    },
+    "zen-headbutt": {
+      "pokeapi_id": 428,
+      "priority": 0
+    }
+  },
+  "schema_version": "canonical-move-metadata-v1",
+  "scope": {
+    "format": "pokemon_champions",
+    "legal_move_count": 490,
+    "legal_move_set_sha256": "42b861d3debd0964f6e92fd2d6dab480d226e82a216cd54d10ab359ca122ad2c",
+    "regulation": "M-A"
+  },
+  "source": {
+    "api_family": "v2",
+    "endpoint_family": "move",
+    "normalizer": "PokeAPIFetcher._normalize_move",
+    "provider": "pokeapi",
+    "snapshot_sha256": "3a8e3993ba25e5ad2f64673e35a79f4fcc914a04012dbe0ad8e140a8a18341d4",
+    "source_retrieved_at": "2026-09-28T04:50:04Z"
+  }
+}
