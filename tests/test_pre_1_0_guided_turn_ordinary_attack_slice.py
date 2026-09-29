@@ -239,7 +239,7 @@ def test_center_uses_wide_decide_record_stage_and_retains_advanced() -> None:
     layout = window.centralWidget().layout()
     assert (layout.stretch(0), layout.stretch(1), layout.stretch(2)) == (25, 50, 25)
     assert stage.phase == "decide" and stage.stage_stack.currentWidget() is stage.decide_stage
-    assert stage.board_scroll.minimumHeight() >= 240
+    assert stage.board_scroll.minimumHeight() >= 180
     assert [stage.details_tabs.tabText(i) for i in range(stage.details_tabs.count())] == ["확률", "설명", "고급 입력"]
     assert stage.details_tabs.widget(2) is center.llm_advice_panel
     assert center.llm_advice_panel.current_state_section_label.text() == "현재 상태"
@@ -261,10 +261,19 @@ def test_phase_change_is_only_presentation() -> None:
     stage = window.center_column.guided_turn_workspace
     manager = window._observation_runtime_session_manager
     before = manager.read_collection_snapshot()
+    assert stage.stage_stack.currentWidget() is stage.decide_stage
+    assert stage.record_stage.isHidden()
+
     stage.record_phase_button.click()
-    assert stage.phase == "record" and stage.stage_stack.currentWidget() is stage.record_stage
+
+    assert stage.phase == "record"
+    assert stage.stage_stack.currentWidget() is stage.decide_stage
+    assert not stage.record_stage.isHidden()
+    assert not stage.board_scroll.isHidden()
     stage.decide_phase_button.click()
     assert stage.phase == "decide"
+    assert stage.stage_stack.currentWidget() is stage.decide_stage
+    assert stage.record_stage.isHidden()
     assert manager.read_collection_snapshot() == before
     assert not window.read_c6_decision_capture_snapshot()["actor_captures"]
     window.close()

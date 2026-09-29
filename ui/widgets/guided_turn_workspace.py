@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton,
-    QScrollArea, QStackedWidget, QTabWidget, QVBoxLayout, QWidget,
+    QScrollArea, QSplitter, QStackedWidget, QTabWidget, QVBoxLayout, QWidget,
 )
 
 
@@ -47,9 +47,9 @@ class GuidedTurnWorkspace(QFrame):
         self.header_label = QLabel("배틀: 비활성 · 턴: 미확인")
         self.header_label.setObjectName("guidedTurnHeaderLabel")
         self.header_label.setStyleSheet("font-weight: 700; color: #334155;")
-        self.decide_phase_button = QPushButton("결정")
+        self.decide_phase_button = QPushButton("기록 닫기")
         self.decide_phase_button.setObjectName("decidePhaseButton")
-        self.record_phase_button = QPushButton("기록")
+        self.record_phase_button = QPushButton("빠른 기록")
         self.record_phase_button.setObjectName("recordPhaseButton")
         self.decide_phase_button.clicked.connect(lambda: self.set_phase("decide"))
         self.record_phase_button.clicked.connect(lambda: self.set_phase("record"))
@@ -70,18 +70,27 @@ class GuidedTurnWorkspace(QFrame):
         decide = QVBoxLayout(self.decide_stage)
         decide.setContentsMargins(0, 0, 0, 0)
         decide.setSpacing(6)
-        decide.addWidget(_section("이번 턴 추천", "decideStageTitle"))
+
+        self.decision_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.decision_splitter.setObjectName("decisionQuickRecorderSplitter")
+        self.decision_splitter.setChildrenCollapsible(False)
+        self.decision_splitter.setHandleWidth(6)
+        self.decision_content = QWidget()
+        decision = QVBoxLayout(self.decision_content)
+        decision.setContentsMargins(0, 0, 0, 0)
+        decision.setSpacing(6)
+        decision.addWidget(_section("이번 턴 추천", "decideStageTitle"))
         self.considered_label = QLabel("고려 중: 없음 · 내 포켓몬의 기술을 선택할 수 있습니다.")
         self.considered_label.setObjectName("guidedConsideredLabel")
-        decide.addWidget(self.considered_label)
+        decision.addWidget(self.considered_label)
         self.analysis_label = QLabel("아직 분석하지 않음")
         self.analysis_label.setObjectName("guidedAnalysisLabel")
         self.analysis_label.setWordWrap(True)
-        decide.addWidget(self.analysis_label)
+        decision.addWidget(self.analysis_label)
         self.board_scroll = QScrollArea()
         self.board_scroll.setObjectName("recommendationBoard")
         self.board_scroll.setWidgetResizable(True)
-        self.board_scroll.setMinimumHeight(245)
+        self.board_scroll.setMinimumHeight(180)
         self.board_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.board_widget = QWidget()
         self.board_layout = QVBoxLayout(self.board_widget)
@@ -90,11 +99,11 @@ class GuidedTurnWorkspace(QFrame):
         self.board_scroll.setWidget(self.board_widget)
         self.candidate_rows: list[QFrame] = []
         self.set_board_state("전략 분석을 실행하면 평가 가능한 행동이 여기에 표시됩니다.")
-        decide.addWidget(self.board_scroll, 1)
+        decision.addWidget(self.board_scroll, 1)
         self.readiness_label = QLabel("필요 정보는 현재 상황에 맞춰 표시됩니다.")
         self.readiness_label.setObjectName("guidedReadinessLabel")
         self.readiness_label.setWordWrap(True)
-        decide.addWidget(self.readiness_label)
+        decision.addWidget(self.readiness_label)
         readiness_actions = QHBoxLayout()
         self.readiness_input_button = QPushButton("현재 정보 입력")
         self.readiness_input_button.setObjectName("guidedReadinessInputButton")
@@ -107,22 +116,27 @@ class GuidedTurnWorkspace(QFrame):
         readiness_actions.addWidget(self.readiness_input_button)
         readiness_actions.addWidget(self.readiness_skip_button)
         readiness_actions.addStretch(1)
-        decide.addLayout(readiness_actions)
+        decision.addLayout(readiness_actions)
         self.analysis_button = QPushButton("전략 분석")
         self.analysis_button.setObjectName("guidedStrategyButton")
         self.analysis_button.setMinimumHeight(36)
         self.analysis_button.clicked.connect(self.analysis_requested.emit)
-        decide.addWidget(self.analysis_button)
-        self.stage_stack.addWidget(self.decide_stage)
+        decision.addWidget(self.analysis_button)
 
-        self.record_stage = QWidget()
+        self.record_stage = QFrame()
+        self.record_stage.setObjectName("quickRecorder")
+        self.record_stage.setMinimumHeight(220)
+        self.record_stage.setStyleSheet(
+            "QFrame#quickRecorder { background: #FFFFFF; border: 1px solid #D8E0EA; border-radius: 6px; }"
+        )
         record = QVBoxLayout(self.record_stage)
-        record.setContentsMargins(0, 0, 0, 0)
+        record.setContentsMargins(8, 8, 8, 8)
         record.setSpacing(8)
 
         self.record_body_scroll = QScrollArea()
         self.record_body_scroll.setObjectName("recordBodyScroll")
         self.record_body_scroll.setWidgetResizable(True)
+        self.record_body_scroll.setMinimumHeight(185)
         self.record_body_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.record_body_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.record_body_widget = QWidget()
@@ -178,12 +192,21 @@ class GuidedTurnWorkspace(QFrame):
         self.record_body_scroll.setWidget(self.record_body_widget)
         record.addWidget(self.record_body_scroll, 1)
 
+        self.decision_splitter.addWidget(self.decision_content)
+        self.decision_splitter.addWidget(self.record_stage)
+        self.decision_splitter.setStretchFactor(0, 3)
+        self.decision_splitter.setStretchFactor(1, 2)
+        self.decision_splitter.setSizes([360, 240])
+        self._recorder_split_sizes = [360, 240]
+        decide.addWidget(self.decision_splitter, 1)
+
         self.next_turn_button = QPushButton("다음 턴 (미기록 허용)")
         self.next_turn_button.setObjectName("guidedNextTurnButton")
         self.next_turn_button.setMinimumHeight(36)
         self.next_turn_button.clicked.connect(self.next_turn_requested.emit)
-        record.addWidget(self.next_turn_button)
-        self.stage_stack.addWidget(self.record_stage)
+        decide.addWidget(self.next_turn_button)
+
+        self.stage_stack.addWidget(self.decide_stage)
         layout.addWidget(self.stage_stack, 3)
 
         self.details_tabs = QTabWidget()
@@ -204,12 +227,23 @@ class GuidedTurnWorkspace(QFrame):
         self.details_tabs.addTab(advanced, "고급 입력")
 
     def set_phase(self, phase: str) -> None:
+        """Compatibility API: phase is presentation focus, never battle truth."""
         if phase not in {"decide", "record"}:
             return
         self.phase = phase
-        self.stage_stack.setCurrentWidget(self.decide_stage if phase == "decide" else self.record_stage)
-        self.decide_phase_button.setEnabled(phase != "decide")
-        self.record_phase_button.setEnabled(phase != "record")
+        recorder_open = phase == "record"
+        self.stage_stack.setCurrentWidget(self.decide_stage)
+        if recorder_open:
+            self.record_stage.show()
+            self.decision_splitter.setSizes(self._recorder_split_sizes)
+        else:
+            if not self.record_stage.isHidden():
+                sizes = self.decision_splitter.sizes()
+                if len(sizes) == 2 and all(size > 0 for size in sizes):
+                    self._recorder_split_sizes = sizes
+            self.record_stage.hide()
+        self.decide_phase_button.setVisible(recorder_open)
+        self.record_phase_button.setEnabled(not recorder_open)
 
     def set_considered_action(self, action: dict | None) -> None:
         key = ((action.get("session_id"), action.get("turn_number"), action.get("owner_slot"),
