@@ -138,6 +138,8 @@ from ui.widgets.item_profile_dialog import (
     item_button_text,
     ItemProfileDialog,
     legal_item_options_from_repository,
+    no_item_profile,
+    unknown_item_profile,
 )
 from ui.widgets.field_profile_dialog import FieldProfileDialog
 from ui.widgets.item_event_dialog import ItemEventDialog
@@ -5312,6 +5314,19 @@ class MainWindow(QMainWindow):
             or runtime_projection.get("session_id") != session_id
         ):
             raise ValueError("runtime projection unavailable")
+        runtime_state = runtime_projection.get("runtime_advice_state")
+        item_options = self._legal_item_options()
+        try:
+            current_item_profiles = {
+                "my_active": _runtime_item_profile(
+                    runtime_state["self"]["active_pokemon"]["item"], item_options
+                ),
+                "opponent_active": _runtime_item_profile(
+                    runtime_state["opponent"]["active_pokemon"]["item"], item_options
+                ),
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("runtime item presentation unavailable") from exc
         battle_input = self._build_llm_battle_input(
             include_item_event_confirmations=True,
             include_current_condition_confirmations=True,
@@ -5323,6 +5338,7 @@ class MainWindow(QMainWindow):
             include_current_battle_format_confirmation=True,
             include_observed_previous_damage_confirmation=True,
             include_direct_mechanics_context=True,
+            current_item_profiles_override=current_item_profiles,
         )
         if not MainWindow._runtime_projection_matches_battle_input(
             runtime_projection["runtime_advice_state"], battle_input
@@ -5374,6 +5390,7 @@ class MainWindow(QMainWindow):
         include_current_battle_format_confirmation: bool = False,
         include_observed_previous_damage_confirmation: bool = False,
         include_direct_mechanics_context: bool = False,
+        current_item_profiles_override: dict | None = None,
     ) -> dict:
         my_slot_index = self.selected_slots.get("team_my")
         opponent_slot_index = self.selected_slots.get("team_enemy")
@@ -5392,6 +5409,12 @@ class MainWindow(QMainWindow):
             "my_active": _item_profile_payload(my_panel, role_key="my_active"),
             "opponent_active": _item_profile_payload(opponent_panel, role_key="opponent_active"),
         }
+        if isinstance(current_item_profiles_override, dict):
+            for role_key in ("my_active", "opponent_active"):
+                profile = current_item_profiles_override.get(role_key)
+                if not isinstance(profile, dict) or _item_semantic_state(profile) is None:
+                    raise ValueError("invalid current item profile override")
+                item_profiles[role_key] = deepcopy(profile)
         pokemon_payloads = {
             "my_active": self._panel_to_llm_payload(my_panel, my_slot_index),
             "opponent_active": self._panel_to_llm_payload(opponent_panel, opponent_slot_index),
@@ -5703,25 +5726,62 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Failed | Select a Pokemon first.")
             return
         role_key = "opponent_active" if column_name == "team_enemy" else "my_active"
+        item_options = self._legal_item_options()
+        runtime_item_fact = self._current_runtime_active_item_fact(column_name, slot_index, view)
+        current_profile = getattr(panel, "item_profile", None)
+        initial_semantic = _item_semantic_state(current_profile)
+        if runtime_item_fact is not None:
+            try:
+                current_profile = _runtime_item_profile(runtime_item_fact, item_options)
+            except ValueError:
+                self.statusBar().showMessage(
+                    f"Failed | Current runtime item for {view.ko or view.en} cannot be represented safely."
+                )
+                return
+            initial_semantic = _item_semantic_state(current_profile)
         dialog = ItemProfileDialog(
             pokemon_name=view.ko or view.en,
-            current_profile=getattr(panel, "item_profile", None),
+            current_profile=current_profile,
             role_key=role_key,
-            item_options=self._legal_item_options(),
+            item_options=item_options,
             parent=self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         profile = dialog.item_profile
-        # Roster setup is local. Only an exact current runtime owner may confirm
-        # a present-tense held-item fact through the existing admission boundary.
+
+        # Reset is local compatibility state only. Current battle truth remains
+        # owned by the reducer/runtime and will be re-derived on the next open.
+        if profile is None:
+            panel.set_item_profile(None, item_button_text(None, role_key=role_key))
+            self.statusBar().showMessage(f"Item reset | {view.ko or view.en}")
+            return
+
+        final_semantic = _item_semantic_state(profile)
+        if final_semantic is None:
+            self.statusBar().showMessage("Failed | Invalid held-item selection.")
+            return
+
+        # Roster setup is local. Only a real semantic change for the exact
+        # current runtime owner may confirm a present-tense held-item fact.
         if self._is_current_runtime_active_panel(column_name, slot_index, view):
-            if profile.get("status") == "user_confirmed":
-                if not self._admit_current_state_fact("current_item_observed", {"status": "known", "item": profile.get("item_id")}, "opponent" if column_name == "team_enemy" else "self"):
-                    return
-            elif profile.get("status") == "none":
-                if not self._admit_current_state_fact("current_item_observed", {"status": "known_absent"}, "opponent" if column_name == "team_enemy" else "self"):
-                    return
+            if final_semantic != initial_semantic:
+                if final_semantic[0] == "known":
+                    if not self._admit_current_state_fact(
+                        "current_item_observed",
+                        {"status": "known", "item": final_semantic[1]},
+                        "opponent" if column_name == "team_enemy" else "self",
+                    ):
+                        return
+                elif final_semantic[0] == "known_absent":
+                    if not self._admit_current_state_fact(
+                        "current_item_observed",
+                        {"status": "known_absent"},
+                        "opponent" if column_name == "team_enemy" else "self",
+                    ):
+                        return
+                # There is no current-item retraction contract. Explicit
+                # Unknown remains local and cannot erase trusted runtime truth.
         panel.set_item_profile(
             profile,
             item_button_text(profile, role_key=role_key),
@@ -5736,6 +5796,32 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Item set | {view.ko or view.en}: unknown")
         else:
             self.statusBar().showMessage(f"Item reset | {view.ko or view.en}")
+
+    def _current_runtime_active_item_fact(
+        self, column_name: str, slot_index: int, view: Any,
+    ) -> dict | None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        state = manager.read_state().get("state") if isinstance(manager, BattleObservationRuntimeSessionManager) else None
+        side_name = "opponent" if column_name == "team_enemy" else "self"
+        side = state.get(f"{side_name}_side") if isinstance(state, dict) else None
+        roster = side.get("pokemon") if isinstance(side, dict) else None
+        active_slot = side.get("active_slot_index") if isinstance(side, dict) else None
+        active = roster.get(active_slot, roster.get(str(active_slot))) if isinstance(roster, dict) and isinstance(active_slot, int) else None
+        if not (
+            active_slot == slot_index
+            and isinstance(active, dict)
+            and active.get("pokemon_id") == getattr(view, "en", None)
+            and active.get("fainted") is not True
+        ):
+            return None
+        item = active.get("known_item")
+        if isinstance(item, dict) and item == {"knowledge": "unknown"}:
+            return {"status": "unknown"}
+        if item is None:
+            return {"status": "known_absent"}
+        if isinstance(item, str) and item:
+            return {"status": "known", "value": item}
+        return {"status": "unsupported"}
 
     def _is_current_runtime_active_panel(self, column_name: str, slot_index: int, view: Any) -> bool:
         manager = getattr(self, "_observation_runtime_session_manager", None)
@@ -5869,6 +5955,37 @@ def _item_profile_payload(panel, *, role_key: str) -> dict:
     if isinstance(profile, dict):
         return dict(profile)
     return default_item_profile_for_role(role_key)
+
+
+def _item_semantic_state(profile: object) -> tuple[str, str | None] | None:
+    if not isinstance(profile, dict):
+        return None
+    status = profile.get("status")
+    if status == "unknown":
+        return ("unknown", None)
+    if status in {"none", "system_default_none"}:
+        return ("known_absent", None)
+    item_id = profile.get("item_id")
+    if status == "user_confirmed" and isinstance(item_id, str) and item_id:
+        return ("known", item_id)
+    return None
+
+
+def _runtime_item_profile(item_fact: object, item_options: list[dict]) -> dict:
+    if not isinstance(item_fact, dict):
+        raise ValueError("runtime item fact unavailable")
+    status = item_fact.get("status")
+    if status == "unknown":
+        return unknown_item_profile()
+    if status == "known_absent":
+        return no_item_profile()
+    item_id = item_fact.get("value")
+    if status != "known" or not isinstance(item_id, str) or not item_id:
+        raise ValueError("invalid runtime item fact")
+    for option in item_options:
+        if option.get("option_id") == item_id and isinstance(option.get("profile"), dict):
+            return deepcopy(option["profile"])
+    raise ValueError(f"runtime held item is not representable: {item_id}")
 
 
 def _speed_context_payload(stat_profiles: dict, item_profiles: dict | None = None) -> dict:

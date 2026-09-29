@@ -175,6 +175,28 @@ def test_item_profile_dialog_saves_filtered_item_selection() -> None:
     assert dialog.item_profile["effect_support_status"] == "legal_but_not_modeled"
 
 
+
+def test_item_profile_dialog_search_filter_preserves_same_semantic_selection_on_save() -> None:
+    app = QApplication.instance() or QApplication([])
+    del app
+
+    options = _legal_options()
+    current = item_profile_from_option("leftovers", item_options=options)
+    dialog = ItemProfileDialog(
+        pokemon_name="Garchomp",
+        current_profile=current,
+        item_options=options,
+    )
+
+    assert dialog.item_combo.currentData() == "leftovers"
+    dialog.search_input.setText("left")
+    assert dialog.item_combo.currentData() == "leftovers"
+    dialog._save_and_accept()
+
+    assert dialog.item_profile is not None
+    assert dialog.item_profile["status"] == "user_confirmed"
+    assert dialog.item_profile["item_id"] == "leftovers"
+
 def test_item_search_normalization_treats_spaces_and_hyphens_alike() -> None:
     assert normalized_item_search_text("Focus Sash") == "focus-sash"
     assert normalized_item_search_text("focus_sash") == "focus-sash"
