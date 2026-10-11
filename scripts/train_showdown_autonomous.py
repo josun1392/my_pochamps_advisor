@@ -23,6 +23,7 @@ from advisor.learned_action_encoder import make_encoder, VERSION
 from advisor.learned_action_policy import (
     ActionConditionedPolicy,
     TacticalActionConditionedPolicy,
+    transfer_v2_weights,
 )
 from advisor.learned_baselines import VisibleBaseline
 from advisor.learned_gym import ShowdownLearningEnv
@@ -93,6 +94,11 @@ def validate_config(config):
             "showdown-learned-observation-v3",
         }:
             raise ValueError("unsupported_encoder")
+        if experiment.get("transfer_model") and (
+            experiment.get("initial_model")
+            or experiment.get("encoder_version") != "showdown-learned-observation-v3"
+        ):
+            raise ValueError("transfer_requires_fresh_v3_optimizer")
         if (
             not rollout <= experiment["steps"] <= 1048576
             or experiment["steps"] % rollout
@@ -527,6 +533,17 @@ def run(config, output, *, resume=False, require_detached=False):
                     else {"net_arch": {"pi": [64, 64], "vf": [64, 64]}},
                 )
             vector.seed(seed + state["experiment_steps"] + state["launches"] * 10000)
+            transfer_id = (
+                loaded.metadata.get("weight_transfer_source_sha256")
+                if initial_source
+                else None
+            )
+            if not initial_source and experiment.get("transfer_model"):
+                transfer_source = LearnedPolicy(experiment["transfer_model"], catalog)
+                if transfer_source.encoder.version != VERSION:
+                    raise ValueError("v2_transfer_source_required")
+                transfer_v2_weights(model.policy, transfer_source.model.policy)
+                transfer_id = transfer_source.model_id
 
             def checkpoint(stage, details):
                 episodes = [row for env in vector.envs for row in env.completed]
@@ -553,6 +570,10 @@ def run(config, output, *, resume=False, require_detached=False):
                         "curriculum_version": curriculum,
                         "stage": stage,
                         "initial_model": experiment.get("initial_model"),
+                        "weight_transfer_source_sha256": transfer_id,
+                        "weight_transfer_optimizer": "fresh_shape_compatible_optimizer"
+                        if transfer_id
+                        else None,
                         "opponent_model_ids": {
                             "previous": previous.model_id if previous else None,
                             "historical": historical.model_id if historical else None,

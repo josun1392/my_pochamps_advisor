@@ -238,6 +238,83 @@ def test_adapted_recovery_uses_upstream_target_enum():
     assert baseline._champions_choice(player) is heal
 
 
+def test_native_haze_clears_projected_boosts_and_matches_poke_env(checkout):
+    own = [(s, a, m) for s, a, m, _, _ in TRAIN if s != "Scizor"][:5]
+
+    def member(s, a, m):
+        return {
+            "species": s,
+            "ability": a,
+            "moves": m,
+            "level": 50,
+            "nature": "Adamant",
+            "evs": {"hp": 32, "atk": 32, "spe": 2},
+        }
+
+    case = {
+        "scenario_id": "public-haze-regression",
+        "teams": {
+            "self": [
+                member(
+                    "Scizor",
+                    "Technician",
+                    ["Swords Dance", "Bullet Punch", "U-turn", "Close Combat"],
+                )
+            ]
+            + [member(*p) for p in own],
+            "opponent": [
+                member("Toxapex", "Regenerator", ["Haze", "Surf", "Toxic", "Recover"])
+            ]
+            + [member(*p) for p in own],
+        },
+        "seed": [1, 2, 3, 4],
+        "preview": {"self": [1, 2, 3], "opponent": [1, 2, 3]},
+        "history": [],
+        "assumptions": ["hypothetical regression only"],
+    }
+    with ShowdownEnvironment(checkout) as env:
+        env.reset(case)
+        view = env.observation("self", include_history=True)
+        env.step({"self": 6, "opponent": 6}, revision=view["revision"])
+        view = env.observation("self", include_history=True)
+        assert "|-clearallboost" in view["public_history"]
+        row = view["state"]["self_side"]["pokemon"][
+            view["state"]["self_side"]["active_identity"]
+        ]
+        assert row["stat_stages"].get("atk", 0) == 0
+        baseline = VisibleBaseline("heuristic", 12)
+        baseline.act(view)
+        assert baseline.battle.active_pokemon.boosts["atk"] == 0
+
+
+@pytest.mark.parametrize(
+    "event,expected",
+    [
+        ("-clearboost", {}),
+        ("-clearpositiveboost", {"atk": 0, "def": -1}),
+        ("-clearnegativeboost", {"atk": 2, "def": 0}),
+        ("-invertboost", {"atk": -2, "def": 1}),
+    ],
+)
+def test_public_target_boost_events_do_not_change_native_request_or_truth(
+    view, event, expected
+):
+    from advisor.showdown_observation import project_policy_observation
+
+    original = deepcopy(view)
+    identity = view["state"]["opponent_side"]["active_identity"]
+    history = view["public_history"] + [
+        f"|-setboost|{identity}|atk|2",
+        f"|-setboost|{identity}|def|-1",
+        f"|{event}|{identity}",
+    ]
+    result = project_policy_observation(view, history)
+    assert (
+        result["state"]["opponent_side"]["pokemon"][identity]["stat_stages"] == expected
+    )
+    assert original == view and result["own_request"] == view["own_request"]
+
+
 def test_v3_actual_updates_reload_strategy_ui_and_rollback(checkout, tmp_path):
     from sb3_contrib import MaskablePPO
     from advisor.learned_gym import ShowdownLearningEnv
@@ -309,3 +386,51 @@ def test_v3_actual_updates_reload_strategy_ui_and_rollback(checkout, tmp_path):
         assert row["learned_policy"]["status"] == "evaluated"
         assert valid_learned_evidence(row["learned_policy"], evidence, row)
         assert row["learned_policy"]["inference"]["encoder_version"] == VERSION
+
+
+def test_frozen_v2_function_transfer_preserves_legal_distribution_value_and_optimizer(
+    checkout,
+):
+    from sb3_contrib import MaskablePPO
+    from advisor.learned_gym import ShowdownLearningEnv
+    from advisor.learned_action_policy import transfer_v2_weights
+
+    source = LearnedPolicy(ROOT / "models/showdown_action_v2/model.zip", CATALOG)
+    encoder = TacticalObservationEncoder(CATALOG)
+    with ShowdownLearningEnv(checkout, encoder, curriculum_version=CURRICULUM) as env:
+        target = MaskablePPO(
+            TacticalActionConditionedPolicy,
+            env,
+            n_steps=128,
+            batch_size=128,
+            n_epochs=2,
+            seed=211,
+            device="cpu",
+        )
+        transfer_v2_weights(target.policy, source.model.policy)
+        assert not target.policy.optimizer.state
+        for i in range(24):
+            env.reset(seed=11000 + i)
+            observation = env.current
+            mask = env.action_masks()[None, :]
+            with torch.no_grad():
+                old = torch.tensor(source.encoder.encode(observation))[None]
+                new = torch.tensor(encoder.encode(observation))[None]
+                torch.testing.assert_close(
+                    source.model.policy.get_distribution(
+                        old, action_masks=mask
+                    ).distribution.probs,
+                    target.policy.get_distribution(
+                        new, action_masks=mask
+                    ).distribution.probs,
+                    atol=1e-6,
+                    rtol=1e-6,
+                )
+                torch.testing.assert_close(
+                    source.model.policy.predict_values(old),
+                    target.policy.predict_values(new),
+                    atol=1e-6,
+                    rtol=1e-6,
+                )
+        target.learn(256)
+        assert target.policy.optimizer.state

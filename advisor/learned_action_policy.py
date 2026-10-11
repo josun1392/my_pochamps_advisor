@@ -72,3 +72,39 @@ class TacticalActionConditionedPolicy(ActionConditionedPolicy):
         )
 
         self.mlp_extractor = ActionExtractor(TACTICAL_CONTEXT, TACTICAL_ACTION)
+
+
+def transfer_v2_weights(target, source):
+    """Embed the frozen v2 function in v3; new public features initially have zero weight.
+
+    This transfers weights only. A fresh optimizer is required for changed tensor
+    shapes; it does not claim to restore the old optimizer's moments.
+    """
+    from advisor.learned_tactics_encoder import (
+        CONTEXT as NEW_CONTEXT,
+        ACTION as NEW_ACTION,
+    )
+
+    if (
+        not isinstance(source, ActionConditionedPolicy)
+        or isinstance(source, TacticalActionConditionedPolicy)
+        or not isinstance(target, TacticalActionConditionedPolicy)
+    ):
+        raise ValueError("v2_to_v3_policy_transfer_required")
+    old, new = source.state_dict(), target.state_dict()
+    columns = {
+        "mlp_extractor.context.0.weight": list(range(CONTEXT)),
+        "mlp_extractor.scorer.0.weight": list(range(64 + ACTION - 1))
+        + [64 + NEW_ACTION - 1],
+        "mlp_extractor.critic.0.weight": list(range(CONTEXT))
+        + [NEW_CONTEXT + i for i in range(ACTION - 1)]
+        + [NEW_CONTEXT + NEW_ACTION - 1],
+    }
+    with torch.no_grad():
+        for key, weights in old.items():
+            if key in columns:
+                new[key].zero_()
+                new[key][:, columns[key]] = weights
+            else:
+                new[key].copy_(weights)
+        target.load_state_dict(new)

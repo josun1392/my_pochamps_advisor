@@ -59,6 +59,14 @@ def project_policy_observation(native: dict, history: list[str]) -> dict:
             field["weather"] = None if args[0] == "none" else _id(args[0])
         if kind in {"-fieldstart", "-fieldend"} and args and "terrain" in args[0].lower():
             field["terrain"] = _id(args[0].removeprefix("move: ")) if kind == "-fieldstart" else None
+        if kind == "-clearallboost":
+            # Native Haze announces one global event with no Pokemon argument.
+            # Project the public reset; never recalculate any battle mechanic.
+            for public_side in sides.values():
+                active = public_side["active_identity"]
+                if isinstance(active, str) and active in public_side["pokemon"]:
+                    public_side["pokemon"][active]["stat_stages"] = {}
+            continue
         if not args or not re.match(r"^p[12][a-z]?: ", args[0]):
             continue
         identity = args[0]
@@ -94,6 +102,13 @@ def project_policy_observation(native: dict, history: list[str]) -> dict:
         elif kind in {"-boost", "-unboost", "-setboost"} and len(args) >= 3:
             stat, amount = args[1], int(args[2])
             row["stat_stages"][stat] = amount if kind == "-setboost" else row["stat_stages"].get(stat, 0) + (amount if kind == "-boost" else -amount)
+        elif kind == "-clearboost":
+            row["stat_stages"] = {}
+        elif kind in {"-clearpositiveboost", "-clearnegativeboost"}:
+            clamp = min if kind == "-clearpositiveboost" else max
+            row["stat_stages"] = {stat: clamp(stage, 0) for stat, stage in row["stat_stages"].items()}
+        elif kind == "-invertboost":
+            row["stat_stages"] = {stat: -stage for stat, stage in row["stat_stages"].items()}
         # Items/abilities attributed directly to this public target are revealed.
         if not any(a.startswith("[of]") for a in args):
             for arg in args:

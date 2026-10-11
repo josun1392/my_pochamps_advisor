@@ -41,3 +41,27 @@ preferred-frontier rollback equality passed. Original master untouched.
 Next: focused compatibility checkpoint, commit, four bounded experiments
 (v2 seed101; v3 seeds101/211/307), each 8192 teacher decisions + 32768 PPO steps.
 Program-managed validation 24 clusters/4 rivals; no test-set-based tuning.
+
+23:38–23:42 UTC: broader native audit exposed a real observation defect:
+Scizor Swords Dance followed by Toxapex Haze left projected attack +2 despite
+native `-clearallboost`. Executable regression failed before the fix. Public
+boost-reset projection corrected; poke-env independently confirms the native
+reset. No reducer, persisted event or live truth modifications. Shared native
+boundary checkpoint: 124 passed, zero external connections.
+
+Pilot stopped gracefully, artifacts retained but disqualified for selection:
+43660 collected / 43520 PPO-trained transitions, 16384 teacher decisions, 5865
+ended battles, 296.39 s, zero truncations/network attempts; peak process-tree
+commit 2268553216 bytes. No final holdout inspected.
+
+Pilot cold models fit teacher actions (v3 93.31%) but validation remained weak.
+Added a narrow weight-transfer adapter: frozen v2 function embedded in v3 with
+zero initial weights on added public features, fresh Adam moments. It reuses
+upstream PPO and preserves tested legal distributions/value within float32
+tolerance; no optimizer recovery is claimed across changed tensor shapes.
+
+Revised clean run: cold v2/v3 seed101 (32768 PPO each), plus transferred v3
+seeds101/211/307 (16384 each), 8192 teacher decisions each. Independent rollout/
+demonstration/minibatch seeds share a declared frozen pretrained source. Seed307
+uses the experimental tactical teacher; this factor is not causally isolated.
+All candidates use corrected projection, new output `training_verified`.
