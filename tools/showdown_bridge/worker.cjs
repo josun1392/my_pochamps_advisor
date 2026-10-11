@@ -3,6 +3,7 @@
 const readline = require('node:readline');
 const {run} = require('./bridge.cjs');
 const engine = require('./engine.cjs').loadEngine(process.argv[2]);
+const environment = require('./environment.cjs').createEnvironmentService(engine);
 const lines = readline.createInterface({input: process.stdin, crlfDelay: Infinity});
 lines.on('line', line => {
   let requestId = null;
@@ -11,7 +12,8 @@ lines.on('line', line => {
     const envelope = JSON.parse(line);
     requestId = envelope.request_id;
     if (!Number.isSafeInteger(requestId) || requestId < 1) throw new Error();
-    process.stdout.write(JSON.stringify({request_id: requestId, response: run(envelope.request, engine)}) + '\n');
+    const response = envelope.request.schema_version === 'showdown-environment-v1' ? environment(envelope.request) : run(envelope.request, engine);
+    process.stdout.write(JSON.stringify({request_id: requestId, response}) + '\n');
   } catch {
     process.stdout.write(JSON.stringify({request_id: requestId, response: {status: 'error', reason: 'worker_request_failed'}}) + '\n');
   }

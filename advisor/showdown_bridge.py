@@ -59,6 +59,26 @@ class ShowdownBridge:
             raise ShowdownBridgeError("showdown_unavailable_or_invalid_response") from exc
 
     def _validate_response(self, request: dict, response: dict) -> dict:
+        if request.get("schema_version") == "showdown-environment-v1":
+            if (response.get("schema_version") != request["schema_version"] or
+                response.get("engine_commit") != SHOWDOWN_COMMIT or response.get("format_id") != FORMAT_ID or
+                not isinstance(response.get("results"), list) or
+                len(response["results"]) != len(request["requests"]) or
+                not isinstance(response.get("resources"), dict) or
+                any(type(response["resources"].get(key)) is not int or response["resources"][key] < 0
+                    for key in ("episodes", "rss_bytes", "heap_used_bytes")) or
+                any(not isinstance(row, dict) or row.get("owner") != expected.get("owner") or
+                    row.get("status") not in {"ready", "saved", "closed", "rejected"}
+                    for row, expected in zip(response["results"], request["requests"]))):
+                raise ShowdownBridgeError("showdown_environment_response_mismatch")
+            for row, expected in zip(response["results"], request["requests"]):
+                if row["status"] == "rejected":
+                    continue
+                revision = (0 if expected["operation"] in {"reset", "restart", "import_native"} else
+                            expected["revision"] + (1 if expected["operation"] == "step" else 0))
+                if type(row.get("revision")) is not int or row["revision"] != revision:
+                    raise ShowdownBridgeError("showdown_environment_revision_mismatch")
+            return response
         if "observation_schema_version" in request and response.get("observation_schema_version") != request["observation_schema_version"]:
             raise ShowdownBridgeError("showdown_response_binding_mismatch")
         for key, value in (("schema_version", SCHEMA_VERSION), ("engine_commit", SHOWDOWN_COMMIT),

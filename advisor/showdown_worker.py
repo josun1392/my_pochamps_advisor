@@ -20,6 +20,7 @@ class ShowdownWorker(ShowdownBridge):
         self._reader = None
         self._responses = Queue()
         self._request_id = 0
+        self._generation = 0
         self._interrupted = Event()
 
     def __enter__(self): return self
@@ -35,6 +36,7 @@ class ShowdownWorker(ShowdownBridge):
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             text=True, encoding="utf-8", bufsize=1,
         )
+        self._generation += 1
         stream, responses = self._process.stdout, self._responses
         def read():
             try:
@@ -93,6 +95,16 @@ class ShowdownWorker(ShowdownBridge):
 
     def close(self):
         with self._lock: self._stop()
+
+    @property
+    def generation(self):
+        """Coordinator identity; no native handles survive a process restart."""
+        return self._generation
+
+    @property
+    def is_alive(self):
+        process = self._process
+        return not self._interrupted.is_set() and process is not None and process.poll() is None
 
     def interrupt(self):
         """Cancel local execution from the UI without waiting for the request lock.

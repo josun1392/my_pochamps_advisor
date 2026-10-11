@@ -8,6 +8,7 @@ const {evaluateDamageRolls, NativeDamageError} = require('./damage-rolls.cjs');
 const {progressNativeBattle, progressNativeSwitchEntry, NativeActionPause, NativeSwitchBoundaryRequired} = require('./native-progress.cjs');
 const {proveConstantRNG, NativeRandomnessRequired} = require('./deterministic-proof.cjs');
 const {validPolicy, rollout, outcome} = require('./rollout.cjs');
+const {createLegalBattle} = require('./legal-battle.cjs');
 const COMMIT = '942cda71d14bf0618bd57991708a2e2734b6daba';
 const FORMAT = 'gen9championsbssregmc';
 const SCHEMA = 'detached-showdown-v1';
@@ -17,7 +18,7 @@ class InputError extends Error {}
 function requireInput(ok, code) { if (!ok) throw new InputError(code); }
 
 function run(input, engine) {
-  const {Battle, Dex, TeamValidator, toID, PRNG} = engine;
+  const {Battle, Dex, toID, PRNG} = engine;
   requireInput(input.schema_version === SCHEMA, 'invalid_schema');
   requireInput(input.observation_schema_version === OBSERVATION_SCHEMA, 'unsupported_observation_projection');
   requireInput(input.format_id === FORMAT, 'unsupported_format');
@@ -311,24 +312,8 @@ function run(input, engine) {
   }
 
   function create(scenario) {
-    requireInput(Array.isArray(scenario.seed) && scenario.seed.length === 4 &&
-      scenario.seed.every(n => Number.isInteger(n) && n >= 0 && n <= 65535), 'invalid_seed');
-    const teams = clone(scenario.teams);
-    const validator = new TeamValidator(FORMAT);
-    for (const side of ['self', 'opponent']) {
-      requireInput(Array.isArray(teams[side]) && teams[side].length === 6, 'six_member_team_required');
-      requireInput(!validator.validateTeam(teams[side]), 'invalid_mc_team');
-      const slots = scenario.slot_mapping?.[side] || [0, 1, 2, 3, 4, 5];
-      requireInput(Array.isArray(slots) && slots.length === 6 && new Set(slots).size === 6 && slots.every(n => Number.isInteger(n) && n >= 0), 'invalid_slot_mapping');
-      teams[side].forEach((pokemon, index) => { pokemon.name = `slot-${slots[index]}`; });
-      const pick = scenario.preview[side];
-      requireInput(Array.isArray(pick) && pick.length === 3 && new Set(pick).size === 3 &&
-        pick.every(n => Number.isInteger(n) && n >= 1 && n <= 6), 'invalid_team_preview');
-    }
-    const battle = new Battle({formatid: FORMAT, seed: scenario.seed, strictChoices: true,
-      p1: {name: 'self', team: teams.self}, p2: {name: 'opponent', team: teams.opponent}});
+    const battle = createLegalBattle(scenario, engine, requireInput);
     try {
-      choose(battle, {self: `team ${scenario.preview.self.join('')}`, opponent: `team ${scenario.preview.opponent.join('')}`});
       condition(battle, scenario.initial_conditioning);
       requireInput(Array.isArray(scenario.history) && scenario.history.length <= 100, 'invalid_history');
       for (const choices of scenario.history) {
