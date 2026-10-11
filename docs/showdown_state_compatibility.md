@@ -64,9 +64,11 @@ it does not manufacture a native queue from the observation. Any later
 observation makes the phase stale for reconstruction until explicitly recaptured.
 Historical phase participants can remain in replay after switching. The admission
 API accepts only the designated user observation source, never simulator output.
-Old sessions without the new record retain their meaning. The core admission API
-is tested; a human capture UI is still needed before requiring this contract in
-the default product workflow.
+Old sessions without the new record retain their meaning. The Battle menu's
+Record Battle Decision Phase dialog requires explicit human confirmation of the
+phase, turn and replacement side. Cancellation is inert; repeated confirmation
+is idempotent. Admission uses the same reducer and replay path as the core API.
+The optional record does not require a native backend or change recommendations.
 
 Observed effects also verify hazard layers (v1 keeps Toxic Spikes and Sticky Web
 unknown), Aqua Ring, Ingrain, Leech Seed source position, berry consumption,

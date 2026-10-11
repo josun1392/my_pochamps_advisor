@@ -78,6 +78,7 @@ from llm.advisor_population_bomb_attempt_observation_runtime_admission import ad
 from llm.advisor_current_condition_observation import admit_current_condition_observation
 from llm.advisor_action_linked_condition_application_observation import admit_action_linked_condition_application_observation
 from llm.advisor_status_progression_observation import admit_champions_status_progression_observation
+from llm.advisor_battle_decision_phase import admit_battle_decision_phase_observation
 from llm.advisor_pending_status_action_runtime_admission import admit_pending_status_action_execution
 from llm.advisor_champions_sleep_freeze_action_gate import freeze_champions_status_action_gate
 from llm.advisor_runtime_strategy_d0 import freeze_runtime_strategy_d0
@@ -145,6 +146,7 @@ from ui.widgets.field_profile_dialog import FieldProfileDialog
 from ui.widgets.item_event_dialog import ItemEventDialog
 from ui.widgets.current_condition_dialog import CurrentConditionDialog
 from ui.widgets.status_progression_dialog import SleepFreezeProgressionDialog
+from ui.widgets.battle_decision_phase_dialog import BattleDecisionPhaseDialog
 from ui.widgets.pending_status_action_result_dialog import SleepFreezeActionResultDialog
 from ui.widgets.current_ability_dialog import CurrentAbilityDialog
 from ui.widgets.current_persistent_effect_dialog import CurrentPersistentEffectDialog
@@ -910,6 +912,25 @@ class MainWindow(QMainWindow):
         self._update_current_condition_summary()
 
     @Slot()
+    def _open_battle_decision_phase_dialog(self) -> None:
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session_id = MainWindow._active_session_id(self)
+        if not isinstance(manager, BattleObservationRuntimeSessionManager) or session_id is None:
+            self.statusBar().showMessage("Battle decision phase: active session unavailable")
+            return
+        dialog = BattleDecisionPhaseDialog(turn_number=getattr(self, "_current_trusted_turn_number", None), parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.confirmation is None: return
+        result = admit_battle_decision_phase_observation(runtime_session_manager=manager,
+            captured_session_id=session_id, **dialog.confirmation)
+        if result.get("status") != "resolved":
+            self.statusBar().showMessage(f"Battle decision phase rejected: {result.get('reason')}")
+            return
+        if not result.get("idempotent"):
+            self._retire_advice_presentation_authority()
+            self._recommendation_readiness_owner = None
+            self.center_column.llm_advice_panel.clear_recommendation_readiness()
+        self.statusBar().showMessage("Battle decision phase recorded")
+
     def _open_status_progression_dialog(self) -> None:
         manager = getattr(self, "_observation_runtime_session_manager", None)
         session_id = MainWindow._active_session_id(self)
@@ -1755,6 +1776,9 @@ class MainWindow(QMainWindow):
         self._start_new_battle_action = QAction("Start / New Battle", self)
         self._start_new_battle_action.triggered.connect(self._open_new_battle)
         battle_menu.addAction(self._start_new_battle_action)
+        self._record_battle_decision_phase_action = QAction("Record Battle Decision Phase...", self)
+        self._record_battle_decision_phase_action.triggered.connect(self._open_battle_decision_phase_dialog)
+        battle_menu.addAction(self._record_battle_decision_phase_action)
         self._set_current_turn_action = QAction("Set Current Turn...", self)
         self._set_current_turn_action.triggered.connect(self._open_current_turn)
         battle_menu.addAction(self._set_current_turn_action)
