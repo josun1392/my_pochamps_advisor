@@ -72,6 +72,7 @@ function run(input, engine) {
             start_time: p.statusState.startTime, remaining_time: p.statusState.time,
             early_bird_active: p.hasAbility('earlybird'), interpretation: 'hypothetical_native_state_not_observed'} : null,
           item: p.item, ability: p.ability, boosts: clone(p.boosts),
+          volatiles: Object.keys(p.volatiles), berry_eaten: p.ateBerry, received_hit_count: p.timesAttacked,
           moves: p.moveSlots.map(m => ({id: m.id, pp: m.pp, max_pp: m.maxpp})),
         })),
       }])),
@@ -135,6 +136,24 @@ function run(input, engine) {
         for (const [volatile, present] of Object.entries(observed.volatiles || {})) {
           requireInput(!!pokemon.volatiles[volatile] === present, 'observed_volatile_conflict');
         }
+        if (observed.leech_source) {
+          const source = battle.getAtSlot(pokemon.volatiles.leechseed.sourceSlot);
+          requireInput(source && source.side.id === (observed.leech_source.side === 'self' ? 'p1' : 'p2') &&
+            source.name === `slot-${observed.leech_source.slot_index}`, 'observed_leech_source_phase_conflict');
+        }
+        for (const [id, restriction] of Object.entries(observed.restrictions || {})) {
+          const native = pokemon.volatiles[id], active = restriction.state === 'active';
+          requireInput(!!native === active, 'observed_restriction_conflict');
+          if (active) {
+            requireInput(battle.requestState === 'move', 'legacy_restriction_requires_move_boundary');
+            requireInput(native.duration === restriction.remaining_target_turns, 'legacy_restriction_counter_conflict');
+            const move = restriction.locked_move_id || restriction.disabled_move_id;
+            if (move) requireInput(native.move === toID(move), 'observed_restricted_move_conflict');
+          }
+        }
+        if (Object.hasOwn(observed, 'berry_eaten')) requireInput(pokemon.ateBerry === observed.berry_eaten, 'observed_berry_history_conflict');
+        if (Object.hasOwn(observed, 'received_hit_count')) requireInput(pokemon.timesAttacked === observed.received_hit_count, 'observed_received_hit_count_conflict');
+        if (observed.last_executed_move) requireInput(pokemon.lastMove?.id === toID(observed.last_executed_move), 'observed_last_executed_move_conflict');
         if (observed.crit_volatiles) requireInput(observed.crit_volatiles.map(toID).sort().join(',') === Object.keys(pokemon.volatiles).filter(id => ['focusenergy', 'lansat', 'dragoncheer'].includes(id)).sort().join(','), 'observed_crit_volatile_conflict');
         if (observed.substitute) {
           requireInput(!!pokemon.volatiles.substitute === observed.substitute.active, 'observed_substitute_conflict');
@@ -172,6 +191,10 @@ function run(input, engine) {
       const conditions = input.observed_sides?.[side] || {};
       if (conditions.side_conditions) requireInput(conditions.side_conditions.map(toID).sort().join(',') === Object.keys(battle[id].sideConditions).filter(k => ['reflect', 'lightscreen', 'auroraveil', 'tailwind', 'luckychant'].includes(k)).sort().join(','), 'observed_side_conditions_conflict');
       if (Object.hasOwn(conditions, 'tailwind')) requireInput(conditions.tailwind === !!battle[id].sideConditions.tailwind, 'observed_tailwind_conflict');
+      for (const [key, value] of Object.entries(conditions.hazards || {})) {
+        const native = battle[id].sideConditions[{stealth_rock: 'stealthrock', spikes_layers: 'spikes', toxic_spikes_layers: 'toxicspikes', sticky_web: 'stickyweb'}[key]];
+        requireInput(key.endsWith('_layers') ? (native?.layers || 0) === value : !!native === (value === 'present'), 'observed_hazard_conflict');
+      }
     }
     for (const [key, nativeKey] of [['weather', 'weather'], ['terrain', 'terrain']]) {
       if (Object.hasOwn(input.observed_field, key)) {
@@ -217,13 +240,19 @@ function run(input, engine) {
       } else if (['self', 'opponent'].includes(row.target) && row.effect === 'side') {
         const side = row.target === 'self' ? battle.p1 : battle.p2;
         side.addSideCondition(id, source); state = side.sideConditions[id];
+        if (Object.hasOwn(row, 'layers')) {
+          requireInput(Number.isInteger(row.layers) && row.layers >= 1 && row.layers <= (id === 'spikes' ? 3 : id === 'toxicspikes' ? 2 : 0), 'invalid_hazard_layers');
+          for (let layer = 1; layer < row.layers; layer++) side.addSideCondition(id, source);
+          requireInput(state?.layers === row.layers, 'native_hazard_initialization_conflict');
+        }
       } else if (['self', 'opponent'].includes(row.target) && row.effect === 'status') {
         const pokemon = (row.target === 'self' ? battle.p1 : battle.p2).active[0];
         if (pokemon.status !== id) requireInput(pokemon.setStatus(id, pokemon, null, true), 'native_status_initialization_failed');
         state = pokemon.statusState;
       } else if (['self', 'opponent'].includes(row.target) && row.effect === 'volatile') {
         const pokemon = (row.target === 'self' ? battle.p1 : battle.p2).active[0];
-        pokemon.addVolatile(id); state = pokemon.volatiles[id];
+        requireInput(id !== 'leechseed' || row.source && row.source !== row.target, 'leech_seed_source_required');
+        pokemon.addVolatile(id, source === 'debug' ? pokemon : source, battle.dex.moves.get(id)); state = pokemon.volatiles[id];
       }
       requireInput(state && state.id === id && battle.dex.conditions.get(id).exists, 'invalid_native_condition');
       if (Object.hasOwn(row, 'counter_state')) {
@@ -245,6 +274,16 @@ function run(input, engine) {
           state.duration = row.remaining;
         }
       }
+    }
+    if (rows.length && battle.requestState === 'move') {
+      // Initialization happens after native nextTurn prepared its request.
+      // Reuse the native callbacks to derive newly added move/trap restrictions.
+      // Do not advance a turn, drain a timer, or rebuild a paused switch queue.
+      for (const pokemon of battle.getAllActive()) {
+        battle.runEvent('DisableMove', pokemon);
+        battle.runEvent('TrapPokemon', pokemon);
+      }
+      battle.makeRequest('move');
     }
   }
 

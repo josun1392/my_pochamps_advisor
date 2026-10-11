@@ -12,6 +12,7 @@ from typing import Any
 
 from advisor.showdown_bridge import FORMAT_ID, SCHEMA_VERSION, ShowdownBridge, ShowdownBridgeError
 from llm.advisor_showdown_compatibility import OBSERVATION_SCHEMA, confirmed_absence, legacy_status_projection
+from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
 from llm.advisor_reducer_state_model import (
     STATE_MODEL_VERSION, is_unknown_battle_fact, state_fingerprint,
     validate_battle_state_unknown_markers,
@@ -65,6 +66,29 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
             if permission.get("status") in ("permitted", "blocked"):
                 sides[side]["switch_permitted"] = permission["status"] == "permitted"
             observed[side] = row
+        hazards = state.get("switch_hazard_context")
+        if hazards:
+            side = hazards.get("affected_side")
+            if side not in {"self", "opponent"} or hazards.get("session_id") != state["session_id"]:
+                raise ValueError("invalid_observed_hazard_context")
+            normalized = normalize_switch_hazard_context(hazards, session_id=state["session_id"], affected_side=side)
+            keys = set(normalized) if hazards.get("schema_version") == "switch-hazard-context-v2" else {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers"}
+            if set(hazards) != keys or any(hazards[k] != normalized[k] for k in keys - {"schema_version"}):
+                raise ValueError("invalid_observed_hazard_context")
+            sides[side]["hazards"] = {k: v for k, v in normalized.items()
+                if k not in {"schema_version", "session_id", "affected_side"} and v != "unknown"}
+        def owner_row(owner):
+            rows = [p for p in roster[owner["side"]] if p["slot_index"] == owner["slot_index"] and p["pokemon_id"] == owner["pokemon_id"]]
+            if len(rows) != 1 or owner["session_id"] != state["session_id"]: raise ValueError("observed_effect_owner_mismatch")
+            return rows[0]
+        for fact in (state.get("current_persistent_effect_context") or {}).get("rows", []):
+            row = owner_row(fact["owner"])
+            identifier = {"aqua_ring": "aquaring", "ingrain": "ingrain", "leech_seed": "leechseed"}[fact["family"]]
+            row["volatiles"][identifier] = fact["state"] == "active"
+            if identifier == "leechseed" and fact["state"] == "active": row["leech_source"] = deepcopy(fact["source_slot"])
+        for restriction in ("taunt", "encore", "disable"):
+            for fact in (state.get(f"current_{restriction}_restrictions") or {}).values():
+                owner_row(fact["owner"]).setdefault("restrictions", {})[restriction] = deepcopy(fact)
         for fact in (state.get("substitute_state_context") or {}).get("states", []):
             owner = fact["owner"]
             rows = [p for p in roster[owner["side"]] if p["slot_index"] == owner["slot_index"] and p["pokemon_id"] == owner["pokemon_id"]]
@@ -147,6 +171,15 @@ def _pokemon_observation(active: dict, slot: int, *, side: str, session_id: str)
             condition_provenance=active.get("condition_provenance"))
     toxic = active.get("toxic_progression")
     if isinstance(toxic, dict) and not is_unknown_battle_fact(toxic): row["toxic_next_stage"] = toxic["next_stage"]
+    berry = active.get("berry_eaten_state")
+    if berry in ("known_true", "known_false"): row["berry_eaten"] = berry == "known_true"
+    history = active.get("last_executed_move")
+    if history: row["last_executed_move"] = history["move_id"]
+    counter = active.get("rage_fist_hit_count")
+    if counter and not is_unknown_battle_fact(counter):
+        owner = {"session_id": session_id, "side": side, "slot_index": slot, "pokemon_id": active["pokemon_id"]}
+        if counter.get("owner") != owner or not _int(counter.get("count"), 0, 9999): raise ValueError("invalid_observed_rage_fist_counter")
+        row["received_hit_count"] = counter["count"]
     return row
 
 
@@ -287,11 +320,14 @@ def _unmapped_observations(state: dict) -> list[str]:
     root_keys = {"state_version", "session_id", "self_side", "opponent_side", "field",
                  "last_applied_observation_sequence", "last_applied_batch_fingerprint",
                  "source_replay_policy_version", "last_commit_provenance", "substitute_state_context"}
+    root_keys.update({"switch_hazard_context", "current_persistent_effect_context",
+        "current_taunt_restrictions", "current_encore_restrictions", "current_disable_restrictions"})
     active_keys = {"pokemon_id", "current_hp", "max_hp", "fainted", "current_type", "current_ability",
                    "current_level", "current_final_stats", "condition", "known_item", "known_move_ids", "stat_stages",
                    "current_move_usability", "champions_status_progression", "toxic_progression", "current_crit_volatiles",
                    "healing_prevented_status", "current_confusion"}
     active_keys.add("current_opponent_response_set")
+    active_keys.update({"berry_eaten_state", "last_executed_move", "rage_fist_hit_count"})
     def scan(container, supported, prefix):
         for key, value in container.items():
             if key not in supported and not key.endswith("_provenance") and value is not None and not is_unknown_battle_fact(value):

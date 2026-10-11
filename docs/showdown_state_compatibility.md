@@ -56,6 +56,14 @@ is applied before scenario history, while current conditioning is applied after
 history. Reconciliation retains the initial model and cannot initialize new
 effects without native history.
 
+Observed effects also verify hazard layers (v1 keeps Toxic Spikes and Sticky Web
+unknown), Aqua Ring, Ingrain, Leech Seed source position, berry consumption,
+last executed move, qualifying hit counts and Taunt/Encore/Disable. Existing
+restriction counters are compared at a native move boundary, never assigned
+as observed native counters. Mismatching durations or a moved Leech Seed source
+fail closed. Initialization reruns native DisableMove/TrapPokemon callbacks
+without advancing a turn or touching a paused replacement queue.
+
 Primary sources:
 
 - [Pinned Champions conditions](https://github.com/smogon/pokemon-showdown/blob/942cda71d14bf0618bd57991708a2e2734b6daba/data/mods/champions/conditions.ts)
