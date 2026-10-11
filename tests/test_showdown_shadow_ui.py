@@ -61,6 +61,7 @@ def test_native_shadow_changes_only_separate_explanation_evidence(worker):
     assert panel.set_strategy_explanation(result["explanation"])["status"] == "resolved"
     assert "정확 확률 아님" in panel.output_edit.toPlainText()
     assert "기존 추천 순위는 유지" in panel.output_edit.toPlainText()
+    assert "평균 남은 팀 HP" in panel.output_edit.toPlainText()
     assert emitted == []
     assert (snapshot, context) == before
     stripped = deepcopy(result["explanation"])

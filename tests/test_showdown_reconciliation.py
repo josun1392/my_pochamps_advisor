@@ -29,10 +29,12 @@ def test_bench_hp_faint_count_and_final_stats_are_reconciled(bridge):
     state["self_side"]["pokemon"][2] = {"pokemon_id": "rotom-wash", "current_hp": 0, "max_hp": 127, "fainted": True}
     state["self_side"]["pokemon"][0]["current_final_stats"] = {"special-attack": {"value": 177, "provenance": {"event_kind": "current_final_combat_stat_observed", "trust": "user_confirmed_observation", "turn_number": 1}}}
     scenario = fixture_scenarios()[1]
+    scenario["conditioning"] = [{"target": "self", "effect": "faint", "slot_index": 2}]
     row = execute(bridge, state, scenario)
     assert row["status"] == "simulated", row
     assert [p["hp"] for p in row["before"]["sides"]["self"]["pokemon"]] == [155, 50, 0]
     assert row["root_checkpoint"]["native_state"]["sides"][0]["pokemonLeft"] == 2
+    assert row["root_checkpoint"]["native_state"]["sides"][0]["totalFainted"] == 1
     state["self_side"]["pokemon"][0]["current_final_stats"]["special-attack"]["value"] = 176
     assert execute(bridge, state, scenario)["reason"] == "observed_final_stat_conflict"
 
@@ -112,6 +114,9 @@ def test_new_reducer_observation_reconditions_old_hypothesis_without_writeback(b
     assert result["source_runtime_fingerprint"] == current["state_fingerprint"]
     assert result["scenarios"][0]["before"]["sides"]["self"]["pokemon"][0]["hp"] == 60
     assert (owner.read_state(), owner.read_applied_ledger(), saved) == before
+    changed_model = deepcopy(scenario)
+    changed_model["teams"]["opponent"][0]["item"] = "Choice Scarf"
+    assert reconcile_detached_showdown(runtime_snapshot=current, checkpoint=saved, scenario=changed_model, observed_history=[], bridge=bridge)["status"] == "rejected"
     foreign = fixture_snapshot(session_id="foreign")
     assert reconcile_detached_showdown(runtime_snapshot=foreign, checkpoint=saved, scenario=scenario, observed_history=[], bridge=bridge)["status"] == "rejected"
 
@@ -123,3 +128,77 @@ def test_preview_excluded_identity_is_verified_but_not_simulated(bridge):
     assert row["status"] == "simulated", row
     state["self_side"]["pokemon"][3]["current_hp"] = 100
     assert execute(bridge, state, fixture_scenarios()[1])["reason"] == "observed_unselected_roster_mechanics"
+
+
+def test_unknown_hp_requires_explicit_per_set_hypothesis_and_stays_unknown(bridge):
+    state = fixture_snapshot()["state"]
+    unknown = {"knowledge": "unknown"}
+    state["opponent_side"]["pokemon"][0].update(current_hp=deepcopy(unknown), max_hp=deepcopy(unknown), fainted=deepcopy(unknown))
+    scenario = fixture_scenarios()[1]
+    scenario["hypothetical_active_hp"] = {"opponent": 80}
+    row = execute(bridge, state, scenario)
+    assert row["status"] == "simulated", row
+    assert row["before"]["sides"]["opponent"]["pokemon"][0]["hp"] == 80
+    assert state["opponent_side"]["pokemon"][0]["current_hp"] == unknown
+    scenario["hypothetical_active_hp"]["opponent"] = 148
+    assert execute(bridge, state, scenario)["reason"] == "invalid_hypothetical_hp"
+
+
+@pytest.mark.parametrize("volatile", ["focus-energy", "lansat"])
+def test_observed_critical_volatile_uses_native_focus_energy_state(bridge, volatile):
+    state = fixture_snapshot()["state"]
+    state["self_side"]["pokemon"][0].update(current_crit_volatiles=[volatile], current_crit_volatiles_provenance={
+        "event_kind": "current_crit_volatiles_observed", "trust": "user_confirmed_observation", "turn_number": 1})
+    scenario = fixture_scenarios()[1]
+    scenario["conditioning"] = [{"target": "self", "effect": "volatile", "id": "focusenergy"}]
+    assert execute(bridge, state, scenario)["status"] == "simulated"
+    scenario["conditioning"] = []
+    assert execute(bridge, state, scenario)["reason"] == "observed_crit_volatile_conflict"
+
+
+def test_freeze_age_is_an_explicit_native_counter_hypothesis(bridge):
+    scenario = fixture_scenarios()[1]
+    scenario["conditioning"] = [{"target": "opponent", "effect": "status", "id": "frz", "remaining": 1}]
+    scenario["choices"] = {"self": "move 3", "opponent": "move 2"}
+    row = execute(bridge, fixture_snapshot()["state"], scenario)
+    assert row["status"] == "simulated", row
+    assert row["before"]["sides"]["opponent"]["pokemon"][0]["status"] == "frz"
+    assert row["after"]["sides"]["opponent"]["pokemon"][0]["status"] == ""
+
+
+def test_json_roundtripped_runtime_slot_keys_are_supported(bridge):
+    import json
+    state = json.loads(json.dumps(fixture_snapshot()["state"]))
+    assert execute(bridge, state, fixture_scenarios()[1])["status"] == "simulated"
+
+
+def test_observed_substitute_identity_and_native_hp_are_checked(bridge):
+    from llm.advisor_substitute import update_substitute_state_context
+    state = fixture_snapshot()["state"]
+    owner = {"session_id": state["session_id"], "side": "self", "slot_index": 0, "pokemon_id": "charizard"}
+    state["substitute_state_context"] = update_substitute_state_context(context=None, session_id=state["session_id"],
+        owner=owner, state="known_active", substitute_hp=38, provenance="runtime_observed_substitute_state_v1")
+    scenario = fixture_scenarios()[1]
+    scenario["conditioning"] = [{"target": "self", "effect": "volatile", "id": "substitute"}]
+    assert execute(bridge, state, scenario)["status"] == "simulated"
+    state["substitute_state_context"]["states"][0]["substitute_hp"] = 37
+    assert execute(bridge, state, scenario)["reason"] == "observed_substitute_hp_conflict"
+
+
+def test_observed_complete_moves_and_pp_use_native_champions_limits(bridge):
+    state = fixture_snapshot()["state"]
+    pokemon = state["opponent_side"]["pokemon"][0]
+    moves = ["bullet-punch", "swords-dance", "protect", "x-scissor"]
+    pokemon["known_move_ids"] = moves
+    provenance = {"event_kind": "current_opponent_response_set_observed", "trust": "user_confirmed_observation", "turn_number": 1, "source_sequence": 1}
+    pokemon["current_opponent_response_set"] = {"moveset_completeness": "complete", "move_ids": moves,
+        "provenance": provenance, "move_pp_slots": [{"slot_index": i, "move_id": move, "current_pp": pp, "max_pp": maximum}
+            for i, (move, pp, maximum) in enumerate(zip(moves, [1, 4, 0, 4], [20, 20, 8, 16]))]}
+    scenario = fixture_scenarios()[1]
+    scenario["teams"]["opponent"][0]["moves"].append("X-Scissor")
+    row = execute(bridge, state, scenario)
+    assert row["status"] == "simulated", row
+    assert row["before"]["sides"]["opponent"]["pokemon"][0]["moves"][0]["pp"] == 1
+    assert row["after"]["sides"]["opponent"]["pokemon"][0]["moves"][0]["pp"] == 0
+    scenario["choices"]["opponent"] = "move 3"
+    assert execute(bridge, state, scenario)["reason"] == "illegal_choice"

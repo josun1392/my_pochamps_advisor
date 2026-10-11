@@ -70,6 +70,10 @@ function run(input, engine) {
     return {schema_version: 'showdown-checkpoint-v1', engine_commit: COMMIT, format_id: FORMAT,
       session_id: input.session_id, source_runtime_fingerprint: input.source_runtime_fingerprint,
       scenario_id: scenario.scenario_id, assumptions: clone(scenario.assumptions),
+      model_definition: clone(scenario.checkpoint?.model_definition || {
+        teams: scenario.teams, preview: scenario.preview,
+        slot_mapping: scenario.slot_mapping || {self: [0, 1, 2, 3, 4, 5], opponent: [0, 1, 2, 3, 4, 5]},
+      }),
       native_state: clone(battle.toJSON())};
   }
 
@@ -79,51 +83,66 @@ function run(input, engine) {
       requireInput(battle[id].active[0]?.name === `slot-${active.slot_index ?? 0}`, 'active_slot_mismatch');
       const rows = input.observed_roster?.[side] || [active];
       for (const observed of rows) {
-      const pokemon = battle[id].pokemon.find(p => p.name === `slot-${observed.slot_index ?? 0}`);
-      if (!pokemon) {
-        const slots = scenario.slot_mapping?.[side] || [0, 1, 2, 3, 4, 5];
-        const set = scenario.teams[side][slots.indexOf(observed.slot_index)];
-        requireInput(set && toID(set.species) === toID(observed.pokemon_id), 'roster_identity_or_selection_mismatch');
-        requireInput(Object.entries(observed).every(([key, value]) => ['pokemon_id', 'slot_index'].includes(key) ||
-          (['boosts', 'stats', 'move_usability'].includes(key) && Object.keys(value).length === 0)), 'observed_unselected_roster_mechanics');
-        continue;
-      }
-      requireInput(pokemon && toID(observed.pokemon_id) === pokemon.species.id, 'roster_identity_or_selection_mismatch');
-      if (Object.hasOwn(observed, 'max_hp')) requireInput(observed.max_hp === pokemon.maxhp, 'observed_max_hp_or_lifecycle_mismatch');
-      if (Object.hasOwn(observed, 'hp')) requireInput(Number.isInteger(observed.hp) && observed.hp >= 0 && observed.hp <= pokemon.maxhp, 'invalid_observed_hp');
-      for (const [key, nativeKey] of [['item', 'item'], ['ability', 'ability'], ['condition', 'status']]) {
-        if (Object.hasOwn(observed, key)) {
-          requireInput(toID(observed[key]) === pokemon[nativeKey], `observed_${key}_conflict`);
+        const pokemon = battle[id].pokemon.find(p => p.name === `slot-${observed.slot_index ?? 0}`);
+        if (!pokemon) {
+          const slots = scenario.slot_mapping?.[side] || [0, 1, 2, 3, 4, 5];
+          const set = scenario.teams[side][slots.indexOf(observed.slot_index)];
+          requireInput(set && toID(set.species) === toID(observed.pokemon_id), 'roster_identity_or_selection_mismatch');
+          requireInput(Object.entries(observed).every(([key, value]) => ['pokemon_id', 'slot_index'].includes(key) ||
+            (['boosts', 'stats', 'move_usability', 'volatiles'].includes(key) && Object.keys(value).length === 0)), 'observed_unselected_roster_mechanics');
+          continue;
         }
-      }
-      if (Object.hasOwn(observed, 'types')) {
-        requireInput(observed.types.map(toID).sort().join(',') === pokemon.getTypes().map(toID).sort().join(','), 'observed_type_conflict');
-      }
-      if (Object.hasOwn(observed, 'level')) requireInput(observed.level === pokemon.level, 'observed_level_conflict');
-      if (observed.known_moves) {
-        requireInput(observed.known_moves.every(move => pokemon.baseMoves.includes(toID(move))), 'observed_move_conflict');
-      }
-      for (const [stat, value] of Object.entries(observed.stats || {})) {
-        requireInput(pokemon.storedStats[stat] === value, 'observed_final_stat_conflict');
-      }
-      if (observed.status_progression) {
-        const progression = observed.status_progression;
-        requireInput(pokemon.statusState.startTime - pokemon.statusState.time === progression.prior_attempts,
-          'observed_status_counter_conflict');
-        if (progression.sleep_duration !== null) requireInput(pokemon.statusState.startTime === progression.sleep_duration, 'observed_sleep_duration_conflict');
-      }
-      if (Object.hasOwn(observed, 'toxic_next_stage')) requireInput(pokemon.status === 'tox' && pokemon.statusState.stage + 1 === observed.toxic_next_stage, 'observed_toxic_counter_conflict');
-      // Overrides are applied only to a detached hypothetical simulator root.
-      if (Object.hasOwn(observed, 'hp')) pokemon.hp = observed.hp;
-      if (Object.hasOwn(observed, 'fainted')) {
-        requireInput(observed.fainted === (pokemon.hp === 0), 'observed_fainted_conflict');
-        requireInput(!pokemon.isActive || !observed.fainted, 'fainted_active_requires_native_switch_checkpoint');
-        pokemon.fainted = observed.fainted;
-      }
-      for (const [stat, stage] of Object.entries(observed.boosts)) {
-        requireInput(Object.hasOwn(pokemon.boosts, stat) && Number.isInteger(stage) && Math.abs(stage) <= 6, 'invalid_observed_stage');
-        pokemon.boosts[stat] = stage;
-      }
+        requireInput(pokemon && [pokemon.species.id, battle.dex.species.get(pokemon.set.species).id].includes(toID(observed.pokemon_id)), 'roster_identity_or_selection_mismatch');
+        if (Object.hasOwn(observed, 'max_hp')) requireInput(observed.max_hp === pokemon.maxhp, 'observed_max_hp_or_lifecycle_mismatch');
+        if (Object.hasOwn(observed, 'hp')) requireInput(Number.isInteger(observed.hp) && observed.hp >= 0 && observed.hp <= pokemon.maxhp, 'invalid_observed_hp');
+        if (Object.hasOwn(observed, 'fainted')) requireInput(observed.fainted === pokemon.fainted, 'observed_faint_requires_matching_native_history');
+        for (const [key, nativeKey] of [['item', 'item'], ['ability', 'ability'], ['condition', 'status']]) {
+          if (Object.hasOwn(observed, key)) {
+            requireInput(toID(observed[key]) === pokemon[nativeKey], `observed_${key}_conflict`);
+          }
+        }
+        if (Object.hasOwn(observed, 'types')) {
+          requireInput(observed.types.map(toID).sort().join(',') === pokemon.getTypes().map(toID).sort().join(','), 'observed_type_conflict');
+        }
+        if (Object.hasOwn(observed, 'level')) requireInput(observed.level === pokemon.level, 'observed_level_conflict');
+        if (observed.known_moves) {
+          requireInput(observed.known_moves.every(move => pokemon.baseMoves.includes(toID(move))), 'observed_move_conflict');
+        }
+        if (observed.complete_moves) requireInput(pokemon.moveSlots.length === observed.complete_moves.length &&
+          observed.complete_moves.every(move => pokemon.moveSlots.some(slot => slot.id === toID(move))), 'observed_complete_moveset_conflict');
+        for (const pp of observed.pp_slots || []) {
+          const slot = pokemon.moveSlots[pp.slot_index];
+          requireInput(slot && slot.id === toID(pp.move_id) && slot.maxpp === pp.max_pp && Number.isInteger(pp.current_pp) && pp.current_pp >= 0 && pp.current_pp <= slot.maxpp, 'observed_pp_slot_conflict');
+          slot.pp = pp.current_pp;
+        }
+        for (const [stat, value] of Object.entries(observed.stats || {})) {
+          requireInput(pokemon.storedStats[stat] === value, 'observed_final_stat_conflict');
+        }
+        for (const [volatile, present] of Object.entries(observed.volatiles || {})) {
+          requireInput(!!pokemon.volatiles[volatile] === present, 'observed_volatile_conflict');
+        }
+        if (observed.crit_volatiles) requireInput(observed.crit_volatiles.map(toID).sort().join(',') === Object.keys(pokemon.volatiles).filter(id => ['focusenergy', 'lansat', 'dragoncheer'].includes(id)).sort().join(','), 'observed_crit_volatile_conflict');
+        if (observed.substitute) {
+          requireInput(!!pokemon.volatiles.substitute === observed.substitute.active, 'observed_substitute_conflict');
+          if (observed.substitute.active) requireInput(pokemon.volatiles.substitute.hp === observed.substitute.hp, 'observed_substitute_hp_conflict');
+        }
+        if (observed.status_progression) {
+          const progression = observed.status_progression;
+          requireInput(pokemon.statusState.startTime - pokemon.statusState.time === progression.prior_attempts,
+            'observed_status_counter_conflict');
+          if (progression.sleep_duration !== null) requireInput(pokemon.statusState.startTime === progression.sleep_duration, 'observed_sleep_duration_conflict');
+        }
+        if (Object.hasOwn(observed, 'toxic_next_stage')) requireInput(pokemon.status === 'tox' && pokemon.statusState.stage + 1 === observed.toxic_next_stage, 'observed_toxic_counter_conflict');
+        // Overrides are applied only to a detached hypothetical simulator root.
+        if (Object.hasOwn(observed, 'hp')) pokemon.hp = observed.hp;
+        if (Object.hasOwn(observed, 'fainted')) {
+          requireInput(observed.fainted === (pokemon.hp === 0), 'observed_fainted_conflict');
+          requireInput(!pokemon.isActive || !observed.fainted || battle.requestState === 'switch', 'fainted_active_requires_native_switch_checkpoint');
+        }
+        for (const [stat, stage] of Object.entries(observed.boosts)) {
+          requireInput(Object.hasOwn(pokemon.boosts, stat) && Number.isInteger(stage) && Math.abs(stage) <= 6, 'invalid_observed_stage');
+          pokemon.boosts[stat] = stage;
+        }
       }
       battle[id].pokemonLeft = battle[id].pokemon.filter(p => !p.fainted).length;
       const conditions = input.observed_sides?.[side] || {};
@@ -138,13 +157,14 @@ function run(input, engine) {
     for (const [key, value] of Object.entries(input.observed_field.pseudo_weather || {})) {
       requireInput(!!battle.field.pseudoWeather[key] === value, 'observed_pseudo_weather_conflict');
     }
-    battle.makeRequest('move');
+    // A pivot can pause with another action still queued. Preserve that phase.
+    battle.makeRequest(battle.requestState);
     for (const [side, id] of [['self', 'p1'], ['opponent', 'p2']]) {
       const pokemon = battle[id].active[0];
       const permitted = input.observed_sides?.[side]?.switch_permitted;
       if (typeof permitted === 'boolean') requireInput(permitted === (!pokemon.trapped && battle[id].pokemon.some(p => !p.isActive && !p.fainted)), 'observed_switch_permission_conflict');
       for (const [move, usable] of Object.entries(input.observed_active[side].move_usability || {})) {
-        const row = battle[id].activeRequest.active[0].moves.find(m => toID(m.id) === toID(move));
+        const row = battle[id].activeRequest.active?.[0]?.moves.find(m => toID(m.id) === toID(move));
         requireInput(row && (row.pp > 0 && !row.disabled) === usable, 'observed_move_usability_conflict');
       }
     }
@@ -153,24 +173,44 @@ function run(input, engine) {
   function condition(battle, rows = []) {
     requireInput(Array.isArray(rows) && rows.length <= 32, 'invalid_conditioning');
     for (const row of rows) {
+      requireInput(!Object.hasOwn(row, 'source') || ['self', 'opponent'].includes(row.source), 'invalid_conditioning_source');
+      const source = row.source ? (row.source === 'self' ? battle.p1 : battle.p2).active[0] : 'debug';
+      if (row.effect === 'faint') {
+        requireInput(['self', 'opponent'].includes(row.target) && Number.isInteger(row.slot_index), 'invalid_faint_conditioning');
+        const side = row.target === 'self' ? battle.p1 : battle.p2;
+        const pokemon = side.pokemon.find(p => p.name === `slot-${row.slot_index}`);
+        requireInput(pokemon && !pokemon.isActive && !pokemon.fainted, 'invalid_faint_conditioning');
+        pokemon.faint();
+        battle.faintMessages(false, false, false);
+        continue;
+      }
       const id = toID(row.id);
       let state;
       if (row.target === 'field') {
-        if (row.effect === 'weather') { battle.field.setWeather(id, 'debug'); state = battle.field.weatherState; }
-        else if (row.effect === 'terrain') { battle.field.setTerrain(id, 'debug'); state = battle.field.terrainState; }
-        else if (row.effect === 'pseudo') { battle.field.addPseudoWeather(id, 'debug'); state = battle.field.pseudoWeather[id]; }
+        if (row.effect === 'weather') { battle.field.setWeather(id, source); state = battle.field.weatherState; }
+        else if (row.effect === 'terrain') { battle.field.setTerrain(id, source); state = battle.field.terrainState; }
+        else if (row.effect === 'pseudo') { battle.field.addPseudoWeather(id, source); state = battle.field.pseudoWeather[id]; }
       } else if (['self', 'opponent'].includes(row.target) && row.effect === 'side') {
         const side = row.target === 'self' ? battle.p1 : battle.p2;
-        side.addSideCondition(id, 'debug'); state = side.sideConditions[id];
+        side.addSideCondition(id, source); state = side.sideConditions[id];
       } else if (['self', 'opponent'].includes(row.target) && row.effect === 'status') {
         const pokemon = (row.target === 'self' ? battle.p1 : battle.p2).active[0];
         if (pokemon.status !== id) requireInput(pokemon.setStatus(id, pokemon, null, true), 'native_status_initialization_failed');
         state = pokemon.statusState;
+      } else if (['self', 'opponent'].includes(row.target) && row.effect === 'volatile') {
+        const pokemon = (row.target === 'self' ? battle.p1 : battle.p2).active[0];
+        pokemon.addVolatile(id); state = pokemon.volatiles[id];
       }
       requireInput(state && state.id === id && battle.dex.conditions.get(id).exists, 'invalid_native_condition');
       if (Object.hasOwn(row, 'remaining')) {
-        requireInput(Number.isInteger(row.remaining) && row.remaining >= 1 && row.remaining <= 8 && typeof state.duration === 'number', 'invalid_remaining_duration');
-        state.duration = row.remaining;
+        requireInput(Number.isInteger(row.remaining) && row.remaining >= 1 && row.remaining <= 8, 'invalid_remaining_duration');
+        if (row.effect === 'status' && typeof state.time === 'number') {
+          requireInput(row.remaining <= state.startTime, 'invalid_remaining_duration');
+          state.time = row.remaining;
+        } else {
+          requireInput(typeof state.duration === 'number' && row.remaining <= state.duration, 'invalid_remaining_duration');
+          state.duration = row.remaining;
+        }
       }
     }
   }
@@ -199,8 +239,14 @@ function run(input, engine) {
         requireInput(!battle.ended, 'history_after_battle_end');
         choose(battle, choices);
       }
-      requireInput(battle.requestState === 'move' && !battle.ended, 'move_boundary_required');
+      requireInput(['move', 'switch'].includes(battle.requestState) && !battle.ended, 'native_decision_boundary_required');
       condition(battle, scenario.conditioning);
+      for (const [side, value] of Object.entries(scenario.hypothetical_active_hp || {})) {
+        requireInput(['self', 'opponent'].includes(side), 'invalid_hypothetical_hp_side');
+        const pokemon = (side === 'self' ? battle.p1 : battle.p2).active[0];
+        requireInput(Number.isInteger(value) && value >= 1 && value <= pokemon.maxhp, 'invalid_hypothetical_hp');
+        pokemon.hp = value;
+      }
       overlay(battle, scenario);
       return battle;
     } catch (error) { battle.destroy(); throw error; }
@@ -224,7 +270,7 @@ function run(input, engine) {
             requireInput(!root.ended, 'history_after_battle_end');
             choose(root, choices);
           }
-          requireInput(root.requestState === 'move' && !root.ended, 'move_boundary_required');
+          requireInput(['move', 'switch'].includes(root.requestState) && !root.ended, 'native_decision_boundary_required');
           // Only a fresh construction may run initialization effects.
           requireInput(!scenario.conditioning?.length, 'reconciliation_requires_native_history_for_new_effects');
           overlay(root, scenario);

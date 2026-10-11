@@ -106,6 +106,7 @@ def render_strategy_explanation(*, presentation: Mapping[str, Any]) -> str:
             for row in scenario["candidates"]:
                 if row["status"] != "evaluated": continue
                 lines.append(f"    {_label(row['candidate_id'], row['candidate_id'].split(':', 1)[0])}: {row['sample_count']}회 표본 · 상대 새 기절 {row['opponent_new_faint_samples']}회 · 내 새 기절 {row['self_new_faint_samples']}회 (정확 확률 아님)")
+                lines.append(f"      평균 남은 팀 HP: 내 {row['mean_self_team_hp']:.1f} / 상대 {row['mean_opponent_team_hp']:.1f}")
     return "\n".join(lines)
 
 

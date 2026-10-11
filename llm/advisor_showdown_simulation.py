@@ -31,7 +31,7 @@ LIMITATIONS = [
 
 
 def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict], bridge: ShowdownBridge, _operation: str = "simulate") -> dict:
-    """Simulate one explicit choice pair per scenario from a partial observed root."""
+    """Simulate one explicit choice pair at a native move or switch boundary."""
     try:
         state = _state(runtime_snapshot)
         unmapped = _unmapped_observations(state)
@@ -40,10 +40,19 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
         observed, roster, sides = {}, {}, {}
         for side in ("self", "opponent"):
             container = state[f"{side}_side"]
-            active = container["pokemon"][container["active_slot_index"]]
+            active = container["pokemon"].get(container["active_slot_index"], container["pokemon"].get(str(container["active_slot_index"])))
             hp, maximum = active["current_hp"], active["max_hp"]
-            if not (_int(hp, 1, 9999) and _int(maximum, hp, 9999) and active.get("fainted") is False):
-                raise ValueError("observed_active_hp_required")
+            alive = _int(hp, 1, 9999) and _int(maximum, hp, 9999) and active.get("fainted") is False
+            fainted = hp == 0 and type(hp) is int and _int(maximum, 1, 9999) and active.get("fainted") is True
+            if not (alive or fainted):
+                # Unknown HP stays unknown in the runtime. Every eligible set
+                # must explicitly supply the hypothetical active HP instead.
+                if (not isinstance(scenarios, list) or not scenarios or
+                    not all(isinstance(s, dict) and isinstance(s.get("hypothetical_active_hp"), dict) and
+                        _int(s["hypothetical_active_hp"].get(side), 1, 9999) for s in scenarios) or
+                    any(value is not None and not is_unknown_battle_fact(value) and not _int(value, 1, 9999) for value in (hp, maximum)) or
+                    active.get("fainted") is True):
+                    raise ValueError("observed_active_hp_required")
             row = _pokemon_observation(active, container["active_slot_index"])
             roster[side] = [_pokemon_observation(pokemon, slot) for slot, pokemon in container["pokemon"].items()]
             sides[side] = {}
@@ -55,6 +64,12 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
             if permission.get("status") in ("permitted", "blocked"):
                 sides[side]["switch_permitted"] = permission["status"] == "permitted"
             observed[side] = row
+        for fact in (state.get("substitute_state_context") or {}).get("states", []):
+            owner = fact["owner"]
+            rows = [p for p in roster[owner["side"]] if p["slot_index"] == owner["slot_index"] and p["pokemon_id"] == owner["pokemon_id"]]
+            if len(rows) != 1: raise ValueError("observed_substitute_owner_mismatch")
+            if fact["state"] != "unknown":
+                rows[0]["substitute"] = {"active": fact["state"] == "known_active", "hp": fact["substitute_hp"]}
         field = {}
         for key, values in (
             ("weather", {None: "", "none": "", "sun": "sunnyday", "rain": "raindance", "sandstorm": "sandstorm", "snow": "snowscape"}),
@@ -85,6 +100,8 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
 
 
 def _pokemon_observation(active: dict, slot: int) -> dict:
+    if isinstance(slot, str) and slot.isdecimal(): slot = int(slot)
+    if type(slot) is not int or slot < 0: raise ValueError("invalid_observed_slot")
     row = {"pokemon_id": active["pokemon_id"], "slot_index": slot, "boosts": {}}
     for key, dest in (("current_hp", "hp"), ("max_hp", "max_hp"), ("fainted", "fainted")):
         value = active.get(key)
@@ -107,6 +124,19 @@ def _pokemon_observation(active: dict, slot: int) -> dict:
         row["boosts"][_STATS[stat]] = stage
     row["stats"] = {_STATS[stat]: value["value"] for stat, value in (active.get("current_final_stats") or {}).items()}
     row["move_usability"] = {move: value["status"] == "known_usable" for move, value in (active.get("current_move_usability") or {}).items()}
+    response_set = active.get("current_opponent_response_set")
+    if response_set:
+        row["complete_moves"] = deepcopy(response_set["move_ids"])
+        if "move_pp_slots" in response_set: row["pp_slots"] = deepcopy(response_set["move_pp_slots"])
+    volatile = {}
+    if isinstance(active.get("current_crit_volatiles"), list):
+        row["crit_volatiles"] = sorted({"focus-energy" if v == "lansat" else v for v in active["current_crit_volatiles"]})
+    healing = active.get("healing_prevented_status")
+    if healing in ("active", "inactive"): volatile["healblock"] = healing == "active"
+    confusion = active.get("current_confusion")
+    if confusion in ("confused", "none"): volatile["confusion"] = confusion == "confused"
+    elif confusion is not None and not is_unknown_battle_fact(confusion): raise ValueError("invalid_observed_confusion")
+    row["volatiles"] = volatile
     progression = active.get("champions_status_progression")
     if progression:
         if "duration_adjustment" in progression: raise ValueError("adjusted_status_counter_requires_native_history_adapter")
@@ -168,6 +198,10 @@ def reconcile_detached_showdown(*, runtime_snapshot: dict, checkpoint: dict, sce
         if (digest != _checkpoint_fingerprint(saved) or saved.get("session_id") != runtime_snapshot["session_id"] or
                 saved.get("scenario_id") != scenario.get("scenario_id")):
             raise ValueError("checkpoint_binding_mismatch")
+        model = {"teams": scenario["teams"], "preview": scenario["preview"], "slot_mapping": scenario.get("slot_mapping", {
+            "self": list(range(6)), "opponent": list(range(6))})}
+        if saved.get("model_definition") != model or saved.get("assumptions") != scenario.get("assumptions"):
+            raise ValueError("checkpoint_model_binding_mismatch")
         modeled = {**deepcopy(scenario), "checkpoint": saved, "history": deepcopy(observed_history)}
         result = simulate_detached_showdown(runtime_snapshot=runtime_snapshot, scenarios=[modeled], bridge=bridge, _operation="reconcile")
         result["reconciled_from_runtime_fingerprint"] = saved["source_runtime_fingerprint"]
@@ -226,10 +260,12 @@ def _unmapped_observations(state: dict) -> list[str]:
     paths = []
     root_keys = {"state_version", "session_id", "self_side", "opponent_side", "field",
                  "last_applied_observation_sequence", "last_applied_batch_fingerprint",
-                 "source_replay_policy_version", "last_commit_provenance"}
+                 "source_replay_policy_version", "last_commit_provenance", "substitute_state_context"}
     active_keys = {"pokemon_id", "current_hp", "max_hp", "fainted", "current_type", "current_ability",
                    "current_level", "current_final_stats", "condition", "known_item", "known_move_ids", "stat_stages",
-                   "current_move_usability", "champions_status_progression", "toxic_progression"}
+                   "current_move_usability", "champions_status_progression", "toxic_progression", "current_crit_volatiles",
+                   "healing_prevented_status", "current_confusion"}
+    active_keys.add("current_opponent_response_set")
     def scan(container, supported, prefix):
         for key, value in container.items():
             if key not in supported and not key.endswith("_provenance") and value is not None and not is_unknown_battle_fact(value):
@@ -239,10 +275,10 @@ def _unmapped_observations(state: dict) -> list[str]:
     for side in ("self", "opponent"):
         container = state[f"{side}_side"]
         scan(container, {"active_slot_index", "pokemon", "side_conditions", "tailwind_status", "switch_permission_context"}, f"{side}_side.")
-        active = container["pokemon"][container["active_slot_index"]]
+        active = container["pokemon"].get(container["active_slot_index"], container["pokemon"].get(str(container["active_slot_index"])))
         scan(active, active_keys, f"{side}_side.active.")
         for slot, pokemon in container["pokemon"].items():
-            if slot == container["active_slot_index"]:
+            if str(slot) == str(container["active_slot_index"]):
                 continue
             scan(pokemon, active_keys, f"{side}_side.pokemon.{slot}.")
     return sorted(paths)

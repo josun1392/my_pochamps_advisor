@@ -52,6 +52,8 @@ def evaluate_current_showdown_shadow(*, runtime_snapshot, selection, context, br
                 for candidate in row["evaluation"]["candidates"]]
             rows.append({"scenario_id": row["scenario_id"], "status": "evaluated", "assumptions": row["assumptions"],
                 "opponent_choice": next(s for s in scenarios if s["scenario_id"] == row["scenario_id"])["choices"]["opponent"], "candidates": candidates})
+        if not any(c["status"] == "evaluated" for row in rows for c in row.get("candidates", [])):
+            return {**binding, "status": "rejected", "reason": "no_supported_showdown_candidates"}
         return {**binding, "status": "evaluated", "scenarios": rows}
     except (ValueError, KeyError, TypeError, AttributeError) as exc:
         return {**binding, "status": "rejected", "reason": str(exc) if isinstance(exc, ValueError) else "invalid_showdown_shadow_context"}
@@ -87,5 +89,6 @@ def valid_shadow_evidence(value, explanation):
                 if row["status"] != "evaluated" or type(n) is not int or not 1 <= n <= 64 or row.get("horizon_decisions") != 1: return False
                 if any(type(row[k]) is not int or not 0 <= row[k] <= n for k in COUNTS): return False
                 if any(type(row[k]) not in (int, float) or not isfinite(row[k]) or row[k] < 0 for k in ("mean_self_team_hp", "mean_opponent_team_hp")): return False
+            if seen != ids: return False
         return True
     except (KeyError, TypeError, AttributeError): return False

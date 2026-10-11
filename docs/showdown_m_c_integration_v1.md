@@ -1,5 +1,8 @@
 # SHOWDOWN_M_C_AUTONOMOUS_INTEGRATION_V1
 
+Historical first-slice report. The current contract, expanded coverage and
+remaining transition gates are in [showdown_backend_migration.md](showdown_backend_migration.md).
+
 ## Bounded contract
 
 The first integration is an explicit offline call from an immutable
