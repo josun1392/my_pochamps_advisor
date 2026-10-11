@@ -1,0 +1,83 @@
+{
+  "schema_version": "showdown-learning-readiness-v1",
+  "model_id": "00a9d85a9288f7f818f1c25f2cfb6c16e9c369387cc5a7ed0fd66568b9f099c0",
+  "native_episodes": 12,
+  "native_decisions": 164,
+  "public_native_events_and_actions": {
+    "attack": 123,
+    "faint": 51,
+    "own_wait": 22,
+    "-weather": 30,
+    "-mega": 10,
+    "win": 8,
+    "forced_replacement": 19,
+    "-enditem": 8,
+    "loss": 4,
+    "-ability": 10,
+    "-status": 3
+  },
+  "node_peak_rss_mib": 140.203125,
+  "python_peak_rss_mib": 552.30078125,
+  "model_load_ms": 1392.1322000023792,
+  "inference_calls": 1000,
+  "inference_cpu_s": 0.515625,
+  "inference_p50_ms": 0.4590999997162726,
+  "inference_p95_ms": 0.7528999994974583,
+  "ui_dispatch_ms": 104.86759999912465,
+  "ui_end_to_end_ms": 1013.6711999948602,
+  "legacy_preferred_frontier": [],
+  "hypothetical_learned_choices": [
+    {
+      "hypothesis": "none",
+      "learned_action": "Air Slash",
+      "policy_choice_probability": 0.6939327120780945,
+      "discounted_return": 0.30100056529045105
+    },
+    {
+      "hypothesis": "none",
+      "learned_action": "Air Slash",
+      "policy_choice_probability": 0.6939327120780945,
+      "discounted_return": 0.30100056529045105
+    },
+    {
+      "hypothesis": "sash",
+      "learned_action": "Air Slash",
+      "policy_choice_probability": 0.6939327120780945,
+      "discounted_return": 0.30100056529045105
+    },
+    {
+      "hypothesis": "sash",
+      "learned_action": "Air Slash",
+      "policy_choice_probability": 0.6939327120780945,
+      "discounted_return": 0.30100056529045105
+    },
+    {
+      "hypothesis": "sitrus",
+      "learned_action": "Air Slash",
+      "policy_choice_probability": 0.6939327120780945,
+      "discounted_return": 0.30100056529045105
+    },
+    {
+      "hypothesis": "sitrus",
+      "learned_action": "Air Slash",
+      "policy_choice_probability": 0.6939327120780945,
+      "discounted_return": 0.30100056529045105
+    },
+    {
+      "hypothesis": "scarf",
+      "learned_action": "Air Slash",
+      "policy_choice_probability": 0.6939327120780945,
+      "discounted_return": 0.30100056529045105
+    },
+    {
+      "hypothesis": "scarf",
+      "learned_action": "Air Slash",
+      "policy_choice_probability": 0.6939327120780945,
+      "discounted_return": 0.30100056529045105
+    }
+  ],
+  "runtime_immutable": true,
+  "rollback_default_equal": true,
+  "default_policy_changed": false,
+  "interpretation": "learned_policy_distribution_and_uncalibrated_return_not_exact_win_probability"
+}

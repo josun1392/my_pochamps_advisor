@@ -72,6 +72,10 @@ def present_strategy_explanation(*, explanation: Mapping[str, Any]) -> dict[str,
         if not valid_shadow_evidence(explanation["sampled_simulation"], explanation):
             return _rejected("invalid_showdown_sampled_evidence")
         result["sampled_simulation"] = deepcopy(explanation["sampled_simulation"])
+        from llm.advisor_learned_strategy import valid_learned_evidence
+        for scenario in result["sampled_simulation"].get("scenarios", []):
+            if "learned_policy" in scenario and not valid_learned_evidence(scenario["learned_policy"], result["sampled_simulation"], scenario):
+                return _rejected("invalid_showdown_learned_evidence")
     if "experimental_ranking" in explanation:
         from llm.advisor_showdown_strategy_evaluation import experimental_ranking
         expected = experimental_ranking(evidence=explanation.get("sampled_simulation"), explanation=explanation, enabled=True)
@@ -133,6 +137,14 @@ def render_strategy_explanation(*, presentation: Mapping[str, Any]) -> str:
                     lo, hi = row["win_rate"]["completion_bounds"]
                     lines.append(f"      네이티브 후속 정책 · 최대 {row['horizon_decisions']}개 결정: 승 {row['self_win_samples']} / 패 {row['opponent_win_samples']} / 무승부 {row['draw_samples']} / 미완료 {row['truncated_samples']}")
                     lines.append(f"      한도 내 표본 승리비율 {lo:.1%} · 미완료를 포함한 종료 가능 범위 {lo:.1%}–{hi:.1%} (신뢰구간 아님)")
+            learned = scenario.get("learned_policy")
+            if learned:
+                if learned["status"] == "evaluated":
+                    proof = learned["inference"]
+                    probability = proof["action_probabilities"][proof["action_index"]]
+                    lines.append(f"    실험 학습 정책 (기본 추천에 미적용): {learned['action_label']} · 정책 선택 확률 {probability:.1%} (승률 아님)")
+                    lines.append(f"      할인 수익 추정 {proof['discounted_return_estimate']:.3f} · 가상 상태의 학습 출력이며 정확 보장 아님")
+                else: lines.append("    실험 학습 모델을 사용할 수 없습니다. 기존 추천과 네이티브 표본은 유지됩니다.")
         if sampled.get("schema_version") == "showdown-strategy-shadow-v2":
             lines.append("  상대 세트·첫 행동·후속 무작위 정책에 조건부인 추정입니다. 최적 플레이 승률이나 정확 보장이 아닙니다.")
     experiment = presentation.get("experimental_ranking")

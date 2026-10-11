@@ -78,6 +78,9 @@ def evaluate_current_native_strategy(*, runtime_snapshot, selection, context, br
             raise ValueError("showdown_rollout_budget_exceeded")
         binding.update(context_fingerprint=fingerprint(context), candidate_choices=dict(choices), seeds=seeds,
             rollout_policy=policy, requested_scenario_ids=list(identities), aggregation="per_hypothesis_and_opponent_action_no_implicit_prior")
+        from llm.advisor_learned_strategy import learned_configuration
+        learned = learned_configuration(context)
+        if learned: binding["learned_model_id"] = learned.get("expected_model_id")
         result = simulate_detached_showdown(runtime_snapshot=runtime_snapshot, scenarios=modeled, bridge=bridge)
         if result["status"] != "simulated": return {**binding, "status": result["status"], "reason": result.get("reason", "showdown_scenarios_rejected"), "fields": result.get("fields", [])}
         rows = []
@@ -89,9 +92,14 @@ def evaluate_current_native_strategy(*, runtime_snapshot, selection, context, br
                 candidate = {k: deepcopy(v) for k, v in candidate.items() if k not in {"samples", "choices", "rollout_policy"}}
                 if candidate["status"] == "evaluated": candidate["win_rate"] = win_estimate(candidate)
                 candidates.append(candidate)
-            rows.append({**row, "status": "evaluated", "assumptions": native["assumptions"],
+            evaluated = {**row, "status": "evaluated", "assumptions": native["assumptions"],
                 "root_checkpoint_fingerprint": native["root_checkpoint"]["checkpoint_fingerprint"],
-                "native_decision_phase": native["before"]["decision_phase"], "candidates": candidates})
+                "native_decision_phase": native["before"]["decision_phase"], "candidates": candidates}
+            from llm.advisor_learned_strategy import learned_configuration, infer_native_root
+            if learned:
+                evaluated["learned_policy"] = infer_native_root(checkpoint=native["root_checkpoint"], binding=binding,
+                    scenario=evaluated, config=learned, bridge=bridge)
+            rows.append(evaluated)
         if not any(c["status"] == "evaluated" for row in rows for c in row.get("candidates", [])):
             return {**binding, "status": "rejected", "reason": "no_supported_showdown_candidates"}
         return {**binding, "status": "evaluated", "scenarios": rows}
