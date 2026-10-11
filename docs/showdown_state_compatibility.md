@@ -86,6 +86,25 @@ action gates, secondary effects and HP application/survival; it is never an exac
 action/KO probability or ranking fact. The former offline damage oracle now calls
 this shared evaluator. Legacy damage formulas remain as regression references.
 
+`progress_native_showdown` uses `showdown-native-action-step-v1` to submit an
+explicit choice pair or continue a saved in-flight native queue. It pauses only
+after upstream `runAction` has completed, including its gates, Update, faint,
+pivot and dynamic queue ordering. Serialization removes the temporary wrapper;
+restoration continues via native `turnLoop`. It changes no native mechanics.
+The output is one seeded hypothesis, never an exact selected-action ledger.
+Move attempts blocked by status still count as native attempts; skipped actions
+of fainted/inactive actors do not. Natural requests always take precedence.
+New choices and conditional status/damage queries reject an in-flight queue;
+continuation rejects a state awaiting human choices. Ordinary switches and
+pivots retain native entry callbacks and pending opponent actions.
+
+Executable POC: 1,152 restore/progression comparisons across four item scenarios,
+six moves, three statuses, two opponent actions and eight seeds. Native semantic
+state, PRNG and substantive logs matched uninterrupted execution. Resume adds
+native log separators/timestamps, so log indices are compared after rebasing
+these metadata lines. The production API additionally validates legal M-C teams,
+session/source/checkpoint identity, stale captures and phase misuse.
+
 Primary sources:
 
 - [Pinned Champions conditions](https://github.com/smogon/pokemon-showdown/blob/942cda71d14bf0618bd57991708a2e2734b6daba/data/mods/champions/conditions.ts)

@@ -211,6 +211,33 @@ def resume_detached_showdown(*, runtime_snapshot: dict, checkpoint: dict, choice
         return {"status": "rejected", "reason": "invalid_or_stale_checkpoint"}
 
 
+def progress_native_showdown(*, runtime_snapshot: dict, checkpoint: dict, bridge: ShowdownBridge,
+                             choices: dict | None = None, stop_after_move: bool = True) -> dict:
+    """Submit explicit choices or continue a saved native in-flight action queue.
+
+    Stops after one complete native move attempt, or at the next native request.
+    ``stop_after_move=False`` drains to the next request without auto-choosing.
+    This is a seeded hypothetical branch, never a legacy exact execution fact.
+    """
+    try:
+        _state(runtime_snapshot)
+        saved = deepcopy(checkpoint)
+        digest = saved.pop("checkpoint_fingerprint", None)
+        if (digest != _checkpoint_fingerprint(saved) or type(stop_after_move) is not bool or
+                choices is not None and not isinstance(choices, dict) or
+                any(saved.get(key) != _binding(runtime_snapshot)[key] for key in
+                    ("session_id", "source_runtime_fingerprint", "observation_schema_version"))):
+            raise ValueError("invalid_native_progression_binding")
+        query = {"stop_after_move": stop_after_move}
+        if choices is not None:
+            query["choices"] = deepcopy(choices)
+        return _run(bridge, {**_binding(runtime_snapshot), "operation": "progress", "scenarios": [{
+            "scenario_id": saved["scenario_id"], "assumptions": saved["assumptions"], "checkpoint": saved,
+            "progress_query": query}]})
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return {"status": "rejected", "reason": "invalid_or_stale_native_progression"}
+
+
 def evaluate_native_status_gate(*, runtime_snapshot: dict, checkpoint: dict, side: str, move: str, bridge: ShowdownBridge) -> dict:
     """Exact native callback enumeration, conditional on one hypothetical root.
 

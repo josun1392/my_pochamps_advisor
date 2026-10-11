@@ -6,6 +6,7 @@ const path = require('node:path');
 const {performance} = require('node:perf_hooks');
 const {evaluateStatusGate} = require('./status-gate.cjs');
 const {evaluateDamageRolls, NativeDamageError} = require('./damage-rolls.cjs');
+const {progressNativeBattle, NativeActionPause} = require('./native-progress.cjs');
 const COMMIT = '942cda71d14bf0618bd57991708a2e2734b6daba';
 const FORMAT = 'gen9championsbssregmc';
 const SCHEMA = 'detached-showdown-v1';
@@ -25,6 +26,7 @@ function run(input, engine) {
   requireInput(format.exists && format.mod === 'champions' && format.gameType === 'singles', 'format_unavailable');
 
   function choose(battle, choices) {
+    requireInput(['teampreview', 'move', 'switch'].includes(battle.requestState), 'native_choice_boundary_required');
     requireInput(choices && Object.keys(choices).sort().join(',') === 'opponent,self', 'invalid_choices');
     // Never default/autoselect a human player's hypothetical action.
     const requests = {p1: battle.p1.activeRequest, p2: battle.p2.activeRequest};
@@ -43,7 +45,10 @@ function run(input, engine) {
       } else {
         requireInput(choice.trim().length > 0, 'missing_choice');
         try { requireInput(battle.choose(id, choice), 'illegal_choice'); }
-        catch (error) { throw new InputError(error instanceof InputError ? error.message : 'illegal_choice'); }
+        catch (error) {
+          if (error instanceof NativeActionPause) throw error;
+          throw new InputError(error instanceof InputError ? error.message : 'illegal_choice');
+        }
       }
     }
   }
@@ -344,7 +349,7 @@ function run(input, engine) {
     let root, branch;
     const started = performance.now();
     try {
-      if (['resume', 'reconcile', 'status_gate', 'damage_rolls'].includes(input.operation)) {
+      if (['resume', 'reconcile', 'status_gate', 'damage_rolls', 'progress'].includes(input.operation)) {
         const saved = scenario.checkpoint;
         requireInput(saved.schema_version === 'showdown-checkpoint-v1' && saved.engine_commit === COMMIT &&
           saved.observation_schema_version === OBSERVATION_SCHEMA &&
@@ -366,6 +371,9 @@ function run(input, engine) {
         }
       } else { root = create(scenario); }
       requireInput(!root.ended, 'battle_already_ended');
+      if (['status_gate', 'damage_rolls'].includes(input.operation)) {
+        requireInput(root.requestState === 'move', 'native_move_boundary_required');
+      }
       const rootCheckpoint = checkpoint(root, scenario);
       const before = summarize(root);
       if (input.operation === 'status_gate') return {status: 'simulated', scenario_id: scenario.scenario_id,
@@ -388,6 +396,21 @@ function run(input, engine) {
       branch = Battle.fromJSON(clone(rootCheckpoint.native_state));
       branch.restart(() => {});
       const logStart = branch.log.length;
+      if (input.operation === 'progress') {
+        const query = scenario.progress_query;
+        requireInput(query && typeof query.stop_after_move === 'boolean', 'invalid_native_progression');
+        const submit = Object.hasOwn(query, 'choices');
+        requireInput(submit ? ['move', 'switch'].includes(branch.requestState) :
+          !branch.requestState && branch.midTurn && branch.queue.list.length > 0 &&
+          !branch.p1.activeRequest && !branch.p2.activeRequest, 'native_progression_phase_mismatch');
+        const progression = progressNativeBattle(branch,
+          () => submit ? choose(branch, query.choices) : branch.turnLoop(), query.stop_after_move);
+        return {status: 'simulated', scenario_id: scenario.scenario_id,
+          interpretation: 'conditional_seeded_sample_not_exact_probability', assumptions: clone(scenario.assumptions),
+          before, after: summarize(branch), native_progression: progression,
+          events: branch.log.slice(logStart).filter(line => !line.startsWith('|t:|')),
+          root_checkpoint: rootCheckpoint, checkpoint: checkpoint(branch, scenario), elapsed_ms: performance.now() - started};
+      }
       choose(branch, scenario.choices);
       return {status: 'simulated', scenario_id: scenario.scenario_id,
         interpretation: 'conditional_seeded_sample_not_exact_probability',
@@ -450,7 +473,7 @@ function run(input, engine) {
     return {schema_version: 'showdown-sampled-evaluation-v1', interpretation: 'conditional_monte_carlo_estimate_not_exact_probability',
       aggregation: 'per_scenario_no_implicit_opponent_prior', seeds: clone(seeds), candidates: rows};
   }
-  requireInput(['simulate', 'resume', 'reconcile', 'status_gate', 'damage_rolls'].includes(input.operation), 'invalid_operation');
+  requireInput(['simulate', 'resume', 'reconcile', 'status_gate', 'damage_rolls', 'progress'].includes(input.operation), 'invalid_operation');
   requireInput(Array.isArray(input.scenarios) && input.scenarios.length > 0 && input.scenarios.length <= 16, 'invalid_scenarios');
   requireInput(new Set(input.scenarios.map(s => s.scenario_id)).size === input.scenarios.length &&
     input.scenarios.every(s => typeof s.scenario_id === 'string' && s.scenario_id.length > 0 && Array.isArray(s.assumptions)), 'invalid_scenario_identity');
