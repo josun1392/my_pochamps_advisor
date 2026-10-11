@@ -30,7 +30,7 @@ LIMITATIONS = [
 ]
 
 
-def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict], bridge: ShowdownBridge) -> dict:
+def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict], bridge: ShowdownBridge, _operation: str = "simulate") -> dict:
     """Simulate one explicit choice pair per scenario from a partial observed root."""
     try:
         state = _state(runtime_snapshot)
@@ -51,6 +51,9 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
             if isinstance(conditions, list): sides[side]["side_conditions"] = deepcopy(conditions)
             tailwind = container.get("tailwind_status")
             if tailwind in ("active", "inactive"): sides[side]["tailwind"] = tailwind == "active"
+            permission = container.get("switch_permission_context") or {}
+            if permission.get("status") in ("permitted", "blocked"):
+                sides[side]["switch_permitted"] = permission["status"] == "permitted"
             observed[side] = row
         field = {}
         for key, values in (
@@ -69,7 +72,7 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
         ids = [s.get("scenario_id") for s in scenarios]
         if not all(isinstance(value, str) and value for value in ids) or len(set(ids)) != len(ids):
             raise ValueError("invalid_scenario_identity")
-        request = {**_binding(runtime_snapshot), "operation": "simulate", "observed_active": observed,
+        request = {**_binding(runtime_snapshot), "operation": _operation, "observed_active": observed,
                    "observed_roster": roster, "observed_sides": sides,
                    "observed_field": field, "scenarios": deepcopy(scenarios)}
         for scenario in request["scenarios"]:
@@ -135,6 +138,44 @@ def resume_detached_showdown(*, runtime_snapshot: dict, checkpoint: dict, choice
         return {"status": "rejected", "reason": "invalid_or_stale_checkpoint"}
 
 
+def evaluate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict], candidates: list[dict], seeds: list[list[int]], bridge: ShowdownBridge) -> dict:
+    """Compare explicit action plans on common future seeds, separately per set.
+
+    No opponent weighting, rollout policy, exact ledger, or ranking is inferred.
+    A choice entry is one native decision boundary, which may be a forced switch
+    rather than a whole turn. An illegal plan is rejected for all its samples.
+    """
+    if not isinstance(scenarios, list) or not all(isinstance(s, dict) for s in scenarios):
+        return {"status": "rejected", "reason": "invalid_scenarios"}
+    modeled = deepcopy(scenarios)
+    for scenario in modeled:
+        scenario["evaluation"] = {"candidates": deepcopy(candidates), "seeds": deepcopy(seeds)}
+    return simulate_detached_showdown(runtime_snapshot=runtime_snapshot, scenarios=modeled, bridge=bridge)
+
+
+def reconcile_detached_showdown(*, runtime_snapshot: dict, checkpoint: dict, scenario: dict, observed_history: list[dict], bridge: ShowdownBridge) -> dict:
+    """Condition an old hypothetical native root on a newer actual observation.
+
+    ``observed_history`` is an explicit modeled sequence since the checkpoint,
+    including any replacement choices. It is never applied to the runtime.
+    The old fingerprint is retained as lineage, while the new root binds to the
+    current capture. Known unsupported mechanics still reject the request.
+    """
+    try:
+        _state(runtime_snapshot)
+        saved = deepcopy(checkpoint)
+        digest = saved.pop("checkpoint_fingerprint", None)
+        if (digest != _checkpoint_fingerprint(saved) or saved.get("session_id") != runtime_snapshot["session_id"] or
+                saved.get("scenario_id") != scenario.get("scenario_id")):
+            raise ValueError("checkpoint_binding_mismatch")
+        modeled = {**deepcopy(scenario), "checkpoint": saved, "history": deepcopy(observed_history)}
+        result = simulate_detached_showdown(runtime_snapshot=runtime_snapshot, scenarios=[modeled], bridge=bridge, _operation="reconcile")
+        result["reconciled_from_runtime_fingerprint"] = saved["source_runtime_fingerprint"]
+        return result
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return {"status": "rejected", "reason": "invalid_or_foreign_reconciliation_checkpoint"}
+
+
 def _run(bridge: ShowdownBridge, request: dict) -> dict:
     try:
         response = bridge.run(request)
@@ -197,7 +238,7 @@ def _unmapped_observations(state: dict) -> list[str]:
     scan(state["field"], {"battle_format", "weather", "terrain", "trick_room_status", "magic_room_status", "gravity_status"}, "field.")
     for side in ("self", "opponent"):
         container = state[f"{side}_side"]
-        scan(container, {"active_slot_index", "pokemon", "side_conditions", "tailwind_status"}, f"{side}_side.")
+        scan(container, {"active_slot_index", "pokemon", "side_conditions", "tailwind_status", "switch_permission_context"}, f"{side}_side.")
         active = container["pokemon"][container["active_slot_index"]]
         scan(active, active_keys, f"{side}_side.active.")
         for slot, pokemon in container["pokemon"].items():

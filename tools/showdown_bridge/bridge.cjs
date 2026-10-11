@@ -12,7 +12,7 @@ class InputError extends Error {}
 function requireInput(ok, code) { if (!ok) throw new InputError(code); }
 
 function run(input, engine) {
-  const {Battle, Dex, TeamValidator, toID} = engine;
+  const {Battle, Dex, TeamValidator, toID, PRNG} = engine;
   requireInput(input.schema_version === SCHEMA, 'invalid_schema');
   requireInput(input.format_id === FORMAT, 'unsupported_format');
   requireInput(typeof input.session_id === 'string' && input.session_id.length > 0 &&
@@ -135,6 +135,8 @@ function run(input, engine) {
     battle.makeRequest('move');
     for (const [side, id] of [['self', 'p1'], ['opponent', 'p2']]) {
       const pokemon = battle[id].active[0];
+      const permitted = input.observed_sides?.[side]?.switch_permitted;
+      if (typeof permitted === 'boolean') requireInput(permitted === (!pokemon.trapped && battle[id].pokemon.some(p => !p.isActive && !p.fainted)), 'observed_switch_permission_conflict');
       for (const [move, usable] of Object.entries(input.observed_active[side].move_usability || {})) {
         const row = battle[id].activeRequest.active[0].moves.find(m => toID(m.id) === toID(move));
         requireInput(row && (row.pp > 0 && !row.disabled) === usable, 'observed_move_usability_conflict');
@@ -202,18 +204,35 @@ function run(input, engine) {
     let root, branch;
     const started = performance.now();
     try {
-      if (input.operation === 'resume') {
+      if (input.operation === 'resume' || input.operation === 'reconcile') {
         const saved = scenario.checkpoint;
         requireInput(saved.schema_version === 'showdown-checkpoint-v1' && saved.engine_commit === COMMIT &&
           saved.format_id === FORMAT && saved.session_id === input.session_id &&
-          saved.source_runtime_fingerprint === input.source_runtime_fingerprint &&
+          (input.operation === 'reconcile' || saved.source_runtime_fingerprint === input.source_runtime_fingerprint) &&
           saved.native_state.formatid === FORMAT, 'checkpoint_binding_mismatch');
         root = Battle.fromJSON(clone(saved.native_state));
         root.restart(() => {});
+        if (input.operation === 'reconcile') {
+          requireInput(Array.isArray(scenario.history) && scenario.history.length <= 100, 'invalid_history');
+          for (const choices of scenario.history) {
+            requireInput(!root.ended, 'history_after_battle_end');
+            choose(root, choices);
+          }
+          requireInput(root.requestState === 'move' && !root.ended, 'move_boundary_required');
+          // Only a fresh construction may run initialization effects.
+          requireInput(!scenario.conditioning?.length, 'reconciliation_requires_native_history_for_new_effects');
+          overlay(root, scenario);
+        }
       } else { root = create(scenario); }
       requireInput(!root.ended, 'battle_already_ended');
       const rootCheckpoint = checkpoint(root, scenario);
       const before = summarize(root);
+      if (scenario.evaluation) {
+        return {status: 'simulated', scenario_id: scenario.scenario_id,
+          interpretation: 'conditional_monte_carlo_estimate_not_exact_probability',
+          assumptions: clone(scenario.assumptions), before, root_checkpoint: rootCheckpoint,
+          evaluation: sample(rootCheckpoint, scenario.evaluation), elapsed_ms: performance.now() - started};
+      }
       // fromJSON mutates nested data; never hand it a shared checkpoint.
       branch = Battle.fromJSON(clone(rootCheckpoint.native_state));
       branch.restart(() => {});
@@ -230,7 +249,57 @@ function run(input, engine) {
         reason: error instanceof InputError ? error.message : 'native_simulation_failed'};
     } finally { branch?.destroy(); root?.destroy(); }
   }
-  requireInput(['simulate', 'resume'].includes(input.operation), 'invalid_operation');
+  function sample(saved, evaluation) {
+    const {seeds, candidates} = evaluation;
+    requireInput(Array.isArray(seeds) && seeds.length >= 1 && seeds.length <= 256 &&
+      seeds.every(seed => Array.isArray(seed) && seed.length === 4 && seed.every(n => Number.isInteger(n) && n >= 0 && n <= 65535)) &&
+      new Set(seeds.map(seed => seed.join(','))).size === seeds.length, 'invalid_sample_seeds');
+    requireInput(Array.isArray(candidates) && candidates.length >= 1 && candidates.length <= 16 &&
+      candidates.every(c => typeof c.candidate_id === 'string' && c.candidate_id.length > 0 && Array.isArray(c.choices) && c.choices.length >= 1 && c.choices.length <= 8) &&
+      new Set(candidates.map(c => c.candidate_id)).size === candidates.length, 'invalid_sample_candidates');
+    requireInput(seeds.length * candidates.reduce((n, c) => n + c.choices.length, 0) <= 8192, 'sample_budget_exceeded');
+    const rows = candidates.map(candidate => {
+      const samples = [];
+      for (const seed of seeds) {
+        let battle;
+        try {
+          battle = Battle.fromJSON(clone(saved.native_state));
+          battle.restart(() => {});
+          battle.prng = new PRNG(seed);
+          let decisions = 0;
+          for (const choices of candidate.choices) {
+            if (battle.ended) break;
+            choose(battle, choices);
+            decisions++;
+          }
+          samples.push({seed: clone(seed), decisions, turn: battle.turn, ended: battle.ended,
+            winner: battle.winner || null, request_state: battle.requestState,
+            self_hp: battle.p1.pokemon.reduce((n, p) => n + p.hp, 0),
+            opponent_hp: battle.p2.pokemon.reduce((n, p) => n + p.hp, 0),
+            self_fainted: battle.p1.pokemon.filter(p => p.fainted).length,
+            opponent_fainted: battle.p2.pokemon.filter(p => p.fainted).length});
+        } catch (error) {
+          // No missing action is auto-selected and no invalid seed is counted.
+          return {status: 'rejected', candidate_id: candidate.candidate_id,
+            reason: error instanceof InputError ? error.message : 'native_sample_failed'};
+        } finally { battle?.destroy(); }
+      }
+      const n = samples.length;
+      const mean = key => samples.reduce((sum, row) => sum + row[key], 0) / n;
+      const count = test => samples.filter(test).length;
+      const initial = saved.native_state.sides.map(side => side.pokemon.filter(p => p.fainted).length);
+      return {status: 'evaluated', candidate_id: candidate.candidate_id, sample_count: n,
+        horizon_decisions: candidate.choices.length, choices: clone(candidate.choices),
+        self_new_faint_samples: count(s => s.self_fainted > initial[0]),
+        opponent_new_faint_samples: count(s => s.opponent_fainted > initial[1]),
+        self_win_samples: count(s => s.winner === 'self'), opponent_win_samples: count(s => s.winner === 'opponent'),
+        ended_samples: count(s => s.ended), switch_request_samples: count(s => s.request_state === 'switch'),
+        mean_self_team_hp: mean('self_hp'), mean_opponent_team_hp: mean('opponent_hp'), samples};
+    });
+    return {schema_version: 'showdown-sampled-evaluation-v1', interpretation: 'conditional_monte_carlo_estimate_not_exact_probability',
+      aggregation: 'per_scenario_no_implicit_opponent_prior', seeds: clone(seeds), candidates: rows};
+  }
+  requireInput(['simulate', 'resume', 'reconcile'].includes(input.operation), 'invalid_operation');
   requireInput(Array.isArray(input.scenarios) && input.scenarios.length > 0 && input.scenarios.length <= 16, 'invalid_scenarios');
   requireInput(new Set(input.scenarios.map(s => s.scenario_id)).size === input.scenarios.length &&
     input.scenarios.every(s => typeof s.scenario_id === 'string' && s.scenario_id.length > 0 && Array.isArray(s.assumptions)), 'invalid_scenario_identity');

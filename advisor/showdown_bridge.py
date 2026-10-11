@@ -23,17 +23,8 @@ class ShowdownBridge:
 
     def run(self, request: dict[str, Any]) -> dict[str, Any]:
         """Explicit opt-in only. Validate the external pin before every batch."""
+        self._verify_checkout()
         try:
-            revision = subprocess.run(
-                ["git", "rev-parse", "HEAD"], cwd=self.checkout,
-                capture_output=True, text=True, encoding="utf-8", timeout=5, check=True,
-            ).stdout.strip()
-            dirty = subprocess.run(
-                ["git", "status", "--porcelain", "--untracked-files=no"], cwd=self.checkout,
-                capture_output=True, text=True, encoding="utf-8", timeout=5, check=True,
-            ).stdout.strip()
-            if revision != SHOWDOWN_COMMIT or dirty:
-                raise ShowdownBridgeError("showdown_revision_or_tracked_sources_mismatch")
             result = subprocess.run(
                 ["node", str(BRIDGE_SCRIPT), str(self.checkout)],
                 input=json.dumps(request, ensure_ascii=False, allow_nan=False),
@@ -47,6 +38,26 @@ class ShowdownBridge:
             raise ShowdownBridgeError("showdown_unavailable_or_invalid_response") from exc
         if result.returncode != 0 or not isinstance(response, dict):
             raise ShowdownBridgeError("showdown_bridge_failed")
+        return self._validate_response(request, response)
+
+    def _verify_checkout(self) -> None:
+        try:
+            revision = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=self.checkout,
+                capture_output=True, text=True, encoding="utf-8", timeout=5, check=True,
+            ).stdout.strip()
+            dirty = subprocess.run(
+                ["git", "status", "--porcelain", "--untracked-files=no"], cwd=self.checkout,
+                capture_output=True, text=True, encoding="utf-8", timeout=5, check=True,
+            ).stdout.strip()
+            if revision != SHOWDOWN_COMMIT or dirty:
+                raise ShowdownBridgeError("showdown_revision_or_tracked_sources_mismatch")
+        except subprocess.TimeoutExpired as exc:
+            raise ShowdownBridgeError("showdown_timeout") from exc
+        except (OSError, subprocess.CalledProcessError, ValueError) as exc:
+            raise ShowdownBridgeError("showdown_unavailable_or_invalid_response") from exc
+
+    def _validate_response(self, request: dict, response: dict) -> dict:
         for key, value in (("schema_version", SCHEMA_VERSION), ("engine_commit", SHOWDOWN_COMMIT),
                            ("format_id", FORMAT_ID), ("session_id", request["session_id"]),
                            ("source_runtime_fingerprint", request["source_runtime_fingerprint"])):
