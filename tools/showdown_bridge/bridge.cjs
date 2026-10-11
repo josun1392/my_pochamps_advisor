@@ -2,7 +2,6 @@
 
 // Local simulator only. No server, sockets, provider, or live-state owner.
 const fs = require('node:fs');
-const path = require('node:path');
 const {performance} = require('node:perf_hooks');
 const {evaluateStatusGate} = require('./status-gate.cjs');
 const {evaluateDamageRolls, NativeDamageError} = require('./damage-rolls.cjs');

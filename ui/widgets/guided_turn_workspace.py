@@ -333,6 +333,21 @@ class GuidedTurnWorkspace(QFrame):
             subtitle = QLabel(state + (f" · {reason}" if reason else ""))
             subtitle.setWordWrap(True)
             body.addWidget(subtitle)
+            sampled = presentation.get("sampled_simulation")
+            if isinstance(sampled, Mapping) and sampled.get("schema_version") == "showdown-strategy-shadow-v2":
+                rows = [row for scenario in sampled.get("scenarios", []) for row in scenario.get("candidates", [])
+                    if row.get("candidate_id") == candidate.get("candidate_id") and row.get("status") == "evaluated"]
+                if rows:
+                    rates = [row["self_win_samples"] / row["sample_count"] for row in rows]
+                    unfinished = sum(row["truncated_samples"] for row in rows)
+                    text = (f"Showdown 가정별 한도 내 표본 승리비율 {min(rates):.0%}–{max(rates):.0%} · "
+                        f"{len(rows)}개 조건 · 미완료 {unfinished}개 · 정확 확률 아님")
+                elif sampled.get("status") == "pending": text = "Showdown 가정 아래 표본 평가 진행 중"
+                else: text = "Showdown 가정 아래 평가 불가 · 기존 판단 유지"
+                native_label = QLabel(text)
+                native_label.setWordWrap(True)
+                native_label.setObjectName("showdownConditionalEvidence")
+                body.addWidget(native_label)
             self.board_layout.addWidget(card)
             self.candidate_rows.append(card)
         self.board_empty_label.setVisible(not self.candidate_rows)

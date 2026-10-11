@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from queue import Empty, Queue
 import subprocess
-from threading import Lock, Thread
+from threading import Event, Lock, Thread
 from advisor.showdown_bridge import BRIDGE_SCRIPT, ShowdownBridge, ShowdownBridgeError
 
 
@@ -20,12 +20,15 @@ class ShowdownWorker(ShowdownBridge):
         self._reader = None
         self._responses = Queue()
         self._request_id = 0
+        self._interrupted = Event()
 
     def __enter__(self): return self
     def __exit__(self, *_): self.close()
 
     def _start(self):
+        if self._interrupted.is_set(): raise ShowdownBridgeError("showdown_cancelled")
         self._verify_checkout()
+        if self._interrupted.is_set(): raise ShowdownBridgeError("showdown_cancelled")
         self._responses = Queue()
         self._process = subprocess.Popen(
             ["node", str(BRIDGE_SCRIPT.with_name("worker.cjs")), str(self.checkout)],
@@ -48,6 +51,7 @@ class ShowdownWorker(ShowdownBridge):
     def run(self, request):
         with self._lock:
             try:
+                if self._interrupted.is_set(): raise ShowdownBridgeError("showdown_cancelled")
                 if self._process is None or self._process.poll() is not None:
                     self._stop()
                     self._start()
@@ -89,3 +93,16 @@ class ShowdownWorker(ShowdownBridge):
 
     def close(self):
         with self._lock: self._stop()
+
+    def interrupt(self):
+        """Cancel local execution from the UI without waiting for the request lock.
+
+        The reader wakes the running request; normal run/close owns cleanup.
+        No partial result is reusable; construct a new worker after cancellation.
+        """
+        self._interrupted.set()
+        process = self._process
+        if process is not None:
+            try:
+                if process.poll() is None: process.terminate()
+            except OSError: pass

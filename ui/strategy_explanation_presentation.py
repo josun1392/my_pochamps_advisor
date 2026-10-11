@@ -17,10 +17,17 @@ HORIZON = "immediate_action_consequence"
 
 def present_strategy_explanation(*, explanation: Mapping[str, Any]) -> dict[str, Any]:
     """Return a detached, display-ready model from an orchestration explanation."""
-    if not isinstance(explanation, Mapping) or explanation.get("schema_version") != EXPLANATION_SCHEMA:
+    from llm.advisor_showdown_native_preview import SCHEMA as NATIVE_EXPLANATION_SCHEMA
+    native_only = isinstance(explanation, Mapping) and explanation.get("schema_version") == NATIVE_EXPLANATION_SCHEMA
+    if not isinstance(explanation, Mapping) or explanation.get("schema_version") not in {EXPLANATION_SCHEMA, NATIVE_EXPLANATION_SCHEMA}:
         return _rejected("invalid_strategy_explanation")
-    if explanation.get("status") != "resolved" or explanation.get("horizon") != HORIZON:
+    if explanation.get("status") != "resolved" or explanation.get("horizon") != ("conditional_native_rollout" if native_only else HORIZON):
         return _rejected("inconsistent_strategy_explanation")
+    if native_only and (explanation.get("candidate_scope") != "hypothetical_native_legality_not_live_selection_authority" or
+        not isinstance(explanation.get("candidates"), list) or any(not isinstance(c, Mapping) for c in explanation["candidates"]) or
+        explanation.get("preferred_frontier") != [] or explanation.get("probability_aware_decisions") != [] or
+        any(c.get("evidence_class") != "incomplete" or c.get("guaranteed_facts") is not None or c.get("incomplete_reason") != "native_conditional_only" for c in explanation.get("candidates", []))):
+        return _rejected("invalid_native_conditional_explanation")
     owner = explanation.get("decision_owner")
     candidates = explanation.get("candidates")
     frontier = explanation.get("preferred_frontier")
@@ -53,7 +60,8 @@ def present_strategy_explanation(*, explanation: Mapping[str, Any]) -> dict[str,
         "overall_status": overall_status,
         "preferred_frontier": sorted(frontier),
         "horizon": HORIZON,
-        "horizon_notice": "범위: 즉시 행동 결과만 (상대 행동 및 턴 종료 효과 제외)",
+        "horizon_notice": ("기존 정확 추천은 정보 부족으로 유보됩니다. 아래 후보는 가정 상태에서만 평가하며 실제 선택 가능성이나 관측 사실을 확정하지 않습니다." if native_only else
+            "범위: 즉시 행동 결과만 (상대 행동 및 턴 종료 효과 제외)"),
         "candidates": rendered_candidates,
         "comparison_matrix": deepcopy(explanation.get("comparison_matrix", [])),
         "probability_aware_decisions": deepcopy(probability_decisions),
@@ -64,6 +72,12 @@ def present_strategy_explanation(*, explanation: Mapping[str, Any]) -> dict[str,
         if not valid_shadow_evidence(explanation["sampled_simulation"], explanation):
             return _rejected("invalid_showdown_sampled_evidence")
         result["sampled_simulation"] = deepcopy(explanation["sampled_simulation"])
+    if "experimental_ranking" in explanation:
+        from llm.advisor_showdown_strategy_evaluation import experimental_ranking
+        expected = experimental_ranking(evidence=explanation.get("sampled_simulation"), explanation=explanation, enabled=True)
+        if explanation["experimental_ranking"] != expected:
+            return _rejected("invalid_showdown_experimental_ranking")
+        result["experimental_ranking"] = deepcopy(expected)
     return result
 
 
@@ -97,16 +111,39 @@ def render_strategy_explanation(*, presentation: Mapping[str, Any]) -> str:
     sampled = presentation.get("sampled_simulation")
     if sampled:
         lines.append("Showdown 조건부 표본: 상대의 가정 행동과 턴 종료 효과 포함. 기존 추천 순위는 유지됩니다.")
-        if sampled["status"] != "evaluated":
+        if sampled["status"] == "pending":
+            lines.append("  네이티브 표본 평가 진행 중입니다. 현재 관측과 기존 추천은 유지됩니다.")
+        elif sampled["status"] != "evaluated":
             lines.append("  현재 관측에서는 조건부 시뮬레이션을 사용할 수 없습니다.")
         for scenario in sampled.get("scenarios", []):
-            if scenario["status"] != "evaluated": continue
+            if scenario["status"] != "evaluated":
+                lines.append(f"  가정 {scenario['scenario_id']}: 현재 관측과 가정의 호환성을 확인할 수 없어 평가하지 않았습니다.")
+                continue
             lines.append(f"  가정 {scenario['scenario_id']} · 상대 행동 {scenario['opponent_choice']}")
             lines.append("  가정 조건: " + "; ".join(scenario["assumptions"]))
             for row in scenario["candidates"]:
-                if row["status"] != "evaluated": continue
+                if row["status"] != "evaluated":
+                    lines.append(f"    {_label(row['candidate_id'], row['candidate_id'].split(':', 1)[0])}: 이 가정 상태에서 평가 불가")
+                    continue
                 lines.append(f"    {_label(row['candidate_id'], row['candidate_id'].split(':', 1)[0])}: {row['sample_count']}회 표본 · 상대 새 기절 {row['opponent_new_faint_samples']}회 · 내 새 기절 {row['self_new_faint_samples']}회 (정확 확률 아님)")
                 lines.append(f"      평균 남은 팀 HP: 내 {row['mean_self_team_hp']:.1f} / 상대 {row['mean_opponent_team_hp']:.1f}")
+                if "win_rate" in row:
+                    first = row["immediate"]
+                    lines.append(f"      첫 네이티브 요청까지: 상대 새 기절 {first['opponent_new_faint_samples']}/{row['sample_count']} · 내 새 기절 {first['self_new_faint_samples']}/{row['sample_count']} · 후속 대기 행동 {first['pending_action_samples']}회 (피벗은 턴 중간일 수 있음)")
+                    lo, hi = row["win_rate"]["completion_bounds"]
+                    lines.append(f"      네이티브 후속 정책 · 최대 {row['horizon_decisions']}개 결정: 승 {row['self_win_samples']} / 패 {row['opponent_win_samples']} / 무승부 {row['draw_samples']} / 미완료 {row['truncated_samples']}")
+                    lines.append(f"      한도 내 표본 승리비율 {lo:.1%} · 미완료를 포함한 종료 가능 범위 {lo:.1%}–{hi:.1%} (신뢰구간 아님)")
+        if sampled.get("schema_version") == "showdown-strategy-shadow-v2":
+            lines.append("  상대 세트·첫 행동·후속 무작위 정책에 조건부인 추정입니다. 최적 플레이 승률이나 정확 보장이 아닙니다.")
+    experiment = presentation.get("experimental_ranking")
+    if experiment:
+        lines.append("실험 순위 (기본 추천에 미적용): 지정한 가정 중 최악의 평균 종료 결과/팀 HP 점수 비교")
+        if experiment["status"] == "evaluated":
+            lines.append("  기존 선호: " + (", ".join(experiment["legacy_preferred_frontier"]) or "결정 유보"))
+            lines.append("  실험 선호: " + ", ".join(experiment["experimental_preferred_frontier"]))
+            for row in experiment["candidates"]:
+                lines.append(f"    {row['candidate_id']}: 추정 점수 {row['estimated_score']:.3f} (승률 아님)")
+        else: lines.append("  완전한 조건부 비교가 없어 실험 순위를 사용할 수 없습니다.")
     return "\n".join(lines)
 
 

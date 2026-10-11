@@ -128,6 +128,9 @@ def run_current_ui_detached_strategy(
     opponent_canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     opponent_move_metadata_authority_builder: Callable[[Mapping[str, Any], Mapping[str, Any]], Mapping[str, Mapping[str, Any]]] | None = None,
     showdown_context: dict | None = None, showdown_bridge: Any = None,
+    showdown_experimental_ranking: bool = False,
+    defer_showdown_evaluation: bool = False,
+    native_candidate_intent_builder: Callable | None = None,
 ) -> dict[str, Any]:
     """Capture one runtime revision and return detached strategy explanation.
 
@@ -152,6 +155,21 @@ def run_current_ui_detached_strategy(
         return _result("rejected", "selection_cycle_builder_failed")
     projection = freeze_runtime_d0_bound_selection_projection(strategy_d0=d0, prepared_cycle=prepared)
     if projection.get("status") != "resolved":
+        if (isinstance(showdown_context, dict) and showdown_context.get("schema_version") == "showdown-shadow-config-v2" and
+            prepared.get("status") == "no_selectable_candidates" and callable(native_candidate_intent_builder)):
+            from llm.advisor_showdown_native_preview import build_conditional_native_preview
+            from llm.advisor_showdown_strategy_evaluation import fingerprint
+            try:
+                preview = build_conditional_native_preview(capture=capture, strategy_d0=d0,
+                    intents=native_candidate_intent_builder(build_runtime_d0_selection_capture(strategy_d0=d0), deepcopy(capture)),
+                    context=showdown_context, bridge=showdown_bridge, deferred=defer_showdown_evaluation is True,
+                    experiment=showdown_experimental_ranking, legacy_reason="no_selectable_candidates")
+                current = _capture(runtime_session_manager, captured_session_id)
+                if current is None or fingerprint(current) != fingerprint(capture):
+                    return _result("stale", "runtime_capture_changed_native_result_discarded")
+                return preview
+            except (KeyError, TypeError, ValueError, AttributeError):
+                return _result("rejected", "invalid_native_candidate_intents")
         return _result("rejected", projection.get("reason", "runtime_selection_projection_unavailable"))
     selection = freeze_runtime_strategy_selection_authority(strategy_d0=d0, selection_projection=projection)
     if selection.get("status") != "resolved":
@@ -217,15 +235,31 @@ def run_current_ui_detached_strategy(
     explanation = explain_detached_strategy(orchestration=orchestration)
     if explanation.get("status") != "resolved":
         return _result("rejected", explanation.get("reason", "strategy_explanation_rejected"))
+    native_job = None
     if showdown_context is not None:
         from llm.advisor_showdown_shadow import evaluate_current_showdown_shadow
         explanation["source_runtime_fingerprint"] = capture["state_fingerprint"]
-        explanation["sampled_simulation"] = evaluate_current_showdown_shadow(
-            runtime_snapshot=capture, selection=selection, context=showdown_context, bridge=showdown_bridge,
-        )
+        deferred = defer_showdown_evaluation is True and isinstance(showdown_context, dict) and showdown_context.get("schema_version") == "showdown-shadow-config-v2"
+        if deferred:
+            from llm.advisor_showdown_strategy_evaluation import native_strategy_binding
+            explanation["sampled_simulation"] = {**native_strategy_binding(capture, selection), "status": "pending", "reason": "native_evaluation_running"}
+            native_job = {"runtime_snapshot": deepcopy(capture), "selection": deepcopy(selection), "context": deepcopy(showdown_context),
+                "experimental_ranking": showdown_experimental_ranking is True}
+        else:
+            explanation["sampled_simulation"] = evaluate_current_showdown_shadow(
+                runtime_snapshot=capture, selection=selection, context=showdown_context, bridge=showdown_bridge,
+            )
+        if isinstance(showdown_context, dict) and showdown_context.get("schema_version") == "showdown-shadow-config-v2":
+            from llm.advisor_showdown_strategy_evaluation import fingerprint, experimental_ranking
+            explanation["source_capture_fingerprint"] = fingerprint(capture)
+            experiment = experimental_ranking(evidence=explanation["sampled_simulation"], explanation=explanation,
+                enabled=showdown_experimental_ranking and not deferred)
+            if experiment is not None: explanation["experimental_ranking"] = experiment
     current = _capture(runtime_session_manager, captured_session_id)
     if current is None or runtime_strategy_d0_freshness(strategy_d0=d0, runtime_snapshot=current).get("status") != "current":
         return _result("stale", "runtime_state_changed_strategy_result_discarded")
+    if "source_capture_fingerprint" in explanation and fingerprint(current) != explanation["source_capture_fingerprint"]:
+        return _result("stale", "runtime_capture_changed_native_result_discarded")
     return {
         "status": "resolved", "schema_version": SCHEMA,
         "source_runtime_fingerprint": d0["source_runtime_fingerprint"],
@@ -241,6 +275,7 @@ def run_current_ui_detached_strategy(
         "population_bomb_predictions": deepcopy(population_bomb_predictions),
         "orchestration": deepcopy(orchestration), "explanation": deepcopy(explanation),
         "provenance": "runtime_d0_detached_strategy_ui_controller_bridge_v1",
+        **({"native_evaluation_job": native_job} if native_job is not None else {}),
     }
 
 

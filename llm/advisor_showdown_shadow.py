@@ -14,6 +14,9 @@ COUNTS = ("self_new_faint_samples", "opponent_new_faint_samples", "self_win_samp
 
 def evaluate_current_showdown_shadow(*, runtime_snapshot, selection, context, bridge):
     """Map selectable human actions, with an explicit opponent action per set."""
+    if isinstance(context, dict) and context.get("schema_version") == "showdown-shadow-config-v2":
+        from llm.advisor_showdown_strategy_evaluation import evaluate_current_native_strategy
+        return evaluate_current_native_strategy(runtime_snapshot=runtime_snapshot, selection=selection, context=context, bridge=bridge)
     binding = {"schema_version": SCHEMA, "mode": "shadow", "interpretation": INTERPRETATION,
         "engine_commit": SHOWDOWN_COMMIT, "format_id": FORMAT_ID,
         "session_id": runtime_snapshot["session_id"], "source_runtime_fingerprint": runtime_snapshot["state_fingerprint"],
@@ -26,16 +29,7 @@ def evaluate_current_showdown_shadow(*, runtime_snapshot, selection, context, br
             raise ValueError("invalid_showdown_shadow_context")
         actions = [a for a in selection["actions"] if a["selection"] == "selectable"]
         if not actions or len(scenarios) * len(seeds) * len(actions) > 2048: raise ValueError("showdown_shadow_budget_exceeded")
-        choices = []
-        roster = runtime_snapshot["state"]["self_side"]["pokemon"]
-        for action in actions:
-            if action["action_type"] == "attack": choice = "move " + action["identity"]
-            elif action["action_type"] == "manual_switch":
-                slots = [slot for slot, p in roster.items() if p["pokemon_id"] == action["identity"]]
-                if len(slots) != 1: raise ValueError("showdown_shadow_switch_identity_ambiguous")
-                choice = f"switch slot:{slots[0]}"
-            else: raise ValueError("unsupported_showdown_shadow_action")
-            choices.append((action["action_id"], choice))
+        choices = selected_native_choices(runtime_snapshot, selection)
         for scenario in scenarios:
             opponent = scenario["choices"]["opponent"]
             if not isinstance(opponent, str) or not opponent.strip(): raise ValueError("explicit_opponent_choice_required")
@@ -61,6 +55,9 @@ def evaluate_current_showdown_shadow(*, runtime_snapshot, selection, context, br
 
 def valid_shadow_evidence(value, explanation):
     """Presentation guard: sampled values are never exact probability authority."""
+    if isinstance(value, dict) and value.get("schema_version") == "showdown-strategy-shadow-v2":
+        from llm.advisor_showdown_strategy_evaluation import valid_native_strategy_evidence
+        return valid_native_strategy_evidence(value, explanation)
     try:
         if (not isinstance(value, dict) or value.get("schema_version") != SCHEMA or value.get("mode") != "shadow" or
             value.get("interpretation") != INTERPRETATION or value.get("engine_commit") != SHOWDOWN_COMMIT or
@@ -92,3 +89,21 @@ def valid_shadow_evidence(value, explanation):
             if seen != ids: return False
         return True
     except (KeyError, TypeError, AttributeError): return False
+
+
+def selected_native_choices(runtime_snapshot, selection):
+    choices = []
+    roster = runtime_snapshot["state"]["self_side"]["pokemon"]
+    conditional = selection.get("schema_version") == "showdown-conditional-candidate-intents-v1"
+    if conditional and selection.get("interpretation") != "hypothetical_candidates_not_observed_selectability":
+        raise ValueError("invalid_native_candidate_intents")
+    for action in selection["actions"]:
+        if action["selection"] != ("conditional" if conditional else "selectable"): continue
+        if action["action_type"] == "attack": choice = "move " + action["identity"]
+        elif action["action_type"] == "manual_switch":
+            slots = [slot for slot, p in roster.items() if p["pokemon_id"] == action["identity"]]
+            if len(slots) != 1: raise ValueError("showdown_shadow_switch_identity_ambiguous")
+            choice = f"switch slot:{slots[0]}"
+        else: raise ValueError("unsupported_showdown_shadow_action")
+        choices.append((action["action_id"], choice))
+    return choices

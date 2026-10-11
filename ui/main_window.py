@@ -522,6 +522,11 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._showdown_shadow_context = None
         self._showdown_shadow_worker = None
+        self._showdown_experimental_ranking = False
+        self._showdown_evaluation_thread = None
+        self._showdown_evaluation_worker = None
+        self._showdown_evaluation_generation = 0
+        self._showdown_displayed_explanation = None
         self.setWindowTitle("Master Ball Advisor v0.14")
         self.setMinimumSize(1120, 650)
         self.resize(1280, 720)
@@ -4913,6 +4918,10 @@ class MainWindow(QMainWindow):
     @Slot()
     def _start_deterministic_strategy_analysis(self) -> None:
         """Run the closed offline bridge; Gemini signals/workers stay untouched."""
+        native_thread = getattr(self, "_showdown_evaluation_thread", None)
+        if native_thread is not None and native_thread.isRunning():
+            self.statusBar().showMessage("네이티브 표본 평가 진행 중")
+            return
         guided_active = getattr(self.center_column, "guided_turn_workspace", None) is not None
         if guided_active:
             self._refresh_guided_turn_workspace()
@@ -4961,11 +4970,20 @@ class MainWindow(QMainWindow):
             decision_side="self", selection_cycle_builder=build_selection_cycle,
             showdown_context=getattr(self, "_showdown_shadow_context", None),
             showdown_bridge=getattr(self, "_showdown_shadow_worker", None),
+            showdown_experimental_ranking=getattr(self, "_showdown_experimental_ranking", False),
+            defer_showdown_evaluation=True,
+            native_candidate_intent_builder=lambda capture, snapshot: {
+                "schema_version": "showdown-ui-candidate-intents-v1", "capture": deepcopy(capture),
+                "moves": [move.move_id for move in self._slot_panel("team_my", self.selected_slots["team_my"]).selected_moves if move is not None],
+                "switches": [p["pokemon_id"] for slot, p in snapshot["state"]["self_side"]["pokemon"].items()
+                    if slot != capture["active_owner"]["slot_index"] and isinstance(p.get("pokemon_id"), str) and p.get("fainted") is not True],
+            },
             opponent_move_metadata_authority_builder=lambda strategy_d0, runtime_snapshot: freeze_runtime_d0_observed_opponent_move_metadata_authorities(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, move_repository=self.move_repo),
         )
         if result.get("status") == "resolved":
-            self._install_historical_predictive_action_bindings(result)
-            if (c6_capture.get("status") in {"captured", "duplicate"}
+            if not result.get("native_conditional_only"):
+                self._install_historical_predictive_action_bindings(result)
+            if (not result.get("native_conditional_only") and c6_capture.get("status") in {"captured", "duplicate"}
                     and result.get("source_runtime_fingerprint") == decision_snapshot.get("state_fingerprint")):
                 try:
                     owner_key = (c6_capture["opportunity"]["certificate"]["actor"]["slot_index"],
@@ -4984,6 +5002,8 @@ class MainWindow(QMainWindow):
                 except (KeyError, TypeError, ValueError, AttributeError):
                     pass
             presentation = panel.set_strategy_explanation(result["explanation"])
+            if result.get("native_evaluation_job") is not None:
+                self._showdown_displayed_explanation = deepcopy(result["explanation"])
             if guided_active:
                 summary = self._guided_strategy_summary(presentation)
                 if guided_basis == self._guided_current_basis():
@@ -5020,6 +5040,55 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("전략 분석 실패")
         if guided_active:
             self._refresh_guided_turn_workspace()
+        if result.get("status") == "resolved" and result.get("native_evaluation_job") is not None:
+            self._start_showdown_evaluation(result, guided_basis)
+
+    def _start_showdown_evaluation(self, result, guided_basis=None):
+        from ui.showdown_strategy_worker import NativeStrategyEvaluationWorker
+        self._showdown_evaluation_generation += 1
+        generation = self._showdown_evaluation_generation
+        self._showdown_evaluation_basis = guided_basis
+        thread = QThread(self)
+        worker = NativeStrategyEvaluationWorker(generation=generation, job=result["native_evaluation_job"],
+            explanation=result["explanation"], bridge=self._showdown_shadow_worker)
+        worker.moveToThread(thread)
+        self._showdown_evaluation_thread, self._showdown_evaluation_worker = thread, worker
+        thread.started.connect(worker.run)
+        worker.completed.connect(self._finish_showdown_evaluation)
+        worker.completed.connect(thread.quit)
+        worker.completed.connect(worker.deleteLater)
+        thread.finished.connect(lambda: self._cleanup_showdown_evaluation(thread, worker))
+        thread.start()
+
+    @Slot(object)
+    def _finish_showdown_evaluation(self, payload):
+        if getattr(self, "_is_closing", False) or payload["generation"] != self._showdown_evaluation_generation:
+            return
+        from llm.advisor_showdown_strategy_evaluation import fingerprint
+        explanation = payload["explanation"]
+        manager = getattr(self, "_observation_runtime_session_manager", None)
+        session = MainWindow._active_session_id(self)
+        if manager is None or session != explanation["session_id"]: return
+        current = manager.capture_runtime_state_snapshot(session)
+        basis = getattr(self, "_showdown_evaluation_basis", None)
+        if fingerprint(current) != explanation["source_capture_fingerprint"] or (basis is not None and basis != self._guided_current_basis()):
+            self.statusBar().showMessage("관측이 변경되어 네이티브 표본 결과를 폐기했습니다.")
+            return
+        panel = self.center_column.llm_advice_panel
+        presentation = panel.set_strategy_explanation(explanation)
+        if presentation.get("status") != "resolved": return
+        self._showdown_displayed_explanation = deepcopy(explanation)
+        self.center_column.analysis_panel.output_edit.setPlainText(panel.output_edit.toPlainText())
+        guided = getattr(self.center_column, "guided_turn_workspace", None)
+        if guided is not None:
+            guided.set_recommendation(presentation)
+            self._refresh_guided_turn_workspace()
+        self.statusBar().showMessage("네이티브 조건부 표본 평가 완료 · 기본 추천 유지")
+
+    def _cleanup_showdown_evaluation(self, thread, worker):
+        if self._showdown_evaluation_thread is thread:
+            self._showdown_evaluation_thread = self._showdown_evaluation_worker = None
+        self._delete_advice_thread_once(thread)
 
     @Slot()
     def _check_structured_recommendation_readiness(self) -> None:
@@ -5308,23 +5377,52 @@ class MainWindow(QMainWindow):
         setattr(thread, "_advice_cleanup_scheduled", True)
         thread.deleteLater()
 
-    def configure_showdown_shadow(self, *, checkout=None, context=None) -> None:
+    def configure_showdown_shadow(self, *, checkout=None, context=None, experimental_ranking=False) -> None:
         """Explicit opt-in; call without arguments to return to the default path."""
+        self._showdown_evaluation_generation = getattr(self, "_showdown_evaluation_generation", 0) + 1
+        native_thread = getattr(self, "_showdown_evaluation_thread", None)
+        if native_thread is not None and native_thread.isRunning(): native_thread.requestInterruption()
         previous = getattr(self, "_showdown_shadow_worker", None)
         if previous is not None:
+            previous.interrupt()
             previous.close()
         self._showdown_shadow_worker = None
         self._showdown_shadow_context = None
+        self._showdown_experimental_ranking = False
+        displayed = getattr(self, "_showdown_displayed_explanation", None)
+        if displayed is not None:
+            from llm.advisor_showdown_native_preview import SCHEMA as NATIVE_EXPLANATION_SCHEMA
+            from llm.advisor_showdown_strategy_evaluation import fingerprint
+            self._showdown_displayed_explanation = None
+            panel = self.center_column.llm_advice_panel
+            guided = getattr(self.center_column, "guided_turn_workspace", None)
+            manager = getattr(self, "_observation_runtime_session_manager", None)
+            session = MainWindow._active_session_id(self)
+            current = manager.capture_runtime_state_snapshot(session) if manager is not None and session is not None else None
+            basis = getattr(self, "_showdown_evaluation_basis", None)
+            fresh = current is not None and fingerprint(current) == displayed.get("source_capture_fingerprint") and (basis is None or basis == self._guided_current_basis())
+            if not fresh or displayed.get("schema_version") == NATIVE_EXPLANATION_SCHEMA:
+                message = "네이티브 가정 평가를 해제했습니다. 현재 관측에서 기존 전략 분석을 다시 실행하세요."
+                panel.set_advice_text(message)
+                if guided is not None: guided.set_board_state(message)
+            else:
+                for key in ("sampled_simulation", "experimental_ranking", "source_capture_fingerprint", "source_runtime_fingerprint"):
+                    displayed.pop(key, None)
+                presentation = panel.set_strategy_explanation(displayed)
+                if guided is not None: guided.set_recommendation(presentation)
+            self.center_column.analysis_panel.output_edit.setPlainText(panel.output_edit.toPlainText())
         if checkout is not None and context is not None:
             from advisor.showdown_worker import ShowdownWorker
             self._showdown_shadow_worker = ShowdownWorker(checkout)
             self._showdown_shadow_context = deepcopy(context)
+            self._showdown_experimental_ranking = experimental_ranking is True
 
     def closeEvent(self, event) -> None:
         """Suppress callbacks and request cooperative shutdown without blocking close."""
         self._is_closing = True
         showdown_worker = getattr(self, "_showdown_shadow_worker", None)
         if showdown_worker is not None:
+            showdown_worker.interrupt()
             showdown_worker.close()
         guided_timer = getattr(self, "_guided_refresh_timer", None)
         if guided_timer is not None:
@@ -5342,7 +5440,7 @@ class MainWindow(QMainWindow):
 
     def _advice_threads_for_shutdown(self) -> tuple[QThread, ...]:
         """Return each live advice thread once; one field exists for each mode."""
-        threads = (self._llm_thread, self._structured_thread)
+        threads = (self._llm_thread, self._structured_thread, getattr(self, "_showdown_evaluation_thread", None))
         return tuple(thread for index, thread in enumerate(threads) if thread is not None and thread not in threads[:index])
 
     def _build_current_structured_analysis_battle_input(
