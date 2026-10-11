@@ -221,3 +221,30 @@ def test_full_capture_identity_is_checked_beyond_mechanical_fingerprint(worker):
     evidence = build_native_selected_action_outcome(**args)
     args["runtime_snapshot"]["capture_generation"] = 2
     assert execute(args, evidence)["reason"] == "native_outcome_capture_or_action_mismatch"
+
+
+def test_slack_off_consumes_queued_native_action_without_promoting_prior_hypothesis(worker):
+    args = inputs(worker)
+    state = args["runtime_snapshot"]["state"]
+    state["self_side"]["pokemon"][0]["pokemon_id"] = "slowbro"
+    args["runtime_snapshot"] = snapshot_from_state(state)
+    args["actor"] = {**args["actor"], "pokemon_id": "slowbro"}
+    args["strategy_d0"] = freeze_runtime_strategy_d0(runtime_snapshot=args["runtime_snapshot"], decision_owner=args["actor"])
+    args["move_metadata"] = {**args["move_metadata"], "move_id": "slack-off"}
+    args["action"] = {"action_id": "attack:slack-off", "action_type": "attack", "identity": "slack-off",
+        "move_metadata_authority": {"status": "resolved", "metadata": args["move_metadata"]}}
+    cp = args["checkpoint"]
+    scenario = {**deepcopy(cp["model_definition"]), "scenario_id": cp["scenario_id"], "assumptions": cp["assumptions"],
+        "seed": [1, 2, 3, 4], "history": [], "choices": args["choices"]}
+    scenario["teams"]["self"][0].update(species="Slowbro", ability="Own Tempo", moves=["Slack Off", "Protect"])
+    root = simulate_detached_showdown(runtime_snapshot=args["runtime_snapshot"], scenarios=[scenario], bridge=worker)["scenarios"][0]["root_checkpoint"]
+    first = progress_native_showdown(runtime_snapshot=args["runtime_snapshot"], checkpoint=root, bridge=worker, choices=args["choices"])["scenarios"][0]
+    assert first["native_progression"]["move_attempts"][0]["side"] == "opponent"
+    args["checkpoint"], args["choices"] = first["checkpoint"], None
+    evidence = build_native_selected_action_outcome(**args)
+    result = execute(args, evidence)
+    assert result["status"] == "resolved", result
+    assert result["paths"][0]["post_action_runtime_snapshot"] == execute(args)["paths"][0]["post_action_runtime_snapshot"]
+    assert evidence["native_outcome"]["before"]["request_state"] == ""
+    assert evidence["native_outcome"]["before"]["sides"]["opponent"]["pokemon"][0]["boosts"]["atk"] == 2
+    assert result["paths"][0]["post_action_runtime_snapshot"]["state"]["opponent_side"]["pokemon"][0].get("stat_stages") == state["opponent_side"]["pokemon"][0].get("stat_stages")
