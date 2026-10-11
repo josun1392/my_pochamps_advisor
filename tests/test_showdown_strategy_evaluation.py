@@ -159,3 +159,16 @@ def test_full_registered_roster_stays_separate_from_hypothetical_chosen_three(wo
     assert present_strategy_explanation(explanation=result["explanation"])["status"] == "resolved"
     assert snapshot == before
     assert snapshot["state"]["self_side"]["pokemon"][2]["current_hp"] == {"knowledge": "unknown"}
+
+
+def test_explicit_hypothetical_hp_enables_evidence_without_resolving_unknown_live_hp(worker):
+    snapshot, builder, context = configuration(horizon=1)
+    for side in ("self", "opponent"):
+        snapshot["state"][f"{side}_side"]["pokemon"][0].update(
+            current_hp={"knowledge": "unknown"}, max_hp={"knowledge": "unknown"}, fainted={"knowledge": "unknown"})
+    snapshot = snapshot_from_state(snapshot["state"])
+    for scenario in context["scenarios"]: scenario["hypothetical_active_hp"] = {"self": 155, "opponent": 147}
+    before = deepcopy(snapshot)
+    result = run(snapshot, builder, showdown_context=context, showdown_bridge=worker)
+    assert result["explanation"]["sampled_simulation"]["status"] == "evaluated", result
+    assert snapshot == before
