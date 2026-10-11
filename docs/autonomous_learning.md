@@ -18,6 +18,8 @@ uv run --extra learning python scripts/train_showdown_autonomous.py --config con
 
 The sample config allows one hour, four native workers, one Torch thread, a 12.5%
 CPU cap across the process tree and a 3 GiB aggregate committed-memory cap.
+The standalone trainer blocks external Python network connections; only local
+loopback traffic needed by Windows asyncio is allowed.
 Runtime cannot exceed six hours; resource configuration is validated before start.
 Copy the config to a new file to change seeds, budgets or opponent mixtures. Never
 reuse a run directory with a different config. No GPU use is enabled.
@@ -33,10 +35,16 @@ contains immutable `model.zip`, its version/hash/catalog manifest, and validatio
 results. SB3 saves model and optimizer state. Trust only locally produced artifacts;
 its pickle-based loader does not sandbox downloaded models.
 
-Training is supervised heuristic warm-start followed by PPO. The versioned v2
-encoder uses a pooled public context and shared attack/switch rows. It sees only
+Training is supervised heuristic warm-start followed by PPO.
+`warmstart_learning_rate` can be set independently of the PPO learning rate;
+it is restored before PPO. Teacher-data accuracy is a training-fit diagnostic,
+not a battle win rate. Omitted warm-start rate preserves the older coupled setting.
+The versioned v2 encoder uses a pooled public context and shared attack/switch rows. It sees only
 the agent's private request, already revealed opponent information, public history
 and static native Dex facts. It never reads hidden teams, checkpoints or RNG.
+The v2 encoder requires `env.observation(side, include_history=True)` so its public
+history features are identical during training, evaluation and UI inference;
+missing history fails closed. v1 callers remain compatible.
 Native slot actions and masks stay authoritative. The value is bounded discounted
 sparse return, not an exact win probability. Hashed curriculum split namespaces
 prevent the long-running additive seed overlap while preserving v1 replay semantics.
@@ -48,6 +56,8 @@ experiment starts. It is a checkpoint-opponent experiment, not unrestricted self
 Final test/unseen-species grids run once after selection and are never used to tune
 the candidate. Repeatedly inspecting them to choose new settings invalidates that
 holdout; use a new versioned test offset for a later independent study.
+`reference_models` optionally maps up to three names to trusted local checkpoints
+for paired final evaluation, e.g. `previous_action` for the prior action-conditioned model.
 
 Stop and resume:
 

@@ -82,7 +82,7 @@ def verify(checkout, model, catalog, *, calls=1000):
                 ("random", "max_power", "heuristic")[case % 3], case
             )
             if case == 0:
-                visible = env.observation("self")
+                visible = env.observation("self", include_history=True)
                 saved = env.save()
                 timings = []
                 cpu = process_time()
@@ -93,7 +93,7 @@ def verify(checkout, model, catalog, *, calls=1000):
                 inference_cpu_s = process_time() - cpu
                 assert env.save() == saved
             while True:
-                own = env.observation("self")
+                own = env.observation("self", include_history=True)
                 action = policy.act(own)
                 counts[
                     "own_wait"
@@ -107,7 +107,9 @@ def verify(checkout, model, catalog, *, calls=1000):
                 step = env.step(
                     {
                         "self": action,
-                        "opponent": rival.act(env.observation("opponent")),
+                        "opponent": rival.act(
+                            env.observation("opponent", include_history=True)
+                        ),
                     },
                     revision=own["revision"],
                 )

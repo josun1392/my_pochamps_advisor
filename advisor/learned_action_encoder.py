@@ -48,6 +48,8 @@ class ActionObservationEncoder(PartialObservationEncoder):
         )
 
     def encode(self, observation):
+        if "public_history" not in observation:
+            raise ValueError("public_history_required_for_v2_encoder")
         legacy = super().encode(
             observation
         )  # validates channel and rejects privileged roots
@@ -91,7 +93,7 @@ class ActionObservationEncoder(PartialObservationEncoder):
         context += pool(
             [[float(m.get("type") == t) for t in TYPES] for m in revealed], 18
         )
-        recent = observation.get("public_history", observation["events"])[-16:]
+        recent = observation["public_history"][-16:]
         role = "p1" if observation["side"] == "self" else "p2"
         for side in (role, "p2" if role == "p1" else "p1"):
             for kind in ("move", "switch", "faint", "-damage", "-status", "-boost"):
@@ -104,6 +106,8 @@ class ActionObservationEncoder(PartialObservationEncoder):
         context += stats(roster[active] if roster else {})
         slots = request.get("active", [{}])[0].get("moves", [])
         features = []
+        prepared = {}
+        typ = self._species(other.get("details", "")).get("types", [])
         if any(observation["action_mask"][14:26]):
             raise ValueError("unsupported_champions_action_family")
         for index in range(35):
@@ -124,27 +128,41 @@ class ActionObservationEncoder(PartialObservationEncoder):
                 if move and roster
                 else {}
             )
-            row = self._own_row(own, p)
+            target = (
+                index
+                if switch and index < len(roster)
+                else active
+                if move and roster
+                else -1
+            )
+            row = rows[target] if target >= 0 else self._own_row(own, p)
             if move and mega:
                 form = request.get("active", [{}])[0].get("canMegaEvo")
                 if isinstance(form, str):
                     row = {**row, "details": form}
             slot = slots[move_slot] if move and move_slot < len(slots) else {}
-            moves = p.get("moves", [])
-            typ = self._species(other.get("details", "")).get("types", [])
-            defensive = [
-                self.catalog["effectiveness"]
-                .get(t, {})
-                .get(identifier(row.get("details", "")), 1)
-                / 4
-                for t in typ
-            ]
-            action = [float(switch), float(move), float(index == 26)] + self._row(row)
+            key = (target, row.get("details", ""))
+            if key not in prepared:
+                defensive = [
+                    self.catalog["effectiveness"]
+                    .get(t, {})
+                    .get(identifier(row.get("details", "")), 1)
+                    / 4
+                    for t in typ
+                ]
+                prepared[key] = (
+                    self._row(row),
+                    pool([self._move(m, row, other) for m in p.get("moves", [])], 31),
+                    stats(p),
+                    defensive,
+                )
+            row_features, move_pool, own_stats, defensive = prepared[key]
+            action = [float(switch), float(move), float(index == 26)] + row_features
             action += (
                 self._move(slot.get("id", ""), row, other, slot) if move else [0.0] * 31
             )
-            action += pool([self._move(m, row, other) for m in moves], 31)
-            action += [float(mega == m) for m in range(4)] + stats(p)
+            action += move_pool
+            action += [float(mega == m) for m in range(4)] + own_stats
             action += [
                 max(defensive, default=0.25),
                 sum(defensive) / len(defensive) if defensive else 0.25,

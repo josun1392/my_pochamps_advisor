@@ -8,6 +8,7 @@ import argparse
 from collections import Counter
 from hashlib import sha256
 import json
+import importlib.metadata
 import os
 import random
 import subprocess
@@ -28,6 +29,7 @@ from advisor.learning_resources import (
     RuntimeLimit,
     atomic_json,
     process_alive,
+    enforce_local_network_only,
 )
 from advisor.showdown_bridge import SHOWDOWN_COMMIT, FORMAT_ID
 from scripts.evaluate_showdown_policy import evaluate
@@ -56,6 +58,13 @@ def validate_config(config):
         raise ValueError("invalid_test_or_plateau_budget")
     if not config.get("experiments") or len(config["experiments"]) > 12:
         raise ValueError("one_to_twelve_experiments_required")
+    references = config.get("reference_models", {})
+    if (
+        not isinstance(references, dict)
+        or len(references) > 3
+        or set(references) & {"best", "random", "heuristic", "previous"}
+    ):
+        raise ValueError("invalid_reference_models")
     rollout = 128 * config.get("envs", 4)
     for experiment in config["experiments"]:
         if experiment.get("encoder_version", VERSION) not in {
@@ -91,6 +100,14 @@ def validate_config(config):
             or not 0 <= experiment.get("ent_coef", 0.005) <= 0.1
         ):
             raise ValueError("unsafe_learning_hyperparameters")
+        if (
+            not 1e-6
+            <= experiment.get(
+                "warmstart_learning_rate", experiment.get("learning_rate", 1e-4)
+            )
+            <= 1e-3
+        ):
+            raise ValueError("unsafe_warmstart_learning_rate")
     return config
 
 
@@ -113,6 +130,18 @@ def save_checkpoint(model, encoder, directory, metadata):
             "evidence_class": "learned_policy_value",
             "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
             "algorithm": "sb3-contrib-MaskablePPO",
+            "versions": {
+                p: importlib.metadata.version(p)
+                for p in (
+                    "torch",
+                    "sb3-contrib",
+                    "stable-baselines3",
+                    "gymnasium",
+                    "poke-env",
+                    "numpy",
+                )
+            },
+            "policy_class": type(model.policy).__name__,
             "encoder_version": encoder.version,
             "catalog_fingerprint": encoder.catalog_fingerprint,
             "engine_commit": SHOWDOWN_COMMIT,
@@ -141,7 +170,7 @@ class BudgetCallback(BaseCallback):
         return not self.budget.stopping()
 
 
-def warmstart(model, vector, encoder, count, epochs, seed, budget):
+def warmstart(model, vector, encoder, count, epochs, seed, budget, learning_rate=3e-4):
     """Supervised visible heuristic targets; upstream policy/optimizer stay authoritative."""
     if not count:
         return {"decisions": 0, "optimizer_updates": 0}
@@ -184,6 +213,12 @@ def warmstart(model, vector, encoder, count, epochs, seed, budget):
     updates = 0
     last_loss = None
     model.policy.set_training_mode(True)
+    before = torch.cat(
+        [p.detach().flatten() for p in model.policy.parameters()]
+    ).clone()
+    old_rates = [group["lr"] for group in model.policy.optimizer.param_groups]
+    for group in model.policy.optimizer.param_groups:
+        group["lr"] = learning_rate
     for _ in range(epochs):
         for indices in torch.randperm(len(rows), generator=generator).split(128):
             if budget.stopping():
@@ -203,6 +238,22 @@ def warmstart(model, vector, encoder, count, epochs, seed, budget):
             model.policy.optimizer.step()
             updates += 1
             last_loss = float(loss.detach())
+    for group, rate in zip(model.policy.optimizer.param_groups, old_rates):
+        group["lr"] = rate
+    correct = 0
+    with torch.no_grad():
+        for indices in torch.arange(len(rows)).split(128):
+            distribution = model.policy.get_distribution(
+                x[indices], action_masks=masks[indices.numpy()]
+            )
+            correct += int(
+                (distribution.distribution.probs.argmax(1) == actions[indices]).sum()
+            )
+    delta = float(
+        (torch.cat([p.detach().flatten() for p in model.policy.parameters()]) - before)
+        .abs()
+        .sum()
+    )
     # The vector/model must restart coherently after direct collection.
     model._last_obs = None
     return {
@@ -211,6 +262,9 @@ def warmstart(model, vector, encoder, count, epochs, seed, budget):
         "episodes": episodes,
         "optimizer_updates": updates,
         "last_loss": last_loss,
+        "learning_rate": learning_rate,
+        "teacher_demonstration_action_accuracy": correct / len(rows),
+        "parameter_l1_change": delta,
     }
 
 
@@ -298,6 +352,7 @@ def run(config, output, *, resume=False, require_detached=False):
         atomic_json(state_path, state)
         torch.set_num_threads(1)
         torch.use_deterministic_algorithms(True)
+        network = enforce_local_network_only()
         catalog = Path(config["catalog"]).resolve()
         checkout = Path(config["checkout"]).resolve()
         previous = (
@@ -499,6 +554,9 @@ def run(config, output, *, resume=False, require_detached=False):
                     experiment.get("warmstart_epochs", 8),
                     seed,
                     budget,
+                    experiment.get(
+                        "warmstart_learning_rate", experiment.get("learning_rate", 1e-4)
+                    ),
                 )
                 state["warmstart_decisions"] += state["warmstart"]["decisions"]
                 checkpoint("initial", {})
@@ -586,6 +644,12 @@ def run(config, output, *, resume=False, require_detached=False):
             }
             if previous:
                 players["previous"] = previous
+            players.update(
+                {
+                    name: LearnedPolicy(path, catalog)
+                    for name, path in config.get("reference_models", {}).items()
+                }
+            )
             for split in ("test", "unseen"):
                 if budget.stopping():
                     break
@@ -601,6 +665,7 @@ def run(config, output, *, resume=False, require_detached=False):
                 atomic_json(output / f"final_{split}.json", result)
             state["final_test"] = (output / "final_unseen.json").exists()
         state["wall_seconds_this_launch"] = perf_counter() - started
+        state["network"] = network
         state["resources"].update(job.usage()) if state.get("resources") else None
         atomic_json(state_path, state)
         return state

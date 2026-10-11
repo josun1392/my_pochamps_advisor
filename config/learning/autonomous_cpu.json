@@ -15,13 +15,13 @@
   "final_test_offset": 20000,
   "experiments": [
     {"seed": 11, "steps": 131072, "warmstart_decisions": 8192, "warmstart_epochs": 12,
-     "learning_rate": 0.0001, "ent_coef": 0.003,
+     "learning_rate": 0.0001, "warmstart_learning_rate": 0.0003, "ent_coef": 0.003,
      "opponents": ["heuristic", "heuristic", "max_power", "random", "previous"]},
     {"seed": 29, "steps": 131072, "warmstart_decisions": 8192, "warmstart_epochs": 12,
-     "learning_rate": 0.0001, "ent_coef": 0.003,
+     "learning_rate": 0.0001, "warmstart_learning_rate": 0.0003, "ent_coef": 0.003,
      "opponents": ["heuristic", "heuristic", "max_power", "random", "previous", "historical"]},
     {"seed": 47, "steps": 131072, "warmstart_decisions": 8192, "warmstart_epochs": 12,
-     "learning_rate": 0.00005, "ent_coef": 0.002,
+     "learning_rate": 0.00005, "warmstart_learning_rate": 0.0003, "ent_coef": 0.002,
      "opponents": ["heuristic", "heuristic", "max_power", "previous", "historical"]}
   ]
 }

@@ -50,7 +50,7 @@ def paired_comparisons(records, policies):
     for kind in policies:
         if kind in {"random", "max_power", "heuristic", "untrained"}:
             continue
-        for base in ("random", "heuristic", "untrained"):
+        for base in ("random", "heuristic", "untrained", "previous", "previous_action"):
             if base not in scores:
                 continue
             difference = scores[kind] - scores[base]

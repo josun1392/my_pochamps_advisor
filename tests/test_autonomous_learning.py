@@ -68,6 +68,10 @@ def test_action_features_public_history_masks_and_unknown(view):
     x = encoder.encode(view)
     assert x.shape == (5221,) and np.isfinite(x).all()
     assert view == original
+    missing_history = deepcopy(view)
+    missing_history.pop("public_history")
+    with pytest.raises(ValueError, match="public_history_required"):
+        encoder.encode(missing_history)
     for key in ("seed", "native_state", "teams", "queue", "checkpoint"):
         bad = deepcopy(view)
         bad[key] = {}
@@ -239,6 +243,46 @@ def test_v2_existing_strategy_ui_truth_and_ranking_are_unchanged(tmp_path, check
     assert "승률 아님" in text and "기본 추천에 미적용" in text
 
 
+def test_independent_teacher_rate_updates_then_restores_ppo_rate(checkout):
+    from stable_baselines3.common.vec_env import DummyVecEnv
+    from types import SimpleNamespace
+    from scripts.train_showdown_autonomous import warmstart
+
+    encoder = ActionObservationEncoder(CATALOG)
+    env = ShowdownLearningEnv(
+        checkout, encoder, curriculum_version="showdown-learning-curriculum-v2"
+    )
+    vector = DummyVecEnv([lambda: env])
+    try:
+        model = MaskablePPO(
+            ActionConditionedPolicy,
+            vector,
+            n_steps=128,
+            batch_size=128,
+            learning_rate=5e-5,
+            seed=31,
+            device="cpu",
+        )
+        report = warmstart(
+            model,
+            vector,
+            encoder,
+            128,
+            2,
+            31,
+            SimpleNamespace(stopping=lambda: False),
+            learning_rate=3e-4,
+        )
+        assert report["optimizer_updates"] == 2 and report["parameter_l1_change"] > 0
+        assert (
+            report["learning_rate"] == 3e-4
+            and 0 <= report["teacher_demonstration_action_accuracy"] <= 1
+        )
+        assert all(group["lr"] == 5e-5 for group in model.policy.optimizer.param_groups)
+    finally:
+        vector.close()
+
+
 @pytest.mark.parametrize(
     "field,value",
     [
@@ -260,3 +304,78 @@ def test_trainer_rejects_unbounded_configuration(field, value):
     config[field] = value
     with pytest.raises(ValueError):
         validate_config(config)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="hard job limits require Windows")
+def test_standalone_lifecycle_and_new_budget_from_optimizer_checkpoint(
+    tmp_path, checkout
+):
+    import subprocess
+    import sys
+    from advisor.learning_resources import process_alive
+
+    script = ROOT / "scripts/train_showdown_autonomous.py"
+    config = {
+        "schema_version": "showdown-autonomous-training-v1",
+        "checkout": checkout,
+        "catalog": str(CATALOG),
+        "max_runtime_seconds": 60,
+        "envs": 1,
+        "checkpoint_steps": 256,
+        "validation_cases": 1,
+        "plateau_patience": 4,
+        "experiments": [{"seed": 11, "steps": 512}],
+    }
+    config_file = tmp_path / "config.json"
+    config_file.write_text(json.dumps(config))
+    output = tmp_path / "run"
+    command = [
+        sys.executable,
+        str(script),
+        "--config",
+        str(config_file),
+        "--output",
+        str(output),
+    ]
+    result = subprocess.run(
+        command, capture_output=True, text=True, timeout=90, cwd=ROOT
+    )
+    assert result.returncode == 0, result.stderr
+    state = json.loads((output / "state.json").read_text())
+    assert state["status"] == "complete" and state["transitions"] == 512
+    assert (
+        state["trained_rollout_transitions"] == 512 and state["completed_battles"] > 0
+    )
+    control = json.loads((output / "control.json").read_text())
+    assert not process_alive(control["pid"]) and not (output / "run.lock").exists()
+    checkpoint = state["evaluations"][-1]["checkpoint"]
+    saved = LearnedPolicy(checkpoint, CATALOG)
+    updates = optimizer_steps(saved.model)
+    result = subprocess.run(
+        command + ["--resume"], capture_output=True, text=True, timeout=90, cwd=ROOT
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads((output / "state.json").read_text())["transitions"] == 512
+    config["experiments"][0].update(steps=256, initial_model=checkpoint)
+    config_file = tmp_path / "continuation.json"
+    config_file.write_text(json.dumps(config))
+    second = tmp_path / "continued"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--config",
+            str(config_file),
+            "--output",
+            str(second),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=90,
+        cwd=ROOT,
+    )
+    assert result.returncode == 0, result.stderr
+    state = json.loads((second / "state.json").read_text())
+    resumed = LearnedPolicy(state["evaluations"][-1]["checkpoint"], CATALOG)
+    assert state["transitions"] == 256 and resumed.model.num_timesteps == 768
+    assert optimizer_steps(resumed.model) > updates

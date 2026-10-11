@@ -9,6 +9,53 @@ import threading
 import time
 
 
+def enforce_local_network_only():
+    """Allow Windows asyncio's loopback self-pipe, reject external networking."""
+    import ipaddress
+    import socket
+
+    counters = {"blocked_external_attempts": 0}
+    connect, connect_ex, resolve = (
+        socket.socket.connect,
+        socket.socket.connect_ex,
+        socket.getaddrinfo,
+    )
+
+    def allowed(host):
+        if host in ("localhost", b"localhost", None):
+            return True
+        try:
+            return ipaddress.ip_address(
+                host.decode() if isinstance(host, bytes) else host
+            ).is_loopback
+        except ValueError:
+            return False
+
+    def check(host):
+        if not allowed(host):
+            counters["blocked_external_attempts"] += 1
+            raise RuntimeError("autonomous_learning_external_network_disabled")
+
+    def local_connect(sock, address):
+        check(address[0])
+        return connect(sock, address)
+
+    def local_connect_ex(sock, address):
+        check(address[0])
+        return connect_ex(sock, address)
+
+    def local_resolve(host, *args, **kwargs):
+        check(host)
+        return resolve(host, *args, **kwargs)
+
+    socket.socket.connect, socket.socket.connect_ex, socket.getaddrinfo = (
+        local_connect,
+        local_connect_ex,
+        local_resolve,
+    )
+    return counters
+
+
 def atomic_json(path, value):
     path = Path(path)
     temporary = path.with_name(path.name + ".writing")

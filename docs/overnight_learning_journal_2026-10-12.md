@@ -43,3 +43,32 @@ Best current validation56/96 is a small pilot result, not a strategic-strength c
 Next: resume from verified checkpoint; finish controlled seed comparisons; inspect
 summary once complete, preserve validation best, then independent final evaluation.
 Commit identifiers and final output paths will be recorded at validated checkpoints.
+
+Validated core milestone committed/pushed:48318c21e4335efdec1b43656dc14f7a9075cfce.
+Standalone lifecycle tests additionally proved complete-run idempotent resume and
+new-budget optimizer continuation (512→768 PPO transitions);11 focused tests passed.
+Thirty-second deadline probe completed under the configured budget; artifacts will
+be summarized after managed experiments. Full offline regression is running with
+network-blocking in all four pytest workers.
+
+Encoder optimization: cache only repeated calculations inside one public view.
+413 native decision views across32 new train episodes (309 move/104 switch phases)
+were bitwise identical before/after; p50 encoding1.287→0.653ms, p951.969→1.005ms.
+No cross-episode cache or policy-contract reinterpretation. Current already-loaded
+training continues with equivalent uncached features; new runs/UI use the faster path.
+
+Broad offline checkpoint:7860 passed/2 known baseline layout failures,509.42s;
+zero attempted external network connections in parent/four workers. Native/learning/
+UI focused checkpoint51 passed; new standalone trainer tests12 passed in24.17s.
+Deadline proof:30.059s wall,4571 collected/4480 trained rollout transitions,
+321 battles,34.72s aggregate tree CPU,1.11GiB peak job memory; workers closed.
+
+Evidence-driven follow-up started ~17:31 UTC: warmrate.json/output warmrate.
+Source is immutable run-A validation-best seed47 PPO32768 (66/96 validation wins).
+Compare unchanged source, additional teacher fit at3e-4 vsPPO5e-5 (seed59),
+fresh seed73 at those separate rates. At most20min; plateau3;65536-step budgets;
+8192 teacher decisions/12epochs; reference includes the preserved source checkpoint.
+Final tests use fresh offset30000 and remain uninspected until selection completes.
+The two brief overlapping CPU jobs each have12.5%/3GiB hard caps (<=25%/6GiB total)
+on the16-logical-CPU/64GiB host; all foreground and resumable, no persistence promise.
+Run-A final-test files will not be used to tune the follow-up.
