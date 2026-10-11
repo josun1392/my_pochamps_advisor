@@ -21,6 +21,24 @@ dev = [
     "pytest-xdist>=3.8.0",
 ]
 
+[project.optional-dependencies]
+learning = [
+    "torch==2.8.0",
+    "sb3-contrib==2.7.1",
+    "stable-baselines3==2.7.1",
+    "gymnasium==1.2.3",
+    "poke-env==0.10.0",
+    "numpy==2.4.6",
+]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", extra = "learning" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 markers = [

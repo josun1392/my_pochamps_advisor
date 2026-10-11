@@ -83,6 +83,8 @@ def project_policy_observation(native: dict, history: list[str]) -> dict:
             row["known_item"] = None
         elif kind == "-mega" and len(args) >= 3:
             row["known_item"] = _id(args[2])
+        elif kind in {"detailschange", "-formechange"} and len(args) >= 2:
+            row["details"] = args[1] if kind == "detailschange" else args[1] + ("," + row["details"].split(",", 1)[1] if "," in row["details"] else "")
         elif kind == "-ability" and len(args) >= 2:
             row["current_ability"] = _id(args[1])
         elif kind == "move" and len(args) >= 2 and not any(a.startswith("[from]") for a in args):
@@ -105,8 +107,12 @@ def project_policy_observation(native: dict, history: list[str]) -> dict:
         name = pokemon["ident"].split(": ", 1)[1]
         identity = next((key for key in own["pokemon"] if key.split(": ", 1)[1] == name), pokemon["ident"])
         row = own["pokemon"].setdefault(identity, _pokemon(identity, pokemon["details"]))
+        row["details"] = pokemon["details"]
         _condition(row, pokemon["condition"], own=True)
-        row.update(known_item=pokemon.get("item") or None, current_ability=pokemon.get("ability") or pokemon.get("baseAbility", unknown()),
+        item = pokemon.get("item", unknown())
+        ability = pokemon.get("ability", unknown())
+        row.update(known_item=(item or None) if isinstance(item, str) else row["known_item"],
+                   current_ability=ability if isinstance(ability, str) and ability else row["current_ability"],
                    known_moves=list(pokemon.get("moves", [])))
         if pokemon.get("active"):
             own["active_identity"] = identity

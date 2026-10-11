@@ -1,0 +1,121 @@
+{
+  "schema_version": "showdown-learned-model-v1",
+  "evidence_class": "learned_policy_value",
+  "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
+  "encoder_version": "showdown-learned-observation-v1",
+  "catalog_fingerprint": "c907a1d03837258498120cdde1f3e7003fa5c3f2cad305baca6d3570ff8b83a5",
+  "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+  "format_id": "gen9championsbssregmc",
+  "action_schema_version": "showdown-policy-actions-v1",
+  "algorithm": "sb3-contrib-MaskablePPO",
+  "architecture": {
+    "policy": [
+      64,
+      64
+    ],
+    "value": [
+      64,
+      64
+    ]
+  },
+  "versions": {
+    "torch": "2.8.0+cpu",
+    "sb3-contrib": "2.7.1",
+    "stable-baselines3": "2.7.1",
+    "gymnasium": "1.2.3",
+    "poke-env": "0.10.0",
+    "numpy": "2.4.6"
+  },
+  "seed": 17,
+  "device": "cpu",
+  "torch_threads": 1,
+  "envs": 4,
+  "steps_this_run": 8192,
+  "total_steps": 10240,
+  "ppo_update_epochs_this_run": 64,
+  "optimizer_steps_this_run": 256,
+  "parameter_l1_change": 617.5709838867188,
+  "parameter_count": 111524,
+  "observation_dim": 787,
+  "model_sha256": "00a9d85a9288f7f818f1c25f2cfb6c16e9c369387cc5a7ed0fd66568b9f099c0",
+  "training_seconds": 21.563739299999725,
+  "gamma": 0.99,
+  "reward": "native_sparse_win_1_loss_minus1_draw0_truncation0",
+  "opponents": [
+    "random",
+    "poke-env-MaxBasePowerPlayer",
+    "poke-env-SimpleHeuristicsPlayer"
+  ],
+  "training_species": [
+    "Charizard",
+    "Scizor",
+    "Garchomp",
+    "Rotom-Wash",
+    "Tyranitar",
+    "Dragonite",
+    "Gengar",
+    "Venusaur",
+    "Gyarados",
+    "Lucario"
+  ],
+  "completed_episodes": 588,
+  "wins": 257,
+  "losses": 331,
+  "draws": 0,
+  "truncated": 0,
+  "resume_source_sha256": "591a7745f63169c38cdc7b0210fa26d27ec2d6e73601087d675e860bc40cbdd6",
+  "training_metrics": {
+    "train/learning_rate": 0.0003,
+    "train/entropy_loss": -1.4398121237754822,
+    "train/policy_gradient_loss": -0.006504678109195083,
+    "train/value_loss": 0.36739392951130867,
+    "train/clip_fraction": 0.01611328125,
+    "train/loss": 0.09133376181125641,
+    "train/explained_variance": 0.2360215187072754,
+    "train/n_updates": 80.0,
+    "train/clip_range": 0.2
+  },
+  "distillation": {
+    "schema_version": "showdown-visible-teacher-distillation-v1",
+    "source_model_id": "0f4a31746f3cdd6a77e797abe87412404fcfaba888a51f6184de349d0bf2a390",
+    "teacher": "poke-env-SimpleHeuristicsPlayer",
+    "seed": 31,
+    "native_decisions": 4099,
+    "completed_native_episodes": 462,
+    "epochs": 12,
+    "optimizer_steps": 396,
+    "seconds": 11.995805099999416,
+    "teacher_cross_entropy_before": 1.3639239072799683,
+    "teacher_cross_entropy_after": 0.7989550232887268,
+    "realized_return_mse_before": 0.7857816219329834,
+    "realized_return_mse_after": 0.2933454215526581,
+    "parameter_l1_change": 1322.2442626953125
+  },
+  "value_calibration": {
+    "schema_version": "showdown-visible-return-calibration-v1",
+    "source_model_id": "d3427b55683b14d01529746e70c694407c603cef3060e5b37b0a489c57627c91",
+    "teacher": "frozen_current_policy",
+    "policy_unchanged": true,
+    "seed": 31,
+    "native_decisions": 4099,
+    "completed_native_episodes": 396,
+    "epochs": 8,
+    "optimizer_steps": 264,
+    "seconds": 15.567903399998613,
+    "teacher_cross_entropy_before": 0.6396751999855042,
+    "teacher_cross_entropy_after": 0.6396751999855042,
+    "realized_return_mse_before": 0.6728823781013489,
+    "realized_return_mse_after": 0.20090483129024506,
+    "parameter_l1_change": 394.46246337890625
+  },
+  "release_selection": {
+    "schema_version": "showdown-learned-release-selection-v1",
+    "policy_rule": "best_24_case_validation_win_count_before_holdout",
+    "critic_rule": "frozen_actor_and_improved_validation_return_mse_before_fresh_holdout",
+    "heldout_case_indices": [
+      64,
+      127
+    ],
+    "heldout_training_forbidden": true
+  }
+}

@@ -1,0 +1,620 @@
+{
+  "schema_version": "showdown-initial-learning-summary-v1",
+  "released_model_id": "00a9d85a9288f7f818f1c25f2cfb6c16e9c369387cc5a7ed0fd66568b9f099c0",
+  "stages": [
+    {
+      "stage": "stage1",
+      "sha256": "591a7745f63169c38cdc7b0210fa26d27ec2d6e73601087d675e860bc40cbdd6",
+      "steps_this_run": 2048,
+      "total_ppo_steps": 2048,
+      "optimizer_steps_this_run": 64,
+      "completed_episodes": 144,
+      "seconds": 6.682058500002313,
+      "parameter_l1_change": 328.9217529296875,
+      "selected_ancestor": true
+    },
+    {
+      "stage": "stage2",
+      "sha256": "0f4a31746f3cdd6a77e797abe87412404fcfaba888a51f6184de349d0bf2a390",
+      "steps_this_run": 8192,
+      "total_ppo_steps": 10240,
+      "optimizer_steps_this_run": 256,
+      "completed_episodes": 588,
+      "seconds": 21.563739299999725,
+      "parameter_l1_change": 617.5709838867188,
+      "selected_ancestor": true
+    },
+    {
+      "stage": "stage3",
+      "sha256": "afbb719fd08734539e6ab21f983953fc3795536aff76d1316183e116444edd0a",
+      "steps_this_run": 8192,
+      "total_ppo_steps": 18432,
+      "optimizer_steps_this_run": 256,
+      "completed_episodes": 712,
+      "seconds": 22.431853599999158,
+      "parameter_l1_change": 672.1101684570312,
+      "selected_ancestor": false
+    },
+    {
+      "stage": "distilled",
+      "sha256": "d3427b55683b14d01529746e70c694407c603cef3060e5b37b0a489c57627c91",
+      "schema_version": "showdown-visible-teacher-distillation-v1",
+      "source_model_id": "0f4a31746f3cdd6a77e797abe87412404fcfaba888a51f6184de349d0bf2a390",
+      "teacher": "poke-env-SimpleHeuristicsPlayer",
+      "seed": 31,
+      "native_decisions": 4099,
+      "completed_native_episodes": 462,
+      "epochs": 12,
+      "optimizer_steps": 396,
+      "seconds": 11.995805099999416,
+      "teacher_cross_entropy_before": 1.3639239072799683,
+      "teacher_cross_entropy_after": 0.7989550232887268,
+      "realized_return_mse_before": 0.7857816219329834,
+      "realized_return_mse_after": 0.2933454215526581,
+      "parameter_l1_change": 1322.2442626953125
+    },
+    {
+      "stage": "calibrated",
+      "sha256": "00a9d85a9288f7f818f1c25f2cfb6c16e9c369387cc5a7ed0fd66568b9f099c0",
+      "schema_version": "showdown-visible-return-calibration-v1",
+      "source_model_id": "d3427b55683b14d01529746e70c694407c603cef3060e5b37b0a489c57627c91",
+      "teacher": "frozen_current_policy",
+      "policy_unchanged": true,
+      "seed": 31,
+      "native_decisions": 4099,
+      "completed_native_episodes": 396,
+      "epochs": 8,
+      "optimizer_steps": 264,
+      "seconds": 15.567903399998613,
+      "teacher_cross_entropy_before": 0.6396751999855042,
+      "teacher_cross_entropy_after": 0.6396751999855042,
+      "realized_return_mse_before": 0.6728823781013489,
+      "realized_return_mse_after": 0.20090483129024506,
+      "parameter_l1_change": 394.46246337890625
+    }
+  ],
+  "training_collection_episodes": 2302,
+  "total_stage_wall_seconds": 78.24135989999922,
+  "training_device": "cpu",
+  "torch_threads": 1,
+  "native_workers_per_ppo_run": 4,
+  "external_network_attempts": 0,
+  "broad_regression": {
+    "passed": 7846,
+    "failed": 2,
+    "seconds": 623.83,
+    "network_attempts": 0,
+    "baseline_only_failures": [
+      "test_pre_1_0_smaller_desktop_responsive_window.py::test_1280x720_decide_record_and_details_controls_remain_reachable",
+      "test_pre_1_0_smaller_desktop_responsive_window.py::test_record_next_turn_is_visible_at_1366x768_and_large_window"
+    ]
+  },
+  "validation": [
+    {
+      "run": "validation1",
+      "n_per_policy": 72,
+      "policies": {
+        "random": "random",
+        "max_power": "max_power",
+        "heuristic": "heuristic",
+        "untrained": "57503b41e67b7dfa5af750bb14f74bebf834d8ef4cc1adcd4286d542f7e57934",
+        "stage1": "591a7745f63169c38cdc7b0210fa26d27ec2d6e73601087d675e860bc40cbdd6"
+      },
+      "results": [
+        {
+          "policy": "random",
+          "opponent": "all",
+          "n": 72,
+          "wins": 26,
+          "losses": 46,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3611111111111111,
+          "wilson_95": [
+            0.25981679706174077,
+            0.4764751953261641
+          ],
+          "mean_return": -0.2777777777777778,
+          "mean_decisions": 16.11111111111111,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "max_power",
+          "opponent": "all",
+          "n": 72,
+          "wins": 28,
+          "losses": 44,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3888888888888889,
+          "wilson_95": [
+            0.2846571438524779,
+            0.5043764500578461
+          ],
+          "mean_return": -0.2222222222222222,
+          "mean_decisions": 14.222222222222221,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "heuristic",
+          "opponent": "all",
+          "n": 72,
+          "wins": 54,
+          "losses": 18,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.75,
+          "wilson_95": [
+            0.6390649259565606,
+            0.8356094877452105
+          ],
+          "mean_return": 0.5,
+          "mean_decisions": 10.833333333333334,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "untrained",
+          "opponent": "all",
+          "n": 72,
+          "wins": 11,
+          "losses": 61,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.1527777777777778,
+          "wilson_95": [
+            0.08750708729475694,
+            0.25322289367500544
+          ],
+          "mean_return": -0.6944444444444444,
+          "mean_decisions": 19.875,
+          "value_discounted_return_mse": 0.6873951677632012
+        },
+        {
+          "policy": "stage1",
+          "opponent": "all",
+          "n": 72,
+          "wins": 23,
+          "losses": 49,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3194444444444444,
+          "wilson_95": [
+            0.22325610278261976,
+            0.43392348732165664
+          ],
+          "mean_return": -0.3611111111111111,
+          "mean_decisions": 15.194444444444445,
+          "value_discounted_return_mse": 0.6967856764608701
+        }
+      ]
+    },
+    {
+      "run": "validation2",
+      "n_per_policy": 72,
+      "policies": {
+        "random": "random",
+        "max_power": "max_power",
+        "heuristic": "heuristic",
+        "stage1": "591a7745f63169c38cdc7b0210fa26d27ec2d6e73601087d675e860bc40cbdd6",
+        "stage2": "0f4a31746f3cdd6a77e797abe87412404fcfaba888a51f6184de349d0bf2a390"
+      },
+      "results": [
+        {
+          "policy": "random",
+          "opponent": "all",
+          "n": 72,
+          "wins": 26,
+          "losses": 46,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3611111111111111,
+          "wilson_95": [
+            0.25981679706174077,
+            0.4764751953261641
+          ],
+          "mean_return": -0.2777777777777778,
+          "mean_decisions": 16.11111111111111,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "max_power",
+          "opponent": "all",
+          "n": 72,
+          "wins": 28,
+          "losses": 44,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3888888888888889,
+          "wilson_95": [
+            0.2846571438524779,
+            0.5043764500578461
+          ],
+          "mean_return": -0.2222222222222222,
+          "mean_decisions": 14.222222222222221,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "heuristic",
+          "opponent": "all",
+          "n": 72,
+          "wins": 54,
+          "losses": 18,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.75,
+          "wilson_95": [
+            0.6390649259565606,
+            0.8356094877452105
+          ],
+          "mean_return": 0.5,
+          "mean_decisions": 10.833333333333334,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "stage1",
+          "opponent": "all",
+          "n": 72,
+          "wins": 23,
+          "losses": 49,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3194444444444444,
+          "wilson_95": [
+            0.22325610278261976,
+            0.43392348732165664
+          ],
+          "mean_return": -0.3611111111111111,
+          "mean_decisions": 15.194444444444445,
+          "value_discounted_return_mse": 0.7074575832113269
+        },
+        {
+          "policy": "stage2",
+          "opponent": "all",
+          "n": 72,
+          "wins": 25,
+          "losses": 47,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3472222222222222,
+          "wilson_95": [
+            0.24753423008275116,
+            0.46238696154394426
+          ],
+          "mean_return": -0.3055555555555556,
+          "mean_decisions": 16.430555555555557,
+          "value_discounted_return_mse": 0.6551316174468053
+        }
+      ]
+    },
+    {
+      "run": "validation3",
+      "n_per_policy": 72,
+      "policies": {
+        "random": "random",
+        "max_power": "max_power",
+        "heuristic": "heuristic",
+        "stage2": "0f4a31746f3cdd6a77e797abe87412404fcfaba888a51f6184de349d0bf2a390",
+        "distilled": "d3427b55683b14d01529746e70c694407c603cef3060e5b37b0a489c57627c91"
+      },
+      "results": [
+        {
+          "policy": "random",
+          "opponent": "all",
+          "n": 72,
+          "wins": 26,
+          "losses": 46,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3611111111111111,
+          "wilson_95": [
+            0.25981679706174077,
+            0.4764751953261641
+          ],
+          "mean_return": -0.2777777777777778,
+          "mean_decisions": 16.11111111111111,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "max_power",
+          "opponent": "all",
+          "n": 72,
+          "wins": 28,
+          "losses": 44,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3888888888888889,
+          "wilson_95": [
+            0.2846571438524779,
+            0.5043764500578461
+          ],
+          "mean_return": -0.2222222222222222,
+          "mean_decisions": 14.222222222222221,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "heuristic",
+          "opponent": "all",
+          "n": 72,
+          "wins": 54,
+          "losses": 18,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.75,
+          "wilson_95": [
+            0.6390649259565606,
+            0.8356094877452105
+          ],
+          "mean_return": 0.5,
+          "mean_decisions": 10.833333333333334,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "stage2",
+          "opponent": "all",
+          "n": 72,
+          "wins": 25,
+          "losses": 47,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3472222222222222,
+          "wilson_95": [
+            0.24753423008275116,
+            0.46238696154394426
+          ],
+          "mean_return": -0.3055555555555556,
+          "mean_decisions": 16.430555555555557,
+          "value_discounted_return_mse": 0.6551316174468053
+        },
+        {
+          "policy": "distilled",
+          "opponent": "all",
+          "n": 72,
+          "wins": 41,
+          "losses": 31,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.5694444444444444,
+          "wilson_95": [
+            0.45443306167310615,
+            0.6774209421329412
+          ],
+          "mean_return": 0.1388888888888889,
+          "mean_decisions": 13.73611111111111,
+          "value_discounted_return_mse": 1.0383456514913174
+        }
+      ]
+    },
+    {
+      "run": "validation4",
+      "n_per_policy": 72,
+      "policies": {
+        "random": "random",
+        "max_power": "max_power",
+        "heuristic": "heuristic",
+        "distilled": "d3427b55683b14d01529746e70c694407c603cef3060e5b37b0a489c57627c91",
+        "stage3": "afbb719fd08734539e6ab21f983953fc3795536aff76d1316183e116444edd0a"
+      },
+      "results": [
+        {
+          "policy": "random",
+          "opponent": "all",
+          "n": 72,
+          "wins": 26,
+          "losses": 46,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3611111111111111,
+          "wilson_95": [
+            0.25981679706174077,
+            0.4764751953261641
+          ],
+          "mean_return": -0.2777777777777778,
+          "mean_decisions": 16.11111111111111,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "max_power",
+          "opponent": "all",
+          "n": 72,
+          "wins": 28,
+          "losses": 44,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3888888888888889,
+          "wilson_95": [
+            0.2846571438524779,
+            0.5043764500578461
+          ],
+          "mean_return": -0.2222222222222222,
+          "mean_decisions": 14.222222222222221,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "heuristic",
+          "opponent": "all",
+          "n": 72,
+          "wins": 54,
+          "losses": 18,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.75,
+          "wilson_95": [
+            0.6390649259565606,
+            0.8356094877452105
+          ],
+          "mean_return": 0.5,
+          "mean_decisions": 10.833333333333334,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "distilled",
+          "opponent": "all",
+          "n": 72,
+          "wins": 41,
+          "losses": 31,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.5694444444444444,
+          "wilson_95": [
+            0.45443306167310615,
+            0.6774209421329412
+          ],
+          "mean_return": 0.1388888888888889,
+          "mean_decisions": 13.73611111111111,
+          "value_discounted_return_mse": 1.0383456514913174
+        },
+        {
+          "policy": "stage3",
+          "opponent": "all",
+          "n": 72,
+          "wins": 38,
+          "losses": 34,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.5277777777777778,
+          "wilson_95": [
+            0.4140067049007661,
+            0.6387348966216531
+          ],
+          "mean_return": 0.05555555555555555,
+          "mean_decisions": 13.527777777777779,
+          "value_discounted_return_mse": 0.660336255383221
+        }
+      ]
+    },
+    {
+      "run": "validation5",
+      "n_per_policy": 72,
+      "policies": {
+        "random": "random",
+        "max_power": "max_power",
+        "heuristic": "heuristic",
+        "model": "d3427b55683b14d01529746e70c694407c603cef3060e5b37b0a489c57627c91",
+        "calibrated": "00a9d85a9288f7f818f1c25f2cfb6c16e9c369387cc5a7ed0fd66568b9f099c0"
+      },
+      "results": [
+        {
+          "policy": "random",
+          "opponent": "all",
+          "n": 72,
+          "wins": 26,
+          "losses": 46,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3611111111111111,
+          "wilson_95": [
+            0.25981679706174077,
+            0.4764751953261641
+          ],
+          "mean_return": -0.2777777777777778,
+          "mean_decisions": 16.11111111111111,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "max_power",
+          "opponent": "all",
+          "n": 72,
+          "wins": 28,
+          "losses": 44,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.3888888888888889,
+          "wilson_95": [
+            0.2846571438524779,
+            0.5043764500578461
+          ],
+          "mean_return": -0.2222222222222222,
+          "mean_decisions": 14.222222222222221,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "heuristic",
+          "opponent": "all",
+          "n": 72,
+          "wins": 54,
+          "losses": 18,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.75,
+          "wilson_95": [
+            0.6390649259565606,
+            0.8356094877452105
+          ],
+          "mean_return": 0.5,
+          "mean_decisions": 10.833333333333334,
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "model",
+          "opponent": "all",
+          "n": 72,
+          "wins": 41,
+          "losses": 31,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.5694444444444444,
+          "wilson_95": [
+            0.45443306167310615,
+            0.6774209421329412
+          ],
+          "mean_return": 0.1388888888888889,
+          "mean_decisions": 13.73611111111111,
+          "value_discounted_return_mse": 1.0383456514913174
+        },
+        {
+          "policy": "calibrated",
+          "opponent": "all",
+          "n": 72,
+          "wins": 41,
+          "losses": 31,
+          "draws": 0,
+          "truncated": 0,
+          "win_fraction": 0.5694444444444444,
+          "wilson_95": [
+            0.45443306167310615,
+            0.6774209421329412
+          ],
+          "mean_return": 0.1388888888888889,
+          "mean_decisions": 13.73611111111111,
+          "value_discounted_return_mse": 0.9826929593506103
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "one_training_seed",
+    "limited_species_and_opponent_curriculum",
+    "flat_nonrecurrent_encoder",
+    "uncalibrated_critic",
+    "weaker_than_heuristic",
+    "no_default_ranking_change"
+  ],
+  "focused_regression": {
+    "passed": 109,
+    "failed": 0,
+    "seconds": 46.67,
+    "network_attempts": 0,
+    "scope": "latest_native_projection_model_gym_strategy_UI"
+  },
+  "release_contract_regression": {
+    "passed": 40,
+    "failed": 0,
+    "seconds": 10.3,
+    "network_attempts": 0
+  },
+  "without_learning_extra_fallback": {
+    "passed": 2,
+    "failed": 0,
+    "seconds": 1.73,
+    "network_attempts": 0
+  },
+  "evaluation_native_episodes": 7176,
+  "observed_optimizer_counters": {
+    "stage1": 64,
+    "stage2": 320,
+    "distilled": 716,
+    "stage3": 972,
+    "calibrated_critic": 980,
+    "calibrated_actor": 716
+  }
+}
