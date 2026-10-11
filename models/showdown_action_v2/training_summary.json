@@ -1,0 +1,516 @@
+{
+  "schema_version": "showdown-overnight-learning-summary-v1",
+  "selected_model_id": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+  "ppo_collected_transitions": 426736,
+  "ppo_trained_rollout_transitions": 426496,
+  "teacher_decisions": 49152,
+  "ended_or_truncated_training_episodes": 48930,
+  "training_counter_limitation": "older_runs_did_not_persist_training_truncation_breakdown_not_retroactively_assumed_complete",
+  "runs": {
+    "experiments": {
+      "experiments": [
+        {
+          "seed": 11,
+          "steps": 32768,
+          "encoder_version": "showdown-learned-observation-v1",
+          "warmstart_decisions": 8192,
+          "warmstart_epochs": 12,
+          "learning_rate": 0.0001,
+          "ent_coef": 0.003,
+          "opponents": [
+            "heuristic",
+            "heuristic",
+            "max_power",
+            "random",
+            "previous"
+          ]
+        },
+        {
+          "seed": 11,
+          "steps": 32768,
+          "warmstart_decisions": 0,
+          "learning_rate": 0.0001,
+          "ent_coef": 0.003,
+          "opponents": [
+            "heuristic",
+            "heuristic",
+            "max_power",
+            "random",
+            "previous"
+          ]
+        },
+        {
+          "seed": 11,
+          "steps": 262144,
+          "warmstart_decisions": 8192,
+          "warmstart_epochs": 12,
+          "learning_rate": 5e-05,
+          "ent_coef": 0.002,
+          "opponents": [
+            "heuristic",
+            "heuristic",
+            "max_power",
+            "random",
+            "previous"
+          ]
+        },
+        {
+          "seed": 29,
+          "steps": 262144,
+          "warmstart_decisions": 8192,
+          "warmstart_epochs": 12,
+          "learning_rate": 5e-05,
+          "ent_coef": 0.002,
+          "opponents": [
+            "heuristic",
+            "heuristic",
+            "max_power",
+            "random",
+            "previous",
+            "historical"
+          ]
+        },
+        {
+          "seed": 47,
+          "steps": 262144,
+          "warmstart_decisions": 8192,
+          "warmstart_epochs": 12,
+          "learning_rate": 5e-05,
+          "ent_coef": 0.002,
+          "opponents": [
+            "heuristic",
+            "heuristic",
+            "max_power",
+            "previous",
+            "historical"
+          ]
+        }
+      ],
+      "launches": 2,
+      "best_validation_score": 0.6875,
+      "ppo_transitions": 311536,
+      "teacher_decisions": 32768,
+      "ended_or_truncated_episodes": 33907,
+      "last_launch_wall_seconds": 1521.4278983999975,
+      "last_launch_resources": {
+        "native_rss_bytes": 693907456,
+        "python_cpu_seconds": 1168.734375,
+        "wall_seconds_this_launch": 1474.8483787000005,
+        "tree_cpu_seconds": 1615.03125,
+        "peak_job_memory_bytes": 2280304640,
+        "active_processes": 1
+      },
+      "validation_trajectory": [
+        {
+          "experiment": 0,
+          "steps": 0,
+          "stage": "initial",
+          "wins": 56,
+          "n": 96,
+          "score": 0.5833333333333334
+        },
+        {
+          "experiment": 0,
+          "steps": 16384,
+          "stage": "ppo",
+          "wins": 52,
+          "n": 96,
+          "score": 0.5416666666666666
+        },
+        {
+          "experiment": 0,
+          "steps": 33008,
+          "stage": "ppo",
+          "wins": 37,
+          "n": 96,
+          "score": 0.3854166666666667
+        },
+        {
+          "experiment": 1,
+          "steps": 0,
+          "stage": "initial",
+          "wins": 34,
+          "n": 96,
+          "score": 0.3541666666666667
+        },
+        {
+          "experiment": 1,
+          "steps": 16384,
+          "stage": "ppo",
+          "wins": 59,
+          "n": 96,
+          "score": 0.6145833333333334
+        },
+        {
+          "experiment": 1,
+          "steps": 32768,
+          "stage": "ppo",
+          "wins": 60,
+          "n": 96,
+          "score": 0.625
+        },
+        {
+          "experiment": 2,
+          "steps": 0,
+          "stage": "initial",
+          "wins": 64,
+          "n": 96,
+          "score": 0.6666666666666666
+        },
+        {
+          "experiment": 2,
+          "steps": 16384,
+          "stage": "ppo",
+          "wins": 64,
+          "n": 96,
+          "score": 0.6666666666666666
+        },
+        {
+          "experiment": 2,
+          "steps": 32768,
+          "stage": "ppo",
+          "wins": 64,
+          "n": 96,
+          "score": 0.6666666666666666
+        },
+        {
+          "experiment": 2,
+          "steps": 49152,
+          "stage": "ppo",
+          "wins": 63,
+          "n": 96,
+          "score": 0.65625
+        },
+        {
+          "experiment": 2,
+          "steps": 65536,
+          "stage": "ppo",
+          "wins": 64,
+          "n": 96,
+          "score": 0.6666666666666666
+        },
+        {
+          "experiment": 3,
+          "steps": 0,
+          "stage": "initial",
+          "wins": 63,
+          "n": 96,
+          "score": 0.65625
+        },
+        {
+          "experiment": 3,
+          "steps": 16384,
+          "stage": "ppo",
+          "wins": 64,
+          "n": 96,
+          "score": 0.6666666666666666
+        },
+        {
+          "experiment": 3,
+          "steps": 32768,
+          "stage": "ppo",
+          "wins": 61,
+          "n": 96,
+          "score": 0.6354166666666666
+        },
+        {
+          "experiment": 3,
+          "steps": 49152,
+          "stage": "ppo",
+          "wins": 60,
+          "n": 96,
+          "score": 0.625
+        },
+        {
+          "experiment": 3,
+          "steps": 65536,
+          "stage": "ppo",
+          "wins": 61,
+          "n": 96,
+          "score": 0.6354166666666666
+        },
+        {
+          "experiment": 3,
+          "steps": 81920,
+          "stage": "ppo",
+          "wins": 63,
+          "n": 96,
+          "score": 0.65625
+        },
+        {
+          "experiment": 4,
+          "steps": 0,
+          "stage": "initial",
+          "wins": 63,
+          "n": 96,
+          "score": 0.65625
+        },
+        {
+          "experiment": 4,
+          "steps": 16384,
+          "stage": "ppo",
+          "wins": 62,
+          "n": 96,
+          "score": 0.6458333333333334
+        },
+        {
+          "experiment": 4,
+          "steps": 32768,
+          "stage": "ppo",
+          "wins": 66,
+          "n": 96,
+          "score": 0.6875
+        },
+        {
+          "experiment": 4,
+          "steps": 49152,
+          "stage": "ppo",
+          "wins": 63,
+          "n": 96,
+          "score": 0.65625
+        },
+        {
+          "experiment": 4,
+          "steps": 65536,
+          "stage": "ppo",
+          "wins": 62,
+          "n": 96,
+          "score": 0.6458333333333334
+        },
+        {
+          "experiment": 4,
+          "steps": 81920,
+          "stage": "ppo",
+          "wins": 63,
+          "n": 96,
+          "score": 0.65625
+        },
+        {
+          "experiment": 4,
+          "steps": 98304,
+          "stage": "ppo",
+          "wins": 66,
+          "n": 96,
+          "score": 0.6875
+        }
+      ],
+      "earlier_stopped_launch": {
+        "wall_seconds": 100.26146030000382,
+        "tree_cpu_seconds": 114.921875,
+        "resume_semantics": "partial_rollout_discarded_native_episodes_reset"
+      }
+    },
+    "warmrate": {
+      "experiments": [
+        {
+          "seed": 59,
+          "steps": 512,
+          "learning_rate": 1e-06,
+          "ent_coef": 0,
+          "opponents": [
+            "heuristic",
+            "max_power",
+            "previous"
+          ],
+          "initial_model_id": "8db7529083c2546f0e0a3a9ae7f57f1fe218dae5b04e09ad0328ae47ed6eb713"
+        },
+        {
+          "seed": 59,
+          "steps": 65536,
+          "warmstart_decisions": 8192,
+          "warmstart_epochs": 12,
+          "warmstart_learning_rate": 0.0003,
+          "learning_rate": 5e-05,
+          "ent_coef": 0.002,
+          "opponents": [
+            "heuristic",
+            "heuristic",
+            "max_power",
+            "random",
+            "previous",
+            "historical"
+          ],
+          "initial_model_id": "8db7529083c2546f0e0a3a9ae7f57f1fe218dae5b04e09ad0328ae47ed6eb713"
+        },
+        {
+          "seed": 73,
+          "steps": 65536,
+          "warmstart_decisions": 8192,
+          "warmstart_epochs": 12,
+          "warmstart_learning_rate": 0.0003,
+          "learning_rate": 5e-05,
+          "ent_coef": 0.002,
+          "opponents": [
+            "heuristic",
+            "heuristic",
+            "max_power",
+            "previous",
+            "historical"
+          ]
+        }
+      ],
+      "launches": 1,
+      "best_validation_score": 0.7395833333333334,
+      "ppo_transitions": 115200,
+      "teacher_decisions": 16384,
+      "ended_or_truncated_episodes": 15023,
+      "last_launch_wall_seconds": 592.595049800002,
+      "last_launch_resources": {
+        "native_rss_bytes": 691810304,
+        "python_cpu_seconds": 410.265625,
+        "wall_seconds_this_launch": 537.0509523000001,
+        "tree_cpu_seconds": 638.890625,
+        "peak_job_memory_bytes": 2064797696,
+        "active_processes": 1
+      },
+      "validation_trajectory": [
+        {
+          "experiment": 0,
+          "steps": 32768,
+          "stage": "initial",
+          "wins": 66,
+          "n": 96,
+          "score": 0.6875
+        },
+        {
+          "experiment": 0,
+          "steps": 33280,
+          "stage": "ppo",
+          "wins": 66,
+          "n": 96,
+          "score": 0.6875
+        },
+        {
+          "experiment": 1,
+          "steps": 32768,
+          "stage": "initial",
+          "wins": 70,
+          "n": 96,
+          "score": 0.7291666666666666
+        },
+        {
+          "experiment": 1,
+          "steps": 49152,
+          "stage": "ppo",
+          "wins": 68,
+          "n": 96,
+          "score": 0.7083333333333334
+        },
+        {
+          "experiment": 1,
+          "steps": 65536,
+          "stage": "ppo",
+          "wins": 68,
+          "n": 96,
+          "score": 0.7083333333333334
+        },
+        {
+          "experiment": 1,
+          "steps": 81920,
+          "stage": "ppo",
+          "wins": 68,
+          "n": 96,
+          "score": 0.7083333333333334
+        },
+        {
+          "experiment": 2,
+          "steps": 0,
+          "stage": "initial",
+          "wins": 70,
+          "n": 96,
+          "score": 0.7291666666666666
+        },
+        {
+          "experiment": 2,
+          "steps": 16384,
+          "stage": "ppo",
+          "wins": 70,
+          "n": 96,
+          "score": 0.7291666666666666
+        },
+        {
+          "experiment": 2,
+          "steps": 32768,
+          "stage": "ppo",
+          "wins": 71,
+          "n": 96,
+          "score": 0.7395833333333334
+        },
+        {
+          "experiment": 2,
+          "steps": 49152,
+          "stage": "ppo",
+          "wins": 69,
+          "n": 96,
+          "score": 0.71875
+        },
+        {
+          "experiment": 2,
+          "steps": 65536,
+          "stage": "ppo",
+          "wins": 70,
+          "n": 96,
+          "score": 0.7291666666666666
+        }
+      ]
+    }
+  },
+  "benchmark_encoder": {
+    "views": 413,
+    "episodes": 32,
+    "phases": {
+      "move": 309,
+      "switch": 104
+    },
+    "bitwise_equal": true,
+    "timings": {
+      "uncached": {
+        "p50_ms": 1.2872000006609596,
+        "p95_ms": 1.9691200024681164,
+        "seconds": 0.5917335000049206
+      },
+      "cached": {
+        "p50_ms": 0.6527000005007721,
+        "p95_ms": 1.0049600037746131,
+        "seconds": 0.29307109996443614
+      }
+    }
+  },
+  "validation_tests": {
+    "broad_passed": 7860,
+    "known_baseline_failed": 2,
+    "broad_elapsed_seconds": 509.42,
+    "external_network_attempts_in_pytest_workers": 0
+  },
+  "selected_artifact_learning": {
+    "seed": 73,
+    "ppo_transitions": 32768,
+    "teacher_decisions": 8192,
+    "teacher_optimizer_updates": 768,
+    "ppo_optimizer_updates": 1024,
+    "total_optimizer_updates": 1792,
+    "teacher_fit_accuracy": 0.975830078125,
+    "parameter_count": 122626
+  },
+  "resources": {
+    "torch_threads": 1,
+    "native_workers_per_run": 4,
+    "cpu_hard_cap_per_run_percent": 12.5,
+    "job_commit_memory_limit_per_run_mib": 3072,
+    "maximum_overlapping_runs": 2,
+    "gpu_training": false,
+    "detached_persistence_verified": false
+  },
+  "elapsed_snapshot": {
+    "snapshot": "2026-10-11 18:00:24 UTC",
+    "wall_s": 4945,
+    "explicit_idle_s": 66,
+    "active_session_s": 4879
+  },
+  "final_trainer_tests": {
+    "passed": 13,
+    "seconds": 24.09,
+    "new_budget_seed_respected": true,
+    "historical_opponent_frozen_on_resume": true
+  }
+}

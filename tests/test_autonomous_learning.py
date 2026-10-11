@@ -62,6 +62,39 @@ def test_hash_namespaced_curriculum_preserves_old_contract():
         scenario("train", 0, version="future")
 
 
+def test_historical_opponent_binding_survives_best_model_change_and_resume():
+    from scripts.train_showdown_autonomous import freeze_historical_reference
+
+    state = {"best": "original.zip"}
+    assert (
+        freeze_historical_reference(
+            state, 0, "previous.zip", resumed=False, required=True
+        )
+        == "original.zip"
+    )
+    state["best"] = "new-self-best.zip"
+    assert (
+        freeze_historical_reference(
+            state, 0, "previous.zip", resumed=True, required=True
+        )
+        == "original.zip"
+    )
+    assert (
+        freeze_historical_reference(
+            state, 1, "previous.zip", resumed=False, required=True
+        )
+        == "new-self-best.zip"
+    )
+    with pytest.raises(ValueError, match="missing_frozen_opponent"):
+        freeze_historical_reference(
+            {"best": "unknown-history.zip"},
+            0,
+            "previous.zip",
+            resumed=True,
+            required=True,
+        )
+
+
 def test_action_features_public_history_masks_and_unknown(view):
     encoder = ActionObservationEncoder(CATALOG)
     original = deepcopy(view)
@@ -347,6 +380,8 @@ def test_standalone_lifecycle_and_new_budget_from_optimizer_checkpoint(
         state["trained_rollout_transitions"] == 512 and state["completed_battles"] > 0
     )
     control = json.loads((output / "control.json").read_text())
+    assert sum(state["episode_outcomes"].values()) == state["completed_battles"]
+    assert state["episode_count_scope"] == "ended_including_time_limit_truncations"
     assert not process_alive(control["pid"]) and not (output / "run.lock").exists()
     checkpoint = state["evaluations"][-1]["checkpoint"]
     saved = LearnedPolicy(checkpoint, CATALOG)
@@ -356,7 +391,7 @@ def test_standalone_lifecycle_and_new_budget_from_optimizer_checkpoint(
     )
     assert result.returncode == 0, result.stderr
     assert json.loads((output / "state.json").read_text())["transitions"] == 512
-    config["experiments"][0].update(steps=256, initial_model=checkpoint)
+    config["experiments"][0].update(steps=256, initial_model=checkpoint, seed=29)
     config_file = tmp_path / "continuation.json"
     config_file.write_text(json.dumps(config))
     second = tmp_path / "continued"
@@ -378,4 +413,5 @@ def test_standalone_lifecycle_and_new_budget_from_optimizer_checkpoint(
     state = json.loads((second / "state.json").read_text())
     resumed = LearnedPolicy(state["evaluations"][-1]["checkpoint"], CATALOG)
     assert state["transitions"] == 256 and resumed.model.num_timesteps == 768
+    assert resumed.model.seed == 29
     assert optimizer_steps(resumed.model) > updates

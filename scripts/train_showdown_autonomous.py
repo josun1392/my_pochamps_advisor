@@ -118,6 +118,21 @@ def optimizer_steps(model):
     )
 
 
+def freeze_historical_reference(state, number, previous_path, *, resumed, required):
+    """An experiment's opponent cannot silently change when its best model changes."""
+    if state.get("frozen_historical_experiment") == number:
+        return state.get("frozen_historical_path")
+    if resumed and required:
+        raise ValueError(
+            "legacy_resume_missing_frozen_opponent_identity_start_new_explicit_run"
+        )
+    path = state.get("best") or previous_path
+    state["frozen_historical_experiment"] = number
+    state["frozen_historical_path"] = path
+    state.pop("frozen_historical_model_id", None)
+    return path
+
+
 def save_checkpoint(model, encoder, directory, metadata):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=False)
@@ -142,6 +157,7 @@ def save_checkpoint(model, encoder, directory, metadata):
                 )
             },
             "policy_class": type(model.policy).__name__,
+            "model_seed": model.seed,
             "encoder_version": encoder.version,
             "catalog_fingerprint": encoder.catalog_fingerprint,
             "engine_commit": SHOWDOWN_COMMIT,
@@ -356,10 +372,15 @@ def run(config, output, *, resume=False, require_detached=False):
         catalog = Path(config["catalog"]).resolve()
         checkout = Path(config["checkout"]).resolve()
         previous = (
-            LearnedPolicy(config["previous_model"], catalog)
+            LearnedPolicy(
+                config["previous_model"],
+                catalog,
+                expected_model_id=state.get("previous_model_id"),
+            )
             if config.get("previous_model")
             else None
         )
+        state["previous_model_id"] = previous.model_id if previous else None
         for number in range(state["experiment_index"], len(config["experiments"])):
             if budget.stopping():
                 break
@@ -369,9 +390,26 @@ def run(config, output, *, resume=False, require_detached=False):
             np.random.seed(seed)
             random.seed(seed)
             encoder = make_encoder(catalog, experiment.get("encoder_version", VERSION))
-            historical = (
-                LearnedPolicy(state["best"], catalog) if state["best"] else previous
+            historical_path = freeze_historical_reference(
+                state,
+                number,
+                config.get("previous_model"),
+                resumed=bool(state.get("latest")),
+                required="historical" in experiment.get("opponents", []),
             )
+            historical = (
+                LearnedPolicy(
+                    historical_path,
+                    catalog,
+                    expected_model_id=state.get("frozen_historical_model_id"),
+                )
+                if historical_path
+                else None
+            )
+            state["frozen_historical_model_id"] = (
+                historical.model_id if historical else None
+            )
+            atomic_json(state_path, state)
 
             def opponents(kind, rival_seed):
                 if kind == "previous":
@@ -411,6 +449,8 @@ def run(config, output, *, resume=False, require_detached=False):
                 model = loaded.model
                 model.set_env(vector)
                 if not source:
+                    model.seed = seed
+                    model.set_random_seed(seed)
                     model.learning_rate = experiment.get("learning_rate", 1e-4)
                     model._setup_lr_schedule()
                     model.ent_coef = experiment.get("ent_coef", 0.005)
@@ -437,6 +477,11 @@ def run(config, output, *, resume=False, require_detached=False):
             vector.seed(seed + state["experiment_steps"] + state["launches"] * 10000)
 
             def checkpoint(stage, details):
+                episodes = [row for env in vector.envs for row in env.completed]
+                outcomes = Counter(
+                    "truncated" if row["truncated"] else row["winner"] or "draw"
+                    for row in episodes
+                )
                 parameters = torch.cat(
                     [p.detach().flatten() for p in model.policy.parameters()]
                 )
@@ -455,8 +500,13 @@ def run(config, output, *, resume=False, require_detached=False):
                         "experiment": experiment,
                         "stage": stage,
                         "initial_model": experiment.get("initial_model"),
+                        "opponent_model_ids": {
+                            "previous": previous.model_id if previous else None,
+                            "historical": historical.model_id if historical else None,
+                        },
                         "warmstart": state.get("warmstart"),
                         "training_metrics": details,
+                        "episode_outcomes_this_checkpoint": dict(outcomes),
                     },
                 )
                 restored = LearnedPolicy(path, catalog)
@@ -481,6 +531,14 @@ def run(config, output, *, resume=False, require_detached=False):
                 state["experiment_index"] = number
                 state["completed_battles"] += sum(
                     len(env.completed) for env in vector.envs
+                )
+                # Preserve the compatible counter and explicitly identify time limits.
+                state["episode_count_scope"] = "ended_including_time_limit_truncations"
+                totals = state.setdefault("episode_outcomes", {})
+                for outcome, count in outcomes.items():
+                    totals[outcome] = totals.get(outcome, 0) + count
+                state["outcome_tally_scope"] = (
+                    "checkpoints_written_by_outcome_aware_trainer"
                 )
                 for env in vector.envs:
                     env.completed.clear()

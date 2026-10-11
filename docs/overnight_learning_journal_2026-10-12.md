@@ -72,3 +72,39 @@ Final tests use fresh offset30000 and remain uninspected until selection complet
 The two brief overlapping CPU jobs each have12.5%/3GiB hard caps (<=25%/6GiB total)
 on the16-logical-CPU/64GiB host; all foreground and resumable, no persistence promise.
 Run-A final-test files will not be used to tune the follow-up.
+
+Core hardening committed/pushed:7bfd3eee00d80b51ee076c9e1b91d9ddf5c6c5b5.
+Run-A now completed:311536 collected/311296 trained PPO transitions,33907 ended
+or truncated training episodes;32768 teacher examples across four configurations.
+Best is seed47 PPO32768,66/96 validation wins; later96k was not promoted.
+Do not claim the older training episode counter excludes truncations: it did not
+persist their breakdown. New launcher checkpoints explicitly record outcome tallies
+without relabeling older records. Independent final evaluation records retain full
+W/L/draw/truncation data and are available after model selection.
+
+Remaining concrete work: finish run-B selection/final evaluations, release the
+validation-selected artifact, run actual Qt/rollback/latency smoke, final focused
+tests, exact-stage/push artifacts and Korean report. No uncontrolled detached jobs.
+
+Final snapshot:2026-10-11 18:00:24 UTC. Wall4945s; implementation/validation
+session excluding only explicit idle waits4879s; explicit waits66s.
+This is session activity (including overlapping compute), not separately measured
+LLM-only time. Main local training jobs accumulated2368.84 CPU seconds.
+
+Run-B finished:115200 PPO transitions,16384 teacher examples,15023 ended/truncated
+episodes. Total main runs426736 collected/426496 trained transitions,49152 teacher
+examples,48930 ended/truncated episodes. All four main/pilot/deadline PIDs are dead;
+no run locks or uncontrolled jobs remain. Original master/pre-existing files untouched.
+
+Release models/showdown_action_v2/model.zip:SHA364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667.
+Validation-selected seed73:teacher8192 +PPO32768,1792 optimizer updates.
+Fresh test/unseen each130W/62L; v1 counterparts102/90 and96/96; heuristic133/59 and140/52.
+Existing v1 improvement established; stronger-than-heuristic claim rejected.
+Native Qt readiness12 episodes10W/2L, runtime/ledger unchanged, exact rollback;
+inference p50/p951.023/1.263ms, UI845ms. Final related tests53pass/30.34s;
+after final seed/binding hardening13trainer tests passed/24.09s. Broad baseline2fail retained.
+
+Next user action: standalone CPU launcher from a separate PowerShell, sample config
+or new budget initialized from the released artifact. Recommended next research is
+wider legal roster/stronger rivals/independent seeds before large GPU training.
+No further T1 policy approval was required; production ranking remains unchanged.

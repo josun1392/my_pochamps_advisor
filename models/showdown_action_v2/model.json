@@ -1,0 +1,106 @@
+{
+  "schema_version": "showdown-learned-model-v1",
+  "evidence_class": "learned_policy_value",
+  "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
+  "algorithm": "sb3-contrib-MaskablePPO",
+  "versions": {
+    "torch": "2.8.0+cpu",
+    "sb3-contrib": "2.7.1",
+    "stable-baselines3": "2.7.1",
+    "gymnasium": "1.2.3",
+    "poke-env": "0.10.0",
+    "numpy": "2.4.6"
+  },
+  "policy_class": "ActionConditionedPolicy",
+  "encoder_version": "showdown-learned-observation-v2",
+  "catalog_fingerprint": "c907a1d03837258498120cdde1f3e7003fa5c3f2cad305baca6d3570ff8b83a5",
+  "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+  "format_id": "gen9championsbssregmc",
+  "action_schema_version": "showdown-policy-actions-v1",
+  "model_sha256": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+  "total_steps": 32768,
+  "optimizer_steps": 1792,
+  "parameter_count": 122626,
+  "observation_dim": 5221,
+  "device": "cpu",
+  "gamma": 0.99,
+  "curriculum_version": "showdown-learning-curriculum-v2",
+  "experiment": {
+    "seed": 73,
+    "steps": 65536,
+    "warmstart_decisions": 8192,
+    "warmstart_epochs": 12,
+    "warmstart_learning_rate": 0.0003,
+    "learning_rate": 5e-05,
+    "ent_coef": 0.002,
+    "opponents": [
+      "heuristic",
+      "heuristic",
+      "max_power",
+      "previous",
+      "historical"
+    ]
+  },
+  "stage": "ppo",
+  "initial_model": null,
+  "warmstart": {
+    "decisions": 8192,
+    "attempted": 8196,
+    "episodes": 967,
+    "optimizer_updates": 768,
+    "last_loss": 0.3037041425704956,
+    "learning_rate": 0.0003,
+    "teacher_demonstration_action_accuracy": 0.975830078125,
+    "parameter_l1_change": 2288.761962890625
+  },
+  "training_metrics": {
+    "collected_transitions": 16384,
+    "trained_rollout_transitions": 16384,
+    "parameter_l1_change": 144.00222778320312,
+    "optimizer_updates": 512,
+    "partial_rollout_discarded_on_resume": false,
+    "ppo": {
+      "train/learning_rate": 5e-05,
+      "train/entropy_loss": -0.24161868914961815,
+      "train/policy_gradient_loss": -0.00191871402785182,
+      "train/value_loss": 0.45851933024823666,
+      "train/approx_kl": 0.0011418287176638842,
+      "train/clip_fraction": 0.00732421875,
+      "train/loss": 0.22025999426841736,
+      "train/explained_variance": 0.31967490911483765,
+      "train/n_updates": 256.0,
+      "train/clip_range": 0.2
+    }
+  },
+  "opponent_model_ids": {
+    "previous": "00a9d85a9288f7f818f1c25f2cfb6c16e9c369387cc5a7ed0fd66568b9f099c0",
+    "historical": "3171985a033679791ce271ccb3f38245d36df87933d98995399eacc19f5369f7"
+  },
+  "opponent_identity_provenance": "reconstructed_from_ordered_validation_selection_history_of_single_uninterrupted_run",
+  "selection": {
+    "scope": "validation_only_32_cases_three_rival_strata",
+    "wins": 71,
+    "n": 96,
+    "seed": 73,
+    "no_final_test_model_selection": true
+  },
+  "architecture": {
+    "context": 321,
+    "action_rows": 35,
+    "per_action_features": 140,
+    "context_network": [
+      64
+    ],
+    "shared_action_scorer": [
+      128,
+      64,
+      1
+    ],
+    "value_network": [
+      128,
+      64,
+      1
+    ],
+    "bounded_value": "tanh_discounted_sparse_return"
+  }
+}

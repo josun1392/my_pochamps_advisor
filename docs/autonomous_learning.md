@@ -8,7 +8,8 @@ The old model and observation contract remain supported.
 From the migration checkout, in PowerShell:
 
 ```powershell
-uv sync --extra learning --dev
+$env:UV_PROJECT_ENVIRONMENT = Join-Path $env:LOCALAPPDATA 'PokeAdvice\learning-env'
+uv sync --extra learning --dev --python 3.11
 uv run python scripts/setup_showdown.py --help
 # Set this to the pinned checkout installed by setup_showdown.py.
 $engine = $env:POKEADVICE_SHOWDOWN_CHECKOUT
@@ -34,6 +35,10 @@ results, resource usage and the strongest checkpoint path. Each checkpoint direc
 contains immutable `model.zip`, its version/hash/catalog manifest, and validation
 results. SB3 saves model and optimizer state. Trust only locally produced artifacts;
 its pickle-based loader does not sandbox downloaded models.
+
+The compatible `completed_battles` counter includes ended and time-limited episodes;
+`episode_outcomes` separates wins, losses, draws and truncations. Checkpoints written
+by older trainer builds did not persist that breakdown and are not retroactively relabeled.
 
 Training is supervised heuristic warm-start followed by PPO.
 `warmstart_learning_rate` can be set independently of the PPO learning rate;
