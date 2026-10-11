@@ -6,6 +6,7 @@ from advisor.showdown_worker import ShowdownWorker
 from llm.advisor_reducer_state_model import project_atomic_transition
 from llm.advisor_showdown_simulation import simulate_detached_showdown
 from llm.advisor_switch_hazard_authority import build_switch_hazard_context
+from llm.advisor_identity_groundedness import build_groundedness
 from scripts.verify_showdown_integration import fixture_snapshot, fixture_scenarios, snapshot_from_state
 
 
@@ -31,6 +32,53 @@ def event_state(base_state, *, effect, side="self", **values):
     result = project_atomic_transition(base_state, {"status": "planned", "session_id": base_state["session_id"], "conflicts": [], "ordered_steps": [event]}, base_state["session_id"])
     assert result["status"] == "ready_with_projected_state", result
     return result["projected_state"]
+
+
+def test_unknown_hazard_contract_version_fails_closed(worker):
+    state = fixture_snapshot()["state"]
+    state["switch_hazard_context"] = {"schema_version": "switch-hazard-context-v99", "session_id": state["session_id"],
+        "affected_side": "self", "stealth_rock": "unknown", "spikes_layers": "unknown"}
+    result = simulate_detached_showdown(runtime_snapshot=snapshot_from_state(state), scenarios=[fixture_scenarios()[1]], bridge=worker)
+    assert result["status"] == "rejected" and result["reason"] == "invalid_observed_hazard_context"
+
+
+@pytest.mark.parametrize("status,gravity,accepted", [("ungrounded", False, True), ("grounded", False, False),
+    ("grounded", True, True), ("ungrounded", True, False), ("unknown", True, True)])
+def test_observed_groundedness_verifies_native_gravity_and_unknowns(worker, status, gravity, accepted):
+    state, scenario = fixture_snapshot()["state"], fixture_scenarios()[1]
+    state["identity_groundedness_context"] = build_groundedness(session_id=state["session_id"], side="self", slot_index=0,
+        pokemon_id="charizard", status=status)
+    if gravity:
+        scenario["conditioning"] = [{"target": "field", "effect": "pseudo", "id": "gravity"}]
+    row = execute(worker, state, scenario)
+    assert (row["status"] == "simulated") is accepted, row
+    if accepted:
+        assert row["before"]["sides"]["self"]["pokemon"][0]["grounded"] is gravity
+    else:
+        assert row["reason"] == "observed_groundedness_conflict"
+
+
+def test_levitate_air_balloon_and_suppression_use_native_groundedness(worker):
+    state, scenario = fixture_snapshot()["state"], fixture_scenarios()[1]
+    scenario["teams"]["self"][0], scenario["teams"]["self"][2] = scenario["teams"]["self"][2], scenario["teams"]["self"][0]
+    state["self_side"]["pokemon"][0] = {"pokemon_id": "rotom-wash", "current_hp": 127, "max_hp": 127, "fainted": False}
+    state["identity_groundedness_context"] = build_groundedness(session_id=state["session_id"], side="self", slot_index=0,
+        pokemon_id="rotom-wash", status="ungrounded")
+    assert execute(worker, state, scenario)["status"] == "simulated"  # Native null for Levitate is ungrounded.
+    scenario["conditioning"] = [{"target": "self", "effect": "volatile", "id": "gastroacid"}]
+    assert execute(worker, state, scenario)["reason"] == "observed_groundedness_conflict"
+    state["identity_groundedness_context"]["status"] = "grounded"
+    assert execute(worker, state, scenario)["status"] == "simulated"
+    scenario["teams"]["self"][0]["item"] = "Air Balloon"
+    assert execute(worker, state, scenario)["reason"] == "observed_groundedness_conflict"
+
+
+def test_groundedness_owner_and_session_binding_cannot_normalize_to_unknown(worker):
+    state = fixture_snapshot()["state"]
+    state["identity_groundedness_context"] = build_groundedness(session_id="old-session", side="self", slot_index=0,
+        pokemon_id="charizard", status="ungrounded")
+    result = simulate_detached_showdown(runtime_snapshot=snapshot_from_state(state), scenarios=[fixture_scenarios()[1]], bridge=worker)
+    assert result["status"] == "rejected" and result["reason"] == "invalid_observed_groundedness"
 
 
 def test_observed_hazard_layers_drive_native_switch_and_unknowns_stay_unknown(worker):

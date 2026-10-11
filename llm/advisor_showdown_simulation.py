@@ -13,6 +13,7 @@ from typing import Any
 from advisor.showdown_bridge import FORMAT_ID, SCHEMA_VERSION, ShowdownBridge, ShowdownBridgeError
 from llm.advisor_showdown_compatibility import OBSERVATION_SCHEMA, confirmed_absence, legacy_status_projection
 from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
+from llm.advisor_identity_groundedness import normalize_groundedness
 from llm.advisor_battle_decision_phase import KEY as PHASE_KEY
 from llm.advisor_reducer_state_model import (
     STATE_MODEL_VERSION, is_unknown_battle_fact, state_fingerprint,
@@ -70,7 +71,8 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
         hazards = state.get("switch_hazard_context")
         if hazards:
             side = hazards.get("affected_side")
-            if side not in {"self", "opponent"} or hazards.get("session_id") != state["session_id"]:
+            if (side not in {"self", "opponent"} or hazards.get("session_id") != state["session_id"] or
+                    hazards.get("schema_version") not in {"switch-hazard-context-v1", "switch-hazard-context-v2"}):
                 raise ValueError("invalid_observed_hazard_context")
             normalized = normalize_switch_hazard_context(hazards, session_id=state["session_id"], affected_side=side)
             keys = set(normalized) if hazards.get("schema_version") == "switch-hazard-context-v2" else {"schema_version", "session_id", "affected_side", "stealth_rock", "spikes_layers"}
@@ -78,6 +80,20 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
                 raise ValueError("invalid_observed_hazard_context")
             sides[side]["hazards"] = {k: v for k, v in normalized.items()
                 if k not in {"schema_version", "session_id", "affected_side"} and v != "unknown"}
+        groundedness = state.get("identity_groundedness_context")
+        if groundedness:
+            side = groundedness.get("side")
+            if side not in {"self", "opponent"}:
+                raise ValueError("invalid_observed_groundedness")
+            normalized = normalize_groundedness(groundedness, session_id=state["session_id"], side=side,
+                slot_index=observed[side]["slot_index"], pokemon_id=observed[side]["pokemon_id"])
+            if normalized != groundedness:
+                raise ValueError("invalid_observed_groundedness")
+            if normalized["status"] != "unknown":
+                observed[side]["grounded"] = normalized["status"] == "grounded"
+                for row in roster[side]:
+                    if row["slot_index"] == observed[side]["slot_index"]:
+                        row["grounded"] = observed[side]["grounded"]
         def owner_row(owner):
             rows = [p for p in roster[owner["side"]] if p["slot_index"] == owner["slot_index"] and p["pokemon_id"] == owner["pokemon_id"]]
             if len(rows) != 1 or owner["session_id"] != state["session_id"]: raise ValueError("observed_effect_owner_mismatch")
@@ -377,6 +393,7 @@ def _unmapped_observations(state: dict) -> list[str]:
     root_keys.update({"switch_hazard_context", "current_persistent_effect_context",
         "current_taunt_restrictions", "current_encore_restrictions", "current_disable_restrictions"})
     root_keys.add(PHASE_KEY)
+    root_keys.add("identity_groundedness_context")
     active_keys = {"pokemon_id", "current_hp", "max_hp", "fainted", "current_type", "current_ability",
                    "current_level", "current_final_stats", "condition", "known_item", "known_move_ids", "stat_stages",
                    "current_move_usability", "champions_status_progression", "toxic_progression", "current_crit_volatiles",

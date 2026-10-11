@@ -73,6 +73,7 @@ function run(input, engine) {
         pokemon: side.pokemon.map(p => ({species: p.species.id, active: p.isActive,
           slot_index: Number(p.name.replace('slot-', '')), native_position: p.position + 1,
           stats: clone(p.storedStats), types: p.getTypes(),
+          grounded: p.isGrounded() === true,
           hp: p.hp, max_hp: p.maxhp, fainted: p.fainted, status: p.status,
           status_counter: ['slp', 'frz'].includes(p.status) ? {schema_version: 'showdown-status-counter-v1',
             start_time: p.statusState.startTime, remaining_time: p.statusState.time,
@@ -125,6 +126,7 @@ function run(input, engine) {
         if (Object.hasOwn(observed, 'types')) {
           requireInput(observed.types.map(toID).sort().join(',') === pokemon.getTypes().map(toID).sort().join(','), 'observed_type_conflict');
         }
+        if (Object.hasOwn(observed, 'grounded')) requireInput(observed.grounded === (pokemon.isGrounded() === true), 'observed_groundedness_conflict');
         if (Object.hasOwn(observed, 'level')) requireInput(observed.level === pokemon.level, 'observed_level_conflict');
         if (observed.known_moves) {
           requireInput(observed.known_moves.every(move => pokemon.baseMoves.includes(toID(move))), 'observed_move_conflict');

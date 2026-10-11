@@ -77,6 +77,12 @@ restriction counters are compared at a native move boundary, never assigned
 as observed native counters. Mismatching durations or a moved Leech Seed source
 fail closed. Initialization reruns native DisableMove/TrapPokemon callbacks
 without advancing a turn or touching a paused replacement queue.
+Current identity-bound groundedness now verifies native `isGrounded`, including
+Flying, Gravity, Levitate suppression and Air Balloon. Native Levitate's null
+return means ungrounded in this standalone identity contract, not a promise of
+Ground-move immunity while an attacker suppresses abilities. Unknown remains
+unconstrained. Foreign identity/session bindings and unknown hazard schema
+versions fail closed rather than normalizing into an unknown observation.
 
 `evaluate_native_damage_rolls` reuses the native ModifyType/ModifyMove/TryHit/
 getDamage pipeline and enumerates the 16 native damage rolls for a fixed crit
