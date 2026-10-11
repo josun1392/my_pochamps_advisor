@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {performance} = require('node:perf_hooks');
 const {evaluateStatusGate} = require('./status-gate.cjs');
+const {evaluateDamageRolls, NativeDamageError} = require('./damage-rolls.cjs');
 const COMMIT = '942cda71d14bf0618bd57991708a2e2734b6daba';
 const FORMAT = 'gen9championsbssregmc';
 const SCHEMA = 'detached-showdown-v1';
@@ -343,7 +344,7 @@ function run(input, engine) {
     let root, branch;
     const started = performance.now();
     try {
-      if (['resume', 'reconcile', 'status_gate'].includes(input.operation)) {
+      if (['resume', 'reconcile', 'status_gate', 'damage_rolls'].includes(input.operation)) {
         const saved = scenario.checkpoint;
         requireInput(saved.schema_version === 'showdown-checkpoint-v1' && saved.engine_commit === COMMIT &&
           saved.observation_schema_version === OBSERVATION_SCHEMA &&
@@ -370,6 +371,13 @@ function run(input, engine) {
       if (input.operation === 'status_gate') return {status: 'simulated', scenario_id: scenario.scenario_id,
         assumptions: clone(scenario.assumptions), before, root_checkpoint: rootCheckpoint,
         status_gate: evaluateStatusGate(Battle, rootCheckpoint, scenario.status_query), elapsed_ms: performance.now() - started};
+      if (input.operation === 'damage_rolls') {
+        let damage;
+        try { damage = evaluateDamageRolls(Battle, rootCheckpoint, scenario.damage_query); }
+        catch (error) { if (error instanceof NativeDamageError) throw new InputError(error.message); throw error; }
+        return {status: 'simulated', scenario_id: scenario.scenario_id, assumptions: clone(scenario.assumptions),
+          before, root_checkpoint: rootCheckpoint, damage_rolls: damage, elapsed_ms: performance.now() - started};
+      }
       if (scenario.evaluation) {
         return {status: 'simulated', scenario_id: scenario.scenario_id,
           interpretation: 'conditional_monte_carlo_estimate_not_exact_probability',
@@ -442,7 +450,7 @@ function run(input, engine) {
     return {schema_version: 'showdown-sampled-evaluation-v1', interpretation: 'conditional_monte_carlo_estimate_not_exact_probability',
       aggregation: 'per_scenario_no_implicit_opponent_prior', seeds: clone(seeds), candidates: rows};
   }
-  requireInput(['simulate', 'resume', 'reconcile', 'status_gate'].includes(input.operation), 'invalid_operation');
+  requireInput(['simulate', 'resume', 'reconcile', 'status_gate', 'damage_rolls'].includes(input.operation), 'invalid_operation');
   requireInput(Array.isArray(input.scenarios) && input.scenarios.length > 0 && input.scenarios.length <= 16, 'invalid_scenarios');
   requireInput(new Set(input.scenarios.map(s => s.scenario_id)).size === input.scenarios.length &&
     input.scenarios.every(s => typeof s.scenario_id === 'string' && s.scenario_id.length > 0 && Array.isArray(s.assumptions)), 'invalid_scenario_identity');

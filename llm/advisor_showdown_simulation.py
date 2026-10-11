@@ -232,6 +232,27 @@ def evaluate_native_status_gate(*, runtime_snapshot: dict, checkpoint: dict, sid
         return {"status": "rejected", "reason": "invalid_or_stale_native_status_gate"}
 
 
+def evaluate_native_damage_rolls(*, runtime_snapshot: dict, checkpoint: dict, side: str, move: str, critical: bool, bridge: ShowdownBridge) -> dict:
+    """Native conditional single-hit rolls, never full action/KO probabilities.
+
+    Fixed crit, explicit hypothetical root. Unsupported move/RNG fails closed.
+    No live writeback or legacy exact ledger/ranking substitution.
+    """
+    try:
+        _state(runtime_snapshot)
+        saved = deepcopy(checkpoint)
+        digest = saved.pop("checkpoint_fingerprint", None)
+        if (digest != _checkpoint_fingerprint(saved) or side not in {"self", "opponent"} or not isinstance(move, str) or type(critical) is not bool or
+                any(saved.get(key) != _binding(runtime_snapshot)[key] for key in
+                    ("session_id", "source_runtime_fingerprint", "observation_schema_version"))):
+            raise ValueError("invalid_damage_roll_binding")
+        return _run(bridge, {**_binding(runtime_snapshot), "operation": "damage_rolls", "scenarios": [{
+            "scenario_id": saved["scenario_id"], "assumptions": saved["assumptions"], "checkpoint": saved,
+            "damage_query": {"side": side, "move": move, "critical": critical}}]})
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return {"status": "rejected", "reason": "invalid_or_stale_native_damage_query"}
+
+
 def evaluate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict], candidates: list[dict], seeds: list[list[int]], bridge: ShowdownBridge) -> dict:
     """Compare explicit action plans on common future seeds, separately per set.
 

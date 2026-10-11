@@ -2,7 +2,6 @@
 from pathlib import Path
 import argparse
 import json
-import subprocess
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from advisor.showdown_bridge import SHOWDOWN_COMMIT
@@ -11,7 +10,7 @@ from advisor.damage.formula import DamageContext, calc_damage_rolls
 from advisor.damage.abilities import get_ability
 from advisor.damage.items import get_item
 from advisor.damage.field import Field, SideField
-from llm.advisor_showdown_simulation import simulate_detached_showdown
+from llm.advisor_showdown_simulation import simulate_detached_showdown, evaluate_native_damage_rolls
 from scripts.verify_showdown_integration import fixture_snapshot, fixture_scenarios
 
 CASES = [
@@ -31,7 +30,7 @@ CASES = [
 
 
 def compare(checkout):
-    queries = []
+    native = []
     with ShowdownWorker(checkout) as bridge:
         for cid, side, move, weather, item, condition, critical in CASES:
             snapshot = fixture_snapshot(hp=50 if condition == "blaze" else 155)
@@ -44,12 +43,11 @@ def compare(checkout):
             if condition == "screen": scenario["conditioning"].append({"target": "opponent", "effect": "side", "id": "lightscreen"})
             result = simulate_detached_showdown(runtime_snapshot=snapshot, scenarios=[scenario], bridge=bridge)
             assert result["status"] == "simulated", (cid, result.get("scenarios", [{}])[0].get("reason"))
-            queries.append({"case_id": cid, "side": side, "move": move, "critical": critical,
-                "checkpoint": result["scenarios"][0]["root_checkpoint"]})
-    completed = subprocess.run(["node", str(Path(__file__).resolve().parents[1] / "tools/showdown_bridge/damage-oracle.cjs"), str(checkout)],
-        input=json.dumps(queries), capture_output=True, text=True, encoding="utf-8", timeout=30)
-    if completed.returncode: raise RuntimeError("native_damage_oracle_failed")
-    native = json.loads(completed.stdout)
+            queried = evaluate_native_damage_rolls(runtime_snapshot=snapshot, checkpoint=result["scenarios"][0]["root_checkpoint"],
+                side=side, move=move, critical=critical, bridge=bridge)
+            row = queried["scenarios"][0]
+            assert row["status"] == "simulated", (cid, row)
+            native.append(row["damage_rolls"])
     comparisons = []
     conditions = {"": "none", "brn": "burn"}
     for case, row in zip(CASES, native, strict=True):

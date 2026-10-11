@@ -76,6 +76,14 @@ as observed native counters. Mismatching durations or a moved Leech Seed source
 fail closed. Initialization reruns native DisableMove/TrapPokemon callbacks
 without advancing a turn or touching a paused replacement queue.
 
+`evaluate_native_damage_rolls` reuses the native ModifyType/ModifyMove/TryHit/
+getDamage pipeline and enumerates the 16 native damage rolls for a fixed crit
+assumption. It supports ordinary single-hit moves and rejects additional RNG,
+multi-hit, dynamic power callbacks and unsupported targets. It excludes accuracy,
+action gates, secondary effects and HP application/survival; it is never an exact
+action/KO probability or ranking fact. The former offline damage oracle now calls
+this shared evaluator. Legacy damage formulas remain as regression references.
+
 Primary sources:
 
 - [Pinned Champions conditions](https://github.com/smogon/pokemon-showdown/blob/942cda71d14bf0618bd57991708a2e2734b6daba/data/mods/champions/conditions.ts)
