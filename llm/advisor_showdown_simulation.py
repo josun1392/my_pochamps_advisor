@@ -13,6 +13,7 @@ from typing import Any
 from advisor.showdown_bridge import FORMAT_ID, SCHEMA_VERSION, ShowdownBridge, ShowdownBridgeError
 from llm.advisor_showdown_compatibility import OBSERVATION_SCHEMA, confirmed_absence, legacy_status_projection
 from llm.advisor_switch_hazard_authority import normalize_switch_hazard_context
+from llm.advisor_battle_decision_phase import KEY as PHASE_KEY
 from llm.advisor_reducer_state_model import (
     STATE_MODEL_VERSION, is_unknown_battle_fact, state_fingerprint,
     validate_battle_state_unknown_markers,
@@ -116,6 +117,11 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
         request = {**_binding(runtime_snapshot), "operation": _operation, "observed_active": observed,
                    "observed_roster": roster, "observed_sides": sides,
                    "observed_field": field, "scenarios": deepcopy(scenarios)}
+        phase = state.get(PHASE_KEY)
+        if phase:
+            if phase["provenance"]["source_sequence"] != state.get("last_applied_observation_sequence"):
+                raise ValueError("stale_observed_decision_phase")
+            request["observed_phase"] = deepcopy(phase)
         for scenario in request["scenarios"]:
             if not isinstance(scenario.get("assumptions"), list) or not scenario["assumptions"] or not all(isinstance(v, str) and v for v in scenario["assumptions"]):
                 raise ValueError("explicit_scenario_assumptions_required")
@@ -322,6 +328,7 @@ def _unmapped_observations(state: dict) -> list[str]:
                  "source_replay_policy_version", "last_commit_provenance", "substitute_state_context"}
     root_keys.update({"switch_hazard_context", "current_persistent_effect_context",
         "current_taunt_restrictions", "current_encore_restrictions", "current_disable_restrictions"})
+    root_keys.add(PHASE_KEY)
     active_keys = {"pokemon_id", "current_hp", "max_hp", "fainted", "current_type", "current_ability",
                    "current_level", "current_final_stats", "condition", "known_item", "known_move_ids", "stat_stages",
                    "current_move_usability", "champions_status_progression", "toxic_progression", "current_crit_volatiles",

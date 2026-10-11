@@ -1,5 +1,6 @@
 """Private trusted-lifecycle confirmation boundary; no reducer/store integration."""
 from copy import deepcopy
+from llm.advisor_battle_decision_phase import KIND as PHASE_KIND, SOURCE as PHASE_SOURCE, valid_payload as valid_phase_payload
 from llm.advisor_switch_entry_mechanics_derived_observation import (
     DERIVED_KINDS, MECHANICS_DERIVED_TRUST, SWITCH_ENTRY_MECHANICS_SOURCE,
 )
@@ -66,6 +67,7 @@ FIXTURE_TRUST = "fixture_contract_only"
 _KINDS = {"direct_move_damage_observed": "production_ready", "used_move_observed": "production_ready", "exact_hp_transition_observed": "production_ready", "exact_hp_recovery_observed": "production_ready", "current_type_observed": "production_ready", "current_condition_observed": "production_ready", "current_healing_prevented_observed": "production_ready", "pending_status_action_execution_observed": "production_ready", "doubles_active_topology_observed": "production_ready", "selected_action_targeting_observed": "production_ready", "current_weather_observed": "production_ready", "current_ability_observed": "production_ready", "current_item_observed": "production_ready", "current_terrain_observed": "production_ready", "current_side_conditions_observed": "production_ready", "current_battle_format_observed": "production_ready", "current_level_observed": "production_ready", "current_final_combat_stat_observed": "production_ready", "current_opponent_response_set_observed": "production_ready", "current_opponent_switch_response_set_observed": "production_ready", "current_opponent_switch_target_combat_observed": "production_ready", "substitute_state_observed": "production_ready", "pokemon_switch_observed": "production_ready", "pokemon_faint_observed": "production_ready", "condition_applied_observed": "production_ready", "stat_stage_observed": "production_ready", "switch_hazards_observed": "production_ready", "tailwind_side_condition_observed": "production_ready", "trick_room_field_observed": "production_ready", "magic_room_field_observed": "production_ready", "gravity_field_observed": "production_ready", "current_locked_on_state_observed": "production_ready", "same_turn_event_observed": "production_ready", "first_end_of_turn_reached_observed": "production_ready", "condition_removed_observed": "fixture_only", "item_consumption_observed": "fixture_only", "item_removed_observed": "fixture_only", "weather_started_observed": "fixture_only", "weather_ended_observed": "fixture_only", "terrain_started_observed": "fixture_only", "side_condition_started_observed": "fixture_only", "side_condition_ended_observed": "fixture_only"}
 _KINDS["mat_block_active_entry_eligibility_observed"] = "production_ready"
 _KINDS["current_hp_observed"] = "production_ready"
+_KINDS[PHASE_KIND] = "production_ready"
 _KINDS["fake_out_active_entry_eligibility_observed"] = "production_ready"
 _KINDS["supreme_overlord_initial_active_observed"] = "production_ready"
 _KINDS["berry_eaten_state_observed"] = "production_ready"
@@ -103,7 +105,8 @@ class LifecycleConfirmationBoundary:
         if not production and (source != FIXTURE_SOURCE or trust != FIXTURE_TRUST): return _result("invalid_provenance", "fixture_source_or_trust_required", readiness)
         if not isinstance(payload, dict) or not _valid_payload(event_kind, payload): return _result("invalid_provenance", "invalid_payload", readiness)
         if not _valid_turn_number(turn_number): return _result("invalid_provenance", "invalid_turn_number", readiness)
-        if event_kind not in {"direct_move_damage_observed", "switch_hazards_observed", "tailwind_side_condition_observed", "trick_room_field_observed", "magic_room_field_observed", "gravity_field_observed", "first_end_of_turn_reached_observed", "current_weather_observed", "current_terrain_observed", "current_side_conditions_observed", "current_battle_format_observed", "doubles_active_topology_observed"} and not _owner_matches(self._owners, side, slot_index, pokemon_id): return _result("invalid_provenance", "owner_mismatch", readiness)
+        if event_kind != PHASE_KIND and event_kind not in {"direct_move_damage_observed", "switch_hazards_observed", "tailwind_side_condition_observed", "trick_room_field_observed", "magic_room_field_observed", "gravity_field_observed", "first_end_of_turn_reached_observed", "current_weather_observed", "current_terrain_observed", "current_side_conditions_observed", "current_battle_format_observed", "doubles_active_topology_observed"} and not _owner_matches(self._owners, side, slot_index, pokemon_id): return _result("invalid_provenance", "owner_mismatch", readiness)
+        if event_kind == PHASE_KIND and (type(turn_number) is not int or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind == "same_turn_event_observed" and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind in {"executed_move_observed", "previous_action_result_observed", "flinch_causality_observed", "contact_reactive_status_result_observed", "contact_reactive_damage_result_observed", "multi_hit_action_result_observed", "multi_hit_ordered_hit_observed", "multi_hit_ordered_attempt_observed"} and (not isinstance(turn_number, int) or isinstance(turn_number, bool) or turn_number < 1): return _result("invalid_provenance", "missing_turn_number", readiness)
         if event_kind.endswith("restriction_applied_observed") or event_kind.endswith("restricted_turn_completed_observed"):
@@ -192,6 +195,7 @@ def _owner_matches(owners, side, slot, pokemon):
     targets = owners.get(f"{side}_targets") if isinstance(owners, dict) else None
     return isinstance(targets, (tuple, list)) and any(isinstance(row, dict) and row.get("slot_index") == slot and row.get("pokemon_id") == pokemon for row in targets)
 def _production_source_matches(kind, source):
+    if kind == PHASE_KIND: return source == PHASE_SOURCE
     if kind == "current_locked_on_state_observed": return source == LOCKED_ON_SOURCE
     if kind == "gravity_field_observed": return source == GRAVITY_SOURCE
     if kind == "current_condition_observed" and source == CONTACT_REACTIVE_STATUS_APPLICATION_SOURCE: return True
@@ -218,6 +222,7 @@ def _same_record(prior, candidate):
     left, right = deepcopy(prior), deepcopy(candidate); left.pop("observation_sequence", None); return left == right
 
 def _valid_payload(kind, payload):
+    if kind == PHASE_KIND: return valid_phase_payload(payload)
     if kind == "current_hp_observed":
         current, maximum = payload.get("current_hp"), payload.get("maximum_hp")
         return (set(payload) == {"current_hp", "maximum_hp"}

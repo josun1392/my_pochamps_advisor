@@ -15,7 +15,7 @@ _ALLOWED_STATE_KEYS = {
     "switch_hazard_context", "ability_applicability_context",
     "switch_entry_intimidate_authority", "switch_entry_download_authority",
     "switch_entry_trace_authority", "switch_entry_sturdy_authority",
-    "current_persistent_effect_context",
+    "current_persistent_effect_context", "battle_decision_phase_context",
 }
 _REQUIRED_STATE_KEYS = {
     "state_version", "session_id", "self_side", "opponent_side", "field",

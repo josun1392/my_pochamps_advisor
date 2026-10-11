@@ -1,5 +1,10 @@
 # Showdown backend migration — 2026-10-11
 
+Continuation: [Versioned state compatibility](showdown_state_compatibility.md)
+supersedes the decision-required status/counter discussion below. The approved
+boundary now preserves old records and verifies native compatibility. The
+original measurements and validation below describe the 9d5cbbd checkpoint.
+
 Status: **PARTIAL / CONDITIONAL GO for opt-in shadow evidence**. The default
 recommendation engine and its exact/guaranteed-first ranking authority remain
 unchanged. No legacy mechanics have been retired.

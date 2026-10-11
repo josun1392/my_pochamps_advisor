@@ -1,4 +1,5 @@
 from copy import deepcopy
+from llm.advisor_battle_decision_phase import KIND as PHASE_KIND
 from llm.advisor_switch_entry_mechanics_derived_observation import (
     DERIVED_KINDS, MECHANICS_DERIVED_TRUST, SWITCH_ENTRY_MECHANICS_SOURCE,
 )
@@ -22,6 +23,7 @@ _EFFECTS["mat_block_active_entry_eligibility_observed"] = "set_mat_block_active_
 _EFFECTS["fake_out_active_entry_eligibility_observed"] = "set_fake_out_active_entry_eligibility"
 _EFFECTS["supreme_overlord_initial_active_observed"] = "initialize_supreme_overlord_active_entry"
 _EFFECTS["berry_eaten_state_observed"] = "set_berry_eaten_state"
+_EFFECTS[PHASE_KIND] = "record_battle_decision_phase"
 _EFFECTS["executed_move_observed"] = "record_executed_move"
 _EFFECTS["previous_action_result_observed"] = "record_previous_action_result"
 _EFFECTS.update({"current_aqua_ring_state_observed":"set_current_aqua_ring_state", "current_ingrain_state_observed":"set_current_ingrain_state", "current_leech_seed_state_observed":"set_current_leech_seed_state"})
@@ -121,6 +123,8 @@ def build_replay_plan(base_state, ordered_observations, *, canonical_move_resolv
     accepted = verified
     steps=[{"observation_id":e["observation_id"],"observation_sequence":e["observation_sequence"],"event_kind":e.get("event_kind"),"turn_number":e.get("turn_number"),"source":e.get("source"),"trust":e.get("trust"),"scope":e.get("scope"),"eligibility":"candidate","planned_effect":_EFFECTS[e["event_kind"]], **({"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"canonical_move_id":canonical_moves.get(e["observation_id"])} if e.get("event_kind")=="used_move_observed" else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"hp_before":e.get("payload",{}).get("hp_before"),"hp_after":e.get("payload",{}).get("hp_after")} if e.get("event_kind") in {"exact_hp_transition_observed","exact_hp_recovery_observed"} else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"types":deepcopy(e.get("payload",{}).get("types"))} if e.get("event_kind")=="current_type_observed" else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"), **deepcopy(e.get("payload",{}))} if e.get("event_kind") in {"current_hp_observed","current_condition_observed","current_locked_on_state_observed","current_healing_prevented_observed","pending_confusion_action_execution_observed","confusion_self_hit_damage_observed","champions_confusion_progression_derived","champions_confusion_cleared_derived","confusion_self_hit_disguise_broken_derived","current_level_observed","current_final_combat_stat_observed","substitute_state_observed","same_turn_event_observed","current_aqua_ring_state_observed","current_ingrain_state_observed","current_leech_seed_state_observed"} else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"condition":e.get("payload",{}).get("condition")} if e.get("event_kind")=="condition_applied_observed" else {"side":e.get("side"),"slot_index":e.get("slot_index"),"pokemon_id":e.get("pokemon_id"),"stat":e.get("payload",{}).get("stat"),"stage":e.get("payload",{}).get("stage")} if e.get("event_kind")=="stat_stage_observed" else {"side":e.get("side"), **deepcopy(e.get("payload",{}))} if e.get("event_kind")=="switch_hazards_observed" else {"side":e.get("side"),"tailwind_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="tailwind_side_condition_observed" else {"trick_room_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="trick_room_field_observed" else {"magic_room_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="magic_room_field_observed" else {"gravity_status":e.get("payload",{}).get("status")} if e.get("event_kind")=="gravity_field_observed" else {})} for e in accepted]
     for step, event in zip(steps, accepted):
+        if event.get("event_kind") == PHASE_KIND:
+            step["payload"] = deepcopy(event.get("payload", {}))
         if event.get("event_kind") in STATUS_ACTION_DERIVED_KINDS:
             step.update(side=event.get("side"), slot_index=event.get("slot_index"), pokemon_id=event.get("pokemon_id"), **deepcopy(event.get("payload", {})))
         if event.get("event_kind") in CONFUSION_SELF_HIT_DAMAGE_DERIVED_KINDS:

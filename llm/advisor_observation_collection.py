@@ -1,5 +1,6 @@
 """Private session-scoped canonical observation buffer."""
 from copy import deepcopy
+from llm.advisor_battle_decision_phase import KIND as PHASE_KIND
 from llm.advisor_switch_entry_mechanics_derived_observation import (
     DERIVED_KINDS, MECHANICS_DERIVED_TRUST, SWITCH_ENTRY_MECHANICS_SOURCE,
 )
@@ -25,6 +26,7 @@ _KINDS.update({"taunt_restriction_applied_observed", "encore_restriction_applied
 _KINDS.update({"current_aqua_ring_state_observed", "current_ingrain_state_observed", "current_leech_seed_state_observed"})
 _KINDS.add("current_condition_observed")
 _KINDS.add("berry_eaten_state_observed")
+_KINDS.add(PHASE_KIND)
 _KINDS.update({"current_confusion_state_observed", "champions_confusion_progression_observed", "champions_status_progression_observed"})
 # These lifecycle-confirmed observations have canonical replay/reducer owners and
 # are intended to enter the normal production runtime pipeline.  Keep fixture

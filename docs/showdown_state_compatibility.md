@@ -1,7 +1,7 @@
 # Native state compatibility
 
-The approved compatibility direction adds detached versioned representations;
-it does not change `battle-state-v1`, recorded events, replay envelopes,
+The approved compatibility direction adds versioned representations;
+it does not change the meaning of existing `battle-state-v1` fields, recorded events, replay envelopes,
 `champions-sleep-freeze-progression-v1` or the legacy exact gate. Historical
 adjusted durations retain their old semantics for their existing consumers.
 
@@ -55,6 +55,18 @@ partial-action captures remain rejected. Explicit modeled initial conditioning
 is applied before scenario history, while current conditioning is applied after
 history. Reconciliation retains the initial model and cannot initialize new
 effects without native history.
+
+`battle-decision-phase-v1` is a new optional human observation, admitted through
+the existing confirmation, collection, reducer, runtime and persistence paths.
+It records turn, move/faint/pivot selection, requesting sides and roster-bound
+participants. Native projection verifies these against its actual request;
+it does not manufacture a native queue from the observation. Any later
+observation makes the phase stale for reconstruction until explicitly recaptured.
+Historical phase participants can remain in replay after switching. The admission
+API accepts only the designated user observation source, never simulator output.
+Old sessions without the new record retain their meaning. The core admission API
+is tested; a human capture UI is still needed before requiring this contract in
+the default product workflow.
 
 Observed effects also verify hazard layers (v1 keeps Toxic Spikes and Sticky Web
 unknown), Aqua Ring, Ingrain, Leech Seed source position, berry consumption,

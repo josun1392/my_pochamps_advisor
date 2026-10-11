@@ -206,6 +206,20 @@ function run(input, engine) {
     }
     // A pivot can pause with another action still queued. Preserve that phase.
     battle.makeRequest(battle.requestState);
+    if (input.observed_phase) {
+      const phase = input.observed_phase;
+      const requesting = [['self', battle.p1], ['opponent', battle.p2]].filter(([, s]) => s.activeRequest && !s.activeRequest.wait);
+      requireInput(phase.schema_version === 'battle-decision-phase-v1' && phase.session_id === input.session_id &&
+        phase.turn_number === battle.turn && (phase.phase === 'move_selection' ? battle.requestState === 'move' : battle.requestState === 'switch') &&
+        requesting.map(([name]) => name).sort().join(',') === phase.requesting_sides.slice().sort().join(','), 'observed_decision_phase_conflict');
+      for (const [name, side] of [['self', battle.p1], ['opponent', battle.p2]]) {
+        requireInput(side.active[0].name === `slot-${phase.participants[name].slot_index}` &&
+          [side.active[0].species.id, battle.dex.species.get(side.active[0].set.species).id].includes(toID(phase.participants[name].pokemon_id)), 'observed_phase_owner_conflict');
+      }
+      if (phase.phase !== 'move_selection') {
+        requireInput(requesting.every(([, side]) => side.active[0].fainted === (phase.phase === 'faint_replacement')), 'observed_replacement_reason_conflict');
+      }
+    }
     for (const [side, id] of [['self', 'p1'], ['opponent', 'p2']]) {
       const pokemon = battle[id].active[0];
       const permitted = input.observed_sides?.[side]?.switch_permitted;

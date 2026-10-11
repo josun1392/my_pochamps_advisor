@@ -1,5 +1,6 @@
 """Pure validation and dry-run projection for the private battle-state-v1 model."""
 from copy import deepcopy
+from llm.advisor_battle_decision_phase import KEY as PHASE_KEY, valid_context as valid_phase_context, valid_payload as valid_phase_payload, project_phase
 from hashlib import sha256
 import json
 from types import MappingProxyType
@@ -42,6 +43,7 @@ _TARGETS["set_mat_block_active_entry_eligibility"] = "state.mat_block_active_ent
 _TARGETS["set_fake_out_active_entry_eligibility"] = "state.fake_out_active_entry_eligibility_context"
 _TARGETS["initialize_supreme_overlord_active_entry"] = "state.supreme_overlord_faint_history_context"
 _TARGETS["set_berry_eaten_state"] = "pokemon.berry_eaten_state"
+_TARGETS["record_battle_decision_phase"] = "state.battle_decision_phase_context"
 _TARGETS["apply_taunt_restriction"] = "state.current_taunt_restrictions"
 _TARGETS["complete_restricted_active_turn"] = "state.current_taunt_restrictions"
 _TARGETS["record_executed_move"] = "pokemon.last_executed_move"
@@ -81,6 +83,7 @@ def validate_battle_state_unknown_markers(state):
     """Reject malformed canonical markers while preserving legacy concrete states."""
     if not isinstance(state, dict):
         return False
+    if PHASE_KEY in state and not valid_phase_context(state, state[PHASE_KEY]): return False
     for side_name in ("self_side", "opponent_side"):
         side = state.get(side_name)
         if not isinstance(side, dict):
@@ -1113,6 +1116,7 @@ def _mark_pending_lifecycle_terminal(state, event):
 
 def _has_target_identity(event):
     effect = event["planned_effect"]
+    if effect == "record_battle_decision_phase": return valid_phase_payload(event.get("payload"))
     if effect in {"record_champions_status_progression", "advance_champions_status_progression", "clear_champions_status_condition", "record_champions_confusion_progression", "record_pending_confusion_action_execution", "advance_champions_confusion_progression", "clear_champions_confusion", "set_current_confusion_state", "apply_taunt_restriction", "complete_restricted_active_turn", "record_executed_move", "record_previous_action_result", "initialize_rage_fist_hit_count", "record_rage_fist_qualifying_hit", "apply_encore_restriction", "complete_encore_restricted_active_turn", "apply_disable_restriction", "complete_disable_restricted_active_turn"}:
         return _identity_values(event, "side", "slot_index", "pokemon_id") and isinstance(_value(event, "turn_number"), int) and not isinstance(_value(event, "turn_number"), bool) and _value(event, "turn_number") > 0 and (effect != "set_current_confusion_state" or (_value(event, "confusion_state") in {"confused", "none"} and _value(event, "trust") == "user_confirmed_observation"))
     if effect in {"set_current_hp_snapshot", "apply_exact_hp_transition", "apply_exact_hp_recovery", "set_current_type", "set_current_condition", "set_current_healing_prevented", "set_pending_status_action_execution", "set_mat_block_active_entry_eligibility", "set_fake_out_active_entry_eligibility", "set_current_ability", "set_switch_entry_trace_ability", "set_current_item", "set_current_level", "set_current_final_combat_stat", "set_current_move_usability", "set_current_opponent_response_set", "set_current_opponent_switch_response_set", "set_current_opponent_switch_target_combat", "set_current_substitute", "set_condition", "clear_condition", "set_current_stat_stage", "set_current_crit_volatiles", "consume_item", "remove_item", "mark_fainted", "break_confusion_self_hit_disguise", "record_known_move", "set_prospective_groundedness", "clear_prospective_groundedness", "set_prospective_speed_stage", "clear_prospective_speed_stage", "set_prospective_offensive_stages", "clear_prospective_offensive_stages", "set_prospective_entry_interactions", "clear_prospective_entry_interactions", "initialize_supreme_overlord_active_entry", "set_berry_eaten_state"}:
@@ -1199,6 +1203,9 @@ def _mark(container, field, event):
 
 def _apply(state, event):
     effect = event["planned_effect"]
+    if effect == "record_battle_decision_phase":
+        reason = project_phase(state, event)
+        return _conflict(event, reason) if reason else None
     if event.get("event_kind") in STATUS_ACTION_DERIVED_KINDS:
         reason = _valid_status_action_derived_transition(state, event)
         if reason:
