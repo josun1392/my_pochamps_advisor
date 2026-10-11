@@ -1,5 +1,7 @@
 # Showdown backend migration — 2026-10-11
 
+Latest: [Continuation execution and validation](showdown_continuation_result_2026-10-11.md).
+
 Continuation: [Versioned state compatibility](showdown_state_compatibility.md)
 supersedes the decision-required status/counter discussion below. The approved
 boundary now preserves old records and verifies native compatibility. The

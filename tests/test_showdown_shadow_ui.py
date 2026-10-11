@@ -105,6 +105,39 @@ def test_unavailable_shadow_keeps_original_recommendation():
     assert result["explanation"]["sampled_simulation"]["status"] == "rejected"
 
 
+def test_runtime_rollback_stops_native_process_and_preserves_truth_and_ranking():
+    from ui.main_window import MainWindow
+    from llm.advisor_observation_runtime_session import BattleObservationRuntimeSessionManager
+    checkout = os.environ.get("POKEADVICE_SHOWDOWN_CHECKOUT")
+    if not checkout:
+        pytest.skip("external pinned engine required")
+    app = QApplication.instance() or QApplication([])
+    snapshot, builder, context = setup()
+    owner = BattleObservationRuntimeSessionManager.create(snapshot["session_id"], snapshot["state"])["manager"]
+    before = owner.capture_runtime_state_snapshot(snapshot["session_id"])
+    window = MainWindow()
+    window._observation_runtime_session_manager = owner
+    try:
+        assert window._showdown_shadow_worker is None
+        baseline = run(snapshot, builder)
+        window.configure_showdown_shadow(checkout=checkout, context=context)
+        enabled = run(snapshot, builder, showdown_context=window._showdown_shadow_context,
+            showdown_bridge=window._showdown_shadow_worker)
+        assert enabled["explanation"]["sampled_simulation"]["status"] == "evaluated"
+        process = window._showdown_shadow_worker._process
+        assert process is not None and process.poll() is None
+        window.configure_showdown_shadow()
+        assert process.poll() is not None
+        assert window._showdown_shadow_context is None and window._showdown_shadow_worker is None
+        rolled_back = run(snapshot, builder, showdown_context=window._showdown_shadow_context,
+            showdown_bridge=window._showdown_shadow_worker)
+        assert rolled_back == baseline
+        assert owner.capture_runtime_state_snapshot(snapshot["session_id"]) == before
+        assert owner.read_applied_ledger() == {}
+    finally:
+        window.close()
+
+
 def test_cli_opt_in_is_explicit_and_preserves_qt_arguments(monkeypatch, tmp_path):
     import main
     config = tmp_path / "hypotheses.json"
