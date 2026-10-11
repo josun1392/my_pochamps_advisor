@@ -108,3 +108,10 @@ Next user action: standalone CPU launcher from a separate PowerShell, sample con
 or new budget initialized from the released artifact. Recommended next research is
 wider legal roster/stronger rivals/independent seeds before large GPU training.
 No further T1 policy approval was required; production ranking remains unchanged.
+
+Final artifact/workflow commit pushed and remote verified:
+9a7685c434a8bb07994dd296fa503918baa44bc6. Migration worktree clean after that commit.
+Original master remained691d2df with the same five pre-existing changes.
+Final reporting checkpoint:2026-10-11 18:04:43 UTC; wall5204s, activity5138s
+(excluding only66s explicit idle). This journal closes the mission: COMPLETE
+engineering/actual learning; v1 strength improvement proved; heuristic superiority not proved.
