@@ -48,6 +48,24 @@ Sixteen fixed-crit damage rolls and the status callback evaluator retain their
 existing narrow probability scopes; neither becomes a full action/KO ledger.
 No general exhaustive battle/RNG enumerator is introduced.
 
+`showdown-native-switch-entry-evidence-v1` separately proves the entry batch that
+upstream `runSwitch` completes, before any following move. It reuses native
+switch/instaswitch/runSwitch, hazards, abilities, item/status/stage effects and
+faint processing. Other switches may remain queued. The probability scope covers
+that batch conditional on the complete root/choices, not a selected-move ledger,
+opponent-response prior or future turn. It is available as a detached query;
+the old live derived-observation producer retains its existing authority.
+
+The next compatible slice accepts proven Night Shade / Seismic Toss attempts via
+`native_attack_outcome` or the gated `native_attack_outcomes` map. It reads both
+participants' post-HP from native serialization. Known PP/hit-count projections,
+status/item/stage/field changes and other unrepresented effects fail closed. It
+does not construct damage rolls, critical branches or replacement Python mechanics.
+The old view retains a fainted active slot until replacement; native inactive
+identity and the deferred queue remain in the attached checkpoint. This is a
+conditional selected-action HP path, not a complete action-pair ledger or a new
+unconditional guaranteed ranking fact.
+
 The opt-in seam is `family_authorities.native_direct_heal_outcome` on the
 selected-action executor, or `extension_authorities.native_direct_heal_outcomes`
 (optionally keyed by action ID) on the gated executor. A proof from the root is

@@ -265,6 +265,37 @@ def prove_deterministic_native_action(*, runtime_snapshot: dict, checkpoint: dic
         choices=choices, stop_after_move=True, _operation="deterministic_progress")
 
 
+def prove_deterministic_native_switch_entry(*, runtime_snapshot: dict, checkpoint: dict, bridge: ShowdownBridge,
+                                          choices: dict) -> dict:
+    """Prove a native committed entry batch before executing any following move.
+
+    Entries grouped by upstream runSwitch belong to the same batch. This scope cannot
+    substitute for a selected-move ledger or an opponent-response probability.
+    """
+    result = progress_native_showdown(runtime_snapshot=runtime_snapshot, checkpoint=checkpoint, bridge=bridge,
+        choices=choices, stop_after_move=True, _operation="deterministic_switch_progress")
+    from llm.advisor_showdown_outcome_evidence import evidence_fingerprint
+    result["outcome_schema_version"] = "showdown-native-switch-entry-evidence-v1"
+    result["source_capture_fingerprint"] = evidence_fingerprint(runtime_snapshot) if isinstance(runtime_snapshot, dict) else None
+    result["choices"] = deepcopy(choices)
+    for row in result.get("scenarios", []):
+        if row.get("status") == "simulated":
+            proof = row.get("determinism_proof", {})
+            if (proof.get("schema_version") != "showdown-constant-rng-proof-v1" or
+                proof.get("method") != "native_rng_guard_no_nonconstant_draws" or
+                proof.get("scope") != "native_switch_entry_batch_before_moves" or
+                type(proof.get("stochastic_draws")) is not int or proof["stochastic_draws"] != 0 or
+                proof.get("probability_mass") != {"numerator": 1, "denominator": 1}):
+                row.update(status="rejected", reason="native_switch_entry_proof_invalid")
+                result["status"] = "rejected"
+                continue
+            row.update(evidence_class="native_conditional_exact", probability_scope={
+                "scope": "native_switch_entry_batch_before_moves", "complete": True,
+                "excluded": ["subsequent_moves", "residuals", "future_rng_distribution", "opponent_set_prior"]},
+                probability_mass={"numerator": 1, "denominator": 1})
+    return result
+
+
 def evaluate_native_status_gate(*, runtime_snapshot: dict, checkpoint: dict, side: str, move: str, bridge: ShowdownBridge) -> dict:
     """Exact native callback enumeration, conditional on one hypothetical root.
 

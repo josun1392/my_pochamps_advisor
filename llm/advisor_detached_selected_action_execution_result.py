@@ -82,6 +82,19 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
     if move_id in {"u-turn", "volt-switch", "flip-turn"}:
         return _pivot(base, strategy_d0, runtime_snapshot, action, actor, target, metadata, authorities)
     if metadata.get("category") not in {"physical", "special"}: return _result("unsupported", "selected_action_family_not_materialized", base)
+    native = authorities.get("native_attack_outcome")
+    if native is not None:
+        from llm.advisor_showdown_outcome_evidence import compatible_stochastic_fallback
+        if not compatible_stochastic_fallback(native, base):
+            from llm.advisor_showdown_attack_projection import project_native_fixed_damage_attempt
+            projected = project_native_fixed_damage_attempt(evidence=native, base=base, runtime_snapshot=runtime_snapshot)
+            if projected.get("status") != "resolved":
+                return _result(projected.get("status", "rejected"), projected.get("reason", "native_attack_projection_unavailable"), base)
+            return {"status": "resolved", "schema_version": SCHEMA_VERSION, **base,
+                "execution_family": "native_fixed_damage_attempt", "probability_owner": "selected_action_only",
+                "evidence_class": native["evidence_class"], "probability_scope": deepcopy(native["probability_scope"]),
+                "paths": ({k: deepcopy(v) for k, v in projected.items() if k != "status"},),
+                "provenance": "selected_action_to_native_compatible_fixed_damage_v1"}
     # Ordinary attack remains owned by the existing predictive attack ledger.
     from llm.advisor_immediate_move_vs_move_action_pair import _attack_ledger
     ledger = _attack_ledger(
@@ -96,7 +109,10 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
         state = materialize_detached_predictive_intermediate_state(strategy_d0=strategy_d0, terminal_leaf=leaf)
         if state.get("status") != "resolved": return _result(state.get("status", "incomplete"), state.get("reason", "ordinary_post_action_state_unavailable"), base)
         paths.append({"probability":deepcopy(leaf["probability"]), "action_leaf":deepcopy(leaf), "post_action_state":deepcopy(state)})
-    return {"status":"resolved", "schema_version":SCHEMA_VERSION, **base, "execution_family":"ordinary_attack", "probability_owner":"selected_action_only", "paths":tuple(paths), "provenance":"selected_action_to_existing_predictive_attack_ledger_v1"}
+    result = {"status":"resolved", "schema_version":SCHEMA_VERSION, **base, "execution_family":"ordinary_attack", "probability_owner":"selected_action_only", "paths":tuple(paths), "provenance":"selected_action_to_existing_predictive_attack_ledger_v1"}
+    if native is not None:
+        result["native_fallback_reason"] = native["reason"]
+    return result
 
 
 def _standard_charge_weather_skip(
@@ -350,11 +366,9 @@ def _endure(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority: Any
 def _direct_heal(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority: Any, native: Any = None) -> dict[str, Any]:
     fallback = None
     if native is not None:
-        from llm.advisor_showdown_outcome_evidence import SCHEMA_VERSION as NATIVE_SCHEMA, _STOCHASTIC
+        from llm.advisor_showdown_outcome_evidence import compatible_stochastic_fallback
         from llm.advisor_showdown_direct_heal import materialize_native_direct_heal
-        if (isinstance(native, Mapping) and native.get("schema_version") == NATIVE_SCHEMA and
-            native.get("status") == "unsupported" and native.get("reason") in _STOCHASTIC and
-            all(native.get(k) == v for k, v in base.items())):
+        if compatible_stochastic_fallback(native, base):
             fallback = native["reason"]
         else:
             materialized = materialize_native_direct_heal(evidence=native, base=base, runtime_snapshot=snapshot, execution_authority=authority)

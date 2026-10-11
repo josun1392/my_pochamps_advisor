@@ -19,9 +19,15 @@ _STOCHASTIC = {"native_stochastic_rng_required", "native_raw_rng_not_proven",
                "untracked_randomness_not_proven", "forced_native_randomness_not_proven"}
 
 
+def compatible_stochastic_fallback(evidence, base):
+    return (isinstance(evidence, Mapping) and evidence.get("schema_version") == SCHEMA_VERSION and
+            evidence.get("status") == "unsupported" and evidence.get("reason") in _STOCHASTIC and
+            all(evidence.get(k) == v for k, v in base.items()))
+
+
 def evidence_fingerprint(evidence: Mapping[str, Any]) -> str:
     value = {k: v for k, v in evidence.items() if k != "evidence_fingerprint"}
-    return sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+    return sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()).hexdigest()
 
 
 def build_native_selected_action_outcome(*, strategy_d0, runtime_snapshot, action, actor, target,
@@ -38,6 +44,9 @@ def build_native_selected_action_outcome(*, strategy_d0, runtime_snapshot, actio
     if (base is None or type(require_deterministic) is not bool or action.get("action_type") != "attack" or
         _to_id(action.get("identity") or action.get("move_id") or "") != _to_id(base["move_id"])):
         return _error("rejected", "native_outcome_source_binding_invalid")
+    authority = action.get("move_metadata_authority") or action.get("metadata_authority")
+    if not isinstance(authority, Mapping) or authority.get("status") != "resolved" or authority.get("metadata") != move_metadata:
+        return _error("rejected", "native_outcome_action_metadata_binding_invalid", base)
     operation = prove_deterministic_native_action if require_deterministic else progress_native_showdown
     result = operation(runtime_snapshot=runtime_snapshot, checkpoint=checkpoint, bridge=bridge, choices=choices)
     row = result.get("scenarios", [{}])[0] if result.get("scenarios") else result
@@ -50,6 +59,9 @@ def build_native_selected_action_outcome(*, strategy_d0, runtime_snapshot, actio
                 "queued_move": _to_id(base["move_id"])}
     if attempts != [expected]:
         return _error("rejected", "native_outcome_selected_action_phase_mismatch", base)
+    definition = row.get("native_move_definition", {})
+    if not _metadata_matches(definition, move_metadata, base["move_id"]):
+        return _error("rejected", "native_outcome_move_metadata_contradiction", base)
     native = deepcopy(row)
     native.pop("elapsed_ms", None)
     evidence = {"status": "resolved", "schema_version": SCHEMA_VERSION, **base,
@@ -100,6 +112,12 @@ def validate_native_selected_action_outcome(*, evidence, base, runtime_snapshot)
             evidence["source_move_metadata"].get("move_id") != base["move_id"]):
             raise ValueError("native_outcome_capture_or_action_mismatch")
         row = evidence["native_outcome"]
+        definition, metadata = row["native_move_definition"], evidence["source_move_metadata"]
+        authority = evidence["source_action"].get("move_metadata_authority") or evidence["source_action"].get("metadata_authority")
+        if not isinstance(authority, Mapping) or authority.get("status") != "resolved" or authority.get("metadata") != metadata:
+            raise ValueError("native_outcome_action_metadata_binding_invalid")
+        if not _metadata_matches(definition, metadata, base["move_id"]):
+            raise ValueError("native_outcome_move_metadata_contradiction")
         for key in ("root_checkpoint", "checkpoint"):
             cp = row[key]
             saved = {k: v for k, v in cp.items() if k != "checkpoint_fingerprint"}
@@ -108,6 +126,14 @@ def validate_native_selected_action_outcome(*, evidence, base, runtime_snapshot)
                 cp.get("engine_commit") != SHOWDOWN_COMMIT or cp.get("format_id") != FORMAT_ID):
                 raise ValueError("native_outcome_checkpoint_binding_invalid")
         root = row["root_checkpoint"]
+        post = row["checkpoint"]
+        if (any(post.get(k) != root.get(k) for k in ("schema_version", "observation_schema_version", "scenario_id", "assumptions", "model_definition")) or
+            row.get("scenario_id") != root["scenario_id"] or row.get("assumptions") != root["assumptions"]):
+            raise ValueError("native_outcome_checkpoint_hypothesis_mismatch")
+        for cp, view in ((root, row["before"]), (post, row["after"])):
+            if (cp["native_state"]["turn"] != view["turn"] or cp["native_state"]["requestState"] != view["request_state"] or
+                view["decision_phase"]["turn"] != view["turn"] or view["decision_phase"]["request_state"] != view["request_state"]):
+                raise ValueError("native_outcome_native_phase_contradiction")
         if (evidence["source_checkpoint_fingerprint"] != root["checkpoint_fingerprint"] or
             evidence["source_native_phase"] != row["before"]["decision_phase"] or
             evidence["hypothetical_provenance"] != {"scenario_id": root["scenario_id"],
@@ -138,7 +164,7 @@ def validate_native_selected_action_outcome(*, evidence, base, runtime_snapshot)
             draws = proof["constant_draws"]
             if (type(proof["stochastic_draws"]) is not int or type(proof["native_raw_calls"]) is not int or
                 proof["native_raw_calls"] != len(draws) or not all(_constant_draw(draw) for draw in draws) or
-                not all(type(p[k]) is int for p in (evidence["probability_mass"], evidence["branches"][0]["probability"]) for k in ("numerator", "denominator"))):
+                not all(type(p[k]) is int for p in (proof["probability_mass"], evidence["probability_mass"], evidence["branches"][0]["probability"]) for k in ("numerator", "denominator"))):
                 raise ValueError("native_outcome_constant_rng_trace_invalid")
         elif classification == "native_seeded_execution":
             if (evidence["probability_scope"].get("complete") is not False or
@@ -153,6 +179,16 @@ def validate_native_selected_action_outcome(*, evidence, base, runtime_snapshot)
 
 def _to_id(value):
     return "".join(c for c in value.lower() if c.isascii() and c.isalnum())
+
+
+def _metadata_matches(definition, metadata, move_id):
+    accuracy = metadata.get("accuracy")
+    native_target = {"normal": "selected-pokemon", "self": "self"}.get(definition.get("target"))
+    return (definition.get("id") == _to_id(move_id) and definition.get("category") == metadata.get("category") and
+            type(metadata.get("priority")) is int and definition.get("priority") == metadata["priority"] and
+            (accuracy is None and definition.get("accuracy") is True or
+             type(accuracy) in (int, float) and definition.get("accuracy") == accuracy) and
+            native_target is not None and native_target == metadata.get("target"))
 
 
 def _constant_draw(draw):

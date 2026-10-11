@@ -107,6 +107,7 @@ def _family_authorities(
             value = value.get(action_id)
         return deepcopy(value) if isinstance(value, Mapping) else value
     out: dict[str, Any] = {
+        "native_attack_outcome": pick("native_attack_outcomes"),
         "sturdy_survival_authority": pick("first_action_sturdy_survival_authority"),
         "focus_sash_survival_authority": pick("first_action_focus_sash_survival_authority"),
     }

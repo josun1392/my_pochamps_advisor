@@ -105,7 +105,7 @@ def test_seeded_success_cannot_be_reclassified_as_exact(worker):
         assert validate_native_selected_action_outcome(evidence=bad, base=base, runtime_snapshot=args["runtime_snapshot"])["status"] == "rejected"
 
 
-@pytest.mark.parametrize("kind", ["mass", "branch", "checkpoint", "session", "phase", "hypothesis"])
+@pytest.mark.parametrize("kind", ["mass", "branch", "checkpoint", "session", "phase", "hypothesis", "post_hypothesis", "rng_trace"])
 def test_exact_evidence_rejects_incomplete_or_wrong_source_even_with_new_digest(worker, kind):
     args = inputs(worker)
     evidence = build_native_selected_action_outcome(**args)
@@ -115,7 +115,16 @@ def test_exact_evidence_rejects_incomplete_or_wrong_source_even_with_new_digest(
     elif kind == "checkpoint": evidence["native_outcome"]["checkpoint"]["native_state"]["turn"] += 1
     elif kind == "session": evidence["session_id"] = "another-session"
     elif kind == "phase": evidence["source_native_phase"]["turn"] += 1
-    else: evidence["hypothetical_provenance"]["assumptions"] = ["unbound hypothesis"]
+    elif kind == "hypothesis": evidence["hypothetical_provenance"]["assumptions"] = ["unbound hypothesis"]
+    elif kind == "post_hypothesis":
+        cp = evidence["native_outcome"]["checkpoint"]
+        cp["assumptions"] = ["changed model"]
+        from llm.advisor_showdown_simulation import _checkpoint_fingerprint
+        cp["checkpoint_fingerprint"] = _checkpoint_fingerprint({k: v for k, v in cp.items() if k != "checkpoint_fingerprint"})
+    else:
+        proof = evidence["native_outcome"]["determinism_proof"]
+        proof["constant_draws"] = [{"kind": "constant_bernoulli", "numerator": 1, "denominator": 2}]
+        proof["native_raw_calls"] = 1
     evidence["evidence_fingerprint"] = evidence_fingerprint(evidence)
     base = _base(args["strategy_d0"], args["runtime_snapshot"], args["action"], args["actor"], args["target"], args["move_metadata"])
     assert validate_native_selected_action_outcome(evidence=evidence, base=base, runtime_snapshot=args["runtime_snapshot"])["status"] == "rejected"
@@ -197,3 +206,18 @@ def test_summary_cannot_contradict_native_checkpoint(worker):
     native["native_outcome"]["after"]["sides"]["self"]["pokemon"][0]["hp"] = 160
     native["evidence_fingerprint"] = evidence_fingerprint(native)
     assert execute(args, native)["reason"] == "native_direct_heal_summary_checkpoint_contradiction"
+
+
+def test_move_metadata_must_match_source_action_and_pinned_native_definition(worker):
+    args = inputs(worker)
+    args["move_metadata"] = {**args["move_metadata"], "category": "physical"}
+    assert build_native_selected_action_outcome(**args)["reason"] == "native_outcome_action_metadata_binding_invalid"
+    args["action"]["move_metadata_authority"]["metadata"] = args["move_metadata"]
+    assert build_native_selected_action_outcome(**args)["reason"] == "native_outcome_move_metadata_contradiction"
+
+
+def test_full_capture_identity_is_checked_beyond_mechanical_fingerprint(worker):
+    args = inputs(worker)
+    evidence = build_native_selected_action_outcome(**args)
+    args["runtime_snapshot"]["capture_generation"] = 2
+    assert execute(args, evidence)["reason"] == "native_outcome_capture_or_action_mismatch"
