@@ -4,9 +4,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {performance} = require('node:perf_hooks');
+const {evaluateStatusGate} = require('./status-gate.cjs');
 const COMMIT = '942cda71d14bf0618bd57991708a2e2734b6daba';
 const FORMAT = 'gen9championsbssregmc';
 const SCHEMA = 'detached-showdown-v1';
+const OBSERVATION_SCHEMA = 'showdown-observed-projection-v2';
 const clone = value => JSON.parse(JSON.stringify(value));
 class InputError extends Error {}
 function requireInput(ok, code) { if (!ok) throw new InputError(code); }
@@ -14,6 +16,7 @@ function requireInput(ok, code) { if (!ok) throw new InputError(code); }
 function run(input, engine) {
   const {Battle, Dex, TeamValidator, toID, PRNG} = engine;
   requireInput(input.schema_version === SCHEMA, 'invalid_schema');
+  requireInput(input.observation_schema_version === OBSERVATION_SCHEMA, 'unsupported_observation_projection');
   requireInput(input.format_id === FORMAT, 'unsupported_format');
   requireInput(typeof input.session_id === 'string' && input.session_id.length > 0 &&
     typeof input.source_runtime_fingerprint === 'string', 'invalid_source_binding');
@@ -48,6 +51,12 @@ function run(input, engine) {
     return {
       turn: battle.turn, ended: battle.ended, winner: battle.winner || null,
       request_state: battle.requestState,
+      decision_phase: {schema_version: 'showdown-decision-phase-v1', interpretation: 'hypothetical_native_phase_not_observed',
+        request_state: battle.requestState, turn: battle.turn,
+        requesting_sides: [['self', battle.p1], ['opponent', battle.p2]].filter(([, side]) => side.activeRequest && !side.activeRequest.wait).map(([name]) => name),
+        queued_actions: battle.queue.list.map(action => ({choice: action.choice,
+          side: action.pokemon?.side.id ?? null, slot_index: action.pokemon ? Number(action.pokemon.name.replace('slot-', '')) : null,
+          move: action.move?.id ?? null}))},
       field: {weather: battle.field.weather, terrain: battle.field.terrain,
         weather_duration: battle.field.weatherState.duration ?? null,
         terrain_duration: battle.field.terrainState.duration ?? null,
@@ -59,6 +68,9 @@ function run(input, engine) {
           slot_index: Number(p.name.replace('slot-', '')), native_position: p.position + 1,
           stats: clone(p.storedStats), types: p.getTypes(),
           hp: p.hp, max_hp: p.maxhp, fainted: p.fainted, status: p.status,
+          status_counter: ['slp', 'frz'].includes(p.status) ? {schema_version: 'showdown-status-counter-v1',
+            start_time: p.statusState.startTime, remaining_time: p.statusState.time,
+            early_bird_active: p.hasAbility('earlybird'), interpretation: 'hypothetical_native_state_not_observed'} : null,
           item: p.item, ability: p.ability, boosts: clone(p.boosts),
           moves: p.moveSlots.map(m => ({id: m.id, pp: m.pp, max_pp: m.maxpp})),
         })),
@@ -68,11 +80,13 @@ function run(input, engine) {
 
   function checkpoint(battle, scenario) {
     return {schema_version: 'showdown-checkpoint-v1', engine_commit: COMMIT, format_id: FORMAT,
+      observation_schema_version: OBSERVATION_SCHEMA,
       session_id: input.session_id, source_runtime_fingerprint: input.source_runtime_fingerprint,
       scenario_id: scenario.scenario_id, assumptions: clone(scenario.assumptions),
       model_definition: clone(scenario.checkpoint?.model_definition || {
         teams: scenario.teams, preview: scenario.preview,
         slot_mapping: scenario.slot_mapping || {self: [0, 1, 2, 3, 4, 5], opponent: [0, 1, 2, 3, 4, 5]},
+        initial_conditioning: scenario.initial_conditioning || [],
       }),
       native_state: clone(battle.toJSON())};
   }
@@ -127,9 +141,19 @@ function run(input, engine) {
           if (observed.substitute.active) requireInput(pokemon.volatiles.substitute.hp === observed.substitute.hp, 'observed_substitute_hp_conflict');
         }
         if (observed.status_progression) {
-          const progression = observed.status_progression;
-          requireInput(pokemon.statusState.startTime - pokemon.statusState.time === progression.prior_attempts,
-            'observed_status_counter_conflict');
+          requireInput(observed.status_progression.schema_version === 'showdown-legacy-status-compatibility-v1', 'unsupported_status_compatibility');
+          const progression = observed.status_progression.legacy_record;
+          requireInput(pokemon.status === (progression.condition === 'sleep' ? 'slp' : 'frz'), 'observed_status_counter_conflict');
+          // A native counter tick is not an action attempt under Early Bird.
+          // Count native still-asleep/frozen events in this modeled episode.
+          const marker = `: ${pokemon.name}|${pokemon.status}`;
+          const applied = battle.log.findLastIndex(line => line.startsWith('|-status|') && line.includes(marker));
+          const attempts = battle.log.slice(applied + 1).filter(line => line.startsWith('|cant|') && line.includes(marker)).length;
+          const elapsed = pokemon.statusState.startTime - pokemon.statusState.time;
+          const compatibleTicks = pokemon.status === 'frz' || (!pokemon.hasAbility('earlybird') && !progression.duration_adjustment?.early_bird_active);
+          requireInput((progression.prior_attempts === 0 && elapsed === 0) ||
+            (progression.prior_attempts > 0 && (attempts === progression.prior_attempts ||
+              (attempts === 0 && compatibleTicks && elapsed === progression.prior_attempts))), 'legacy_status_requires_matching_native_attempt_history');
           if (progression.sleep_duration !== null) requireInput(pokemon.statusState.startTime === progression.sleep_duration, 'observed_sleep_duration_conflict');
         }
         if (Object.hasOwn(observed, 'toxic_next_stage')) requireInput(pokemon.status === 'tox' && pokemon.statusState.stage + 1 === observed.toxic_next_stage, 'observed_toxic_counter_conflict');
@@ -202,6 +226,15 @@ function run(input, engine) {
         pokemon.addVolatile(id); state = pokemon.volatiles[id];
       }
       requireInput(state && state.id === id && battle.dex.conditions.get(id).exists, 'invalid_native_condition');
+      if (Object.hasOwn(row, 'counter_state')) {
+        const counter = row.counter_state;
+        requireInput(row.effect === 'status' && ['slp', 'frz'].includes(id) &&
+          counter.schema_version === 'showdown-status-counter-v1' && Number.isInteger(counter.start_time) &&
+          (id === 'slp' ? [2, 3].includes(counter.start_time) : counter.start_time === 3) &&
+          Number.isInteger(counter.remaining_time) && counter.remaining_time >= 1 && counter.remaining_time <= counter.start_time,
+          'invalid_versioned_native_status_counter');
+        state.startTime = counter.start_time; state.time = counter.remaining_time;
+      }
       if (Object.hasOwn(row, 'remaining')) {
         requireInput(Number.isInteger(row.remaining) && row.remaining >= 1 && row.remaining <= 8, 'invalid_remaining_duration');
         if (row.effect === 'status' && typeof state.time === 'number') {
@@ -234,6 +267,7 @@ function run(input, engine) {
       p1: {name: 'self', team: teams.self}, p2: {name: 'opponent', team: teams.opponent}});
     try {
       choose(battle, {self: `team ${scenario.preview.self.join('')}`, opponent: `team ${scenario.preview.opponent.join('')}`});
+      condition(battle, scenario.initial_conditioning);
       requireInput(Array.isArray(scenario.history) && scenario.history.length <= 100, 'invalid_history');
       for (const choices of scenario.history) {
         requireInput(!battle.ended, 'history_after_battle_end');
@@ -256,9 +290,10 @@ function run(input, engine) {
     let root, branch;
     const started = performance.now();
     try {
-      if (input.operation === 'resume' || input.operation === 'reconcile') {
+      if (['resume', 'reconcile', 'status_gate'].includes(input.operation)) {
         const saved = scenario.checkpoint;
         requireInput(saved.schema_version === 'showdown-checkpoint-v1' && saved.engine_commit === COMMIT &&
+          saved.observation_schema_version === OBSERVATION_SCHEMA &&
           saved.format_id === FORMAT && saved.session_id === input.session_id &&
           (input.operation === 'reconcile' || saved.source_runtime_fingerprint === input.source_runtime_fingerprint) &&
           saved.native_state.formatid === FORMAT, 'checkpoint_binding_mismatch');
@@ -279,6 +314,9 @@ function run(input, engine) {
       requireInput(!root.ended, 'battle_already_ended');
       const rootCheckpoint = checkpoint(root, scenario);
       const before = summarize(root);
+      if (input.operation === 'status_gate') return {status: 'simulated', scenario_id: scenario.scenario_id,
+        assumptions: clone(scenario.assumptions), before, root_checkpoint: rootCheckpoint,
+        status_gate: evaluateStatusGate(Battle, rootCheckpoint, scenario.status_query), elapsed_ms: performance.now() - started};
       if (scenario.evaluation) {
         return {status: 'simulated', scenario_id: scenario.scenario_id,
           interpretation: 'conditional_monte_carlo_estimate_not_exact_probability',
@@ -351,11 +389,12 @@ function run(input, engine) {
     return {schema_version: 'showdown-sampled-evaluation-v1', interpretation: 'conditional_monte_carlo_estimate_not_exact_probability',
       aggregation: 'per_scenario_no_implicit_opponent_prior', seeds: clone(seeds), candidates: rows};
   }
-  requireInput(['simulate', 'resume', 'reconcile'].includes(input.operation), 'invalid_operation');
+  requireInput(['simulate', 'resume', 'reconcile', 'status_gate'].includes(input.operation), 'invalid_operation');
   requireInput(Array.isArray(input.scenarios) && input.scenarios.length > 0 && input.scenarios.length <= 16, 'invalid_scenarios');
   requireInput(new Set(input.scenarios.map(s => s.scenario_id)).size === input.scenarios.length &&
     input.scenarios.every(s => typeof s.scenario_id === 'string' && s.scenario_id.length > 0 && Array.isArray(s.assumptions)), 'invalid_scenario_identity');
   return {schema_version: SCHEMA, engine_commit: COMMIT, format_id: FORMAT,
+    observation_schema_version: OBSERVATION_SCHEMA,
     session_id: input.session_id, source_runtime_fingerprint: input.source_runtime_fingerprint,
     scenarios: input.scenarios.map(evaluate)};
 }

@@ -9,6 +9,7 @@ from typing import Any
 SHOWDOWN_COMMIT = "942cda71d14bf0618bd57991708a2e2734b6daba"
 FORMAT_ID = "gen9championsbssregmc"
 SCHEMA_VERSION = "detached-showdown-v1"
+OBSERVATION_SCHEMA_VERSION = "showdown-observed-projection-v2"
 BRIDGE_SCRIPT = Path(__file__).resolve().parents[1] / "tools/showdown_bridge/bridge.cjs"
 
 
@@ -58,6 +59,8 @@ class ShowdownBridge:
             raise ShowdownBridgeError("showdown_unavailable_or_invalid_response") from exc
 
     def _validate_response(self, request: dict, response: dict) -> dict:
+        if "observation_schema_version" in request and response.get("observation_schema_version") != request["observation_schema_version"]:
+            raise ShowdownBridgeError("showdown_response_binding_mismatch")
         for key, value in (("schema_version", SCHEMA_VERSION), ("engine_commit", SHOWDOWN_COMMIT),
                            ("format_id", FORMAT_ID), ("session_id", request["session_id"]),
                            ("source_runtime_fingerprint", request["source_runtime_fingerprint"])):

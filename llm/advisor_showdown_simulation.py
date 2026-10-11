@@ -11,6 +11,7 @@ import json
 from typing import Any
 
 from advisor.showdown_bridge import FORMAT_ID, SCHEMA_VERSION, ShowdownBridge, ShowdownBridgeError
+from llm.advisor_showdown_compatibility import OBSERVATION_SCHEMA, confirmed_absence, legacy_status_projection
 from llm.advisor_reducer_state_model import (
     STATE_MODEL_VERSION, is_unknown_battle_fact, state_fingerprint,
     validate_battle_state_unknown_markers,
@@ -53,8 +54,8 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
                     any(value is not None and not is_unknown_battle_fact(value) and not _int(value, 1, 9999) for value in (hp, maximum)) or
                     active.get("fainted") is True):
                     raise ValueError("observed_active_hp_required")
-            row = _pokemon_observation(active, container["active_slot_index"])
-            roster[side] = [_pokemon_observation(pokemon, slot) for slot, pokemon in container["pokemon"].items()]
+            row = _pokemon_observation(active, container["active_slot_index"], side=side, session_id=state["session_id"])
+            roster[side] = [_pokemon_observation(pokemon, slot, side=side, session_id=state["session_id"]) for slot, pokemon in container["pokemon"].items()]
             sides[side] = {}
             conditions = container.get("side_conditions")
             if isinstance(conditions, list): sides[side]["side_conditions"] = deepcopy(conditions)
@@ -76,7 +77,8 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
             ("terrain", {None: "", "none": "", "electric": "electricterrain", "grassy": "grassyterrain", "misty": "mistyterrain", "psychic": "psychicterrain"}),
         ):
             value = state["field"].get(key)
-            if key in state["field"] and not is_unknown_battle_fact(value):
+            if key in state["field"] and not is_unknown_battle_fact(value) and (
+                    value not in (None, "none") or confirmed_absence(value, state["field"].get(key + "_provenance"), key)):
                 field[key] = values[value]
         for key, native in (("trick_room_status", "trickroom"), ("magic_room_status", "magicroom"), ("gravity_status", "gravity")):
             value = state["field"].get(key)
@@ -99,7 +101,7 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
         return {"status": "rejected", "reason": reason}
 
 
-def _pokemon_observation(active: dict, slot: int) -> dict:
+def _pokemon_observation(active: dict, slot: int, *, side: str, session_id: str) -> dict:
     if isinstance(slot, str) and slot.isdecimal(): slot = int(slot)
     if type(slot) is not int or slot < 0: raise ValueError("invalid_observed_slot")
     row = {"pokemon_id": active["pokemon_id"], "slot_index": slot, "boosts": {}}
@@ -111,12 +113,13 @@ def _pokemon_observation(active: dict, slot: int) -> dict:
     for key, dest in (("known_item", "item"), ("current_ability", "ability"),
                       ("current_type", "types"), ("current_level", "level")):
         value = active.get(key)
-        if key in active and key == "known_item" and value is None:
+        if key == "known_item" and confirmed_absence(value, active.get("known_item_provenance"), "item"):
             row[dest] = ""
         elif value is not None and not is_unknown_battle_fact(value):
             row[dest] = deepcopy(value)
     condition = active.get("condition")
-    if "condition" in active and not is_unknown_battle_fact(condition):
+    if "condition" in active and not is_unknown_battle_fact(condition) and (
+            condition not in (None, "none") or confirmed_absence(condition, active.get("condition_provenance"), "condition")):
         row["condition"] = _CONDITIONS[condition]
     for stat, stage in active.get("stat_stages", {}).items():
         if stat not in _STATS or not _int(stage, -6, 6):
@@ -139,8 +142,9 @@ def _pokemon_observation(active: dict, slot: int) -> dict:
     row["volatiles"] = volatile
     progression = active.get("champions_status_progression")
     if progression:
-        if "duration_adjustment" in progression: raise ValueError("adjusted_status_counter_requires_native_history_adapter")
-        row["status_progression"] = deepcopy(progression)
+        owner = {"session_id": session_id, "side": side, "slot_index": slot, "pokemon_id": active["pokemon_id"]}
+        row["status_progression"] = legacy_status_projection(progression, owner=owner, condition=condition,
+            condition_provenance=active.get("condition_provenance"))
     toxic = active.get("toxic_progression")
     if isinstance(toxic, dict) and not is_unknown_battle_fact(toxic): row["toxic_next_stage"] = toxic["next_stage"]
     return row
@@ -166,6 +170,27 @@ def resume_detached_showdown(*, runtime_snapshot: dict, checkpoint: dict, choice
         return _run(bridge, request)
     except (ValueError, KeyError, TypeError):
         return {"status": "rejected", "reason": "invalid_or_stale_checkpoint"}
+
+
+def evaluate_native_status_gate(*, runtime_snapshot: dict, checkpoint: dict, side: str, move: str, bridge: ShowdownBridge) -> dict:
+    """Exact native callback enumeration, conditional on one hypothetical root.
+
+    It excludes other action gates, PP, accuracy, targets and ranking authority.
+    This is a new representation; the legacy v1 consumer is not changed.
+    """
+    try:
+        _state(runtime_snapshot)
+        saved = deepcopy(checkpoint)
+        digest = saved.pop("checkpoint_fingerprint", None)
+        if (digest != _checkpoint_fingerprint(saved) or side not in {"self", "opponent"} or not isinstance(move, str) or
+                any(saved.get(key) != _binding(runtime_snapshot)[key] for key in
+                    ("session_id", "source_runtime_fingerprint", "observation_schema_version"))):
+            raise ValueError("invalid_status_gate_binding")
+        return _run(bridge, {**_binding(runtime_snapshot), "operation": "status_gate", "scenarios": [{
+            "scenario_id": saved["scenario_id"], "assumptions": saved["assumptions"], "checkpoint": saved,
+            "status_query": {"side": side, "move": move}}]})
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return {"status": "rejected", "reason": "invalid_or_stale_native_status_gate"}
 
 
 def evaluate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict], candidates: list[dict], seeds: list[list[int]], bridge: ShowdownBridge) -> dict:
@@ -199,7 +224,7 @@ def reconcile_detached_showdown(*, runtime_snapshot: dict, checkpoint: dict, sce
                 saved.get("scenario_id") != scenario.get("scenario_id")):
             raise ValueError("checkpoint_binding_mismatch")
         model = {"teams": scenario["teams"], "preview": scenario["preview"], "slot_mapping": scenario.get("slot_mapping", {
-            "self": list(range(6)), "opponent": list(range(6))})}
+            "self": list(range(6)), "opponent": list(range(6))}), "initial_conditioning": scenario.get("initial_conditioning", [])}
         if saved.get("model_definition") != model or saved.get("assumptions") != scenario.get("assumptions"):
             raise ValueError("checkpoint_model_binding_mismatch")
         modeled = {**deepcopy(scenario), "checkpoint": saved, "history": deepcopy(observed_history)}
@@ -242,6 +267,7 @@ def _state(snapshot: Any) -> dict:
 
 def _binding(snapshot: dict) -> dict:
     return {"schema_version": SCHEMA_VERSION, "format_id": FORMAT_ID,
+            "observation_schema_version": OBSERVATION_SCHEMA,
             "session_id": snapshot["session_id"], "source_runtime_fingerprint": snapshot["state_fingerprint"]}
 
 
