@@ -127,6 +127,7 @@ def run_current_ui_detached_strategy(
     decision_side: str = "self", selection_cycle_builder: Callable[[Mapping[str, Any], Mapping[str, Any]], Mapping[str, Any]],
     opponent_canonical_move_metadata_authorities: Mapping[str, Mapping[str, Any]] | None = None,
     opponent_move_metadata_authority_builder: Callable[[Mapping[str, Any], Mapping[str, Any]], Mapping[str, Mapping[str, Any]]] | None = None,
+    showdown_context: dict | None = None, showdown_bridge: Any = None,
 ) -> dict[str, Any]:
     """Capture one runtime revision and return detached strategy explanation.
 
@@ -216,6 +217,12 @@ def run_current_ui_detached_strategy(
     explanation = explain_detached_strategy(orchestration=orchestration)
     if explanation.get("status") != "resolved":
         return _result("rejected", explanation.get("reason", "strategy_explanation_rejected"))
+    if showdown_context is not None:
+        from llm.advisor_showdown_shadow import evaluate_current_showdown_shadow
+        explanation["source_runtime_fingerprint"] = capture["state_fingerprint"]
+        explanation["sampled_simulation"] = evaluate_current_showdown_shadow(
+            runtime_snapshot=capture, selection=selection, context=showdown_context, bridge=showdown_bridge,
+        )
     current = _capture(runtime_session_manager, captured_session_id)
     if current is None or runtime_strategy_d0_freshness(strategy_d0=d0, runtime_snapshot=current).get("status") != "current":
         return _result("stale", "runtime_state_changed_strategy_result_discarded")

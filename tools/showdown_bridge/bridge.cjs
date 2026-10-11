@@ -26,8 +26,14 @@ function run(input, engine) {
     const requests = {p1: battle.p1.activeRequest, p2: battle.p2.activeRequest};
     for (const [side, id] of [['self', 'p1'], ['opponent', 'p2']]) {
       const request = requests[id];
-      const choice = choices[side];
+      let choice = choices[side];
       requireInput(typeof choice === 'string' && choice.length <= 100, 'invalid_choice');
+      const slotChoice = /^switch slot:(\d+)$/.exec(choice);
+      if (slotChoice) {
+        const pokemon = battle[id].pokemon.find(p => p.name === `slot-${Number(slotChoice[1])}`);
+        requireInput(pokemon, 'unknown_switch_slot');
+        choice = `switch ${pokemon.position + 1}`;
+      }
       if (!request || request.wait) {
         requireInput(choice === '', 'choice_for_waiting_side');
       } else {

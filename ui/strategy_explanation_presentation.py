@@ -44,7 +44,7 @@ def present_strategy_explanation(*, explanation: Mapping[str, Any]) -> dict[str,
         rendered_candidates.append(row)
     rendered_candidates.sort(key=lambda row: row["candidate_id"])
     overall_status = _overall_status(explanation.get("overall_status"), frontier, rendered_candidates)
-    return {
+    result = {
         "status": "resolved",
         "schema_version": PRESENTATION_SCHEMA,
         "session_id": explanation["session_id"],
@@ -59,6 +59,12 @@ def present_strategy_explanation(*, explanation: Mapping[str, Any]) -> dict[str,
         "probability_aware_decisions": deepcopy(probability_decisions),
         "provenance": "detached_strategy_explanation_presentation_v1",
     }
+    if "sampled_simulation" in explanation:
+        from llm.advisor_showdown_shadow import valid_shadow_evidence
+        if not valid_shadow_evidence(explanation["sampled_simulation"], explanation):
+            return _rejected("invalid_showdown_sampled_evidence")
+        result["sampled_simulation"] = deepcopy(explanation["sampled_simulation"])
+    return result
 
 
 def render_strategy_explanation(*, presentation: Mapping[str, Any]) -> str:
@@ -88,6 +94,18 @@ def render_strategy_explanation(*, presentation: Mapping[str, Any]) -> str:
         incomplete = candidate.get("incomplete_reason")
         if isinstance(incomplete, str):
             lines.append("  불완전: " + _incomplete_label(incomplete))
+    sampled = presentation.get("sampled_simulation")
+    if sampled:
+        lines.append("Showdown 조건부 표본: 상대의 가정 행동과 턴 종료 효과 포함. 기존 추천 순위는 유지됩니다.")
+        if sampled["status"] != "evaluated":
+            lines.append("  현재 관측에서는 조건부 시뮬레이션을 사용할 수 없습니다.")
+        for scenario in sampled.get("scenarios", []):
+            if scenario["status"] != "evaluated": continue
+            lines.append(f"  가정 {scenario['scenario_id']} · 상대 행동 {scenario['opponent_choice']}")
+            lines.append("  가정 조건: " + "; ".join(scenario["assumptions"]))
+            for row in scenario["candidates"]:
+                if row["status"] != "evaluated": continue
+                lines.append(f"    {_label(row['candidate_id'], row['candidate_id'].split(':', 1)[0])}: {row['sample_count']}회 표본 · 상대 새 기절 {row['opponent_new_faint_samples']}회 · 내 새 기절 {row['self_new_faint_samples']}회 (정확 확률 아님)")
     return "\n".join(lines)
 
 

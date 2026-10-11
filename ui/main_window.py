@@ -518,6 +518,8 @@ class AnalysisColumn(QFrame):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
+        self._showdown_shadow_context = None
+        self._showdown_shadow_worker = None
         self.setWindowTitle("Master Ball Advisor v0.14")
         self.setMinimumSize(1120, 650)
         self.resize(1280, 720)
@@ -4933,6 +4935,8 @@ class MainWindow(QMainWindow):
         result = run_current_ui_detached_strategy(
             runtime_session_manager=manager, captured_session_id=session_id,
             decision_side="self", selection_cycle_builder=build_selection_cycle,
+            showdown_context=getattr(self, "_showdown_shadow_context", None),
+            showdown_bridge=getattr(self, "_showdown_shadow_worker", None),
             opponent_move_metadata_authority_builder=lambda strategy_d0, runtime_snapshot: freeze_runtime_d0_observed_opponent_move_metadata_authorities(strategy_d0=strategy_d0, runtime_snapshot=runtime_snapshot, move_repository=self.move_repo),
         )
         if result.get("status") == "resolved":
@@ -5280,9 +5284,24 @@ class MainWindow(QMainWindow):
         setattr(thread, "_advice_cleanup_scheduled", True)
         thread.deleteLater()
 
+    def configure_showdown_shadow(self, *, checkout=None, context=None) -> None:
+        """Explicit opt-in; call without arguments to return to the default path."""
+        previous = getattr(self, "_showdown_shadow_worker", None)
+        if previous is not None:
+            previous.close()
+        self._showdown_shadow_worker = None
+        self._showdown_shadow_context = None
+        if checkout is not None and context is not None:
+            from advisor.showdown_worker import ShowdownWorker
+            self._showdown_shadow_worker = ShowdownWorker(checkout)
+            self._showdown_shadow_context = deepcopy(context)
+
     def closeEvent(self, event) -> None:
         """Suppress callbacks and request cooperative shutdown without blocking close."""
         self._is_closing = True
+        showdown_worker = getattr(self, "_showdown_shadow_worker", None)
+        if showdown_worker is not None:
+            showdown_worker.close()
         guided_timer = getattr(self, "_guided_refresh_timer", None)
         if guided_timer is not None:
             guided_timer.stop()
