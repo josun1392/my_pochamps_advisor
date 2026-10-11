@@ -8,6 +8,7 @@ const {evaluateStatusGate} = require('./status-gate.cjs');
 const {evaluateDamageRolls, NativeDamageError} = require('./damage-rolls.cjs');
 const {progressNativeBattle, progressNativeSwitchEntry, NativeActionPause, NativeSwitchBoundaryRequired} = require('./native-progress.cjs');
 const {proveConstantRNG, NativeRandomnessRequired} = require('./deterministic-proof.cjs');
+const {validPolicy, rollout, outcome} = require('./rollout.cjs');
 const COMMIT = '942cda71d14bf0618bd57991708a2e2734b6daba';
 const FORMAT = 'gen9championsbssregmc';
 const SCHEMA = 'detached-showdown-v1';
@@ -443,7 +444,7 @@ function run(input, engine) {
     } finally { branch?.destroy(); root?.destroy(); }
   }
   function sample(saved, evaluation) {
-    const {seeds, candidates} = evaluation;
+    const {seeds, candidates, rollout_policy: policy} = evaluation;
     requireInput(Array.isArray(seeds) && seeds.length >= 1 && seeds.length <= 256 &&
       seeds.every(seed => Array.isArray(seed) && seed.length === 4 && seed.every(n => Number.isInteger(n) && n >= 0 && n <= 65535)) &&
       new Set(seeds.map(seed => seed.join(','))).size === seeds.length, 'invalid_sample_seeds');
@@ -451,16 +452,26 @@ function run(input, engine) {
       candidates.every(c => typeof c.candidate_id === 'string' && c.candidate_id.length > 0 && Array.isArray(c.choices) && c.choices.length >= 1 && c.choices.length <= 8) &&
       new Set(candidates.map(c => c.candidate_id)).size === candidates.length, 'invalid_sample_candidates');
     requireInput(seeds.length * candidates.reduce((n, c) => n + c.choices.length, 0) <= 8192, 'sample_budget_exceeded');
+    if (policy) {
+      requireInput(validPolicy(policy) && candidates.every(c => c.choices.length === 1), 'invalid_rollout_policy');
+      requireInput(seeds.length * candidates.length * policy.max_decisions <= 32768, 'rollout_budget_exceeded');
+    }
+    // fromJSON mutates its input: parse a fresh copy, stringify the immutable
+    // root once per batch instead of once per seed/candidate.
+    const nativeJSON = JSON.stringify(saved.native_state);
     const rows = candidates.map(candidate => {
       const samples = [];
       for (const seed of seeds) {
         let battle;
         try {
-          battle = Battle.fromJSON(clone(saved.native_state));
+          battle = Battle.fromJSON(JSON.parse(nativeJSON));
           battle.restart(() => {});
           battle.prng = new PRNG(seed);
-          let decisions = 0;
-          for (const choices of candidate.choices) {
+          let decisions = 0, progression;
+          if (policy) {
+            progression = rollout(battle, candidate.choices[0], seed, policy, engine, choose);
+            decisions = progression.decisions;
+          } else for (const choices of candidate.choices) {
             if (battle.ended) break;
             choose(battle, choices);
             decisions++;
@@ -470,7 +481,10 @@ function run(input, engine) {
             self_hp: battle.p1.pokemon.reduce((n, p) => n + p.hp, 0),
             opponent_hp: battle.p2.pokemon.reduce((n, p) => n + p.hp, 0),
             self_fainted: battle.p1.pokemon.filter(p => p.fainted).length,
-            opponent_fainted: battle.p2.pokemon.filter(p => p.fainted).length});
+            opponent_fainted: battle.p2.pokemon.filter(p => p.fainted).length,
+            ...(policy ? {...outcome(battle), forced_replacements: progression.forced_replacements,
+              immediate: progression.immediate,
+              trace: evaluation.include_traces === true ? progression.trace : undefined} : {})});
         } catch (error) {
           // No missing action is auto-selected and no invalid seed is counted.
           return {status: 'rejected', candidate_id: candidate.candidate_id,
@@ -478,7 +492,7 @@ function run(input, engine) {
         } finally { battle?.destroy(); }
       }
       const n = samples.length;
-      const mean = key => samples.reduce((sum, row) => sum + row[key], 0) / n;
+      const mean = key => samples.reduce((sum, row) => sum + key.split('.').reduce((value, part) => value[part], row), 0) / n;
       const count = test => samples.filter(test).length;
       const initial = saved.native_state.sides.map(side => side.pokemon.filter(p => p.fainted).length);
       return {status: 'evaluated', candidate_id: candidate.candidate_id, sample_count: n,
@@ -487,7 +501,20 @@ function run(input, engine) {
         opponent_new_faint_samples: count(s => s.opponent_fainted > initial[1]),
         self_win_samples: count(s => s.winner === 'self'), opponent_win_samples: count(s => s.winner === 'opponent'),
         ended_samples: count(s => s.ended), switch_request_samples: count(s => s.request_state === 'switch'),
-        mean_self_team_hp: mean('self_hp'), mean_opponent_team_hp: mean('opponent_hp'), samples};
+        mean_self_team_hp: mean('self_hp'), mean_opponent_team_hp: mean('opponent_hp'), samples,
+        ...(policy ? {horizon_decisions: policy.max_decisions, rollout_policy: clone(policy),
+          immediate: {schema_version: 'showdown-sampled-first-request-v1',
+            scope: 'first_native_request_after_initial_choices_not_always_a_complete_turn', sample_count: n,
+            self_new_faint_samples: count(s => s.immediate.self_fainted > initial[0]),
+            opponent_new_faint_samples: count(s => s.immediate.opponent_fainted > initial[1]),
+            pending_action_samples: count(s => s.immediate.pending_actions),
+            request_counts: Object.fromEntries(['move', 'switch', 'ended'].map(phase => [phase, count(s => s.immediate.request_state === phase)])),
+            mean_self_health_fraction: mean('immediate.self_health_fraction'),
+            mean_opponent_health_fraction: mean('immediate.opponent_health_fraction')},
+          draw_samples: count(s => s.ended && !s.winner), truncated_samples: count(s => !s.ended),
+          mean_decisions: mean('decisions'), forced_replacement_samples: count(s => s.forced_replacements > 0),
+          mean_self_health_fraction: mean('self_health_fraction'), mean_opponent_health_fraction: mean('opponent_health_fraction'),
+          mean_outcome_value: mean('outcome_value')} : {})};
     });
     return {schema_version: 'showdown-sampled-evaluation-v1', interpretation: 'conditional_monte_carlo_estimate_not_exact_probability',
       aggregation: 'per_scenario_no_implicit_opponent_prior', seeds: clone(seeds), candidates: rows};
@@ -506,7 +533,7 @@ module.exports = {run};
 if (require.main === module) try {
   const payload = fs.readFileSync(0, 'utf8');
   requireInput(Buffer.byteLength(payload) <= 8 * 1024 * 1024, 'request_too_large');
-  const engine = require(path.join(process.argv[2], 'dist', 'sim'));
+    const engine = require('./engine.cjs').loadEngine(process.argv[2]);
   process.stdout.write(JSON.stringify(run(JSON.parse(payload), engine)));
 } catch (error) {
   process.stdout.write(JSON.stringify({status: 'error', reason: error instanceof InputError ? error.message : 'bridge_failed'}));

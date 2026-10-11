@@ -1,9 +1,8 @@
 'use strict';
 // One local engine process, sequential JSONL requests. No battle server.
 const readline = require('node:readline');
-const path = require('node:path');
 const {run} = require('./bridge.cjs');
-const engine = require(path.join(process.argv[2], 'dist', 'sim'));
+const engine = require('./engine.cjs').loadEngine(process.argv[2]);
 const lines = readline.createInterface({input: process.stdin, crlfDelay: Infinity});
 lines.on('line', line => {
   let requestId = null;
