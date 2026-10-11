@@ -68,7 +68,7 @@ def materialize_detached_selected_action_execution_result(*, strategy_d0: Mappin
     if move_id in _GRAPH_MOVES:
         return _graph(base, strategy_d0, runtime_snapshot, action, actor, target, metadata, authorities)
     if move_id in {"recover", "slack-off", "soft-boiled"}:
-        return _direct_heal(base, runtime_snapshot, authorities.get("direct_heal_execution_authority"))
+        return _direct_heal(base, runtime_snapshot, authorities.get("direct_heal_execution_authority"), authorities.get("native_direct_heal_outcome"))
     if move_id == "rest":
         return _rest(base, strategy_d0, runtime_snapshot, action)
     if move_id in {"trick", "switcheroo"}:
@@ -347,8 +347,19 @@ def _endure(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority: Any
         return _result("rejected", "endure_turn_survival_binding_mismatch", base)
     return {"status":"resolved","schema_version":SCHEMA_VERSION,**deepcopy(dict(base)),"execution_family":"endure_turn_survival","probability_owner":"selected_action_only","paths":({"probability":{"numerator":1,"denominator":1},"post_action_runtime_snapshot":deepcopy(dict(snapshot)),"endure_turn_context":context,"pending_action_executed":False},),"provenance":"selected_action_to_runtime_d0_endure_turn_survival_authority_v1"}
 
-def _direct_heal(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority: Any) -> dict[str, Any]:
-    materialized=materialize_detached_direct_heal(execution_authority=authority) if isinstance(authority, Mapping) else {"status":"incomplete", "reason":"direct_heal_execution_authority_missing"}
+def _direct_heal(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority: Any, native: Any = None) -> dict[str, Any]:
+    fallback = None
+    if native is not None:
+        from llm.advisor_showdown_outcome_evidence import SCHEMA_VERSION as NATIVE_SCHEMA, _STOCHASTIC
+        from llm.advisor_showdown_direct_heal import materialize_native_direct_heal
+        if (isinstance(native, Mapping) and native.get("schema_version") == NATIVE_SCHEMA and
+            native.get("status") == "unsupported" and native.get("reason") in _STOCHASTIC and
+            all(native.get(k) == v for k, v in base.items())):
+            fallback = native["reason"]
+        else:
+            materialized = materialize_native_direct_heal(evidence=native, base=base, runtime_snapshot=snapshot, execution_authority=authority)
+    if native is None or fallback is not None:
+        materialized=materialize_detached_direct_heal(execution_authority=authority) if isinstance(authority, Mapping) else {"status":"incomplete", "reason":"direct_heal_execution_authority_missing"}
     if materialized.get("status") != "resolved": return _result(materialized.get("status", "incomplete"), materialized.get("reason", "direct_heal_execution_unavailable"), base)
     if any(materialized.get(k) != base.get(k) for k in ("session_id","source_runtime_fingerprint","source_branch_fingerprint","decision_owner","actor","action_id","move_id")): return _result("rejected","direct_heal_execution_binding_mismatch",base)
     state=deepcopy(snapshot["state"]); row=state[f"{base['actor']['side']}_side"]["pokemon"][base["actor"]["slot_index"]]; post=materialized["heal"]["post_hp"]
@@ -356,7 +367,12 @@ def _direct_heal(base: Mapping[str, Any], snapshot: Mapping[str, Any], authority
     post_snapshot={"status":"runtime_snapshot_ready","session_id":base["session_id"],"state":state,"state_fingerprint":state_fingerprint(state)}
     d0=freeze_runtime_strategy_d0(runtime_snapshot=post_snapshot,decision_owner=base["actor"])
     if d0.get("status")!="resolved": return _result("incomplete",d0.get("reason","direct_heal_post_state_unavailable"),base)
-    return {"status":"resolved","schema_version":SCHEMA_VERSION,**base,"execution_family":"direct_heal","probability_owner":"selected_action_only","paths":({"probability":deepcopy(materialized["probability"]),"action_consequence":materialized,"post_action_runtime_snapshot":post_snapshot,"post_action_strategy_d0":d0},),"provenance":"selected_action_to_existing_direct_heal_materializer_v1"}
+    result = {"status":"resolved","schema_version":SCHEMA_VERSION,**base,"execution_family":"direct_heal","probability_owner":"selected_action_only","paths":({"probability":deepcopy(materialized["probability"]),"action_consequence":materialized,"post_action_runtime_snapshot":post_snapshot,"post_action_strategy_d0":d0},),"provenance":"selected_action_to_existing_direct_heal_materializer_v1"}
+    if materialized.get("evidence_class") == "native_conditional_exact":
+        result.update(evidence_class=materialized["evidence_class"], probability_scope=deepcopy(materialized["probability_scope"]), provenance="selected_action_to_native_compatible_direct_heal_v1")
+    elif fallback is not None:
+        result["native_fallback_reason"] = fallback
+    return result
 
 
 def _rest(base: Mapping[str, Any], d0: Mapping[str, Any], snapshot: Mapping[str, Any], action: Mapping[str, Any]) -> dict[str, Any]:

@@ -138,6 +138,7 @@ def _family_authorities(
         else:
             out["endure_turn_context"] = deepcopy(dict(turn_local_endure_context))
     if move_id in {"recover", "slack-off", "soft-boiled"}:
+        out["native_direct_heal_outcome"] = pick("native_direct_heal_outcomes")
         supplied = pick("direct_heal_execution_authorities")
         # The supplied record proves this exact selected move was frozen at the
         # root.  The canonical owner must still bind HP to the gate's current

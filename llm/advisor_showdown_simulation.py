@@ -228,7 +228,7 @@ def resume_detached_showdown(*, runtime_snapshot: dict, checkpoint: dict, choice
 
 
 def progress_native_showdown(*, runtime_snapshot: dict, checkpoint: dict, bridge: ShowdownBridge,
-                             choices: dict | None = None, stop_after_move: bool = True) -> dict:
+                             choices: dict | None = None, stop_after_move: bool = True, _operation: str = "progress") -> dict:
     """Submit explicit choices or continue a saved native in-flight action queue.
 
     Stops after one complete native move attempt, or at the next native request.
@@ -247,11 +247,22 @@ def progress_native_showdown(*, runtime_snapshot: dict, checkpoint: dict, bridge
         query = {"stop_after_move": stop_after_move}
         if choices is not None:
             query["choices"] = deepcopy(choices)
-        return _run(bridge, {**_binding(runtime_snapshot), "operation": "progress", "scenarios": [{
+        return _run(bridge, {**_binding(runtime_snapshot), "operation": _operation, "scenarios": [{
             "scenario_id": saved["scenario_id"], "assumptions": saved["assumptions"], "checkpoint": saved,
             "progress_query": query}]})
     except (ValueError, KeyError, TypeError, AttributeError):
         return {"status": "rejected", "reason": "invalid_or_stale_native_progression"}
+
+
+def prove_deterministic_native_action(*, runtime_snapshot: dict, checkpoint: dict, bridge: ShowdownBridge,
+                                    choices: dict | None = None) -> dict:
+    """One native move attempt, rejecting every unproven stochastic RNG call.
+
+    A complete constant-outcome proof supplies conditional unit mass; a seeded
+    success, truncation or partial execution never supplies that proof.
+    """
+    return progress_native_showdown(runtime_snapshot=runtime_snapshot, checkpoint=checkpoint, bridge=bridge,
+        choices=choices, stop_after_move=True, _operation="deterministic_progress")
 
 
 def evaluate_native_status_gate(*, runtime_snapshot: dict, checkpoint: dict, side: str, move: str, bridge: ShowdownBridge) -> dict:
