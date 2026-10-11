@@ -34,15 +34,11 @@ def test_invalid_binding_does_not_execute(mutation, reason):
     assert simulate_detached_showdown(runtime_snapshot=snapshot, scenarios=fixture_scenarios(), bridge=UnusedBridge()) == {"status": "rejected", "reason": reason}
 
 
-def test_unknown_hp_and_final_stats_never_get_fabricated():
+def test_unknown_hp_never_get_fabricated():
     state = fixture_snapshot()["state"]
     state["opponent_side"]["pokemon"][0]["current_hp"] = {"knowledge": "unknown"}
     result = simulate_detached_showdown(runtime_snapshot=snapshot_from_state(state), scenarios=fixture_scenarios(), bridge=UnusedBridge())
     assert result["reason"] == "observed_active_hp_required"
-    state = fixture_snapshot()["state"]
-    state["self_side"]["pokemon"][0]["current_final_stats"] = {"attack": {"value": 100, "provenance": {"event_kind": "current_final_combat_stat_observed", "trust": "user_confirmed_observation", "turn_number": 1}}}
-    result = simulate_detached_showdown(runtime_snapshot=snapshot_from_state(state), scenarios=fixture_scenarios(), bridge=UnusedBridge())
-    assert result["reason"] == "observed_final_stats_adapter_required"
 
 
 def test_assumptions_and_singles_are_required():
@@ -74,14 +70,14 @@ def test_missing_legacy_fields_are_not_promoted_to_known_absence():
 
 def test_unmapped_known_mechanics_fail_closed_with_field_paths():
     state = fixture_snapshot()["state"]
-    state["self_side"]["side_conditions"] = []
+    state["self_side"]["unmapped_mechanic"] = True
     result = simulate_detached_showdown(runtime_snapshot=snapshot_from_state(state), scenarios=fixture_scenarios(), bridge=UnusedBridge())
-    assert result == {"status": "rejected", "reason": "unmapped_runtime_mechanics", "fields": ["self_side.side_conditions"]}
+    assert result == {"status": "rejected", "reason": "unmapped_runtime_mechanics", "fields": ["self_side.unmapped_mechanic"]}
     state = fixture_snapshot()["state"]
-    state["self_side"]["pokemon"][1] = {"pokemon_id": "garchomp", "current_hp": 50, "max_hp": 183, "fainted": False}
+    state["self_side"]["pokemon"][1] = {"pokemon_id": "garchomp", "custom_mechanic": True}
     result = simulate_detached_showdown(runtime_snapshot=snapshot_from_state(state), scenarios=fixture_scenarios(), bridge=UnusedBridge())
     assert result["reason"] == "unmapped_runtime_mechanics"
-    assert "self_side.pokemon.1.current_hp" in result["fields"]
+    assert "self_side.pokemon.1.custom_mechanic" in result["fields"]
 
 
 def test_unavailable_bridge_is_a_sanitized_local_failure():

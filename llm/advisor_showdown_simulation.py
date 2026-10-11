@@ -21,7 +21,7 @@ _STATS = {"attack": "atk", "defense": "def", "special-attack": "spa",
 _CONDITIONS = {None: "", "none": "", "burn": "brn", "poison": "psn", "toxic": "tox",
                "paralysis": "par", "sleep": "slp", "freeze": "frz"}
 LIMITATIONS = [
-    "partial_observation_reconstruction_only_active_hp_and_known_stages_overlaid",
+    "known_roster_hp_stages_overlaid_other_known_mechanics_verified_against_native_root",
     "teams_unobserved_state_counters_pp_and_history_are_explicit_hypotheses",
     "unmapped_known_runtime_mechanics_are_rejected",
     "seeded_samples_are_not_exact_probabilities",
@@ -37,33 +37,20 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
         unmapped = _unmapped_observations(state)
         if unmapped:
             return {"status": "rejected", "reason": "unmapped_runtime_mechanics", "fields": unmapped}
-        observed = {}
+        observed, roster, sides = {}, {}, {}
         for side in ("self", "opponent"):
             container = state[f"{side}_side"]
             active = container["pokemon"][container["active_slot_index"]]
             hp, maximum = active["current_hp"], active["max_hp"]
             if not (_int(hp, 1, 9999) and _int(maximum, hp, 9999) and active.get("fainted") is False):
                 raise ValueError("observed_active_hp_required")
-            row = {"pokemon_id": active["pokemon_id"], "hp": hp, "max_hp": maximum, "boosts": {}}
-            if active.get("known_move_ids"):
-                row["known_moves"] = list(active["known_move_ids"])
-            for key, dest in (("known_item", "item"), ("current_ability", "ability"),
-                              ("current_type", "types"), ("current_level", "level")):
-                value = active.get(key)
-                if key in active and key == "known_item" and value is None:
-                    row[dest] = ""
-                elif value is not None and not is_unknown_battle_fact(value):
-                    row[dest] = deepcopy(value)
-            condition = active.get("condition")
-            if "condition" in active and not is_unknown_battle_fact(condition):
-                row["condition"] = _CONDITIONS[condition]
-            for stat, stage in active.get("stat_stages", {}).items():
-                if stat not in _STATS or not _int(stage, -6, 6):
-                    raise ValueError("invalid_observed_stage")
-                row["boosts"][_STATS[stat]] = stage
-            # A final combat stat cannot safely be reverse-engineered to a set.
-            if active.get("current_final_stats"):
-                raise ValueError("observed_final_stats_adapter_required")
+            row = _pokemon_observation(active, container["active_slot_index"])
+            roster[side] = [_pokemon_observation(pokemon, slot) for slot, pokemon in container["pokemon"].items()]
+            sides[side] = {}
+            conditions = container.get("side_conditions")
+            if isinstance(conditions, list): sides[side]["side_conditions"] = deepcopy(conditions)
+            tailwind = container.get("tailwind_status")
+            if tailwind in ("active", "inactive"): sides[side]["tailwind"] = tailwind == "active"
             observed[side] = row
         field = {}
         for key, values in (
@@ -73,12 +60,17 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
             value = state["field"].get(key)
             if key in state["field"] and not is_unknown_battle_fact(value):
                 field[key] = values[value]
+        for key, native in (("trick_room_status", "trickroom"), ("magic_room_status", "magicroom"), ("gravity_status", "gravity")):
+            value = state["field"].get(key)
+            if value in ("active", "inactive"):
+                field.setdefault("pseudo_weather", {})[native] = value == "active"
         if not isinstance(scenarios, list) or not 1 <= len(scenarios) <= 16 or not all(isinstance(s, dict) for s in scenarios):
             raise ValueError("invalid_scenarios")
         ids = [s.get("scenario_id") for s in scenarios]
         if not all(isinstance(value, str) and value for value in ids) or len(set(ids)) != len(ids):
             raise ValueError("invalid_scenario_identity")
         request = {**_binding(runtime_snapshot), "operation": "simulate", "observed_active": observed,
+                   "observed_roster": roster, "observed_sides": sides,
                    "observed_field": field, "scenarios": deepcopy(scenarios)}
         for scenario in request["scenarios"]:
             if not isinstance(scenario.get("assumptions"), list) or not scenario["assumptions"] or not all(isinstance(v, str) and v for v in scenario["assumptions"]):
@@ -87,6 +79,38 @@ def simulate_detached_showdown(*, runtime_snapshot: dict, scenarios: list[dict],
     except (ValueError, KeyError, TypeError) as exc:
         reason = str(exc) if isinstance(exc, ValueError) else "invalid_simulation_input"
         return {"status": "rejected", "reason": reason}
+
+
+def _pokemon_observation(active: dict, slot: int) -> dict:
+    row = {"pokemon_id": active["pokemon_id"], "slot_index": slot, "boosts": {}}
+    for key, dest in (("current_hp", "hp"), ("max_hp", "max_hp"), ("fainted", "fainted")):
+        value = active.get(key)
+        if value is not None and not is_unknown_battle_fact(value): row[dest] = value
+    if active.get("known_move_ids"):
+        row["known_moves"] = list(active["known_move_ids"])
+    for key, dest in (("known_item", "item"), ("current_ability", "ability"),
+                      ("current_type", "types"), ("current_level", "level")):
+        value = active.get(key)
+        if key in active and key == "known_item" and value is None:
+            row[dest] = ""
+        elif value is not None and not is_unknown_battle_fact(value):
+            row[dest] = deepcopy(value)
+    condition = active.get("condition")
+    if "condition" in active and not is_unknown_battle_fact(condition):
+        row["condition"] = _CONDITIONS[condition]
+    for stat, stage in active.get("stat_stages", {}).items():
+        if stat not in _STATS or not _int(stage, -6, 6):
+            raise ValueError("invalid_observed_stage")
+        row["boosts"][_STATS[stat]] = stage
+    row["stats"] = {_STATS[stat]: value["value"] for stat, value in (active.get("current_final_stats") or {}).items()}
+    row["move_usability"] = {move: value["status"] == "known_usable" for move, value in (active.get("current_move_usability") or {}).items()}
+    progression = active.get("champions_status_progression")
+    if progression:
+        if "duration_adjustment" in progression: raise ValueError("adjusted_status_counter_requires_native_history_adapter")
+        row["status_progression"] = deepcopy(progression)
+    toxic = active.get("toxic_progression")
+    if isinstance(toxic, dict) and not is_unknown_battle_fact(toxic): row["toxic_next_stage"] = toxic["next_stage"]
+    return row
 
 
 def resume_detached_showdown(*, runtime_snapshot: dict, checkpoint: dict, choices: dict, bridge: ShowdownBridge) -> dict:
@@ -163,26 +187,21 @@ def _unmapped_observations(state: dict) -> list[str]:
                  "last_applied_observation_sequence", "last_applied_batch_fingerprint",
                  "source_replay_policy_version", "last_commit_provenance"}
     active_keys = {"pokemon_id", "current_hp", "max_hp", "fainted", "current_type", "current_ability",
-                   "current_level", "current_final_stats", "condition", "known_item", "known_move_ids", "stat_stages"}
+                   "current_level", "current_final_stats", "condition", "known_item", "known_move_ids", "stat_stages",
+                   "current_move_usability", "champions_status_progression", "toxic_progression"}
     def scan(container, supported, prefix):
         for key, value in container.items():
             if key not in supported and not key.endswith("_provenance") and value is not None and not is_unknown_battle_fact(value):
                 paths.append(f"{prefix}{key}")
     scan(state, root_keys, "")
-    scan(state["field"], {"battle_format", "weather", "terrain"}, "field.")
+    scan(state["field"], {"battle_format", "weather", "terrain", "trick_room_status", "magic_room_status", "gravity_status"}, "field.")
     for side in ("self", "opponent"):
         container = state[f"{side}_side"]
-        scan(container, {"active_slot_index", "pokemon"}, f"{side}_side.")
+        scan(container, {"active_slot_index", "pokemon", "side_conditions", "tailwind_status"}, f"{side}_side.")
         active = container["pokemon"][container["active_slot_index"]]
         scan(active, active_keys, f"{side}_side.active.")
         for slot, pokemon in container["pokemon"].items():
             if slot == container["active_slot_index"]:
                 continue
-            # This slice does not reconcile any observed bench mechanics.
-            for key, value in pokemon.items():
-                if (key != "pokemon_id" and not key.endswith("_provenance") and
-                    not is_unknown_battle_fact(value) and
-                    (value is not None or key == "known_item") and
-                    not (key == "current_final_stats" and value == {})):
-                    paths.append(f"{side}_side.pokemon.{slot}.{key}")
+            scan(pokemon, active_keys, f"{side}_side.pokemon.{slot}.")
     return sorted(paths)
