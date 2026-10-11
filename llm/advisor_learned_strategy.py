@@ -148,6 +148,7 @@ def valid_learned_evidence(value, binding, scenario):
             not in {
                 "showdown-learned-observation-v1",
                 "showdown-learned-observation-v2",
+                "showdown-learned-observation-v3",
             }
             or proof.get("side") != "self"
             or proof.get("model_id") != value["model_id"]

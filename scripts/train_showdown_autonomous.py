@@ -20,7 +20,10 @@ from sb3_contrib import MaskablePPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import DummyVecEnv
 from advisor.learned_action_encoder import make_encoder, VERSION
-from advisor.learned_action_policy import ActionConditionedPolicy
+from advisor.learned_action_policy import (
+    ActionConditionedPolicy,
+    TacticalActionConditionedPolicy,
+)
 from advisor.learned_baselines import VisibleBaseline
 from advisor.learned_gym import ShowdownLearningEnv
 from advisor.learned_policy import LearnedPolicy
@@ -40,6 +43,23 @@ CURRICULUM = "showdown-learning-curriculum-v2"
 def validate_config(config):
     if config.get("schema_version") != "showdown-autonomous-training-v1":
         raise ValueError("unsupported_trainer_config")
+    if config.get("curriculum_version", CURRICULUM) not in {
+        "showdown-learning-curriculum-v1",
+        CURRICULUM,
+        "showdown-learning-curriculum-v3",
+    }:
+        raise ValueError("unsupported_learning_curriculum")
+    rivals = config.get("evaluation_opponents", ["random", "max_power", "heuristic"])
+    if (
+        not rivals
+        or len(rivals) > 6
+        or len(set(rivals)) != len(rivals)
+        or set(rivals)
+        - {"random", "max_power", "heuristic", "champions_heuristic", "previous"}
+    ):
+        raise ValueError("invalid_evaluation_opponents")
+    if "previous" in rivals and not config.get("previous_model"):
+        raise ValueError("previous_opponent_requires_model")
     if not 30 <= config.get("max_runtime_seconds", 0) <= 21600:
         raise ValueError("runtime_must_be_bounded_30_to_21600_seconds")
     if (
@@ -70,6 +90,7 @@ def validate_config(config):
         if experiment.get("encoder_version", VERSION) not in {
             VERSION,
             "showdown-learned-observation-v1",
+            "showdown-learned-observation-v3",
         }:
             raise ValueError("unsupported_encoder")
         if (
@@ -92,9 +113,21 @@ def validate_config(config):
             not opponents
             or len(opponents) > 12
             or set(opponents)
-            - {"random", "max_power", "heuristic", "previous", "historical"}
+            - {
+                "random",
+                "max_power",
+                "heuristic",
+                "champions_heuristic",
+                "previous",
+                "historical",
+            }
         ):
             raise ValueError("unsupported_opponent_mixture")
+        if experiment.get("teacher", "heuristic") not in {
+            "heuristic",
+            "champions_heuristic",
+        }:
+            raise ValueError("unsupported_warmstart_teacher")
         if (
             not 1e-6 <= experiment.get("learning_rate", 1e-4) <= 1e-3
             or not 0 <= experiment.get("ent_coef", 0.005) <= 0.1
@@ -186,13 +219,23 @@ class BudgetCallback(BaseCallback):
         return not self.budget.stopping()
 
 
-def warmstart(model, vector, encoder, count, epochs, seed, budget, learning_rate=3e-4):
+def warmstart(
+    model,
+    vector,
+    encoder,
+    count,
+    epochs,
+    seed,
+    budget,
+    learning_rate=3e-4,
+    teacher_kind="heuristic",
+):
     """Supervised visible heuristic targets; upstream policy/optimizer stay authoritative."""
     if not count:
         return {"decisions": 0, "optimizer_updates": 0}
     rows = []
     env = vector.envs[0]
-    teacher = VisibleBaseline("heuristic", seed + 41)
+    teacher = VisibleBaseline(teacher_kind, seed + 41)
     env.reset(seed=seed + 7300)
     attempted = 0
     episodes = 0
@@ -381,6 +424,13 @@ def run(config, output, *, resume=False, require_detached=False):
             else None
         )
         state["previous_model_id"] = previous.model_id if previous else None
+        curriculum = config.get("curriculum_version", CURRICULUM)
+        evaluation_rivals = {
+            kind: previous if kind == "previous" else kind
+            for kind in config.get(
+                "evaluation_opponents", ["random", "max_power", "heuristic"]
+            )
+        }
         for number in range(state["experiment_index"], len(config["experiments"])):
             if budget.stopping():
                 break
@@ -430,7 +480,7 @@ def run(config, output, *, resume=False, require_detached=False):
                             checkout,
                             encoder,
                             index_offset=i * 100000,
-                            curriculum_version=CURRICULUM,
+                            curriculum_version=curriculum,
                             opponents=experiment.get("opponents"),
                             opponent_factory=opponents,
                         )
@@ -456,7 +506,9 @@ def run(config, output, *, resume=False, require_detached=False):
                     model.ent_coef = experiment.get("ent_coef", 0.005)
             else:
                 model = MaskablePPO(
-                    ActionConditionedPolicy
+                    TacticalActionConditionedPolicy
+                    if encoder.version == "showdown-learned-observation-v3"
+                    else ActionConditionedPolicy
                     if encoder.version == VERSION
                     else "MlpPolicy",
                     vector,
@@ -471,7 +523,7 @@ def run(config, output, *, resume=False, require_detached=False):
                     device="cpu",
                     verbose=0,
                     policy_kwargs={}
-                    if encoder.version == VERSION
+                    if encoder.version in {VERSION, "showdown-learned-observation-v3"}
                     else {"net_arch": {"pi": [64, 64], "vf": [64, 64]}},
                 )
             vector.seed(seed + state["experiment_steps"] + state["launches"] * 10000)
@@ -498,6 +550,7 @@ def run(config, output, *, resume=False, require_detached=False):
                     directory,
                     {
                         "experiment": experiment,
+                        "curriculum_version": curriculum,
                         "stage": stage,
                         "initial_model": experiment.get("initial_model"),
                         "opponent_model_ids": {
@@ -560,7 +613,8 @@ def run(config, output, *, resume=False, require_detached=False):
                     {"candidate": restored},
                     cases=config.get("validation_cases", 24),
                     offset=config.get("validation_offset", 7000),
-                    curriculum_version=CURRICULUM,
+                    curriculum_version=curriculum,
+                    rivals=evaluation_rivals,
                 )
                 atomic_json(directory / "validation.json", result)
                 summary = next(
@@ -615,6 +669,7 @@ def run(config, output, *, resume=False, require_detached=False):
                     experiment.get(
                         "warmstart_learning_rate", experiment.get("learning_rate", 1e-4)
                     ),
+                    experiment.get("teacher", "heuristic"),
                 )
                 state["warmstart_decisions"] += state["warmstart"]["decisions"]
                 checkpoint("initial", {})
@@ -700,6 +755,8 @@ def run(config, output, *, resume=False, require_detached=False):
                 "random": "random",
                 "heuristic": "heuristic",
             }
+            if "champions_heuristic" in evaluation_rivals:
+                players["champions_heuristic"] = "champions_heuristic"
             if previous:
                 players["previous"] = previous
             players.update(
@@ -718,7 +775,8 @@ def run(config, output, *, resume=False, require_detached=False):
                     split=split,
                     cases=config["final_test_cases"],
                     offset=config.get("final_test_offset", 20000),
-                    curriculum_version=CURRICULUM,
+                    curriculum_version=curriculum,
+                    rivals=evaluation_rivals,
                 )
                 atomic_json(output / f"final_{split}.json", result)
             state["final_test"] = (output / "final_unseen.json").exists()

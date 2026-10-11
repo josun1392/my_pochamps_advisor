@@ -7,6 +7,7 @@ not Champions exact probability consumers.
 
 import logging
 import random
+from copy import copy
 from threading import RLock
 
 _RANDOM_LOCK = RLock()
@@ -14,7 +15,7 @@ _RANDOM_LOCK = RLock()
 
 class VisibleBaseline:
     def __init__(self, kind="random", seed=0):
-        if kind not in {"random", "max_power", "heuristic"}:
+        if kind not in {"random", "max_power", "heuristic", "champions_heuristic"}:
             raise ValueError("invalid_baseline")
         self.kind, self.rng, self.battle, self.episode, self.revision = (
             kind,
@@ -58,13 +59,18 @@ class VisibleBaseline:
         if allowed == [26]:
             return 26
         player = object.__new__(
-            SimpleHeuristicsPlayer if self.kind == "heuristic" else MaxBasePowerPlayer
+            SimpleHeuristicsPlayer
+            if self.kind in {"heuristic", "champions_heuristic"}
+            else MaxBasePowerPlayer
         )
         player._format = "gen9championsbssregmc"
         # Force-switch/wait never consults a future queued opponent choice.
         if observation["request_state"] == "switch" and self.battle.available_switches:
             choices = self.battle.available_switches
-            if self.kind == "heuristic" and self.battle.opponent_active_pokemon:
+            if (
+                self.kind in {"heuristic", "champions_heuristic"}
+                and self.battle.opponent_active_pokemon
+            ):
                 order = max(
                     choices,
                     key=lambda p: player._estimate_matchup(
@@ -80,7 +86,11 @@ class VisibleBaseline:
                 saved = random.getstate()
                 random.setstate(self.rng.getstate())
                 try:
-                    order = player.choose_move(self.battle).order
+                    order = (
+                        self._champions_choice(player)
+                        if self.kind == "champions_heuristic"
+                        else player.choose_move(self.battle).order
+                    )
                 finally:
                     self.rng.setstate(random.getstate())
                     random.setstate(saved)
@@ -102,3 +112,60 @@ class VisibleBaseline:
                 if native is order and i in allowed:
                     return i
         return self.rng.choice(allowed)
+
+    def _champions_choice(self, player):
+        """Experimental public tactics around poke-env's maintained baseline.
+
+        HP thresholds are heuristic choices, never exact outcome guarantees.
+        Opponent species base stats are public; its actual build is unavailable.
+        """
+        battle = self.battle
+        own, other = battle.active_pokemon, battle.opponent_active_pokemon
+        if own and other and battle.available_moves:
+            matchup = player._estimate_matchup(own, other)
+            if 0 < own.current_hp_fraction < 0.45 and matchup > -0.5:
+                heal = next(
+                    (
+                        m
+                        for m in battle.available_moves
+                        if m.heal and getattr(m.target, "name", "").lower() == "self"
+                    ),
+                    None,
+                )
+                if heal:
+                    return heal
+            if not other.status and own.current_hp_fraction > 0.55 and matchup >= 0:
+                for move in battle.available_moves:
+                    status = getattr(move.status, "name", "").lower()
+                    types = {getattr(t, "name", "").lower() for t in other.types}
+                    if (
+                        status == "brn"
+                        and "fire" not in types
+                        and other.base_stats["atk"] > other.base_stats["spa"]
+                    ):
+                        return move
+                    if (
+                        status == "par"
+                        and not types & {"electric", "ground"}
+                        and other.base_stats["spe"] > own.base_stats["spe"]
+                    ):
+                        return move
+                    if (
+                        status == "tox"
+                        and not types & {"poison", "steel"}
+                        and own.base_stats["def"] + own.base_stats["spd"] >= 200
+                    ):
+                        return move
+            # The upstream six-member heuristic overcounts hidden reserves in
+            # Champions bring-six/pick-three. Suppress repeated late hazards.
+            if any(p.fainted for p in battle.opponent_team.values()):
+                proxy = copy(battle)
+                choices = [
+                    m
+                    for m in battle.available_moves
+                    if m.id not in {"spikes", "toxicspikes", "stealthrock", "stickyweb"}
+                ]
+                if choices:
+                    proxy._available_moves = choices
+                    return player.choose_move(proxy).order
+        return player.choose_move(battle).order

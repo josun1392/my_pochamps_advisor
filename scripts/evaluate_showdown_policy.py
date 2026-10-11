@@ -28,7 +28,7 @@ def wilson(wins, n):
 
 
 def paired_comparisons(records, policies):
-    """Resample case clusters, retaining their three rival strata together."""
+    """Resample paired case clusters, retaining all configured rival strata."""
     cases = sorted({r["case"] for r in records})
     scores = {
         kind: np.asarray(
@@ -38,7 +38,9 @@ def paired_comparisons(records, policies):
                     for r in records
                     if r["policy"] == kind and r["case"] == case
                 )
-                / 3
+                / max(
+                    1, sum(r["policy"] == kind and r["case"] == case for r in records)
+                )
                 for case in cases
             ]
         )
@@ -50,8 +52,16 @@ def paired_comparisons(records, policies):
     for kind in policies:
         if kind in {"random", "max_power", "heuristic", "untrained"}:
             continue
-        for base in ("random", "heuristic", "untrained", "previous", "previous_action"):
-            if base not in scores:
+        for base in (
+            "random",
+            "heuristic",
+            "champions_heuristic",
+            "untrained",
+            "previous",
+            "previous_action",
+            "previous_initial",
+        ):
+            if base not in scores or kind == base:
                 continue
             difference = scores[kind] - scores[base]
             interval = np.quantile(difference[draws].mean(axis=1), [0.025, 0.975])
@@ -77,17 +87,29 @@ def evaluate(
     cases=24,
     offset=0,
     curriculum_version="showdown-learning-curriculum-v1",
+    rivals=None,
+    stopping=None,
+    progress=None,
 ):
     if not 1 <= cases <= 256 or split not in {"validation", "test", "unseen"}:
         raise ValueError("bounded_held_out_evaluation_required")
     started = perf_counter()
     records = []
+    rivals = rivals or {kind: kind for kind in ("random", "max_power", "heuristic")}
+    if not 1 <= len(rivals) <= 6 or "all" in rivals:
+        raise ValueError("bounded_named_rivals_required")
     with ShowdownEnvironment(checkout, max_decisions=256) as env:
         for kind, policy in policies.items():
-            for opponent in ("random", "max_power", "heuristic"):
+            for opponent, rival_policy in rivals.items():
                 for index in range(offset, offset + cases):
+                    if stopping and stopping():
+                        raise TimeoutError("held_out_evaluation_budget_exhausted")
                     env.reset(scenario(split, index, version=curriculum_version))
-                    rival = VisibleBaseline(opponent, index + 919)
+                    rival = (
+                        VisibleBaseline(rival_policy, index + 919)
+                        if isinstance(rival_policy, str)
+                        else rival_policy
+                    )
                     player = (
                         VisibleBaseline(policy, index + 191)
                         if isinstance(policy, str)
@@ -95,6 +117,7 @@ def evaluate(
                     )
                     values = []
                     steps = 0
+                    action_counts = Counter()
                     while True:
                         own, other = (
                             env.observation("self", include_history=True),
@@ -107,6 +130,15 @@ def evaluate(
                                 values.append(proof["discounted_return_estimate"])
                         else:
                             action = player.act(own)
+                        action_counts[
+                            "wait"
+                            if action == 26
+                            else "forced_switch"
+                            if action < 6 and own["request_state"] == "switch"
+                            else "voluntary_switch"
+                            if action < 6
+                            else "attack_or_status"
+                        ] += 1
                         result = env.step(
                             {"self": action, "opponent": rival.act(other)},
                             revision=own["revision"],
@@ -137,11 +169,26 @@ def evaluate(
                             "decisions": steps,
                             "return": reward,
                             "value_discounted_return_mse": error,
+                            "initial_discounted_return_estimate": values[0]
+                            if values
+                            else None,
+                            "action_counts": dict(action_counts),
+                            "public_event_counts": dict(
+                                Counter(
+                                    line.split("|")[1]
+                                    for line in env.observation(
+                                        "self", include_history=True
+                                    )["public_history"]
+                                    if line.startswith("|")
+                                )
+                            ),
                         }
                     )
+                if progress:
+                    progress(records)
     summaries = []
     for kind in policies:
-        for opponent in ("random", "max_power", "heuristic", "all"):
+        for opponent in (*rivals, "all"):
             rows = [
                 r
                 for r in records
@@ -171,6 +218,14 @@ def evaluate(
                     "wilson_95": wilson(wins, n),
                     "mean_return": sum(r["return"] for r in rows) / n,
                     "mean_decisions": sum(r["decisions"] for r in rows) / n,
+                    "action_counts": dict(
+                        sum((Counter(r["action_counts"]) for r in rows), Counter())
+                    ),
+                    "public_event_counts": dict(
+                        sum(
+                            (Counter(r["public_event_counts"]) for r in rows), Counter()
+                        )
+                    ),
                     "value_discounted_return_mse": sum(valid) / len(valid)
                     if valid
                     else None,
@@ -186,6 +241,9 @@ def evaluate(
         "elapsed_s": perf_counter() - started,
         "policies": {
             k: (v if isinstance(v, str) else v.model_id) for k, v in policies.items()
+        },
+        "rivals": {
+            k: v if isinstance(v, str) else v.model_id for k, v in rivals.items()
         },
         "summaries": summaries,
         "paired_comparisons": paired_comparisons(records, policies),
@@ -205,6 +263,15 @@ def main():
         "--split", default="validation", choices=["validation", "test", "unseen"]
     )
     p.add_argument("--offset", type=int, default=0)
+    p.add_argument(
+        "--curriculum",
+        default="showdown-learning-curriculum-v1",
+        choices=[
+            "showdown-learning-curriculum-v1",
+            "showdown-learning-curriculum-v2",
+            "showdown-learning-curriculum-v3",
+        ],
+    )
     p.add_argument("--output", type=Path, required=True)
     a = p.parse_args()
     if a.output.exists():
@@ -217,7 +284,13 @@ def main():
     for path in a.model:
         policies[path.stem] = LearnedPolicy(path, a.catalog)
     report = evaluate(
-        a.checkout, a.catalog, policies, split=a.split, cases=a.cases, offset=a.offset
+        a.checkout,
+        a.catalog,
+        policies,
+        split=a.split,
+        cases=a.cases,
+        offset=a.offset,
+        curriculum_version=a.curriculum,
     )
     a.output.parent.mkdir(parents=True, exist_ok=True)
     a.output.write_text(json.dumps(report, indent=2), encoding="utf-8")

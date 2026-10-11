@@ -10,22 +10,28 @@ class ActionExtractor(nn.Module):
     latent_dim_pi = 35
     latent_dim_vf = 64
 
-    def __init__(self):
+    def __init__(self, context_dim=CONTEXT, action_dim=ACTION):
         super().__init__()
-        self.context = nn.Sequential(nn.Linear(CONTEXT, 64), nn.Tanh())
+        self.context_dim, self.action_dim = context_dim, action_dim
+        self.context = nn.Sequential(nn.Linear(context_dim, 64), nn.Tanh())
         self.scorer = nn.Sequential(
-            nn.Linear(64 + ACTION, 128),
+            nn.Linear(64 + action_dim, 128),
             nn.Tanh(),
             nn.Linear(128, 64),
             nn.Tanh(),
             nn.Linear(64, 1),
         )
         self.critic = nn.Sequential(
-            nn.Linear(CONTEXT + ACTION, 128), nn.Tanh(), nn.Linear(128, 64), nn.Tanh()
+            nn.Linear(context_dim + action_dim, 128),
+            nn.Tanh(),
+            nn.Linear(128, 64),
+            nn.Tanh(),
         )
 
     def _split(self, features):
-        return features[:, :CONTEXT], features[:, CONTEXT:].reshape(-1, 35, ACTION)
+        return features[:, : self.context_dim], features[:, self.context_dim :].reshape(
+            -1, 35, self.action_dim
+        )
 
     def forward_actor(self, features):
         context, actions = self._split(features)
@@ -56,3 +62,13 @@ class ActionConditionedPolicy(MaskableActorCriticPolicy):
         self.optimizer = self.optimizer_class(
             self.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs
         )
+
+
+class TacticalActionConditionedPolicy(ActionConditionedPolicy):
+    def _build_mlp_extractor(self):
+        from advisor.learned_tactics_encoder import (
+            CONTEXT as TACTICAL_CONTEXT,
+            ACTION as TACTICAL_ACTION,
+        )
+
+        self.mlp_extractor = ActionExtractor(TACTICAL_CONTEXT, TACTICAL_ACTION)

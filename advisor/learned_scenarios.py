@@ -135,7 +135,10 @@ def scenario(split, index, *, version="showdown-learning-curriculum-v1"):
             "test": 300000,
             "unseen": 400000,
         }[split] + index
-    elif version == "showdown-learning-curriculum-v2":
+    elif version in {
+        "showdown-learning-curriculum-v2",
+        "showdown-learning-curriculum-v3",
+    }:
         seed = int.from_bytes(
             sha256(f"{version}:{split}:{index}".encode()).digest(), "big"
         )
@@ -143,10 +146,29 @@ def scenario(split, index, *, version="showdown-learning-curriculum-v1"):
         raise ValueError("unsupported_learning_curriculum")
     rng = random.Random(seed)
     pool = UNSEEN if split == "unseen" else TRAIN
+    if version == "showdown-learning-curriculum-v3":
+        from advisor.learned_roster import BROAD_TRAIN, BROAD_UNSEEN
+
+        pool = BROAD_UNSEEN if split == "unseen" else TRAIN + BROAD_TRAIN
     teams = {}
     for side in ("self", "opponent"):
         chosen = rng.sample(pool, 6)
         items = ["", "", "Focus Sash", "Sitrus Berry", "Life Orb", "Leftovers"]
+        if version == "showdown-learning-curriculum-v3":
+            items = rng.sample(
+                [
+                    "",
+                    "Focus Sash",
+                    "Sitrus Berry",
+                    "Life Orb",
+                    "Leftovers",
+                    "Rocky Helmet",
+                    "Lum Berry",
+                    "Choice Scarf",
+                    "Expert Belt",
+                ],
+                6,
+            )
         rng.shuffle(items)
         team = []
         mega_used = False
@@ -155,7 +177,7 @@ def scenario(split, index, *, version="showdown-learning-curriculum-v1"):
                 item, mega_used = stone, True
             moves = list(moves)
             rng.shuffle(moves)
-            fast = rng.random() < 0.5
+            fast = rng.random() < 0.5 and attack in {"atk", "spa"}
             team.append(
                 {
                     "species": species,
@@ -165,7 +187,11 @@ def scenario(split, index, *, version="showdown-learning-curriculum-v1"):
                     "level": 50,
                     "nature": ("Timid" if fast else "Modest")
                     if attack == "spa"
-                    else ("Jolly" if fast else "Adamant"),
+                    else ("Jolly" if fast else "Adamant")
+                    if attack == "atk"
+                    else "Bold"
+                    if attack == "def"
+                    else "Calm",
                     "evs": {
                         attack: 32,
                         "spe" if fast else "hp": 32,
