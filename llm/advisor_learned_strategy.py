@@ -69,7 +69,7 @@ def infer_native_root(*, checkpoint, binding, scenario, config, bridge):
             policy = _load_model(config["model_path"], config["catalog_path"], expected)
         with ShowdownEnvironment(worker=bridge) as env:
             env.from_native_checkpoint(checkpoint)
-            visible = env.observation("self")
+            visible = env.observation("self", include_history=True)
             inference = policy.infer(visible)
         return {
             **result,
@@ -144,7 +144,11 @@ def valid_learned_evidence(value, binding, scenario):
             or proof.get("action_schema_version") != "showdown-policy-actions-v1"
             or proof.get("discount_factor") != 0.99
             or proof.get("reward_scope") != "native_sparse_terminal_win_loss_draw"
-            or proof.get("encoder_version") != "showdown-learned-observation-v1"
+            or proof.get("encoder_version")
+            not in {
+                "showdown-learned-observation-v1",
+                "showdown-learned-observation-v2",
+            }
             or proof.get("side") != "self"
             or proof.get("model_id") != value["model_id"]
             or len(value["model_id"]) != 64

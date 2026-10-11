@@ -11,7 +11,16 @@ class ShowdownLearningEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(
-        self, checkout, encoder, *, split="train", index_offset=0, max_decisions=256
+        self,
+        checkout,
+        encoder,
+        *,
+        split="train",
+        index_offset=0,
+        max_decisions=256,
+        curriculum_version="showdown-learning-curriculum-v1",
+        opponents=None,
+        opponent_factory=None,
     ):
         self.native = ShowdownEnvironment(checkout, max_decisions=max_decisions)
         self.encoder, self.split, self.index, self.offset = (
@@ -24,6 +33,9 @@ class ShowdownLearningEnv(gym.Env):
         self.observation_space = None
         self.completed = []
         self.current = None
+        self.curriculum_version = curriculum_version
+        self.opponents = opponents or ("random", "max_power", "heuristic")
+        self.opponent_factory = opponent_factory
         try:
             self.reset()
         except BaseException:
@@ -36,12 +48,21 @@ class ShowdownLearningEnv(gym.Env):
             self.index = seed * 1000 + self.offset
         index = self.index
         self.index += 1
-        current = scenario(self.split, index)
+        current = (
+            scenario(self.split, index, version=self.curriculum_version)
+            if self.curriculum_version != "showdown-learning-curriculum-v1"
+            else scenario(self.split, index)
+        )
         self.native.reset(current)
         kind = (options or {}).get(
-            "opponent", ("random", "max_power", "heuristic")[index % 3]
+            "opponent", self.opponents[index % len(self.opponents)]
         )
-        self.opponent = VisibleBaseline(kind, index + 91)
+        self.opponent = (
+            self.opponent_factory(kind, index + 91)
+            if self.opponent_factory
+            else VisibleBaseline(kind, index + 91)
+        )
+        self.opponent_kind = kind
         self.current = self.native.observation("self", include_history=True)
         encoded = self.encoder.encode(self.current)
         if self.observation_space is None:
@@ -63,7 +84,9 @@ class ShowdownLearningEnv(gym.Env):
         result = self.native.step(
             {
                 "self": int(action),
-                "opponent": self.opponent.act(self.native.observation("opponent")),
+                "opponent": self.opponent.act(
+                    self.native.observation("opponent", include_history=True)
+                ),
             },
             revision=self.current["revision"],
         )
@@ -75,7 +98,9 @@ class ShowdownLearningEnv(gym.Env):
             result = self.native.step(
                 {
                     "self": 26,
-                    "opponent": self.opponent.act(self.native.observation("opponent")),
+                    "opponent": self.opponent.act(
+                        self.native.observation("opponent", include_history=True)
+                    ),
                 },
                 revision=self.current["revision"],
             )
@@ -86,7 +111,7 @@ class ShowdownLearningEnv(gym.Env):
                     "winner": result["winner"],
                     "truncated": result["truncated"],
                     "decisions": result["decisions"],
-                    "opponent": self.opponent.kind,
+                    "opponent": self.opponent_kind,
                 }
             )
         return (

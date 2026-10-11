@@ -68,7 +68,16 @@ def paired_comparisons(records, policies):
     return result
 
 
-def evaluate(checkout, catalog, policies, *, split="validation", cases=24, offset=0):
+def evaluate(
+    checkout,
+    catalog,
+    policies,
+    *,
+    split="validation",
+    cases=24,
+    offset=0,
+    curriculum_version="showdown-learning-curriculum-v1",
+):
     if not 1 <= cases <= 256 or split not in {"validation", "test", "unseen"}:
         raise ValueError("bounded_held_out_evaluation_required")
     started = perf_counter()
@@ -77,7 +86,7 @@ def evaluate(checkout, catalog, policies, *, split="validation", cases=24, offse
         for kind, policy in policies.items():
             for opponent in ("random", "max_power", "heuristic"):
                 for index in range(offset, offset + cases):
-                    env.reset(scenario(split, index))
+                    env.reset(scenario(split, index, version=curriculum_version))
                     rival = VisibleBaseline(opponent, index + 919)
                     player = (
                         VisibleBaseline(policy, index + 191)
@@ -88,8 +97,8 @@ def evaluate(checkout, catalog, policies, *, split="validation", cases=24, offse
                     steps = 0
                     while True:
                         own, other = (
-                            env.observation("self"),
-                            env.observation("opponent"),
+                            env.observation("self", include_history=True),
+                            env.observation("opponent", include_history=True),
                         )
                         if isinstance(player, LearnedPolicy):
                             proof = player.infer(own)
@@ -170,6 +179,7 @@ def evaluate(checkout, catalog, policies, *, split="validation", cases=24, offse
     return {
         "schema_version": "showdown-learned-evaluation-v1",
         "split": split,
+        "curriculum_version": curriculum_version,
         "cases_per_opponent": cases,
         "offset": offset,
         "interpretation": "held_out_sampled_win_frequencies_not_exact_probabilities",

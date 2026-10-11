@@ -1,0 +1,27 @@
+{
+  "schema_version": "showdown-autonomous-training-v1",
+  "checkout": null,
+  "catalog": "models/showdown_initial_v1/catalog.json",
+  "previous_model": "models/showdown_initial_v1/model.zip",
+  "max_runtime_seconds": 3600,
+  "envs": 4,
+  "cpu_percent": 12.5,
+  "memory_mib": 3072,
+  "checkpoint_steps": 16384,
+  "validation_cases": 32,
+  "validation_offset": 7000,
+  "plateau_patience": 4,
+  "final_test_cases": 64,
+  "final_test_offset": 20000,
+  "experiments": [
+    {"seed": 11, "steps": 131072, "warmstart_decisions": 8192, "warmstart_epochs": 12,
+     "learning_rate": 0.0001, "ent_coef": 0.003,
+     "opponents": ["heuristic", "heuristic", "max_power", "random", "previous"]},
+    {"seed": 29, "steps": 131072, "warmstart_decisions": 8192, "warmstart_epochs": 12,
+     "learning_rate": 0.0001, "ent_coef": 0.003,
+     "opponents": ["heuristic", "heuristic", "max_power", "random", "previous", "historical"]},
+    {"seed": 47, "steps": 131072, "warmstart_decisions": 8192, "warmstart_epochs": 12,
+     "learning_rate": 0.00005, "ent_coef": 0.002,
+     "opponents": ["heuristic", "heuristic", "max_power", "previous", "historical"]}
+  ]
+}

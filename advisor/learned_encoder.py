@@ -53,6 +53,9 @@ def fingerprint(value):
 
 
 class PartialObservationEncoder:
+    version = ENCODER_VERSION
+    dimension = 787
+
     def __init__(self, catalog):
         self.catalog = (
             json.loads(Path(catalog).read_text(encoding="utf-8"))

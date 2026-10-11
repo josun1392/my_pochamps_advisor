@@ -5,6 +5,7 @@ Native TeamValidator remains the legality authority.
 """
 
 import random
+from hashlib import sha256
 
 TRAIN = [
     (
@@ -124,13 +125,23 @@ UNSEEN = [
 ]
 
 
-def scenario(split, index):
+def scenario(split, index, *, version="showdown-learning-curriculum-v1"):
     if split not in {"train", "validation", "test", "unseen"}:
         raise ValueError("invalid_curriculum_split")
-    rng = random.Random(
-        {"train": 100000, "validation": 200000, "test": 300000, "unseen": 400000}[split]
-        + index
-    )
+    if version == "showdown-learning-curriculum-v1":
+        seed = {
+            "train": 100000,
+            "validation": 200000,
+            "test": 300000,
+            "unseen": 400000,
+        }[split] + index
+    elif version == "showdown-learning-curriculum-v2":
+        seed = int.from_bytes(
+            sha256(f"{version}:{split}:{index}".encode()).digest(), "big"
+        )
+    else:
+        raise ValueError("unsupported_learning_curriculum")
+    rng = random.Random(seed)
     pool = UNSEEN if split == "unseen" else TRAIN
     teams = {}
     for side in ("self", "opponent"):

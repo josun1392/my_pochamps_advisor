@@ -1,0 +1,716 @@
+"""Resumable, validation-selected CPU training with a hard process-tree budget."""
+
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import argparse
+from collections import Counter
+from hashlib import sha256
+import json
+import os
+import random
+import subprocess
+from time import perf_counter, time
+from uuid import uuid4
+import numpy as np
+import torch
+from sb3_contrib import MaskablePPO
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.vec_env import DummyVecEnv
+from advisor.learned_action_encoder import make_encoder, VERSION
+from advisor.learned_action_policy import ActionConditionedPolicy
+from advisor.learned_baselines import VisibleBaseline
+from advisor.learned_gym import ShowdownLearningEnv
+from advisor.learned_policy import LearnedPolicy
+from advisor.learning_resources import (
+    WindowsJob,
+    RuntimeLimit,
+    atomic_json,
+    process_alive,
+)
+from advisor.showdown_bridge import SHOWDOWN_COMMIT, FORMAT_ID
+from scripts.evaluate_showdown_policy import evaluate
+
+CURRICULUM = "showdown-learning-curriculum-v2"
+
+
+def validate_config(config):
+    if config.get("schema_version") != "showdown-autonomous-training-v1":
+        raise ValueError("unsupported_trainer_config")
+    if not 30 <= config.get("max_runtime_seconds", 0) <= 21600:
+        raise ValueError("runtime_must_be_bounded_30_to_21600_seconds")
+    if (
+        not 1 <= config.get("envs", 4) <= 4
+        or not 1024 <= config.get("memory_mib", 3072) <= 4096
+    ):
+        raise ValueError("unsafe_worker_or_memory_budget")
+    if not 1 <= config.get("cpu_percent", 12.5) <= 25:
+        raise ValueError("unsafe_cpu_budget")
+    if not 1 <= config.get("validation_cases", 24) <= 64:
+        raise ValueError("bounded_validation_required")
+    if (
+        not 0 <= config.get("final_test_cases", 0) <= 128
+        or not 1 <= config.get("plateau_patience", 4) <= 12
+    ):
+        raise ValueError("invalid_test_or_plateau_budget")
+    if not config.get("experiments") or len(config["experiments"]) > 12:
+        raise ValueError("one_to_twelve_experiments_required")
+    rollout = 128 * config.get("envs", 4)
+    for experiment in config["experiments"]:
+        if experiment.get("encoder_version", VERSION) not in {
+            VERSION,
+            "showdown-learned-observation-v1",
+        }:
+            raise ValueError("unsupported_encoder")
+        if (
+            not rollout <= experiment["steps"] <= 1048576
+            or experiment["steps"] % rollout
+        ):
+            raise ValueError("bounded_steps_divisible_by_rollout_required")
+        if (
+            not rollout <= config.get("checkpoint_steps", 8192) <= 65536
+            or config.get("checkpoint_steps", 8192) % rollout
+        ):
+            raise ValueError("invalid_checkpoint_interval")
+        if (
+            not 0 <= experiment.get("warmstart_decisions", 0) <= 16384
+            or not 1 <= experiment.get("warmstart_epochs", 8) <= 24
+        ):
+            raise ValueError("unsafe_warmstart_budget")
+        opponents = experiment.get("opponents", ["random", "max_power", "heuristic"])
+        if (
+            not opponents
+            or len(opponents) > 12
+            or set(opponents)
+            - {"random", "max_power", "heuristic", "previous", "historical"}
+        ):
+            raise ValueError("unsupported_opponent_mixture")
+        if (
+            not 1e-6 <= experiment.get("learning_rate", 1e-4) <= 1e-3
+            or not 0 <= experiment.get("ent_coef", 0.005) <= 0.1
+        ):
+            raise ValueError("unsafe_learning_hyperparameters")
+    return config
+
+
+def optimizer_steps(model):
+    return max(
+        (int(s["step"]) for s in model.policy.optimizer.state.values() if "step" in s),
+        default=0,
+    )
+
+
+def save_checkpoint(model, encoder, directory, metadata):
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=False)
+    path = directory / "model"
+    model.save(path)
+    atomic_json(
+        path.with_suffix(".json"),
+        {
+            "schema_version": "showdown-learned-model-v1",
+            "evidence_class": "learned_policy_value",
+            "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
+            "algorithm": "sb3-contrib-MaskablePPO",
+            "encoder_version": encoder.version,
+            "catalog_fingerprint": encoder.catalog_fingerprint,
+            "engine_commit": SHOWDOWN_COMMIT,
+            "format_id": FORMAT_ID,
+            "action_schema_version": "showdown-policy-actions-v1",
+            "model_sha256": sha256(path.with_suffix(".zip").read_bytes()).hexdigest(),
+            "total_steps": model.num_timesteps,
+            "optimizer_steps": optimizer_steps(model),
+            "parameter_count": sum(p.numel() for p in model.policy.parameters()),
+            "observation_dim": encoder.dimension,
+            "device": "cpu",
+            "gamma": model.gamma,
+            "curriculum_version": CURRICULUM,
+            **metadata,
+        },
+    )
+    return str(path.with_suffix(".zip"))
+
+
+class BudgetCallback(BaseCallback):
+    def __init__(self, budget):
+        super().__init__()
+        self.budget = budget
+
+    def _on_step(self):
+        return not self.budget.stopping()
+
+
+def warmstart(model, vector, encoder, count, epochs, seed, budget):
+    """Supervised visible heuristic targets; upstream policy/optimizer stay authoritative."""
+    if not count:
+        return {"decisions": 0, "optimizer_updates": 0}
+    rows = []
+    env = vector.envs[0]
+    teacher = VisibleBaseline("heuristic", seed + 41)
+    env.reset(seed=seed + 7300)
+    attempted = 0
+    episodes = 0
+    while len(rows) < count and attempted < count * 8 and not budget.stopping():
+        episode = []
+        env.reset()
+        while not budget.stopping():
+            view = env.current
+            action = teacher.act(view)
+            episode.append((encoder.encode(view), env.action_masks().copy(), action))
+            _, reward, terminated, truncated, _ = env.step(action)
+            attempted += 1
+            if terminated or truncated:
+                episodes += 1
+                if terminated:
+                    rows.extend(
+                        (
+                            x,
+                            mask,
+                            action,
+                            reward * model.gamma ** (len(episode) - i - 1),
+                        )
+                        for i, (x, mask, action) in enumerate(episode)
+                    )
+                break
+    rows = rows[:count]
+    if not rows:
+        return {"decisions": 0, "optimizer_updates": 0, "episodes": episodes}
+    x = torch.tensor(np.stack([r[0] for r in rows]))
+    masks = np.stack([r[1] for r in rows])
+    actions = torch.tensor([r[2] for r in rows])
+    returns = torch.tensor([r[3] for r in rows], dtype=torch.float32)
+    generator = torch.Generator().manual_seed(seed)
+    updates = 0
+    last_loss = None
+    model.policy.set_training_mode(True)
+    for _ in range(epochs):
+        for indices in torch.randperm(len(rows), generator=generator).split(128):
+            if budget.stopping():
+                break
+            values, logp, _ = model.policy.evaluate_actions(
+                x[indices], actions[indices], action_masks=masks[indices.numpy()]
+            )
+            loss = (
+                -logp.mean()
+                + 0.5 * (values.flatten() - returns[indices]).square().mean()
+            )
+            if not torch.isfinite(loss):
+                raise ValueError("nonfinite_warmstart_loss")
+            model.policy.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.policy.parameters(), 0.5)
+            model.policy.optimizer.step()
+            updates += 1
+            last_loss = float(loss.detach())
+    # The vector/model must restart coherently after direct collection.
+    model._last_obs = None
+    return {
+        "decisions": len(rows),
+        "attempted": attempted,
+        "episodes": episodes,
+        "optimizer_updates": updates,
+        "last_loss": last_loss,
+    }
+
+
+def run(config, output, *, resume=False, require_detached=False):
+    validate_config(config)
+    output = Path(output).resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    fingerprint = sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
+    lock = output / "run.lock"
+    if lock.exists():
+        old = json.loads(lock.read_text())
+        if process_alive(old["pid"]):
+            raise RuntimeError("training_output_already_running")
+        if not resume:
+            raise RuntimeError("stale_lock_requires_explicit_resume")
+        lock.unlink()  # Only this trainer's stale lock, never a repository cleanup.
+    with lock.open("x", encoding="utf-8") as f:
+        json.dump({"pid": os.getpid(), "started": time()}, f)
+    budget = RuntimeLimit(output, config["max_runtime_seconds"])
+    started = perf_counter()
+    state_path = output / "state.json"
+    state = {
+        "schema_version": "showdown-autonomous-run-v1",
+        "config_fingerprint": fingerprint,
+        "experiment_index": 0,
+        "experiment_steps": 0,
+        "latest": None,
+        "best": None,
+        "best_score": -1,
+        "evaluations": [],
+        "completed_battles": 0,
+        "transitions": 0,
+        "trained_rollout_transitions": 0,
+        "warmstart_decisions": 0,
+        "launches": 0,
+    }
+    vector = None
+    try:
+        job = WindowsJob(
+            memory_mib=config.get("memory_mib", 3072),
+            cpu_percent=config.get("cpu_percent", 12.5),
+        )
+        if require_detached and job.inherited_job:
+            raise RuntimeError("trainer_still_in_launcher_job_persistence_not_verified")
+        if resume:
+            state = json.loads(state_path.read_text())
+            if state["config_fingerprint"] != fingerprint:
+                raise ValueError("resume_config_fingerprint_mismatch")
+            if (output / "STOP").exists():
+                (output / "STOP").unlink()
+            if "trained_rollout_transitions" not in state:
+                # Compatibility with early local trainer states: count only complete rollouts.
+                paths = {row["checkpoint"] for row in state["evaluations"]}
+                if state.get("latest"):
+                    paths.add(state["latest"])
+                rollout = 128 * config.get("envs", 4)
+                state["trained_rollout_transitions"] = sum(
+                    json.loads(Path(path).with_suffix(".json").read_text())[
+                        "training_metrics"
+                    ].get("collected_transitions", 0)
+                    // rollout
+                    * rollout
+                    for path in paths
+                )
+                state["prior_rollout_count_inferred_from_checkpoint_metrics"] = True
+        elif state_path.exists():
+            raise ValueError("existing_output_requires_resume")
+        state["launches"] += 1
+        state["status"] = "running"
+        atomic_json(output / "config.json", config)
+        atomic_json(
+            output / "control.json",
+            {
+                "pid": os.getpid(),
+                "started_unix": time(),
+                "inherited_job": job.inherited_job,
+                "own_job": True,
+                "cpu_percent": config.get("cpu_percent", 12.5),
+                "memory_mib": config.get("memory_mib", 3072),
+                "deadline_unix": time() + config["max_runtime_seconds"],
+                "hard_shutdown_grace_seconds": 30,
+                "resume_rollout_semantics": "discard_partial_rollout_reset_native_episodes",
+            },
+        )
+        atomic_json(state_path, state)
+        torch.set_num_threads(1)
+        torch.use_deterministic_algorithms(True)
+        catalog = Path(config["catalog"]).resolve()
+        checkout = Path(config["checkout"]).resolve()
+        previous = (
+            LearnedPolicy(config["previous_model"], catalog)
+            if config.get("previous_model")
+            else None
+        )
+        for number in range(state["experiment_index"], len(config["experiments"])):
+            if budget.stopping():
+                break
+            experiment = config["experiments"][number]
+            seed = experiment["seed"]
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+            random.seed(seed)
+            encoder = make_encoder(catalog, experiment.get("encoder_version", VERSION))
+            historical = (
+                LearnedPolicy(state["best"], catalog) if state["best"] else previous
+            )
+
+            def opponents(kind, rival_seed):
+                if kind == "previous":
+                    if not previous:
+                        raise ValueError("previous_opponent_requires_model")
+                    return previous
+                if kind == "historical":
+                    if not historical:
+                        raise ValueError("historical_opponent_requires_checkpoint")
+                    return historical
+                return VisibleBaseline(kind, rival_seed)
+
+            instances = []
+            try:
+                for i in range(config.get("envs", 4)):
+                    instances.append(
+                        ShowdownLearningEnv(
+                            checkout,
+                            encoder,
+                            index_offset=i * 100000,
+                            curriculum_version=CURRICULUM,
+                            opponents=experiment.get("opponents"),
+                            opponent_factory=opponents,
+                        )
+                    )
+                vector = DummyVecEnv([lambda env=env: env for env in instances])
+            except BaseException:
+                for env in instances:
+                    env.close()
+                raise
+            source = state["latest"] if state["experiment_index"] == number else None
+            initial_source = source or experiment.get("initial_model")
+            if initial_source:
+                loaded = LearnedPolicy(initial_source, catalog)
+                if loaded.encoder.version != encoder.version:
+                    raise ValueError("initial_model_encoder_mismatch")
+                model = loaded.model
+                model.set_env(vector)
+                if not source:
+                    model.learning_rate = experiment.get("learning_rate", 1e-4)
+                    model._setup_lr_schedule()
+                    model.ent_coef = experiment.get("ent_coef", 0.005)
+            else:
+                model = MaskablePPO(
+                    ActionConditionedPolicy
+                    if encoder.version == VERSION
+                    else "MlpPolicy",
+                    vector,
+                    n_steps=128,
+                    batch_size=128,
+                    n_epochs=4,
+                    gamma=0.99,
+                    learning_rate=experiment.get("learning_rate", 1e-4),
+                    ent_coef=experiment.get("ent_coef", 0.005),
+                    target_kl=0.03,
+                    seed=seed,
+                    device="cpu",
+                    verbose=0,
+                    policy_kwargs={}
+                    if encoder.version == VERSION
+                    else {"net_arch": {"pi": [64, 64], "vf": [64, 64]}},
+                )
+            vector.seed(seed + state["experiment_steps"] + state["launches"] * 10000)
+
+            def checkpoint(stage, details):
+                parameters = torch.cat(
+                    [p.detach().flatten() for p in model.policy.parameters()]
+                )
+                if not torch.isfinite(parameters).all():
+                    raise ValueError("nonfinite_learned_parameters")
+                directory = (
+                    output
+                    / f"experiment_{number:02d}"
+                    / f"checkpoint_{len(state['evaluations']):04d}_{stage}_{model.num_timesteps}_{uuid4().hex[:8]}"
+                )
+                path = save_checkpoint(
+                    model,
+                    encoder,
+                    directory,
+                    {
+                        "experiment": experiment,
+                        "stage": stage,
+                        "initial_model": experiment.get("initial_model"),
+                        "warmstart": state.get("warmstart"),
+                        "training_metrics": details,
+                    },
+                )
+                restored = LearnedPolicy(path, catalog)
+                view = vector.envs[0].current
+                if not any(view["action_mask"]):
+                    vector.envs[0].reset()
+                    view = vector.envs[0].current
+                a, b = (
+                    restored.act(view),
+                    int(
+                        model.predict(
+                            encoder.encode(view),
+                            action_masks=view["action_mask"],
+                            deterministic=True,
+                        )[0]
+                    ),
+                )
+                if a != b:
+                    raise AssertionError("checkpoint_reload_action_changed")
+                state["latest"] = path
+                state["optimizer_steps"] = optimizer_steps(model)
+                state["experiment_index"] = number
+                state["completed_battles"] += sum(
+                    len(env.completed) for env in vector.envs
+                )
+                for env in vector.envs:
+                    env.completed.clear()
+                state["resources"] = {
+                    "native_rss_bytes": sum(
+                        env.native.resources["rss_bytes"] for env in vector.envs
+                    ),
+                    "python_cpu_seconds": __import__("time").process_time(),
+                    "wall_seconds_this_launch": perf_counter() - started,
+                    **job.usage(),
+                }
+                # Publish a recoverable checkpoint before potentially slower evaluation.
+                atomic_json(state_path, state)
+                if budget.stopping():
+                    return False
+                result = evaluate(
+                    checkout,
+                    catalog,
+                    {"candidate": restored},
+                    cases=config.get("validation_cases", 24),
+                    offset=config.get("validation_offset", 7000),
+                    curriculum_version=CURRICULUM,
+                )
+                atomic_json(directory / "validation.json", result)
+                summary = next(
+                    row for row in result["summaries"] if row["opponent"] == "all"
+                )
+                score = summary["wins"] / summary["n"]
+                entry = {
+                    "checkpoint": path,
+                    "experiment": number,
+                    "steps": model.num_timesteps,
+                    "score": score,
+                    "wins": summary["wins"],
+                    "n": summary["n"],
+                    "truncated": summary["truncated"],
+                    "stage": stage,
+                }
+                state["evaluations"].append(entry)
+                if not summary["truncated"] and score > state.get(
+                    "experiment_best_score", -1
+                ):
+                    state["experiment_best_score"] = score
+                    state["plateau"] = 0
+                else:
+                    state["plateau"] = state.get("plateau", 0) + 1
+                if not summary["truncated"] and score > state["best_score"]:
+                    state["best"], state["best_score"] = path, score
+                atomic_json(state_path, state)
+                print(
+                    json.dumps(
+                        {
+                            "checkpoint": entry,
+                            "best": state["best"],
+                            "battles": state["completed_battles"],
+                        }
+                    ),
+                    flush=True,
+                )
+                return True
+
+            if not source:
+                state["experiment_steps"] = 0
+                state["plateau"] = 0
+                state["experiment_best_score"] = -1
+                state["warmstart"] = warmstart(
+                    model,
+                    vector,
+                    encoder,
+                    experiment.get("warmstart_decisions", 0),
+                    experiment.get("warmstart_epochs", 8),
+                    seed,
+                    budget,
+                )
+                state["warmstart_decisions"] += state["warmstart"]["decisions"]
+                checkpoint("initial", {})
+            while (
+                state["experiment_steps"] < experiment["steps"]
+                and not budget.stopping()
+            ):
+                before = torch.cat(
+                    [p.detach().flatten() for p in model.policy.parameters()]
+                ).clone()
+                steps_before = model.num_timesteps
+                updates_before = optimizer_steps(model)
+                chunk = min(
+                    config.get("checkpoint_steps", 8192),
+                    experiment["steps"] - state["experiment_steps"],
+                )
+                model.learn(
+                    total_timesteps=chunk,
+                    reset_num_timesteps=False,
+                    callback=BudgetCallback(budget),
+                )
+                taken = model.num_timesteps - steps_before
+                state["experiment_steps"] += taken
+                state["transitions"] += taken
+                trained = (
+                    taken
+                    // (128 * config.get("envs", 4))
+                    * (128 * config.get("envs", 4))
+                )
+                state["trained_rollout_transitions"] = (
+                    state.get("trained_rollout_transitions", 0) + trained
+                )
+                delta = float(
+                    (
+                        torch.cat(
+                            [p.detach().flatten() for p in model.policy.parameters()]
+                        )
+                        - before
+                    )
+                    .abs()
+                    .sum()
+                )
+                completed = optimizer_steps(model) > updates_before
+                metrics = {
+                    "collected_transitions": taken,
+                    "trained_rollout_transitions": trained,
+                    "parameter_l1_change": delta,
+                    "optimizer_updates": optimizer_steps(model) - updates_before,
+                    "partial_rollout_discarded_on_resume": taken
+                    % (128 * config.get("envs", 4))
+                    != 0,
+                }
+                metrics["ppo"] = {
+                    k: float(v)
+                    for k, v in model.logger.name_to_value.items()
+                    if k.startswith("train/")
+                    and isinstance(v, (float, int, np.floating))
+                    and np.isfinite(v)
+                }
+                if completed and delta <= 0:
+                    raise AssertionError("optimizer_did_not_change_parameters")
+                checkpoint("ppo", metrics)
+                if state.get("plateau", 0) >= config.get("plateau_patience", 4):
+                    break
+            vector.close()
+            vector = None
+            if budget.stopping():
+                break
+            state["experiment_index"] = number + 1
+            state["experiment_steps"] = 0
+            state["latest"] = None
+            atomic_json(state_path, state)
+        state["status"] = "stopped" if budget.stopping() else "complete"
+        # Final test is executed once, only after validation selection. No candidate tunes against it.
+        if (
+            state["status"] == "complete"
+            and state["best"]
+            and config.get("final_test_cases", 0)
+            and not state.get("final_test")
+        ):
+            players = {
+                "best": LearnedPolicy(state["best"], catalog),
+                "random": "random",
+                "heuristic": "heuristic",
+            }
+            if previous:
+                players["previous"] = previous
+            for split in ("test", "unseen"):
+                if budget.stopping():
+                    break
+                result = evaluate(
+                    checkout,
+                    catalog,
+                    players,
+                    split=split,
+                    cases=config["final_test_cases"],
+                    offset=config.get("final_test_offset", 20000),
+                    curriculum_version=CURRICULUM,
+                )
+                atomic_json(output / f"final_{split}.json", result)
+            state["final_test"] = (output / "final_unseen.json").exists()
+        state["wall_seconds_this_launch"] = perf_counter() - started
+        state["resources"].update(job.usage()) if state.get("resources") else None
+        atomic_json(state_path, state)
+        return state
+    except BaseException as error:
+        atomic_json(
+            output / "failure.json",
+            {"error": type(error).__name__, "message": str(error), "time": time()},
+        )
+        raise
+    finally:
+        if vector is not None:
+            vector.close()
+        budget.finished.set()
+        lock.unlink(missing_ok=True)
+
+
+def launch_detached(config_path, output, resume):
+    """Use the real interpreter: Windows venv launchers create their own parent job."""
+    if os.name != "nt":
+        raise RuntimeError("detached_launcher_requires_windows")
+    output = Path(output).resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    env = os.environ.copy()
+    # Preserve this verified environment's libraries without the venv process shim.
+    site = str(Path(sys.prefix) / "Lib" / "site-packages")
+    env["PYTHONPATH"] = site
+    env["PYTHONNOUSERSITE"] = "1"
+    command = [
+        sys._base_executable,
+        str(Path(__file__).resolve()),
+        "--config",
+        str(Path(config_path).resolve()),
+        "--output",
+        str(output),
+        "--require-detached",
+    ] + (["--resume"] if resume else [])
+    with (output / "process.txt").open("ab", buffering=0) as log:
+        process = subprocess.Popen(
+            command,
+            cwd=Path(__file__).resolve().parents[1],
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=log,
+            close_fds=True,
+            creationflags=subprocess.DETACHED_PROCESS
+            | subprocess.CREATE_NEW_PROCESS_GROUP
+            | subprocess.CREATE_BREAKAWAY_FROM_JOB,
+        )
+    for _ in range(100):
+        control = output / "control.json"
+        if control.exists() and json.loads(control.read_text())["pid"] == process.pid:
+            proof = json.loads(control.read_text())
+            if proof["inherited_job"]:
+                raise RuntimeError("unverified_detached_job")
+            return proof
+        if process.poll() is not None:
+            raise RuntimeError("detached_trainer_start_failed_see_process_txt")
+        __import__("time").sleep(0.1)
+    process.terminate()
+    raise RuntimeError("detached_trainer_start_timeout")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", type=Path)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--detach", action="store_true")
+    parser.add_argument(
+        "--require-detached", action="store_true", help=argparse.SUPPRESS
+    )
+    parser.add_argument("--stop", action="store_true")
+    parser.add_argument(
+        "--checkout",
+        type=Path,
+        help="Override the local pinned engine path in the config",
+    )
+    args = parser.parse_args()
+    if args.stop:
+        (args.output / "STOP").touch()
+        print("Graceful stop requested; hard shutdown after 30s grace.")
+        return
+    if not args.config:
+        parser.error("--config is required")
+    config = json.loads(args.config.read_text(encoding="utf-8-sig"))
+    if args.checkout:
+        config["checkout"] = str(args.checkout.resolve())
+    if not config.get("checkout"):
+        parser.error("--checkout or config checkout is required")
+    validate_config(config)
+    if args.detach and args.checkout:
+        args.output.mkdir(parents=True, exist_ok=True)
+        effective = args.output / "effective-config.json"
+        atomic_json(effective, config)
+        args.config = effective
+    print(
+        json.dumps(
+            launch_detached(args.config, args.output, args.resume)
+            if args.detach
+            else run(
+                config,
+                args.output,
+                resume=args.resume,
+                require_detached=args.require_detached,
+            ),
+            indent=2,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
