@@ -1,0 +1,1311 @@
+{
+  "schema_version": "showdown-tactical-study-v1",
+  "status": "PARTIAL",
+  "interpretation": "tactical_fixture_improvement_not_broad_or_unseen_superiority",
+  "training": {
+    "training": {
+      "status": "complete",
+      "trained_rollout_transitions": 73728,
+      "warmstart_decisions": 24576,
+      "completed_battles": 8052,
+      "episode_outcomes": {
+        "opponent": 2895,
+        "self": 5157
+      },
+      "resources": {
+        "native_rss_bytes": 695320576,
+        "python_cpu_seconds": 513.140625,
+        "wall_seconds_this_launch": 659.2373874000041,
+        "tree_cpu_seconds": 737.28125,
+        "peak_job_memory_bytes": 2630275072,
+        "active_processes": 1
+      },
+      "network": {
+        "blocked_external_attempts": 0
+      },
+      "checkpoints": [
+        {
+          "seed": 501,
+          "stage": "initial",
+          "score": 0.6208333333333333,
+          "wins": 149,
+          "n": 240,
+          "sha256": "c4bc61739708b64f827536014245fd5c221012c64b9ab8005c0980101fa7aa80",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8193,
+            "episodes": 669,
+            "optimizer_updates": 512,
+            "last_loss": 1.0206660032272339,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.677001953125,
+            "parameter_l1_change": 833.1932373046875,
+            "attempted_teacher_action_classes": {
+              "switch": 489,
+              "attack": 4736,
+              "replacement": 804,
+              "setup": 645,
+              "status_or_field": 583,
+              "recovery": 936
+            },
+            "retained_teacher_action_classes": {
+              "switch": 489,
+              "attack": 4735,
+              "replacement": 804,
+              "setup": 645,
+              "status_or_field": 583,
+              "recovery": 936
+            },
+            "teacher_action_accuracy_by_class": {
+              "switch": 0.7341513292433538,
+              "attack": 0.8650475184794086,
+              "replacement": 0.8955223880597015,
+              "setup": 0.2124031007751938,
+              "status_or_field": 0.1732418524871355,
+              "recovery": 0.1420940170940171
+            }
+          },
+          "training_metrics": {}
+        },
+        {
+          "seed": 501,
+          "stage": "ppo",
+          "score": 0.6583333333333333,
+          "wins": 158,
+          "n": 240,
+          "sha256": "124b403ab193ccb53e914db41ac27a124a59dfa8f40d4c9aedaf69ecf16cff2a",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8193,
+            "episodes": 669,
+            "optimizer_updates": 512,
+            "last_loss": 1.0206660032272339,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.677001953125,
+            "parameter_l1_change": 833.1932373046875,
+            "attempted_teacher_action_classes": {
+              "switch": 489,
+              "attack": 4736,
+              "replacement": 804,
+              "setup": 645,
+              "status_or_field": 583,
+              "recovery": 936
+            },
+            "retained_teacher_action_classes": {
+              "switch": 489,
+              "attack": 4735,
+              "replacement": 804,
+              "setup": 645,
+              "status_or_field": 583,
+              "recovery": 936
+            },
+            "teacher_action_accuracy_by_class": {
+              "switch": 0.7341513292433538,
+              "attack": 0.8650475184794086,
+              "replacement": 0.8955223880597015,
+              "setup": 0.2124031007751938,
+              "status_or_field": 0.1732418524871355,
+              "recovery": 0.1420940170940171
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 171.92703247070312,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.6549238972365856,
+              "train/policy_gradient_loss": -0.0014378101332113147,
+              "train/value_loss": 0.3130326075479388,
+              "train/approx_kl": 0.00042424871935509145,
+              "train/clip_fraction": 0.00146484375,
+              "train/loss": 0.11185404658317566,
+              "train/explained_variance": 0.43675553798675537,
+              "train/n_updates": 192.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 501,
+          "stage": "ppo",
+          "score": 0.7,
+          "wins": 168,
+          "n": 240,
+          "sha256": "12217a457691274be4a351b58b756586985d1aa412f2760189d4473646ae1bc5",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8193,
+            "episodes": 669,
+            "optimizer_updates": 512,
+            "last_loss": 1.0206660032272339,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.677001953125,
+            "parameter_l1_change": 833.1932373046875,
+            "attempted_teacher_action_classes": {
+              "switch": 489,
+              "attack": 4736,
+              "replacement": 804,
+              "setup": 645,
+              "status_or_field": 583,
+              "recovery": 936
+            },
+            "retained_teacher_action_classes": {
+              "switch": 489,
+              "attack": 4735,
+              "replacement": 804,
+              "setup": 645,
+              "status_or_field": 583,
+              "recovery": 936
+            },
+            "teacher_action_accuracy_by_class": {
+              "switch": 0.7341513292433538,
+              "attack": 0.8650475184794086,
+              "replacement": 0.8955223880597015,
+              "setup": 0.2124031007751938,
+              "status_or_field": 0.1732418524871355,
+              "recovery": 0.1420940170940171
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 154.56565856933594,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.6209935396909714,
+              "train/policy_gradient_loss": -0.004995168215828016,
+              "train/value_loss": 0.3164994949474931,
+              "train/approx_kl": 0.0036818813532590866,
+              "train/clip_fraction": 0.01123046875,
+              "train/loss": 0.14294739067554474,
+              "train/explained_variance": 0.46609997749328613,
+              "train/n_updates": 256.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 501,
+          "stage": "ppo",
+          "score": 0.6541666666666667,
+          "wins": 157,
+          "n": 240,
+          "sha256": "83b181ed4ede0e95e6e955ee3f31294a93e2b76f1b6f2366ea5d3c3a54b99d27",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8193,
+            "episodes": 669,
+            "optimizer_updates": 512,
+            "last_loss": 1.0206660032272339,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.677001953125,
+            "parameter_l1_change": 833.1932373046875,
+            "attempted_teacher_action_classes": {
+              "switch": 489,
+              "attack": 4736,
+              "replacement": 804,
+              "setup": 645,
+              "status_or_field": 583,
+              "recovery": 936
+            },
+            "retained_teacher_action_classes": {
+              "switch": 489,
+              "attack": 4735,
+              "replacement": 804,
+              "setup": 645,
+              "status_or_field": 583,
+              "recovery": 936
+            },
+            "teacher_action_accuracy_by_class": {
+              "switch": 0.7341513292433538,
+              "attack": 0.8650475184794086,
+              "replacement": 0.8955223880597015,
+              "setup": 0.2124031007751938,
+              "status_or_field": 0.1732418524871355,
+              "recovery": 0.1420940170940171
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 136.6279296875,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.7198136858642101,
+              "train/policy_gradient_loss": -0.0029957746155560017,
+              "train/value_loss": 0.3597708512097597,
+              "train/approx_kl": 0.0005054029170423746,
+              "train/clip_fraction": 0.0,
+              "train/loss": 0.16184328496456146,
+              "train/explained_variance": 0.4216315746307373,
+              "train/n_updates": 320.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 607,
+          "stage": "initial",
+          "score": 0.6708333333333333,
+          "wins": 161,
+          "n": 240,
+          "sha256": "a3111b74e969cf62f728f960bc11f688dcd1e025095459526f48ee4618ebd7fc",
+          "historical_sha256": "12217a457691274be4a351b58b756586985d1aa412f2760189d4473646ae1bc5",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8202,
+            "episodes": 678,
+            "optimizer_updates": 512,
+            "last_loss": 0.9646744728088379,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6468505859375,
+            "parameter_l1_change": 830.4862670898438,
+            "attempted_teacher_action_classes": {
+              "switch": 506,
+              "attack": 4703,
+              "replacement": 835,
+              "setup": 643,
+              "status_or_field": 547,
+              "recovery": 968
+            },
+            "retained_teacher_action_classes": {
+              "switch": 506,
+              "attack": 4697,
+              "replacement": 833,
+              "setup": 643,
+              "status_or_field": 545,
+              "recovery": 968
+            },
+            "teacher_action_accuracy_by_class": {
+              "switch": 0.7055335968379447,
+              "attack": 0.8224398552267405,
+              "replacement": 0.8979591836734694,
+              "setup": 0.17418351477449456,
+              "status_or_field": 0.10458715596330276,
+              "recovery": 0.16735537190082644
+            }
+          },
+          "training_metrics": {}
+        },
+        {
+          "seed": 607,
+          "stage": "ppo",
+          "score": 0.6625,
+          "wins": 159,
+          "n": 240,
+          "sha256": "d270ec63347f0bbc2171800669cf26947e57cf4f52e7ae017de08ca5e6485eff",
+          "historical_sha256": "12217a457691274be4a351b58b756586985d1aa412f2760189d4473646ae1bc5",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8202,
+            "episodes": 678,
+            "optimizer_updates": 512,
+            "last_loss": 0.9646744728088379,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6468505859375,
+            "parameter_l1_change": 830.4862670898438,
+            "attempted_teacher_action_classes": {
+              "switch": 506,
+              "attack": 4703,
+              "replacement": 835,
+              "setup": 643,
+              "status_or_field": 547,
+              "recovery": 968
+            },
+            "retained_teacher_action_classes": {
+              "switch": 506,
+              "attack": 4697,
+              "replacement": 833,
+              "setup": 643,
+              "status_or_field": 545,
+              "recovery": 968
+            },
+            "teacher_action_accuracy_by_class": {
+              "switch": 0.7055335968379447,
+              "attack": 0.8224398552267405,
+              "replacement": 0.8979591836734694,
+              "setup": 0.17418351477449456,
+              "status_or_field": 0.10458715596330276,
+              "recovery": 0.16735537190082644
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 181.09580993652344,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.6404374986886978,
+              "train/policy_gradient_loss": -0.0023353186843451113,
+              "train/value_loss": 0.3877240717411041,
+              "train/approx_kl": 0.00043589886627160013,
+              "train/clip_fraction": 0.00048828125,
+              "train/loss": 0.1752268373966217,
+              "train/explained_variance": 0.3013954758644104,
+              "train/n_updates": 192.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 607,
+          "stage": "ppo",
+          "score": 0.7041666666666667,
+          "wins": 169,
+          "n": 240,
+          "sha256": "ccf97f086d3c72ad03f63fbd25f22f16264bd811d611e0fd4885eeced0608916",
+          "historical_sha256": "12217a457691274be4a351b58b756586985d1aa412f2760189d4473646ae1bc5",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8202,
+            "episodes": 678,
+            "optimizer_updates": 512,
+            "last_loss": 0.9646744728088379,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6468505859375,
+            "parameter_l1_change": 830.4862670898438,
+            "attempted_teacher_action_classes": {
+              "switch": 506,
+              "attack": 4703,
+              "replacement": 835,
+              "setup": 643,
+              "status_or_field": 547,
+              "recovery": 968
+            },
+            "retained_teacher_action_classes": {
+              "switch": 506,
+              "attack": 4697,
+              "replacement": 833,
+              "setup": 643,
+              "status_or_field": 545,
+              "recovery": 968
+            },
+            "teacher_action_accuracy_by_class": {
+              "switch": 0.7055335968379447,
+              "attack": 0.8224398552267405,
+              "replacement": 0.8979591836734694,
+              "setup": 0.17418351477449456,
+              "status_or_field": 0.10458715596330276,
+              "recovery": 0.16735537190082644
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 150.10377502441406,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.5998124592006207,
+              "train/policy_gradient_loss": -0.0075012752786278725,
+              "train/value_loss": 0.27967701107263565,
+              "train/approx_kl": 0.006251960061490536,
+              "train/clip_fraction": 0.021484375,
+              "train/loss": 0.12171375751495361,
+              "train/explained_variance": 0.516071617603302,
+              "train/n_updates": 256.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 607,
+          "stage": "ppo",
+          "score": 0.7125,
+          "wins": 171,
+          "n": 240,
+          "sha256": "3f482eced78365c21f3686c78a1c54d4068c3f243f031a341c09448f4b2a612a",
+          "historical_sha256": "12217a457691274be4a351b58b756586985d1aa412f2760189d4473646ae1bc5",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8202,
+            "episodes": 678,
+            "optimizer_updates": 512,
+            "last_loss": 0.9646744728088379,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6468505859375,
+            "parameter_l1_change": 830.4862670898438,
+            "attempted_teacher_action_classes": {
+              "switch": 506,
+              "attack": 4703,
+              "replacement": 835,
+              "setup": 643,
+              "status_or_field": 547,
+              "recovery": 968
+            },
+            "retained_teacher_action_classes": {
+              "switch": 506,
+              "attack": 4697,
+              "replacement": 833,
+              "setup": 643,
+              "status_or_field": 545,
+              "recovery": 968
+            },
+            "teacher_action_accuracy_by_class": {
+              "switch": 0.7055335968379447,
+              "attack": 0.8224398552267405,
+              "replacement": 0.8979591836734694,
+              "setup": 0.17418351477449456,
+              "status_or_field": 0.10458715596330276,
+              "recovery": 0.16735537190082644
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 146.2057647705078,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.5211283545941114,
+              "train/policy_gradient_loss": -0.003950643236748874,
+              "train/value_loss": 0.34427076764404774,
+              "train/approx_kl": 0.0010789863299578428,
+              "train/clip_fraction": 0.00244140625,
+              "train/loss": 0.16696923971176147,
+              "train/explained_variance": 0.45989304780960083,
+              "train/n_updates": 320.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 709,
+          "stage": "initial",
+          "score": 0.6708333333333333,
+          "wins": 161,
+          "n": 240,
+          "sha256": "01a0a1dcffdab0bfed71946c36e12b1726bf71bf00ec594aa0f2500449861655",
+          "historical_sha256": "3f482eced78365c21f3686c78a1c54d4068c3f243f031a341c09448f4b2a612a",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8205,
+            "episodes": 662,
+            "optimizer_updates": 512,
+            "last_loss": 1.0094773769378662,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6748046875,
+            "parameter_l1_change": 875.073974609375,
+            "attempted_teacher_action_classes": {
+              "status_or_field": 618,
+              "attack": 4704,
+              "replacement": 798,
+              "switch": 513,
+              "setup": 628,
+              "recovery": 944
+            },
+            "retained_teacher_action_classes": {
+              "status_or_field": 618,
+              "attack": 4697,
+              "replacement": 797,
+              "switch": 513,
+              "setup": 627,
+              "recovery": 940
+            },
+            "teacher_action_accuracy_by_class": {
+              "status_or_field": 0.21035598705501618,
+              "attack": 0.8697040664253779,
+              "replacement": 0.8933500627352572,
+              "switch": 0.7524366471734892,
+              "setup": 0.13556618819776714,
+              "recovery": 0.13829787234042554
+            }
+          },
+          "training_metrics": {}
+        },
+        {
+          "seed": 709,
+          "stage": "ppo",
+          "score": 0.6875,
+          "wins": 165,
+          "n": 240,
+          "sha256": "29f281e4e11e5e66232ca72deb81eff8d78599816a30542c73291675713b6e63",
+          "historical_sha256": "3f482eced78365c21f3686c78a1c54d4068c3f243f031a341c09448f4b2a612a",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8205,
+            "episodes": 662,
+            "optimizer_updates": 512,
+            "last_loss": 1.0094773769378662,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6748046875,
+            "parameter_l1_change": 875.073974609375,
+            "attempted_teacher_action_classes": {
+              "status_or_field": 618,
+              "attack": 4704,
+              "replacement": 798,
+              "switch": 513,
+              "setup": 628,
+              "recovery": 944
+            },
+            "retained_teacher_action_classes": {
+              "status_or_field": 618,
+              "attack": 4697,
+              "replacement": 797,
+              "switch": 513,
+              "setup": 627,
+              "recovery": 940
+            },
+            "teacher_action_accuracy_by_class": {
+              "status_or_field": 0.21035598705501618,
+              "attack": 0.8697040664253779,
+              "replacement": 0.8933500627352572,
+              "switch": 0.7524366471734892,
+              "setup": 0.13556618819776714,
+              "recovery": 0.13829787234042554
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 171.25537109375,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.6686007641255856,
+              "train/policy_gradient_loss": -0.002921207924373448,
+              "train/value_loss": 0.3096565343439579,
+              "train/approx_kl": 0.0009049065411090851,
+              "train/clip_fraction": 0.00244140625,
+              "train/loss": 0.09743437170982361,
+              "train/explained_variance": 0.5020914077758789,
+              "train/n_updates": 192.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 709,
+          "stage": "ppo",
+          "score": 0.7208333333333333,
+          "wins": 173,
+          "n": 240,
+          "sha256": "960636c4881edec6312e6f45d2b9d1f499c32fe0a7022839528a6b71199e1f01",
+          "historical_sha256": "3f482eced78365c21f3686c78a1c54d4068c3f243f031a341c09448f4b2a612a",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8205,
+            "episodes": 662,
+            "optimizer_updates": 512,
+            "last_loss": 1.0094773769378662,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6748046875,
+            "parameter_l1_change": 875.073974609375,
+            "attempted_teacher_action_classes": {
+              "status_or_field": 618,
+              "attack": 4704,
+              "replacement": 798,
+              "switch": 513,
+              "setup": 628,
+              "recovery": 944
+            },
+            "retained_teacher_action_classes": {
+              "status_or_field": 618,
+              "attack": 4697,
+              "replacement": 797,
+              "switch": 513,
+              "setup": 627,
+              "recovery": 940
+            },
+            "teacher_action_accuracy_by_class": {
+              "status_or_field": 0.21035598705501618,
+              "attack": 0.8697040664253779,
+              "replacement": 0.8933500627352572,
+              "switch": 0.7524366471734892,
+              "setup": 0.13556618819776714,
+              "recovery": 0.13829787234042554
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 153.04898071289062,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.5616452507674694,
+              "train/policy_gradient_loss": -0.001755743520334363,
+              "train/value_loss": 0.402546901255846,
+              "train/approx_kl": 0.00031233433401212096,
+              "train/clip_fraction": 0.00048828125,
+              "train/loss": 0.1499449461698532,
+              "train/explained_variance": 0.2677462697029114,
+              "train/n_updates": 256.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 709,
+          "stage": "ppo",
+          "score": 0.725,
+          "wins": 174,
+          "n": 240,
+          "sha256": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+          "historical_sha256": "3f482eced78365c21f3686c78a1c54d4068c3f243f031a341c09448f4b2a612a",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8205,
+            "episodes": 662,
+            "optimizer_updates": 512,
+            "last_loss": 1.0094773769378662,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6748046875,
+            "parameter_l1_change": 875.073974609375,
+            "attempted_teacher_action_classes": {
+              "status_or_field": 618,
+              "attack": 4704,
+              "replacement": 798,
+              "switch": 513,
+              "setup": 628,
+              "recovery": 944
+            },
+            "retained_teacher_action_classes": {
+              "status_or_field": 618,
+              "attack": 4697,
+              "replacement": 797,
+              "switch": 513,
+              "setup": 627,
+              "recovery": 940
+            },
+            "teacher_action_accuracy_by_class": {
+              "status_or_field": 0.21035598705501618,
+              "attack": 0.8697040664253779,
+              "replacement": 0.8933500627352572,
+              "switch": 0.7524366471734892,
+              "setup": 0.13556618819776714,
+              "recovery": 0.13829787234042554
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 138.7913055419922,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.4698472283780575,
+              "train/policy_gradient_loss": -0.004609245777828619,
+              "train/value_loss": 0.30784975551068783,
+              "train/approx_kl": 0.0025301328860223293,
+              "train/clip_fraction": 0.0107421875,
+              "train/loss": 0.13564805686473846,
+              "train/explained_variance": 0.4426931142807007,
+              "train/n_updates": 320.0,
+              "train/clip_range": 0.2
+            }
+          }
+        }
+      ]
+    },
+    "independent": {
+      "status": "complete",
+      "trained_rollout_transitions": 49152,
+      "warmstart_decisions": 24576,
+      "completed_battles": 6119,
+      "episode_outcomes": {
+        "opponent": 2187,
+        "self": 3932
+      },
+      "resources": {
+        "native_rss_bytes": 703434752,
+        "python_cpu_seconds": 384.890625,
+        "wall_seconds_this_launch": 493.21405219999724,
+        "tree_cpu_seconds": 551.921875,
+        "peak_job_memory_bytes": 2639073280,
+        "active_processes": 1
+      },
+      "network": {
+        "blocked_external_attempts": 0
+      },
+      "checkpoints": [
+        {
+          "seed": 811,
+          "stage": "initial",
+          "score": 0.6708333333333333,
+          "wins": 161,
+          "n": 240,
+          "sha256": "63af46abd04867c760182985cc25ddf00a7a332892d4f71b9238808910ddcc03",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8205,
+            "episodes": 673,
+            "optimizer_updates": 512,
+            "last_loss": 0.9323425889015198,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6729736328125,
+            "parameter_l1_change": 844.18212890625,
+            "attempted_teacher_action_classes": {
+              "setup": 579,
+              "replacement": 795,
+              "attack": 4728,
+              "recovery": 952,
+              "status_or_field": 621,
+              "switch": 530
+            },
+            "retained_teacher_action_classes": {
+              "setup": 578,
+              "replacement": 794,
+              "attack": 4722,
+              "recovery": 947,
+              "status_or_field": 621,
+              "switch": 530
+            },
+            "teacher_action_accuracy_by_class": {
+              "setup": 0.157439446366782,
+              "replacement": 0.9017632241813602,
+              "attack": 0.8614993646759848,
+              "recovery": 0.1351636747624076,
+              "status_or_field": 0.22061191626409019,
+              "switch": 0.7037735849056603
+            }
+          },
+          "training_metrics": {}
+        },
+        {
+          "seed": 811,
+          "stage": "ppo",
+          "score": 0.6833333333333333,
+          "wins": 164,
+          "n": 240,
+          "sha256": "bb66c354fb2ea530984c5f6edcab4b3f7555407d751b080d1f9477d9a1cc0aa9",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8205,
+            "episodes": 673,
+            "optimizer_updates": 512,
+            "last_loss": 0.9323425889015198,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6729736328125,
+            "parameter_l1_change": 844.18212890625,
+            "attempted_teacher_action_classes": {
+              "setup": 579,
+              "replacement": 795,
+              "attack": 4728,
+              "recovery": 952,
+              "status_or_field": 621,
+              "switch": 530
+            },
+            "retained_teacher_action_classes": {
+              "setup": 578,
+              "replacement": 794,
+              "attack": 4722,
+              "recovery": 947,
+              "status_or_field": 621,
+              "switch": 530
+            },
+            "teacher_action_accuracy_by_class": {
+              "setup": 0.157439446366782,
+              "replacement": 0.9017632241813602,
+              "attack": 0.8614993646759848,
+              "recovery": 0.1351636747624076,
+              "status_or_field": 0.22061191626409019,
+              "switch": 0.7037735849056603
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 171.3697967529297,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.6833731755614281,
+              "train/policy_gradient_loss": -0.005054255452705547,
+              "train/value_loss": 0.3427354674786329,
+              "train/approx_kl": 0.002978269010782242,
+              "train/clip_fraction": 0.01025390625,
+              "train/loss": 0.17863678932189941,
+              "train/explained_variance": 0.4097585082054138,
+              "train/n_updates": 192.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 811,
+          "stage": "ppo",
+          "score": 0.6875,
+          "wins": 165,
+          "n": 240,
+          "sha256": "812c6b30fb35d3f2d6596c76d369e48bd4491e2b92259a06e0776208e8c86906",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8205,
+            "episodes": 673,
+            "optimizer_updates": 512,
+            "last_loss": 0.9323425889015198,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6729736328125,
+            "parameter_l1_change": 844.18212890625,
+            "attempted_teacher_action_classes": {
+              "setup": 579,
+              "replacement": 795,
+              "attack": 4728,
+              "recovery": 952,
+              "status_or_field": 621,
+              "switch": 530
+            },
+            "retained_teacher_action_classes": {
+              "setup": 578,
+              "replacement": 794,
+              "attack": 4722,
+              "recovery": 947,
+              "status_or_field": 621,
+              "switch": 530
+            },
+            "teacher_action_accuracy_by_class": {
+              "setup": 0.157439446366782,
+              "replacement": 0.9017632241813602,
+              "attack": 0.8614993646759848,
+              "recovery": 0.1351636747624076,
+              "status_or_field": 0.22061191626409019,
+              "switch": 0.7037735849056603
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 143.03326416015625,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.5154214929789305,
+              "train/policy_gradient_loss": -0.0025733220390975475,
+              "train/value_loss": 0.3209975669160485,
+              "train/approx_kl": 0.0021593496203422546,
+              "train/clip_fraction": 0.00830078125,
+              "train/loss": 0.1604175567626953,
+              "train/explained_variance": 0.4290984869003296,
+              "train/n_updates": 256.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 919,
+          "stage": "initial",
+          "score": 0.6625,
+          "wins": 159,
+          "n": 240,
+          "sha256": "c5e4b10d11f0c2e9e3c7b9dc7504fc4621d8045f7f10c7e4900fe35339d1a4cf",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8207,
+            "episodes": 684,
+            "optimizer_updates": 512,
+            "last_loss": 1.0907549858093262,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6773681640625,
+            "parameter_l1_change": 838.458984375,
+            "attempted_teacher_action_classes": {
+              "attack": 4727,
+              "replacement": 838,
+              "switch": 550,
+              "setup": 599,
+              "recovery": 919,
+              "status_or_field": 574
+            },
+            "retained_teacher_action_classes": {
+              "attack": 4718,
+              "replacement": 837,
+              "switch": 549,
+              "setup": 598,
+              "recovery": 916,
+              "status_or_field": 574
+            },
+            "teacher_action_accuracy_by_class": {
+              "attack": 0.8550233149639678,
+              "replacement": 0.9199522102747909,
+              "switch": 0.6903460837887068,
+              "setup": 0.1605351170568562,
+              "recovery": 0.15502183406113537,
+              "status_or_field": 0.2229965156794425
+            }
+          },
+          "training_metrics": {}
+        },
+        {
+          "seed": 919,
+          "stage": "ppo",
+          "score": 0.7041666666666667,
+          "wins": 169,
+          "n": 240,
+          "sha256": "2ecb116db3559ad5ec815c9730213a571a75902e65bcf5b61858af94d9e1cb2e",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8207,
+            "episodes": 684,
+            "optimizer_updates": 512,
+            "last_loss": 1.0907549858093262,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6773681640625,
+            "parameter_l1_change": 838.458984375,
+            "attempted_teacher_action_classes": {
+              "attack": 4727,
+              "replacement": 838,
+              "switch": 550,
+              "setup": 599,
+              "recovery": 919,
+              "status_or_field": 574
+            },
+            "retained_teacher_action_classes": {
+              "attack": 4718,
+              "replacement": 837,
+              "switch": 549,
+              "setup": 598,
+              "recovery": 916,
+              "status_or_field": 574
+            },
+            "teacher_action_accuracy_by_class": {
+              "attack": 0.8550233149639678,
+              "replacement": 0.9199522102747909,
+              "switch": 0.6903460837887068,
+              "setup": 0.1605351170568562,
+              "recovery": 0.15502183406113537,
+              "status_or_field": 0.2229965156794425
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 183.74310302734375,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.6060336530208588,
+              "train/policy_gradient_loss": -0.0026255675475113094,
+              "train/value_loss": 0.3793364688754082,
+              "train/approx_kl": 0.0018265696708112955,
+              "train/clip_fraction": 0.0078125,
+              "train/loss": 0.17551590502262115,
+              "train/explained_variance": 0.2986028790473938,
+              "train/n_updates": 192.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 919,
+          "stage": "ppo",
+          "score": 0.725,
+          "wins": 174,
+          "n": 240,
+          "sha256": "884150cc466dbaeb66a33ba2f3c8be9854ab333188b18455bfd2a8cd159af34a",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8207,
+            "episodes": 684,
+            "optimizer_updates": 512,
+            "last_loss": 1.0907549858093262,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6773681640625,
+            "parameter_l1_change": 838.458984375,
+            "attempted_teacher_action_classes": {
+              "attack": 4727,
+              "replacement": 838,
+              "switch": 550,
+              "setup": 599,
+              "recovery": 919,
+              "status_or_field": 574
+            },
+            "retained_teacher_action_classes": {
+              "attack": 4718,
+              "replacement": 837,
+              "switch": 549,
+              "setup": 598,
+              "recovery": 916,
+              "status_or_field": 574
+            },
+            "teacher_action_accuracy_by_class": {
+              "attack": 0.8550233149639678,
+              "replacement": 0.9199522102747909,
+              "switch": 0.6903460837887068,
+              "setup": 0.1605351170568562,
+              "recovery": 0.15502183406113537,
+              "status_or_field": 0.2229965156794425
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 147.41880798339844,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.5103938523679972,
+              "train/policy_gradient_loss": -0.0024710356956347823,
+              "train/value_loss": 0.3325309678912163,
+              "train/approx_kl": 0.0010039820335805416,
+              "train/clip_fraction": 0.0029296875,
+              "train/loss": 0.16432690620422363,
+              "train/explained_variance": 0.512174129486084,
+              "train/n_updates": 256.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 1021,
+          "stage": "initial",
+          "score": 0.6583333333333333,
+          "wins": 158,
+          "n": 240,
+          "sha256": "10805ef1934db40230507d02ff92ee8a83d9226aab17bffc0fac2152d38a6e1f",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8192,
+            "episodes": 709,
+            "optimizer_updates": 512,
+            "last_loss": 0.9419071674346924,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6529541015625,
+            "parameter_l1_change": 812.502197265625,
+            "attempted_teacher_action_classes": {
+              "setup": 615,
+              "recovery": 1001,
+              "replacement": 837,
+              "attack": 4710,
+              "status_or_field": 497,
+              "switch": 532
+            },
+            "retained_teacher_action_classes": {
+              "setup": 615,
+              "recovery": 1001,
+              "replacement": 837,
+              "attack": 4710,
+              "status_or_field": 497,
+              "switch": 532
+            },
+            "teacher_action_accuracy_by_class": {
+              "setup": 0.2,
+              "recovery": 0.2757242757242757,
+              "replacement": 0.8972520908004779,
+              "attack": 0.8004246284501062,
+              "status_or_field": 0.1227364185110664,
+              "switch": 0.6917293233082706
+            }
+          },
+          "training_metrics": {}
+        },
+        {
+          "seed": 1021,
+          "stage": "ppo",
+          "score": 0.6458333333333334,
+          "wins": 155,
+          "n": 240,
+          "sha256": "9b122d604cb0c49d6025e52db3cd1d7bee5971c2ba7f9a6fcd2441b48eca37c2",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8192,
+            "episodes": 709,
+            "optimizer_updates": 512,
+            "last_loss": 0.9419071674346924,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6529541015625,
+            "parameter_l1_change": 812.502197265625,
+            "attempted_teacher_action_classes": {
+              "setup": 615,
+              "recovery": 1001,
+              "replacement": 837,
+              "attack": 4710,
+              "status_or_field": 497,
+              "switch": 532
+            },
+            "retained_teacher_action_classes": {
+              "setup": 615,
+              "recovery": 1001,
+              "replacement": 837,
+              "attack": 4710,
+              "status_or_field": 497,
+              "switch": 532
+            },
+            "teacher_action_accuracy_by_class": {
+              "setup": 0.2,
+              "recovery": 0.2757242757242757,
+              "replacement": 0.8972520908004779,
+              "attack": 0.8004246284501062,
+              "status_or_field": 0.1227364185110664,
+              "switch": 0.6917293233082706
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 186.1840057373047,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.6222528629004955,
+              "train/policy_gradient_loss": -0.001765019551385194,
+              "train/value_loss": 0.30729418247938156,
+              "train/approx_kl": 0.0007163166301324964,
+              "train/clip_fraction": 0.0009765625,
+              "train/loss": 0.14229334890842438,
+              "train/explained_variance": 0.5009963512420654,
+              "train/n_updates": 192.0,
+              "train/clip_range": 0.2
+            }
+          }
+        },
+        {
+          "seed": 1021,
+          "stage": "ppo",
+          "score": 0.6791666666666667,
+          "wins": 163,
+          "n": 240,
+          "sha256": "13cad17627de5bf3093f41df2d6d931ed3209207d47d640940b26e11a6071ed6",
+          "historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+          "warmstart": {
+            "decisions": 8192,
+            "attempted": 8192,
+            "episodes": 709,
+            "optimizer_updates": 512,
+            "last_loss": 0.9419071674346924,
+            "learning_rate": 0.0001,
+            "teacher_demonstration_action_accuracy": 0.6529541015625,
+            "parameter_l1_change": 812.502197265625,
+            "attempted_teacher_action_classes": {
+              "setup": 615,
+              "recovery": 1001,
+              "replacement": 837,
+              "attack": 4710,
+              "status_or_field": 497,
+              "switch": 532
+            },
+            "retained_teacher_action_classes": {
+              "setup": 615,
+              "recovery": 1001,
+              "replacement": 837,
+              "attack": 4710,
+              "status_or_field": 497,
+              "switch": 532
+            },
+            "teacher_action_accuracy_by_class": {
+              "setup": 0.2,
+              "recovery": 0.2757242757242757,
+              "replacement": 0.8972520908004779,
+              "attack": 0.8004246284501062,
+              "status_or_field": 0.1227364185110664,
+              "switch": 0.6917293233082706
+            }
+          },
+          "training_metrics": {
+            "collected_transitions": 8192,
+            "trained_rollout_transitions": 8192,
+            "parameter_l1_change": 152.49037170410156,
+            "optimizer_updates": 256,
+            "partial_rollout_discarded_on_resume": false,
+            "ppo": {
+              "train/learning_rate": 5e-05,
+              "train/entropy_loss": -0.4982626736164093,
+              "train/policy_gradient_loss": -0.00339400939992629,
+              "train/value_loss": 0.34974186681210995,
+              "train/approx_kl": 0.0037013511173427105,
+              "train/clip_fraction": 0.01513671875,
+              "train/loss": 0.13019326329231262,
+              "train/explained_variance": 0.22903317213058472,
+              "train/n_updates": 256.0,
+              "train/clip_range": 0.2
+            }
+          }
+        }
+      ]
+    }
+  },
+  "new_optimizer_updates": 6912,
+  "total_new_ppo": 122880,
+  "total_teacher_decisions": 49152,
+  "total_training_episodes": 14171,
+  "selected_seed": 709,
+  "selected_sha256": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+  "independent_seeds": [
+    811,
+    919,
+    1021
+  ],
+  "league_seeds": [
+    501,
+    607,
+    709
+  ],
+  "evaluation_resources": {
+    "primary_broad": {
+      "wall_seconds": 432.03664630001003,
+      "python_cpu_seconds": 330.5625,
+      "network": {
+        "blocked_external_attempts": 0
+      },
+      "tree_cpu_seconds": 449.71875,
+      "peak_job_memory_bytes": 1300905984,
+      "active_processes": 1
+    },
+    "primary_tactical": {
+      "wall_seconds": 222.4091735999973,
+      "python_cpu_seconds": 170.328125,
+      "network": {
+        "blocked_external_attempts": 0
+      },
+      "tree_cpu_seconds": 230.8125,
+      "peak_job_memory_bytes": 1270149120,
+      "active_processes": 1
+    },
+    "final_broad": {
+      "wall_seconds": 326.41650469999877,
+      "python_cpu_seconds": 244.34375,
+      "network": {
+        "blocked_external_attempts": 0
+      },
+      "tree_cpu_seconds": 342.484375,
+      "peak_job_memory_bytes": 1221201920,
+      "active_processes": 1
+    },
+    "branches": {
+      "wall_seconds": 11.490538099998957,
+      "network": {
+        "blocked_external_attempts": 0
+      },
+      "tree_cpu_seconds": 13.265625,
+      "peak_job_memory_bytes": 741023744,
+      "active_processes": 1
+    }
+  },
+  "primary_final_native_battles": 15840,
+  "primary_cases_per_rival": 96,
+  "fixed_rivals": 5,
+  "raw_result_root": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12",
+  "model_reselection_after_final": false,
+  "default_recommendation_changed": false,
+  "metamon_audit_commit": "0a00a759c9a4382a2877088d828302ec294a05a5"
+}

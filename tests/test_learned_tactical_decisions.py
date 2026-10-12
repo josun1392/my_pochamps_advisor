@@ -186,3 +186,40 @@ def test_native_teacher_updates_and_class_accounting(checkout):
         )
     finally:
         vector.close()
+
+
+def test_published_tactical_artifacts_reload_with_masks_and_identity(checkout):
+    import hashlib
+    import numpy as np
+    from advisor.learned_policy import LearnedPolicy
+    from scripts.train_showdown_autonomous import optimizer_steps
+
+    with ShowdownEnvironment(checkout) as env:
+        reset_learning_episode(env, scenario("validation", 19100, version=VERSION))
+        view = env.observation("self", include_history=True)
+        before = env.save()
+        for name in (
+            "showdown_tactical_v4",
+            "showdown_tactical_seed_811",
+            "showdown_tactical_seed_919",
+            "showdown_tactical_seed_1021",
+        ):
+            path = ROOT / "models" / name / "model.zip"
+            m = json.loads(path.with_suffix(".json").read_text())
+            assert hashlib.sha256(path.read_bytes()).hexdigest() == m["model_sha256"]
+            p = LearnedPolicy(path, CATALOG, expected_model_id=m["model_sha256"])
+            proof = p.infer(view)
+            mask = np.asarray(view["action_mask"], dtype=bool)
+            probabilities = np.asarray(proof["action_probabilities"])
+            assert probabilities.sum() == pytest.approx(1)
+            assert not probabilities[~mask].any()
+            assert (
+                proof["episode_id"] == view["episode_id"]
+                and proof["revision"] == view["revision"]
+            )
+            assert (
+                proof["evidence_class"] == "learned_policy_value"
+                and mask[proof["action_index"]]
+            )
+            assert optimizer_steps(p.model) == m["optimizer_steps"] > 0
+        assert env.save() == before

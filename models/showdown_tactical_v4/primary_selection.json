@@ -1,0 +1,244 @@
+{
+  "schema_version": "showdown-tactical-final-plan-v2",
+  "locked_at_utc": "2026-10-12T01:37:13.689546+00:00",
+  "selected_model_sha256": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+  "selected_seed": 709,
+  "selected_path": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_tactical_v4\\model.zip",
+  "selection_rule": "max_common_validation_score_ties_keep_league_selected_source",
+  "fixed_seed_model_paths": {
+    "811": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_tactical_seed_811\\model.zip",
+    "919": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_tactical_seed_919\\model.zip",
+    "1021": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_tactical_seed_1021\\model.zip"
+  },
+  "fixed_historical_sha256": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+  "independent_validation": [
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\independent\\experiment_00\\checkpoint_0000_initial_16384_dcf72bd3\\model.zip",
+      "experiment": 0,
+      "steps": 16384,
+      "score": 0.6708333333333333,
+      "wins": 161,
+      "n": 240,
+      "truncated": 0,
+      "stage": "initial"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\independent\\experiment_00\\checkpoint_0001_ppo_24576_f48d6575\\model.zip",
+      "experiment": 0,
+      "steps": 24576,
+      "score": 0.6833333333333333,
+      "wins": 164,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\independent\\experiment_00\\checkpoint_0002_ppo_32768_d2a1bfe1\\model.zip",
+      "experiment": 0,
+      "steps": 32768,
+      "score": 0.6875,
+      "wins": 165,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\independent\\experiment_01\\checkpoint_0003_initial_16384_23d33831\\model.zip",
+      "experiment": 1,
+      "steps": 16384,
+      "score": 0.6625,
+      "wins": 159,
+      "n": 240,
+      "truncated": 0,
+      "stage": "initial"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\independent\\experiment_01\\checkpoint_0004_ppo_24576_e534adec\\model.zip",
+      "experiment": 1,
+      "steps": 24576,
+      "score": 0.7041666666666667,
+      "wins": 169,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\independent\\experiment_01\\checkpoint_0005_ppo_32768_3cab32c6\\model.zip",
+      "experiment": 1,
+      "steps": 32768,
+      "score": 0.725,
+      "wins": 174,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\independent\\experiment_02\\checkpoint_0006_initial_16384_f95eb118\\model.zip",
+      "experiment": 2,
+      "steps": 16384,
+      "score": 0.6583333333333333,
+      "wins": 158,
+      "n": 240,
+      "truncated": 0,
+      "stage": "initial"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\independent\\experiment_02\\checkpoint_0007_ppo_24576_3bb4adb8\\model.zip",
+      "experiment": 2,
+      "steps": 24576,
+      "score": 0.6458333333333334,
+      "wins": 155,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\independent\\experiment_02\\checkpoint_0008_ppo_32768_982ee470\\model.zip",
+      "experiment": 2,
+      "steps": 32768,
+      "score": 0.6791666666666667,
+      "wins": 163,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    }
+  ],
+  "league_validation": [
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_00\\checkpoint_0000_initial_16384_89625465\\model.zip",
+      "experiment": 0,
+      "steps": 16384,
+      "score": 0.6208333333333333,
+      "wins": 149,
+      "n": 240,
+      "truncated": 0,
+      "stage": "initial"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_00\\checkpoint_0001_ppo_24576_fbf8d341\\model.zip",
+      "experiment": 0,
+      "steps": 24576,
+      "score": 0.6583333333333333,
+      "wins": 158,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_00\\checkpoint_0002_ppo_32768_51a2d6cc\\model.zip",
+      "experiment": 0,
+      "steps": 32768,
+      "score": 0.7,
+      "wins": 168,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_00\\checkpoint_0003_ppo_40960_a8cbf4cd\\model.zip",
+      "experiment": 0,
+      "steps": 40960,
+      "score": 0.6541666666666667,
+      "wins": 157,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_01\\checkpoint_0004_initial_16384_740b2018\\model.zip",
+      "experiment": 1,
+      "steps": 16384,
+      "score": 0.6708333333333333,
+      "wins": 161,
+      "n": 240,
+      "truncated": 0,
+      "stage": "initial"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_01\\checkpoint_0005_ppo_24576_2420fd06\\model.zip",
+      "experiment": 1,
+      "steps": 24576,
+      "score": 0.6625,
+      "wins": 159,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_01\\checkpoint_0006_ppo_32768_dacdab52\\model.zip",
+      "experiment": 1,
+      "steps": 32768,
+      "score": 0.7041666666666667,
+      "wins": 169,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_01\\checkpoint_0007_ppo_40960_3141d1d5\\model.zip",
+      "experiment": 1,
+      "steps": 40960,
+      "score": 0.7125,
+      "wins": 171,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_02\\checkpoint_0008_initial_16384_805b6cab\\model.zip",
+      "experiment": 2,
+      "steps": 16384,
+      "score": 0.6708333333333333,
+      "wins": 161,
+      "n": 240,
+      "truncated": 0,
+      "stage": "initial"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_02\\checkpoint_0009_ppo_24576_8e238195\\model.zip",
+      "experiment": 2,
+      "steps": 24576,
+      "score": 0.6875,
+      "wins": 165,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_02\\checkpoint_0010_ppo_32768_afcac756\\model.zip",
+      "experiment": 2,
+      "steps": 32768,
+      "score": 0.7208333333333333,
+      "wins": 173,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    },
+    {
+      "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_02\\checkpoint_0011_ppo_40960_c26a47ab\\model.zip",
+      "experiment": 2,
+      "steps": 40960,
+      "score": 0.725,
+      "wins": 174,
+      "n": 240,
+      "truncated": 0,
+      "stage": "ppo"
+    }
+  ],
+  "final_offset": 280000,
+  "cases_per_rival": 96,
+  "scopes": [
+    "v3/test broad",
+    "v3/unseen disjoint species",
+    "v4/test tactical+broad"
+  ],
+  "primary_comparisons": [
+    "candidate vs previous_generalization",
+    "candidate vs previous_action",
+    "candidate vs heuristic",
+    "candidate vs tactical_heuristic"
+  ],
+  "no_final_results_inspected_before_lock": true,
+  "no_reselection_or_training_after_final": true,
+  "secondary_league_final_offset": 180000
+}

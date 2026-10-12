@@ -1,0 +1,116 @@
+{
+  "schema_version": "showdown-learned-model-v1",
+  "evidence_class": "learned_policy_value",
+  "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
+  "algorithm": "sb3-contrib-MaskablePPO",
+  "versions": {
+    "torch": "2.8.0+cpu",
+    "sb3-contrib": "2.7.1",
+    "stable-baselines3": "2.7.1",
+    "gymnasium": "1.2.3",
+    "poke-env": "0.10.0",
+    "numpy": "2.4.6"
+  },
+  "policy_class": "TacticalActionConditionedPolicy",
+  "model_seed": 919,
+  "encoder_version": "showdown-learned-observation-v3",
+  "catalog_fingerprint": "7418c63254ae1dd5aa4152c9f42f2ab732a67581a5028215e2acd5d5654c7a0f",
+  "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+  "format_id": "gen9championsbssregmc",
+  "action_schema_version": "showdown-policy-actions-v1",
+  "model_sha256": "884150cc466dbaeb66a33ba2f3c8be9854ab333188b18455bfd2a8cd159af34a",
+  "total_steps": 32768,
+  "optimizer_steps": 2304,
+  "parameter_count": 142338,
+  "observation_dim": 7411,
+  "device": "cpu",
+  "gamma": 0.99,
+  "curriculum_version": "showdown-learning-curriculum-v4",
+  "experiment": {
+    "seed": 919,
+    "steps": 16384,
+    "encoder_version": "showdown-learned-observation-v3",
+    "initial_model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_generalization_v3\\model.zip",
+    "teacher": "tactical_heuristic",
+    "warmstart_decisions": 8192,
+    "warmstart_epochs": 8,
+    "warmstart_learning_rate": 0.0001,
+    "learning_rate": 5e-05,
+    "ent_coef": 0.01,
+    "opponents": [
+      "max_power",
+      "champions_heuristic",
+      "tactical_heuristic",
+      "previous",
+      "historical"
+    ],
+    "historical_model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_generalization_v3\\model.zip"
+  },
+  "stage": "ppo",
+  "initial_model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_generalization_v3\\model.zip",
+  "optimizer_initialization": "restored_same_encoder",
+  "weight_transfer_source_sha256": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+  "weight_transfer_optimizer": "fresh_shape_compatible_optimizer",
+  "weight_transfer_optimizer_scope": "ancestor_transfer_only",
+  "opponent_model_ids": {
+    "previous": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+    "historical": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d"
+  },
+  "warmstart": {
+    "decisions": 8192,
+    "attempted": 8207,
+    "episodes": 684,
+    "optimizer_updates": 512,
+    "last_loss": 1.0907549858093262,
+    "learning_rate": 0.0001,
+    "teacher_demonstration_action_accuracy": 0.6773681640625,
+    "parameter_l1_change": 838.458984375,
+    "attempted_teacher_action_classes": {
+      "attack": 4727,
+      "replacement": 838,
+      "switch": 550,
+      "setup": 599,
+      "recovery": 919,
+      "status_or_field": 574
+    },
+    "retained_teacher_action_classes": {
+      "attack": 4718,
+      "replacement": 837,
+      "switch": 549,
+      "setup": 598,
+      "recovery": 916,
+      "status_or_field": 574
+    },
+    "teacher_action_accuracy_by_class": {
+      "attack": 0.8550233149639678,
+      "replacement": 0.9199522102747909,
+      "switch": 0.6903460837887068,
+      "setup": 0.1605351170568562,
+      "recovery": 0.15502183406113537,
+      "status_or_field": 0.2229965156794425
+    }
+  },
+  "training_metrics": {
+    "collected_transitions": 8192,
+    "trained_rollout_transitions": 8192,
+    "parameter_l1_change": 147.41880798339844,
+    "optimizer_updates": 256,
+    "partial_rollout_discarded_on_resume": false,
+    "ppo": {
+      "train/learning_rate": 5e-05,
+      "train/entropy_loss": -0.5103938523679972,
+      "train/policy_gradient_loss": -0.0024710356956347823,
+      "train/value_loss": 0.3325309678912163,
+      "train/approx_kl": 0.0010039820335805416,
+      "train/clip_fraction": 0.0029296875,
+      "train/loss": 0.16432690620422363,
+      "train/explained_variance": 0.512174129486084,
+      "train/n_updates": 256.0,
+      "train/clip_range": 0.2
+    }
+  },
+  "episode_outcomes_this_checkpoint": {
+    "self": 444,
+    "opponent": 249
+  }
+}

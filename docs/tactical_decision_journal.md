@@ -71,9 +71,43 @@ earlier wording. Common initial weights/RNG seeds remain documented. Added
 optional `historical_model`; omitted field preserves legacy league semantics.
 Frozen identity/resume tests and native teacher accounting3 passed.
 
-01:28 UTC launching independent replication:811/919/1021, all initial and
+01:27 UTC launching independent replication:811/919/1021, all initial and
 historical reference SHAfe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d,
 8192 teacher decisions x8epochs +16384 PPO per seed,max1200s,CPU12.5%,3GiB.
 Original league final is secondary, not inspected for tuning. Independent
 selection/new primary final offset280000 will be locked before reading ANY
 final results. Config `independent_config.json`, output `independent/`.
+
+01:36 UTC independent run complete:49152 PPO+24576 teacher,6119 terminal
+episodes(3932 wins/2187 losses),493.21s/treeCPU551.92s,peak2.46GiB,external0.
+All historical SHAfe52 references verified, best165/174/163 of240 by seed.
+01:37 primary selection locked: league709 retained on174-win tie with919.
+Fresh primary offset280000,96 cases x5 rivals x11 policies x3 scopes.
+No further learning/model reselection after lock. Original fixed/league models
+remain intact; old finaloffset180000 only secondary. All trainer PIDs exited.
+
+01:46 primary final complete:15840/15840 terminal battles, no draws/truncations,
+external0. Tactical709324/480 vsv3 294/480, paired+6.25pp CI[1.46,11.04];
+broad240 vsv3 249, unseen254 vsv3 243, both differences uncertain. All three
+fixed seeds show tactical improvement but no broad general strength result.
+Recovery/switching restored; setup/unseen and defensive/general strength remain
+incomplete. Validation diagnosis64 games per policy:147 heals,93 requested at
+fullHP,26 explicit native `-fail|...|heal`; v3/candidate both30/64 wins.
+FullHP selections are not all wrong because faster incoming attacks can precede
+healing. Keep this failure; no final-set tuning or false strength promotion.
+
+Packaged four reloadable model/optimizer checkpoints, final summaries/raw hashes,
+selection plans, training/resources, native branches and Qt readiness. Total
+new122880 PPO +49152 teacher decisions /14171 training episodes /6912 updates.
+Next final actions: published-artifact focused regression, exact stage/commit,
+canonical push, original master/remote/process verification, Korean report.
+
+02:02 UTC final focused23 tests passed, external0; four saved artifacts restore
+SHA/action masks/native identity/optimizer without changing native checkpoints.
+Original v1/v2/v3/tactics have no diff againstecfa5c2. Original master remains
+691d2dfab74f0eaed0488dad9735d808be14927b with the same five pre-existing changes.
+Trainer PIDs4484/40200 both dead; all tracked final/UI/profile sessions exited0.
+This milestone is PARTIAL strategic strength, completed engineering/learning/
+independent evaluation. No new candidate training after final lock; in-memory
+regression-test training is verification only and excluded from study counts.
+Actual elapsed at02:02:08 UTC:62min43s; final commit/push verification follows.

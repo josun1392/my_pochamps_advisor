@@ -1,0 +1,37 @@
+{
+  "schema_version": "showdown-tactical-final-plan-v1",
+  "selected_model_sha256": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+  "selected_seed": 709,
+  "validation_selection": {
+    "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\tactical_2026-10-12\\training\\experiment_02\\checkpoint_0011_ppo_40960_c26a47ab\\model.zip",
+    "experiment": 2,
+    "steps": 40960,
+    "score": 0.725,
+    "wins": 174,
+    "n": 240,
+    "truncated": 0,
+    "stage": "ppo"
+  },
+  "final_offset": 180000,
+  "cases_per_rival": 96,
+  "rivals": [
+    "max_power",
+    "heuristic",
+    "champions_heuristic",
+    "tactical_heuristic",
+    "frozen_v3"
+  ],
+  "scopes": [
+    "v4/test tactical+broad",
+    "v3/test broad",
+    "v3/unseen disjoint species"
+  ],
+  "primary_comparisons": [
+    "candidate vs previous_generalization",
+    "candidate vs previous_action",
+    "candidate vs heuristic",
+    "candidate vs tactical_heuristic"
+  ],
+  "no_model_reselection_after_final": true,
+  "reference_artifacts_unchanged": true
+}

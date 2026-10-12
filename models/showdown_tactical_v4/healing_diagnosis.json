@@ -1,0 +1,33 @@
+{
+  "scope": "diagnostic_validation_not_model_selection",
+  "network": {
+    "blocked_external_attempts": 0
+  },
+  "results": [
+    {
+      "policy": "candidate",
+      "cases": 64,
+      "offset": 19000,
+      "counts": {
+        "recovery_full_hp": 93,
+        "recovery_near_full": 15,
+        "recovery_mid_hp": 16,
+        "recovery_low_hp": 23,
+        "opponent": 34,
+        "self": 30,
+        "public_failed_heal": 26
+      },
+      "mean_prechoice_recovery_hp": 0.8829119511876943
+    },
+    {
+      "policy": "previous_generalization",
+      "cases": 64,
+      "offset": 19000,
+      "counts": {
+        "opponent": 34,
+        "self": 30
+      },
+      "mean_prechoice_recovery_hp": null
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "schema_version": "showdown-learning-readiness-v1",
+  "model_id": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+  "native_episodes": 12,
+  "native_decisions": 134,
+  "public_native_events_and_actions": {
+    "attack": 93,
+    "faint": 48,
+    "own_wait": 23,
+    "-weather": 30,
+    "-mega": 8,
+    "win": 10,
+    "forced_replacement": 14,
+    "-enditem": 7,
+    "loss": 2,
+    "-ability": 10,
+    "-status": 5,
+    "switch": 4
+  },
+  "node_peak_rss_mib": 140.80078125,
+  "python_peak_rss_mib": 552.91015625,
+  "model_load_ms": 1768.478000012692,
+  "inference_calls": 300,
+  "inference_cpu_s": 0.5625,
+  "inference_p50_ms": 1.9816500062006526,
+  "inference_p95_ms": 2.2163999965414405,
+  "ui_dispatch_ms": 124.85440001182724,
+  "ui_end_to_end_ms": 1044.0834000037285,
+  "legacy_preferred_frontier": [],
+  "hypothetical_learned_choices": [
+    {
+      "hypothesis": "none",
+      "learned_action": "Flamethrower",
+      "policy_choice_probability": 0.9999997615814209,
+      "discounted_return": 0.8087012767791748
+    },
+    {
+      "hypothesis": "none",
+      "learned_action": "Flamethrower",
+      "policy_choice_probability": 0.9999997615814209,
+      "discounted_return": 0.8087012767791748
+    },
+    {
+      "hypothesis": "sash",
+      "learned_action": "Flamethrower",
+      "policy_choice_probability": 0.9999997615814209,
+      "discounted_return": 0.8087012767791748
+    },
+    {
+      "hypothesis": "sash",
+      "learned_action": "Flamethrower",
+      "policy_choice_probability": 0.9999997615814209,
+      "discounted_return": 0.8087012767791748
+    },
+    {
+      "hypothesis": "sitrus",
+      "learned_action": "Flamethrower",
+      "policy_choice_probability": 0.9999997615814209,
+      "discounted_return": 0.8087012767791748
+    },
+    {
+      "hypothesis": "sitrus",
+      "learned_action": "Flamethrower",
+      "policy_choice_probability": 0.9999997615814209,
+      "discounted_return": 0.8087012767791748
+    },
+    {
+      "hypothesis": "scarf",
+      "learned_action": "Flamethrower",
+      "policy_choice_probability": 0.9999997615814209,
+      "discounted_return": 0.8087012767791748
+    },
+    {
+      "hypothesis": "scarf",
+      "learned_action": "Flamethrower",
+      "policy_choice_probability": 0.9999997615814209,
+      "discounted_return": 0.8087012767791748
+    }
+  ],
+  "runtime_immutable": true,
+  "rollback_default_equal": true,
+  "default_policy_changed": false,
+  "interpretation": "learned_policy_distribution_and_uncalibrated_return_not_exact_win_probability"
+}

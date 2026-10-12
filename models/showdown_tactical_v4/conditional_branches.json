@@ -1,0 +1,4081 @@
+{
+  "schema_version": "showdown-tactical-branches-v1",
+  "interpretation": "sampled_conditional_first_action_outcomes_not_exact_or_optimal",
+  "continuation": "champions_heuristic",
+  "opponent": "tactical_heuristic",
+  "offset": 18000,
+  "cycles": 8,
+  "summaries": [
+    {
+      "motif": "defend_fire_risk",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "self": 5,
+        "opponent": 3
+      }
+    },
+    {
+      "motif": "defend_fire_risk",
+      "first_class": "recovery",
+      "n": 8,
+      "outcomes": {
+        "self": 6,
+        "opponent": 2
+      }
+    },
+    {
+      "motif": "defend_fire_risk",
+      "first_class": "setup",
+      "n": 8,
+      "outcomes": {
+        "self": 7,
+        "opponent": 1
+      }
+    },
+    {
+      "motif": "defend_fire_risk",
+      "first_class": "status_or_field",
+      "n": 8,
+      "outcomes": {
+        "self": 6,
+        "opponent": 2
+      }
+    },
+    {
+      "motif": "defend_fire_risk",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "opponent": 7,
+        "self": 1
+      }
+    },
+    {
+      "motif": "defend_physical",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "self": 2,
+        "opponent": 6
+      }
+    },
+    {
+      "motif": "defend_physical",
+      "first_class": "recovery",
+      "n": 8,
+      "outcomes": {
+        "self": 5,
+        "opponent": 3
+      }
+    },
+    {
+      "motif": "defend_physical",
+      "first_class": "setup",
+      "n": 8,
+      "outcomes": {
+        "self": 6,
+        "opponent": 2
+      }
+    },
+    {
+      "motif": "defend_physical",
+      "first_class": "status_or_field",
+      "n": 8,
+      "outcomes": {
+        "self": 4,
+        "opponent": 4
+      }
+    },
+    {
+      "motif": "defend_physical",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "self": 3,
+        "opponent": 5
+      }
+    },
+    {
+      "motif": "recover_grass_risk",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "recover_grass_risk",
+      "first_class": "recovery",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "recover_grass_risk",
+      "first_class": "status_or_field",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "recover_grass_risk",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "recover_resisted",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "recover_resisted",
+      "first_class": "recovery",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "recover_resisted",
+      "first_class": "status_or_field",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "recover_resisted",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "setup_dragon",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "opponent": 8
+      }
+    },
+    {
+      "motif": "setup_dragon",
+      "first_class": "setup",
+      "n": 8,
+      "outcomes": {
+        "opponent": 8
+      }
+    },
+    {
+      "motif": "setup_dragon",
+      "first_class": "status_or_field",
+      "n": 8,
+      "outcomes": {
+        "opponent": 8
+      }
+    },
+    {
+      "motif": "setup_dragon",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "opponent": 6,
+        "self": 2
+      }
+    },
+    {
+      "motif": "setup_fairy_risk",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "opponent": 5,
+        "self": 3
+      }
+    },
+    {
+      "motif": "setup_fairy_risk",
+      "first_class": "setup",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "setup_fairy_risk",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "setup_steel_risk",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "opponent": 6,
+        "self": 2
+      }
+    },
+    {
+      "motif": "setup_steel_risk",
+      "first_class": "setup",
+      "n": 8,
+      "outcomes": {
+        "opponent": 6,
+        "self": 2
+      }
+    },
+    {
+      "motif": "setup_steel_risk",
+      "first_class": "status_or_field",
+      "n": 8,
+      "outcomes": {
+        "opponent": 6,
+        "self": 2
+      }
+    },
+    {
+      "motif": "setup_steel_risk",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "self": 5,
+        "opponent": 3
+      }
+    },
+    {
+      "motif": "setup_water",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "setup_water",
+      "first_class": "setup",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "setup_water",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "self": 7,
+        "opponent": 1
+      }
+    },
+    {
+      "motif": "stay_fairy",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "opponent": 8
+      }
+    },
+    {
+      "motif": "stay_fairy",
+      "first_class": "setup",
+      "n": 8,
+      "outcomes": {
+        "opponent": 8
+      }
+    },
+    {
+      "motif": "stay_fairy",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "self": 2,
+        "opponent": 6
+      }
+    },
+    {
+      "motif": "stay_fighting",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "stay_fighting",
+      "first_class": "recovery",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "stay_fighting",
+      "first_class": "status_or_field",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "stay_fighting",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "switch_fire",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "switch_fire",
+      "first_class": "setup",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "switch_fire",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "opponent": 4,
+        "self": 4
+      }
+    },
+    {
+      "motif": "switch_grass",
+      "first_class": "attack",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    },
+    {
+      "motif": "switch_grass",
+      "first_class": "recovery",
+      "n": 8,
+      "outcomes": {
+        "self": 7,
+        "opponent": 1
+      }
+    },
+    {
+      "motif": "switch_grass",
+      "first_class": "status_or_field",
+      "n": 8,
+      "outcomes": {
+        "self": 7,
+        "opponent": 1
+      }
+    },
+    {
+      "motif": "switch_grass",
+      "first_class": "switch",
+      "n": 8,
+      "outcomes": {
+        "self": 8
+      }
+    }
+  ],
+  "records": [
+    {
+      "case": 18000,
+      "motif": "switch_fire",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18000,
+      "motif": "switch_fire",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18000,
+      "motif": "switch_fire",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18002,
+      "motif": "stay_fairy",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18002,
+      "motif": "stay_fairy",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18002,
+      "motif": "stay_fairy",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18004,
+      "motif": "switch_grass",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18004,
+      "motif": "switch_grass",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18004,
+      "motif": "switch_grass",
+      "first_class": "recovery",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 24
+    },
+    {
+      "case": 18004,
+      "motif": "switch_grass",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18006,
+      "motif": "stay_fighting",
+      "first_class": "status_or_field",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18006,
+      "motif": "stay_fighting",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18006,
+      "motif": "stay_fighting",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18006,
+      "motif": "stay_fighting",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18008,
+      "motif": "setup_water",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18008,
+      "motif": "setup_water",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18008,
+      "motif": "setup_water",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18010,
+      "motif": "setup_fairy_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18010,
+      "motif": "setup_fairy_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18010,
+      "motif": "setup_fairy_risk",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18012,
+      "motif": "setup_dragon",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18012,
+      "motif": "setup_dragon",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18012,
+      "motif": "setup_dragon",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18012,
+      "motif": "setup_dragon",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18014,
+      "motif": "setup_steel_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18014,
+      "motif": "setup_steel_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18014,
+      "motif": "setup_steel_risk",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18014,
+      "motif": "setup_steel_risk",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18016,
+      "motif": "recover_resisted",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18016,
+      "motif": "recover_resisted",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18016,
+      "motif": "recover_resisted",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18016,
+      "motif": "recover_resisted",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18018,
+      "motif": "recover_grass_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18018,
+      "motif": "recover_grass_risk",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18018,
+      "motif": "recover_grass_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 21
+    },
+    {
+      "case": 18018,
+      "motif": "recover_grass_risk",
+      "first_class": "recovery",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 18
+    },
+    {
+      "case": 18020,
+      "motif": "defend_physical",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18020,
+      "motif": "defend_physical",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18020,
+      "motif": "defend_physical",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18020,
+      "motif": "defend_physical",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18020,
+      "motif": "defend_physical",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18022,
+      "motif": "defend_fire_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 18
+    },
+    {
+      "case": 18022,
+      "motif": "defend_fire_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18022,
+      "motif": "defend_fire_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18022,
+      "motif": "defend_fire_risk",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18022,
+      "motif": "defend_fire_risk",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18024,
+      "motif": "switch_fire",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18024,
+      "motif": "switch_fire",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18024,
+      "motif": "switch_fire",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18026,
+      "motif": "stay_fairy",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18026,
+      "motif": "stay_fairy",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18026,
+      "motif": "stay_fairy",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18028,
+      "motif": "switch_grass",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18028,
+      "motif": "switch_grass",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18028,
+      "motif": "switch_grass",
+      "first_class": "recovery",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 22
+    },
+    {
+      "case": 18028,
+      "motif": "switch_grass",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 22
+    },
+    {
+      "case": 18030,
+      "motif": "stay_fighting",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18030,
+      "motif": "stay_fighting",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 18
+    },
+    {
+      "case": 18030,
+      "motif": "stay_fighting",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18030,
+      "motif": "stay_fighting",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18032,
+      "motif": "setup_water",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18032,
+      "motif": "setup_water",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18032,
+      "motif": "setup_water",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18034,
+      "motif": "setup_fairy_risk",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18034,
+      "motif": "setup_fairy_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18034,
+      "motif": "setup_fairy_risk",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18036,
+      "motif": "setup_dragon",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18036,
+      "motif": "setup_dragon",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18036,
+      "motif": "setup_dragon",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18036,
+      "motif": "setup_dragon",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18038,
+      "motif": "setup_steel_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18038,
+      "motif": "setup_steel_risk",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18038,
+      "motif": "setup_steel_risk",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18038,
+      "motif": "setup_steel_risk",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18040,
+      "motif": "recover_resisted",
+      "first_class": "recovery",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18040,
+      "motif": "recover_resisted",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18040,
+      "motif": "recover_resisted",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18040,
+      "motif": "recover_resisted",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18042,
+      "motif": "recover_grass_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18042,
+      "motif": "recover_grass_risk",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18042,
+      "motif": "recover_grass_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 21
+    },
+    {
+      "case": 18042,
+      "motif": "recover_grass_risk",
+      "first_class": "recovery",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18044,
+      "motif": "defend_physical",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18044,
+      "motif": "defend_physical",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18044,
+      "motif": "defend_physical",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18044,
+      "motif": "defend_physical",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18044,
+      "motif": "defend_physical",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18046,
+      "motif": "defend_fire_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 18
+    },
+    {
+      "case": 18046,
+      "motif": "defend_fire_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18046,
+      "motif": "defend_fire_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18046,
+      "motif": "defend_fire_risk",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18046,
+      "motif": "defend_fire_risk",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18048,
+      "motif": "switch_fire",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18048,
+      "motif": "switch_fire",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18048,
+      "motif": "switch_fire",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18050,
+      "motif": "stay_fairy",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18050,
+      "motif": "stay_fairy",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18050,
+      "motif": "stay_fairy",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18052,
+      "motif": "switch_grass",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18052,
+      "motif": "switch_grass",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 26
+    },
+    {
+      "case": 18052,
+      "motif": "switch_grass",
+      "first_class": "recovery",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18052,
+      "motif": "switch_grass",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18054,
+      "motif": "stay_fighting",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18054,
+      "motif": "stay_fighting",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18054,
+      "motif": "stay_fighting",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18054,
+      "motif": "stay_fighting",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18056,
+      "motif": "setup_water",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18056,
+      "motif": "setup_water",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18056,
+      "motif": "setup_water",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18058,
+      "motif": "setup_fairy_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18058,
+      "motif": "setup_fairy_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18058,
+      "motif": "setup_fairy_risk",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 7
+    },
+    {
+      "case": 18060,
+      "motif": "setup_dragon",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18060,
+      "motif": "setup_dragon",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18060,
+      "motif": "setup_dragon",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18060,
+      "motif": "setup_dragon",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18062,
+      "motif": "setup_steel_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18062,
+      "motif": "setup_steel_risk",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18062,
+      "motif": "setup_steel_risk",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18062,
+      "motif": "setup_steel_risk",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18064,
+      "motif": "recover_resisted",
+      "first_class": "recovery",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18064,
+      "motif": "recover_resisted",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18064,
+      "motif": "recover_resisted",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 22
+    },
+    {
+      "case": 18064,
+      "motif": "recover_resisted",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18066,
+      "motif": "recover_grass_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18066,
+      "motif": "recover_grass_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18066,
+      "motif": "recover_grass_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18066,
+      "motif": "recover_grass_risk",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18068,
+      "motif": "defend_physical",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18068,
+      "motif": "defend_physical",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18068,
+      "motif": "defend_physical",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18068,
+      "motif": "defend_physical",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18068,
+      "motif": "defend_physical",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18070,
+      "motif": "defend_fire_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 18
+    },
+    {
+      "case": 18070,
+      "motif": "defend_fire_risk",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18070,
+      "motif": "defend_fire_risk",
+      "first_class": "recovery",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18070,
+      "motif": "defend_fire_risk",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18070,
+      "motif": "defend_fire_risk",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18072,
+      "motif": "switch_fire",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18072,
+      "motif": "switch_fire",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18072,
+      "motif": "switch_fire",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18074,
+      "motif": "stay_fairy",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18074,
+      "motif": "stay_fairy",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18074,
+      "motif": "stay_fairy",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18076,
+      "motif": "switch_grass",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18076,
+      "motif": "switch_grass",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18076,
+      "motif": "switch_grass",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 24
+    },
+    {
+      "case": 18076,
+      "motif": "switch_grass",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 24
+    },
+    {
+      "case": 18078,
+      "motif": "stay_fighting",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18078,
+      "motif": "stay_fighting",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18078,
+      "motif": "stay_fighting",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18078,
+      "motif": "stay_fighting",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18080,
+      "motif": "setup_water",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18080,
+      "motif": "setup_water",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18080,
+      "motif": "setup_water",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18082,
+      "motif": "setup_fairy_risk",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18082,
+      "motif": "setup_fairy_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18082,
+      "motif": "setup_fairy_risk",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18084,
+      "motif": "setup_dragon",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18084,
+      "motif": "setup_dragon",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18084,
+      "motif": "setup_dragon",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18084,
+      "motif": "setup_dragon",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18086,
+      "motif": "setup_steel_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18086,
+      "motif": "setup_steel_risk",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18086,
+      "motif": "setup_steel_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18086,
+      "motif": "setup_steel_risk",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18088,
+      "motif": "recover_resisted",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18088,
+      "motif": "recover_resisted",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18088,
+      "motif": "recover_resisted",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18088,
+      "motif": "recover_resisted",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18090,
+      "motif": "recover_grass_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18090,
+      "motif": "recover_grass_risk",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18090,
+      "motif": "recover_grass_risk",
+      "first_class": "recovery",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18090,
+      "motif": "recover_grass_risk",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 20
+    },
+    {
+      "case": 18092,
+      "motif": "defend_physical",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18092,
+      "motif": "defend_physical",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18092,
+      "motif": "defend_physical",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18092,
+      "motif": "defend_physical",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18092,
+      "motif": "defend_physical",
+      "first_class": "status_or_field",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18094,
+      "motif": "defend_fire_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18094,
+      "motif": "defend_fire_risk",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18094,
+      "motif": "defend_fire_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18094,
+      "motif": "defend_fire_risk",
+      "first_class": "recovery",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18094,
+      "motif": "defend_fire_risk",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18096,
+      "motif": "switch_fire",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18096,
+      "motif": "switch_fire",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18096,
+      "motif": "switch_fire",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18098,
+      "motif": "stay_fairy",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18098,
+      "motif": "stay_fairy",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18098,
+      "motif": "stay_fairy",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18100,
+      "motif": "switch_grass",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18100,
+      "motif": "switch_grass",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18100,
+      "motif": "switch_grass",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 22
+    },
+    {
+      "case": 18100,
+      "motif": "switch_grass",
+      "first_class": "recovery",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 22
+    },
+    {
+      "case": 18102,
+      "motif": "stay_fighting",
+      "first_class": "status_or_field",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18102,
+      "motif": "stay_fighting",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18102,
+      "motif": "stay_fighting",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18102,
+      "motif": "stay_fighting",
+      "first_class": "recovery",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18104,
+      "motif": "setup_water",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18104,
+      "motif": "setup_water",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18104,
+      "motif": "setup_water",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18106,
+      "motif": "setup_fairy_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18106,
+      "motif": "setup_fairy_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18106,
+      "motif": "setup_fairy_risk",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 7
+    },
+    {
+      "case": 18108,
+      "motif": "setup_dragon",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18108,
+      "motif": "setup_dragon",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18108,
+      "motif": "setup_dragon",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18108,
+      "motif": "setup_dragon",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18110,
+      "motif": "setup_steel_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18110,
+      "motif": "setup_steel_risk",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18110,
+      "motif": "setup_steel_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18110,
+      "motif": "setup_steel_risk",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18112,
+      "motif": "recover_resisted",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18112,
+      "motif": "recover_resisted",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18112,
+      "motif": "recover_resisted",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 21
+    },
+    {
+      "case": 18112,
+      "motif": "recover_resisted",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18114,
+      "motif": "recover_grass_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18114,
+      "motif": "recover_grass_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18114,
+      "motif": "recover_grass_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18114,
+      "motif": "recover_grass_risk",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18116,
+      "motif": "defend_physical",
+      "first_class": "recovery",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18116,
+      "motif": "defend_physical",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18116,
+      "motif": "defend_physical",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18116,
+      "motif": "defend_physical",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18116,
+      "motif": "defend_physical",
+      "first_class": "status_or_field",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18118,
+      "motif": "defend_fire_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18118,
+      "motif": "defend_fire_risk",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18118,
+      "motif": "defend_fire_risk",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18118,
+      "motif": "defend_fire_risk",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18118,
+      "motif": "defend_fire_risk",
+      "first_class": "status_or_field",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18120,
+      "motif": "switch_fire",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18120,
+      "motif": "switch_fire",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18120,
+      "motif": "switch_fire",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18122,
+      "motif": "stay_fairy",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18122,
+      "motif": "stay_fairy",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18122,
+      "motif": "stay_fairy",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18124,
+      "motif": "switch_grass",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18124,
+      "motif": "switch_grass",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 24
+    },
+    {
+      "case": 18124,
+      "motif": "switch_grass",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18124,
+      "motif": "switch_grass",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18126,
+      "motif": "stay_fighting",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18126,
+      "motif": "stay_fighting",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 18
+    },
+    {
+      "case": 18126,
+      "motif": "stay_fighting",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18126,
+      "motif": "stay_fighting",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18128,
+      "motif": "setup_water",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18128,
+      "motif": "setup_water",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18128,
+      "motif": "setup_water",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18130,
+      "motif": "setup_fairy_risk",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18130,
+      "motif": "setup_fairy_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18130,
+      "motif": "setup_fairy_risk",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18132,
+      "motif": "setup_dragon",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18132,
+      "motif": "setup_dragon",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18132,
+      "motif": "setup_dragon",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18132,
+      "motif": "setup_dragon",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18134,
+      "motif": "setup_steel_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18134,
+      "motif": "setup_steel_risk",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18134,
+      "motif": "setup_steel_risk",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18134,
+      "motif": "setup_steel_risk",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18136,
+      "motif": "recover_resisted",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18136,
+      "motif": "recover_resisted",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18136,
+      "motif": "recover_resisted",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 22
+    },
+    {
+      "case": 18136,
+      "motif": "recover_resisted",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18138,
+      "motif": "recover_grass_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18138,
+      "motif": "recover_grass_risk",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18138,
+      "motif": "recover_grass_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18138,
+      "motif": "recover_grass_risk",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18140,
+      "motif": "defend_physical",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18140,
+      "motif": "defend_physical",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18140,
+      "motif": "defend_physical",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 18
+    },
+    {
+      "case": 18140,
+      "motif": "defend_physical",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18140,
+      "motif": "defend_physical",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18142,
+      "motif": "defend_fire_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18142,
+      "motif": "defend_fire_risk",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18142,
+      "motif": "defend_fire_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18142,
+      "motif": "defend_fire_risk",
+      "first_class": "recovery",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18142,
+      "motif": "defend_fire_risk",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18144,
+      "motif": "switch_fire",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18144,
+      "motif": "switch_fire",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18144,
+      "motif": "switch_fire",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18146,
+      "motif": "stay_fairy",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18146,
+      "motif": "stay_fairy",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18146,
+      "motif": "stay_fairy",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18148,
+      "motif": "switch_grass",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18148,
+      "motif": "switch_grass",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 22
+    },
+    {
+      "case": 18148,
+      "motif": "switch_grass",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18148,
+      "motif": "switch_grass",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18150,
+      "motif": "stay_fighting",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18150,
+      "motif": "stay_fighting",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18150,
+      "motif": "stay_fighting",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18150,
+      "motif": "stay_fighting",
+      "first_class": "recovery",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18152,
+      "motif": "setup_water",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18152,
+      "motif": "setup_water",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18152,
+      "motif": "setup_water",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18154,
+      "motif": "setup_fairy_risk",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18154,
+      "motif": "setup_fairy_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18154,
+      "motif": "setup_fairy_risk",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18156,
+      "motif": "setup_dragon",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18156,
+      "motif": "setup_dragon",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18156,
+      "motif": "setup_dragon",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18156,
+      "motif": "setup_dragon",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18158,
+      "motif": "setup_steel_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18158,
+      "motif": "setup_steel_risk",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18158,
+      "motif": "setup_steel_risk",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18158,
+      "motif": "setup_steel_risk",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18160,
+      "motif": "recover_resisted",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18160,
+      "motif": "recover_resisted",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 12
+    },
+    {
+      "case": 18160,
+      "motif": "recover_resisted",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 25
+    },
+    {
+      "case": 18160,
+      "motif": "recover_resisted",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18162,
+      "motif": "recover_grass_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18162,
+      "motif": "recover_grass_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18162,
+      "motif": "recover_grass_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18162,
+      "motif": "recover_grass_risk",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 21
+    },
+    {
+      "case": 18164,
+      "motif": "defend_physical",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18164,
+      "motif": "defend_physical",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18164,
+      "motif": "defend_physical",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18164,
+      "motif": "defend_physical",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18164,
+      "motif": "defend_physical",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18166,
+      "motif": "defend_fire_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 23
+    },
+    {
+      "case": 18166,
+      "motif": "defend_fire_risk",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18166,
+      "motif": "defend_fire_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 11
+    },
+    {
+      "case": 18166,
+      "motif": "defend_fire_risk",
+      "first_class": "setup",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18166,
+      "motif": "defend_fire_risk",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18168,
+      "motif": "switch_fire",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18168,
+      "motif": "switch_fire",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18168,
+      "motif": "switch_fire",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18170,
+      "motif": "stay_fairy",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18170,
+      "motif": "stay_fairy",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18170,
+      "motif": "stay_fairy",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18172,
+      "motif": "switch_grass",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18172,
+      "motif": "switch_grass",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 18
+    },
+    {
+      "case": 18172,
+      "motif": "switch_grass",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 24
+    },
+    {
+      "case": 18172,
+      "motif": "switch_grass",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 24
+    },
+    {
+      "case": 18174,
+      "motif": "stay_fighting",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18174,
+      "motif": "stay_fighting",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18174,
+      "motif": "stay_fighting",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18174,
+      "motif": "stay_fighting",
+      "first_class": "recovery",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18176,
+      "motif": "setup_water",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 7
+    },
+    {
+      "case": 18176,
+      "motif": "setup_water",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18176,
+      "motif": "setup_water",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18178,
+      "motif": "setup_fairy_risk",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18178,
+      "motif": "setup_fairy_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18178,
+      "motif": "setup_fairy_risk",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18180,
+      "motif": "setup_dragon",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18180,
+      "motif": "setup_dragon",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 10
+    },
+    {
+      "case": 18180,
+      "motif": "setup_dragon",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18180,
+      "motif": "setup_dragon",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18182,
+      "motif": "setup_steel_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 7
+    },
+    {
+      "case": 18182,
+      "motif": "setup_steel_risk",
+      "first_class": "attack",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18182,
+      "motif": "setup_steel_risk",
+      "first_class": "setup",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18182,
+      "motif": "setup_steel_risk",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 8
+    },
+    {
+      "case": 18184,
+      "motif": "recover_resisted",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 20
+    },
+    {
+      "case": 18184,
+      "motif": "recover_resisted",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18184,
+      "motif": "recover_resisted",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 20
+    },
+    {
+      "case": 18184,
+      "motif": "recover_resisted",
+      "first_class": "status_or_field",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 19
+    },
+    {
+      "case": 18186,
+      "motif": "recover_grass_risk",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18186,
+      "motif": "recover_grass_risk",
+      "first_class": "attack",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 15
+    },
+    {
+      "case": 18186,
+      "motif": "recover_grass_risk",
+      "first_class": "recovery",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18186,
+      "motif": "recover_grass_risk",
+      "first_class": "status_or_field",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 9
+    },
+    {
+      "case": 18188,
+      "motif": "defend_physical",
+      "first_class": "recovery",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18188,
+      "motif": "defend_physical",
+      "first_class": "attack",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 16
+    },
+    {
+      "case": 18188,
+      "motif": "defend_physical",
+      "first_class": "switch",
+      "first_action": 1,
+      "native_choice": "switch 2",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18188,
+      "motif": "defend_physical",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18188,
+      "motif": "defend_physical",
+      "first_class": "setup",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "self",
+      "truncated": false,
+      "decisions": 17
+    },
+    {
+      "case": 18190,
+      "motif": "defend_fire_risk",
+      "first_class": "switch",
+      "first_action": 2,
+      "native_choice": "switch 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 18
+    },
+    {
+      "case": 18190,
+      "motif": "defend_fire_risk",
+      "first_class": "attack",
+      "first_action": 8,
+      "native_choice": "move 3",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18190,
+      "motif": "defend_fire_risk",
+      "first_class": "status_or_field",
+      "first_action": 6,
+      "native_choice": "move 1",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 13
+    },
+    {
+      "case": 18190,
+      "motif": "defend_fire_risk",
+      "first_class": "setup",
+      "first_action": 7,
+      "native_choice": "move 2",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 14
+    },
+    {
+      "case": 18190,
+      "motif": "defend_fire_risk",
+      "first_class": "recovery",
+      "first_action": 9,
+      "native_choice": "move 4",
+      "winner": "opponent",
+      "truncated": false,
+      "decisions": 14
+    }
+  ]
+}
