@@ -1,0 +1,19 @@
+{
+  "stopped_epochs": 4,
+  "resumed_epochs": 8,
+  "source_checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\resume_proof\\run\\experiment_00\\checkpoint_0000_offline_40960_454fd065\\model.zip",
+  "restored_dataset_id": "d2bccb936765b072fb45d7164336993adcdcb32b78b9d2af1639b598c8f024ae",
+  "ppo_transitions": 128,
+  "network": {
+    "blocked_external_attempts": 0
+  },
+  "resources": {
+    "native_rss_bytes": 146948096,
+    "gpu_peak_allocated_bytes": 0,
+    "python_cpu_seconds": 4.40625,
+    "wall_seconds_this_launch": 7.826011099998141,
+    "tree_cpu_seconds": 6.265625,
+    "peak_job_memory_bytes": 1223340032,
+    "active_processes": 1
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "model_id": "c7f120d7ff5f14c127e030affb1887412c55012eea818dd40b6d98e1242df151",
+  "truth_immutable": true,
+  "exact_recommendations_equal": true,
+  "evidence_valid": true,
+  "rollback_default_unchanged": true,
+  "wall_seconds": 5.070559400002821,
+  "network": {
+    "blocked_external_attempts": 0
+  },
+  "resources": {
+    "tree_cpu_seconds": 5.0,
+    "peak_job_memory_bytes": 1102749696,
+    "active_processes": 1
+  }
+}

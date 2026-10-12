@@ -128,10 +128,13 @@ UNSEEN = [
 def scenario(split, index, *, version="showdown-learning-curriculum-v1"):
     if split not in {"train", "validation", "test", "unseen"}:
         raise ValueError("invalid_curriculum_split")
-    if version == "showdown-learning-curriculum-v6":
+    if version in {
+        "showdown-learning-curriculum-v6",
+        "showdown-learning-curriculum-v6-fresh17",
+    }:
         from advisor.learned_native_curriculum import native_case
 
-        return native_case(split, index)
+        return native_case(split, index, version=version)
     if version == "showdown-learning-curriculum-v5":
         from advisor.learned_coherent_curriculum import coherent_case
 

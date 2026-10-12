@@ -27,7 +27,22 @@ def main():
     p.add_argument(
         "--model", type=Path, default=Path("models/showdown_tactical_v4/model.zip")
     )
+    p.add_argument("--offset", type=int, default=48000)
+    p.add_argument("--states", type=int, default=24)
+    p.add_argument("--cases", type=int, default=48)
+    p.add_argument(
+        "--curriculum-version",
+        default="showdown-learning-curriculum-v5",
+        choices=[
+            "showdown-learning-curriculum-v3",
+            "showdown-learning-curriculum-v4",
+            "showdown-learning-curriculum-v5",
+            "showdown-learning-curriculum-v6",
+        ],
+    )
     args = p.parse_args()
+    if not 1 <= args.states <= 64 or not 1 <= args.cases <= 128:
+        p.error("bounded diagnostic states/cases required")
     w = Path(__file__).resolve().parents[1]
     e = args.checkout
     out = args.output
@@ -40,13 +55,11 @@ def main():
     states = 0
     try:
         with ShowdownEnvironment(e) as env:
-            for index in range(48000, 48048):
-                if states >= 24 or budget.stopping():
+            for index in range(args.offset, args.offset + args.cases):
+                if states >= args.states or budget.stopping():
                     break
                 env.reset(
-                    scenario(
-                        "validation", index, version="showdown-learning-curriculum-v5"
-                    )
+                    scenario("validation", index, version=args.curriculum_version)
                 )
                 rival = VisibleBaseline("tactical_heuristic", index + 919)
                 seen = set()
@@ -67,7 +80,7 @@ def main():
                         v["request_state"] == "move"
                         and interest
                         and interest not in seen
-                        and states < 24
+                        and states < args.states
                     ):
                         choices = {
                             "selected": a,
@@ -141,7 +154,10 @@ def main():
                 "model_id": model.model_id,
                 "native_execution_evidence_class": "exact_native_execution_specific_complete_hypothesis_choice_and_restored_rng",
                 "aggregate_interpretation": "diagnostic_selected_validation_states_fixed_continuations_not_optimal_action_labels_or_exact_probabilities",
-                "continuation": "previous_tactical_v4",
+                "continuation": "selected_learned_model",
+                "continuation_model_id": model.model_id,
+                "curriculum_version": args.curriculum_version,
+                "validation_offset": args.offset,
                 "rival": "tactical_heuristic_fresh_rng_at_snapshot",
                 "states": states,
                 "records": records,

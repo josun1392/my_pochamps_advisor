@@ -24,6 +24,15 @@ def main():
     parser.add_argument("--test-teams", type=int, default=512)
     parser.add_argument("--unseen-teams", type=int, default=512)
     parser.add_argument("--fresh-unseen-species", type=int, default=20)
+    parser.add_argument("--reserved-species-file", type=Path)
+    parser.add_argument(
+        "--curriculum-version",
+        default="showdown-learning-curriculum-v6",
+        choices=[
+            "showdown-learning-curriculum-v6",
+            "showdown-learning-curriculum-v6-fresh17",
+        ],
+    )
     parser.add_argument("--max-runtime-seconds", type=int, default=300)
     args = parser.parse_args()
     counts = {
@@ -39,9 +48,14 @@ def main():
     job = WindowsJob(memory_mib=2048, cpu_percent=12.5)
     started = perf_counter()
     request = {
-        "reserved_species": [p[0] for p in BROAD_UNSEEN + EXTRA_UNSEEN],
+        "reserved_species": json.loads(
+            args.reserved_species_file.read_text(encoding="utf-8")
+        )
+        if args.reserved_species_file
+        else [p[0] for p in BROAD_UNSEEN + EXTRA_UNSEEN],
         "fresh_unseen_species": args.fresh_unseen_species,
         "counts": counts,
+        "curriculum_version": args.curriculum_version,
     }
     script = (
         Path(__file__).resolve().parents[1]

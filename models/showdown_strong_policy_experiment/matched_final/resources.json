@@ -1,0 +1,9 @@
+{
+  "wall_seconds": 319.39858280000044,
+  "network": {
+    "blocked_external_attempts": 0
+  },
+  "tree_cpu_seconds": 332.828125,
+  "peak_job_memory_bytes": 1592516608,
+  "active_processes": 1
+}

@@ -56,8 +56,23 @@ case-cluster confidence intervals and tactical diagnostics. Full records use
 lossless gzip JSON. Keep final scopes unopened until selection ends.
 
 The native bank contains191training base species and40reserved unseen base
-species with varying maintained Champions movesets. M-C TeamValidator rejects
+species with varying maintained Champions movesets. Three of these40were seen
+in earlier pretraining; the separate final-only fresh17bank excludes prior
+training and old held-out species and rejects training/validation access.
+M-C TeamValidator rejects
 duplicate items and other illegal teams. Native random spreads are legal
 coverage fixtures, not expert competitive spreads; bring6/pick3selection is
 random and is not learned in this experiment. No full legal-roster coverage or
 human-level strategy claim follows from this dataset.
+
+The packaged validation-selected candidate is
+`models/showdown_strong_policy_experiment/learner_2477/model.zip`.
+It is experimental and did not establish global superiority. Preserve the
+existing general control and v2/v3/v4. For a portable paired evaluation:
+
+```powershell
+uv run --extra learning python scripts/evaluate_showdown_study.py --config models/showdown_strong_policy_experiment/portable_final_plan.json --checkout $engine --output NEW_EVALUATION_DIRECTORY
+```
+
+Poke-env's missing public-effect enum entries are reported once and counted in
+the resource summary; native Showdown mechanics and actor decisions are unchanged.

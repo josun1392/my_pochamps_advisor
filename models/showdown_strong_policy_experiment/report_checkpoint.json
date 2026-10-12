@@ -1,0 +1,11 @@
+{
+  "recorded_utc": "2026-10-12T07:09:15.605497+00:00",
+  "mission_started_utc": "2026-10-12T05:27:14Z",
+  "trainer_wall_seconds": 1279.862325,
+  "training_tree_cpu_seconds": 7369.609375,
+  "learning_transitions": 589824,
+  "unique_public_rows": 32768,
+  "learning_terminal_battles": 61327,
+  "data_terminal_battles": 3352,
+  "independent_final_battles": 39744
+}

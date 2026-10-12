@@ -1,0 +1,44 @@
+{
+  "final_offset": 880000,
+  "selection_criterion": "mean of native/coherent/tactical validation win fractions; ties preserve earlier checkpoint",
+  "validation_scores": {
+    "tactical_heuristic": 0.6053240740740741,
+    "max_power": 0.35185185185185186,
+    "awr_2591": 0.5694444444444444,
+    "awr_2393": 0.5671296296296297,
+    "ppo_2393": 0.5914351851851851,
+    "ppo_2591": 0.6041666666666666,
+    "awr_2477": 0.5694444444444444,
+    "bc_2591": 0.5520833333333334,
+    "previous_tactical": 0.5752314814814815,
+    "bc_2477": 0.5555555555555555,
+    "heuristic": 0.59375,
+    "control": 0.5879629629629629,
+    "previous_action": 0.5393518518518519,
+    "ppo_2477": 0.6041666666666666,
+    "champions_heuristic": 0.5914351851851851,
+    "bc_2393": 0.5543981481481483,
+    "previous_generalization": 0.5590277777777778,
+    "extended_ppo_2591": 0.6041666666666666,
+    "extended_ppo_2393": 0.5995370370370371,
+    "extended_ppo_2477": 0.6122685185185185
+  },
+  "selected_models": {
+    "learner_2393": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\extension\\experiment_00\\checkpoint_0001_ppo_118784_7aa6c45b\\model.zip",
+    "learner_2477": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\extension\\experiment_01\\checkpoint_0006_ppo_151552_0c6f29cb\\model.zip",
+    "learner_2591": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_06\\checkpoint_0038_ppo_86016_7f254b61\\model.zip",
+    "bc_selected": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_04\\checkpoint_0022_offline_53248_639c6e9c\\model.zip",
+    "awr_selected": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_05\\checkpoint_0028_offline_53248_a622b30e\\model.zip",
+    "control": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_general_mc_experiment\\control\\model.zip",
+    "previous_action": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_action_v2\\model.zip",
+    "previous_generalization": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_generalization_v3\\model.zip",
+    "previous_tactical": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_tactical_v4\\model.zip"
+  },
+  "best_validation_model": "learner_2477",
+  "frozen_plans": [
+    "final_plan.json",
+    "fresh_final_plan.json",
+    "matched_final_plan.json"
+  ],
+  "no_further_training_or_selection_after_final": true
+}

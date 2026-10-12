@@ -7,15 +7,16 @@ const {execFileSync} = require('node:child_process');
 const {loadEngine} = require('./engine.cjs');
 const pin = '942cda71d14bf0618bd57991708a2e2734b6daba';
 const format = 'gen9championsbssregmc';
-const version = 'showdown-learning-curriculum-v6';
 const checkout = process.argv[2];
 if (execFileSync('git', ['-C', checkout, 'rev-parse', 'HEAD'], {encoding:'utf8'}).trim() !== pin ||
     execFileSync('git', ['-C', checkout, 'status', '--porcelain', '--untracked-files=no'], {encoding:'utf8'}).trim()) {
   throw new Error('pinned_clean_engine_required');
 }
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+const version = input.curriculum_version || 'showdown-learning-curriculum-v6';
+if (!['showdown-learning-curriculum-v6','showdown-learning-curriculum-v6-fresh17'].includes(version)) throw new Error('unknown_bank_version');
 if (!Array.isArray(input.reserved_species) || !Number.isInteger(input.fresh_unseen_species) ||
-    input.fresh_unseen_species < 6 || input.fresh_unseen_species > 32) throw new Error('bounded_reservations_required');
+    input.fresh_unseen_species < 0 || input.fresh_unseen_species > 32) throw new Error('bounded_reservations_required');
 const {Teams, Dex, TeamValidator} = loadEngine(checkout);
 const dex = Dex.mod('champions');
 const source = Teams.getGenerator(format, [1,2,3,4]).randomSets;

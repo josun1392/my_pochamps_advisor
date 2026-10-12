@@ -1,0 +1,80 @@
+{
+  "checkout": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-mc-install-93162ded436d489fb541ab54eb392653",
+  "catalog": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor/models/showdown_initial_v1/catalog.json",
+  "max_runtime_seconds": 1200,
+  "models": {
+    "ppo_2393": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_00\\checkpoint_0001_ppo_61440_69f1cae5\\model.zip",
+    "bc_2393": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_01\\checkpoint_0006_offline_complete_53248_cb8e01ea\\model.zip",
+    "awr_2393": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_02\\checkpoint_0011_offline_53248_fb7899a1\\model.zip",
+    "ppo_2477": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_03\\checkpoint_0018_ppo_61440_4725155b\\model.zip",
+    "bc_2477": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_04\\checkpoint_0022_offline_53248_639c6e9c\\model.zip",
+    "awr_2477": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_05\\checkpoint_0028_offline_53248_a622b30e\\model.zip",
+    "ppo_2591": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_06\\checkpoint_0038_ppo_86016_7f254b61\\model.zip",
+    "bc_2591": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_07\\checkpoint_0039_offline_53248_109b7bdc\\model.zip",
+    "awr_2591": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_08\\checkpoint_0045_offline_53248_51490bf4\\model.zip",
+    "control": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_general_mc_experiment\\control\\model.zip",
+    "previous_action": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_action_v2\\model.zip",
+    "previous_generalization": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_generalization_v3\\model.zip",
+    "previous_tactical": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_tactical_v4\\model.zip"
+  },
+  "baselines": [
+    "heuristic",
+    "champions_heuristic",
+    "tactical_heuristic",
+    "max_power"
+  ],
+  "rivals": {
+    "max_power": "max_power",
+    "heuristic": "heuristic",
+    "champions_heuristic": "champions_heuristic",
+    "tactical_heuristic": "tactical_heuristic",
+    "frozen_v2": {
+      "model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_action_v2\\model.zip"
+    },
+    "frozen_control": {
+      "model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_general_mc_experiment\\control\\model.zip"
+    }
+  },
+  "scopes": [
+    {
+      "name": "native_validation",
+      "split": "validation",
+      "offset": 53000,
+      "cases": 48,
+      "curriculum_version": "showdown-learning-curriculum-v6"
+    },
+    {
+      "name": "coherent_validation",
+      "split": "validation",
+      "offset": 53000,
+      "cases": 48,
+      "curriculum_version": "showdown-learning-curriculum-v5"
+    },
+    {
+      "name": "tactical_validation",
+      "split": "validation",
+      "offset": 53000,
+      "cases": 24,
+      "curriculum_version": "showdown-learning-curriculum-v4"
+    }
+  ],
+  "policy_model_ids": {
+    "ppo_2393": "1a06eb07d8efb45a65679dc619bcf1070bcfff88a83b3b97f1aeabd15888f847",
+    "bc_2393": "3302a4e00c8fb6923661b8bcf377195b4eac2777177dd8c0614bd35be727d344",
+    "awr_2393": "aeba8030a1a63d86c682a6632b1f869784b3a24fbbf0cb845a1cba87a3b11895",
+    "ppo_2477": "0934db772a590d6a2faeba1fb063d663d49d083489efdd685e0eaea5f22ca9e5",
+    "bc_2477": "9ca85525c62951d96bb830cc3a0119eb9e08c5249eafbb47019d097d2361ba8f",
+    "awr_2477": "f18d21de21c957d1b6002e73b6ec28495606edead65e80f301b212c8168eb1fc",
+    "ppo_2591": "3401589727ae19efee48398ec2f69b631eadaee5e87c272add5363c50275dd35",
+    "bc_2591": "ae23f08783515c8186346fd6a69f9c78e4c3cf22740810987bcddde8f38176bd",
+    "awr_2591": "6ee2c57e05b03a6890a0eccfe0ecca873be661d24cfb927f85b42e9a0c0c587c",
+    "control": "30bc6c34b702137cf63c4fe12c3e4e3ff9e3cfdf6cdd7a52195ce40b5566b896",
+    "previous_action": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+    "previous_generalization": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+    "previous_tactical": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641"
+  },
+  "rival_model_ids": {
+    "frozen_v2": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+    "frozen_control": "30bc6c34b702137cf63c4fe12c3e4e3ff9e3cfdf6cdd7a52195ce40b5566b896"
+  }
+}

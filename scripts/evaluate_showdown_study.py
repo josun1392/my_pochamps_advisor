@@ -7,6 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import argparse
 import gzip
 import json
+import logging
+import re
 from time import perf_counter
 import torch
 from advisor.learned_policy import LearnedPolicy
@@ -42,6 +44,19 @@ def run(config, output):
     job = WindowsJob(memory_mib=4096, cpu_percent=12.5)
     budget = RuntimeLimit(output, config["max_runtime_seconds"])
     network = enforce_local_network_only()
+    public_effect_warnings = {}
+
+    class EffectSummary(logging.Filter):
+        def filter(self, record):
+            match = re.search(r"Unexpected effect '([^']+)'", record.getMessage())
+            if not match:
+                return True
+            effect = match.group(1)
+            public_effect_warnings[effect] = public_effect_warnings.get(effect, 0) + 1
+            # Keep the first warning and summarize repeats without altering parsing.
+            return public_effect_warnings[effect] == 1
+
+    logging.getLogger("poke-env").addFilter(EffectSummary())
     started = perf_counter()
     torch.set_num_threads(1)
     cache = {}
@@ -117,6 +132,7 @@ def run(config, output):
             {
                 "wall_seconds": perf_counter() - started,
                 "network": network,
+                "unsupported_public_effect_warning_counts": public_effect_warnings,
                 **job.usage(),
             },
         )
@@ -129,8 +145,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--checkout",
+        type=Path,
+        help="Override the pinned native engine in a portable study plan",
+    )
     args = parser.parse_args()
-    run(json.loads(args.config.read_text(encoding="utf-8")), args.output)
+    config = json.loads(args.config.read_text(encoding="utf-8"))
+    if args.checkout:
+        config["checkout"] = str(args.checkout.resolve())
+    run(config, args.output)
 
 
 if __name__ == "__main__":

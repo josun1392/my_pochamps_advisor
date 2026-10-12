@@ -1,0 +1,15 @@
+{
+  "packaged_model_reload_and_native_outcomes_equal": true,
+  "resources": {
+    "wall_seconds": 1.7156103000015719,
+    "network": {
+      "blocked_external_attempts": 0
+    },
+    "unsupported_public_effect_warning_counts": {
+      "MEGA_SOL": 4
+    },
+    "tree_cpu_seconds": 3.609375,
+    "peak_job_memory_bytes": 1046052864,
+    "active_processes": 1
+  }
+}

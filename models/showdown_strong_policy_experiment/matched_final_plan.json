@@ -1,0 +1,49 @@
+{
+  "checkout": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-mc-install-93162ded436d489fb541ab54eb392653",
+  "catalog": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor/models/showdown_initial_v1/catalog.json",
+  "max_runtime_seconds": 900,
+  "models": {
+    "ppo_2393": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_00\\checkpoint_0004_ppo_86016_734eefe4\\model.zip",
+    "bc_2393": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_01\\checkpoint_0010_ppo_86016_c96ad7ce\\model.zip",
+    "awr_2393": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_02\\checkpoint_0016_ppo_86016_0b70741e\\model.zip",
+    "ppo_2477": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_03\\checkpoint_0021_ppo_86016_e0771453\\model.zip",
+    "bc_2477": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_04\\checkpoint_0027_ppo_86016_01815507\\model.zip",
+    "awr_2477": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_05\\checkpoint_0033_ppo_86016_12726b01\\model.zip",
+    "ppo_2591": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_06\\checkpoint_0038_ppo_86016_7f254b61\\model.zip",
+    "bc_2591": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_07\\checkpoint_0044_ppo_86016_3c28e79b\\model.zip",
+    "awr_2591": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_08\\checkpoint_0050_ppo_86016_2eb3db54\\model.zip",
+    "control": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_general_mc_experiment\\control\\model.zip",
+    "previous_action": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_action_v2\\model.zip",
+    "previous_generalization": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_generalization_v3\\model.zip",
+    "previous_tactical": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_tactical_v4\\model.zip"
+  },
+  "baselines": [],
+  "rivals": {
+    "max_power": "max_power",
+    "heuristic": "heuristic",
+    "champions_heuristic": "champions_heuristic",
+    "tactical_heuristic": "tactical_heuristic",
+    "frozen_v2": {
+      "model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_action_v2\\model.zip"
+    },
+    "frozen_control": {
+      "model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_general_mc_experiment\\control\\model.zip"
+    }
+  },
+  "scopes": [
+    {
+      "name": "matched_native",
+      "split": "test",
+      "offset": 880000,
+      "cases": 48,
+      "curriculum_version": "showdown-learning-curriculum-v6"
+    },
+    {
+      "name": "matched_fresh17",
+      "split": "unseen",
+      "offset": 880000,
+      "cases": 48,
+      "curriculum_version": "showdown-learning-curriculum-v6-fresh17"
+    }
+  ]
+}

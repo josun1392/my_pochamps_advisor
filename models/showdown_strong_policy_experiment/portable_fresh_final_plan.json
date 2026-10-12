@@ -1,0 +1,43 @@
+{
+  "catalog": "models/showdown_initial_v1/catalog.json",
+  "max_runtime_seconds": 1200,
+  "models": {
+    "learner_2393": "models/showdown_strong_policy_experiment/learner_2393/model.zip",
+    "learner_2477": "models/showdown_strong_policy_experiment/learner_2477/model.zip",
+    "learner_2591": "models/showdown_strong_policy_experiment/learner_2591/model.zip",
+    "bc_selected": "models/showdown_strong_policy_experiment/bc_selected/model.zip",
+    "awr_selected": "models/showdown_strong_policy_experiment/awr_selected/model.zip",
+    "control": "models/showdown_general_mc_experiment/control/model.zip",
+    "previous_action": "models/showdown_action_v2/model.zip",
+    "previous_generalization": "models/showdown_generalization_v3/model.zip",
+    "previous_tactical": "models/showdown_tactical_v4/model.zip"
+  },
+  "baselines": [
+    "random",
+    "max_power",
+    "heuristic",
+    "champions_heuristic",
+    "tactical_heuristic"
+  ],
+  "rivals": {
+    "max_power": "max_power",
+    "heuristic": "heuristic",
+    "champions_heuristic": "champions_heuristic",
+    "tactical_heuristic": "tactical_heuristic",
+    "frozen_v2": {
+      "model": "models/showdown_action_v2/model.zip"
+    },
+    "frozen_control": {
+      "model": "models/showdown_general_mc_experiment/control/model.zip"
+    }
+  },
+  "scopes": [
+    {
+      "name": "fresh17_test",
+      "split": "unseen",
+      "offset": 880000,
+      "cases": 96,
+      "curriculum_version": "showdown-learning-curriculum-v6-fresh17"
+    }
+  ]
+}

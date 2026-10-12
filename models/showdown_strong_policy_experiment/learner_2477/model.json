@@ -1,0 +1,99 @@
+{
+  "schema_version": "showdown-learned-model-v1",
+  "evidence_class": "learned_policy_value",
+  "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
+  "algorithm": "sb3-contrib-MaskablePPO",
+  "versions": {
+    "torch": "2.8.0+cpu",
+    "sb3-contrib": "2.7.1",
+    "stable-baselines3": "2.7.1",
+    "gymnasium": "1.2.3",
+    "poke-env": "0.10.0",
+    "numpy": "2.4.6"
+  },
+  "policy_class": "TacticalActionConditionedPolicy",
+  "model_seed": 2477,
+  "encoder_version": "showdown-learned-observation-v3",
+  "catalog_fingerprint": "7418c63254ae1dd5aa4152c9f42f2ab732a67581a5028215e2acd5d5654c7a0f",
+  "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+  "format_id": "gen9championsbssregmc",
+  "action_schema_version": "showdown-policy-actions-v1",
+  "model_sha256": "c7f120d7ff5f14c127e030affb1887412c55012eea818dd40b6d98e1242df151",
+  "total_steps": 151552,
+  "optimizer_steps": 3072,
+  "parameter_count": 142338,
+  "observation_dim": 7411,
+  "device": "cpu",
+  "gamma": 0.99,
+  "curriculum_version": "showdown-learning-curriculum-v6",
+  "experiment": {
+    "name": "extended_ppo_2477",
+    "seed": 2477,
+    "steps": 98304,
+    "encoder_version": "showdown-learned-observation-v3",
+    "initial_model": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_03\\checkpoint_0021_ppo_86016_e0771453\\model.zip",
+    "historical_model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor/models/showdown_generalization_v3/model.zip",
+    "frozen_opponents": {
+      "frozen_v2": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor/models/showdown_action_v2/model.zip",
+      "frozen_control": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor/models/showdown_general_mc_experiment/control/model.zip"
+    },
+    "opponents": [
+      "champions_heuristic",
+      "tactical_heuristic",
+      "previous",
+      "historical",
+      "frozen_v2",
+      "frozen_control"
+    ],
+    "warmstart_decisions": 0,
+    "fresh_optimizer": false,
+    "learning_rate": 5e-05,
+    "ent_coef": 0.01
+  },
+  "stage": "ppo",
+  "initial_model": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\strong_policy_2026-10-12\\pilot\\experiment_03\\checkpoint_0021_ppo_86016_e0771453\\model.zip",
+  "optimizer_initialization": "restored_same_encoder",
+  "weight_transfer_source_sha256": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+  "weight_transfer_optimizer": "fresh_shape_compatible_optimizer",
+  "weight_transfer_optimizer_scope": "ancestor_transfer_only",
+  "opponent_model_ids": {
+    "previous": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+    "historical": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d"
+  },
+  "warmstart": {
+    "decisions": 0,
+    "optimizer_updates": 0
+  },
+  "offline": null,
+  "offline_learning_scope": null,
+  "extra_opponent_model_ids": {
+    "frozen_v2": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+    "frozen_control": "30bc6c34b702137cf63c4fe12c3e4e3ff9e3cfdf6cdd7a52195ce40b5566b896"
+  },
+  "training_metrics": {
+    "collected_transitions": 32768,
+    "trained_rollout_transitions": 32768,
+    "parameter_l1_change": 323.9216003417969,
+    "optimizer_updates": 1024,
+    "partial_rollout_discarded_on_resume": false,
+    "ppo": {
+      "train/learning_rate": 5e-05,
+      "train/entropy_loss": -0.30477792024612427,
+      "train/policy_gradient_loss": -0.006098903875681572,
+      "train/value_loss": 0.4337584739550948,
+      "train/approx_kl": 0.002328493632376194,
+      "train/clip_fraction": 0.01611328125,
+      "train/loss": 0.17794795334339142,
+      "train/explained_variance": 0.3445228338241577,
+      "train/n_updates": 800.0,
+      "train/clip_range": 0.2
+    }
+  },
+  "vector_backend": "subproc",
+  "cpu_threads": 4,
+  "gpu_memory_fraction": null,
+  "episode_outcomes_this_checkpoint": {
+    "self": 1719,
+    "opponent": 1735
+  }
+}

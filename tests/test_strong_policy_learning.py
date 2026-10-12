@@ -85,6 +85,24 @@ def test_new_mega_public_metadata_does_not_mutate_upstream_gen9():
     assert battle._data.pokedex is not original and original == snapshot
 
 
+def test_fresh_species_bank_rejects_training_and_pretraining_overlap():
+    from advisor.learned_native_curriculum import FRESH_VERSION, FRESH_BANK, _load_bank
+    from advisor.learned_scenarios import TRAIN
+    from advisor.learned_roster import BROAD_TRAIN
+    from advisor.learned_coherent_curriculum import EXTRA_TRAIN
+
+    bank = _load_bank(FRESH_BANK, FRESH_VERSION)
+    prior = {p[0].split("-")[0] for p in TRAIN + BROAD_TRAIN + EXTRA_TRAIN}
+    assert len(bank["unseen_base_species"]) == 17 and not prior & set(
+        bank["unseen_base_species"]
+    )
+    for split in ("train", "validation", "test"):
+        with pytest.raises(
+            ValueError, match="cannot_be_used_for_training_or_selection"
+        ):
+            scenario(split, 880000, version=FRESH_VERSION)
+
+
 def test_native_bank_episodes_and_behavior_receive_only_own_partial_views(checkout):
     encoder = make_encoder(CATALOG, "showdown-learned-observation-v3")
     seen = []
