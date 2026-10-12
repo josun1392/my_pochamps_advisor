@@ -47,6 +47,7 @@ def main():
             "showdown-learning-curriculum-v3",
             "showdown-learning-curriculum-v4",
             "showdown-learning-curriculum-v5",
+            "showdown-learning-curriculum-v6",
         ],
     )
     parser.add_argument("--tactical-diagnostics", action="store_true")

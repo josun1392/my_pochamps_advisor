@@ -1,0 +1,120 @@
+{
+  "schema_version": "showdown-autonomous-training-v1",
+  "catalog": "models/showdown_initial_v1/catalog.json",
+  "previous_model": "models/showdown_tactical_v4/model.zip",
+  "curriculum_version": "showdown-learning-curriculum-v6",
+  "max_runtime_seconds": 1800,
+  "envs": 8,
+  "vector_backend": "subproc",
+  "cpu_threads": 4,
+  "memory_mib": 12288,
+  "cpu_percent": 50,
+  "validation_cases": 48,
+  "validation_offset": 44000,
+  "evaluation_opponents": [
+    "max_power",
+    "champions_heuristic",
+    "tactical_heuristic",
+    "previous"
+  ],
+  "checkpoint_steps": 32768,
+  "plateau_patience": 3,
+  "experiments": [
+    {
+      "name": "awr_2393",
+      "seed": 2393,
+      "steps": 131072,
+      "encoder_version": "showdown-learned-observation-v3",
+      "initial_model": "models/showdown_general_mc_experiment/control/model.zip",
+      "historical_model": "models/showdown_generalization_v3/model.zip",
+      "frozen_opponents": {
+        "frozen_v2": "models/showdown_action_v2/model.zip",
+        "frozen_control": "models/showdown_general_mc_experiment/control/model.zip"
+      },
+      "opponents": [
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical",
+        "frozen_v2",
+        "frozen_control"
+      ],
+      "warmstart_decisions": 0,
+      "fresh_optimizer": true,
+      "learning_rate": 0.00005,
+      "ent_coef": 0.01,
+      "offline": {
+        "dataset": "external-public-trajectories",
+        "mode": "awr",
+        "epochs": 8,
+        "temperature": 1,
+        "learning_rate": 0.00005,
+        "entropy": 0.01
+      }
+    },
+    {
+      "name": "awr_2477",
+      "seed": 2477,
+      "steps": 131072,
+      "encoder_version": "showdown-learned-observation-v3",
+      "initial_model": "models/showdown_general_mc_experiment/control/model.zip",
+      "historical_model": "models/showdown_generalization_v3/model.zip",
+      "frozen_opponents": {
+        "frozen_v2": "models/showdown_action_v2/model.zip",
+        "frozen_control": "models/showdown_general_mc_experiment/control/model.zip"
+      },
+      "opponents": [
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical",
+        "frozen_v2",
+        "frozen_control"
+      ],
+      "warmstart_decisions": 0,
+      "fresh_optimizer": true,
+      "learning_rate": 0.00005,
+      "ent_coef": 0.01,
+      "offline": {
+        "dataset": "external-public-trajectories",
+        "mode": "awr",
+        "epochs": 8,
+        "temperature": 1,
+        "learning_rate": 0.00005,
+        "entropy": 0.01
+      }
+    },
+    {
+      "name": "awr_2591",
+      "seed": 2591,
+      "steps": 131072,
+      "encoder_version": "showdown-learned-observation-v3",
+      "initial_model": "models/showdown_general_mc_experiment/control/model.zip",
+      "historical_model": "models/showdown_generalization_v3/model.zip",
+      "frozen_opponents": {
+        "frozen_v2": "models/showdown_action_v2/model.zip",
+        "frozen_control": "models/showdown_general_mc_experiment/control/model.zip"
+      },
+      "opponents": [
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical",
+        "frozen_v2",
+        "frozen_control"
+      ],
+      "warmstart_decisions": 0,
+      "fresh_optimizer": true,
+      "learning_rate": 0.00005,
+      "ent_coef": 0.01,
+      "offline": {
+        "dataset": "external-public-trajectories",
+        "mode": "awr",
+        "epochs": 8,
+        "temperature": 1,
+        "learning_rate": 0.00005,
+        "entropy": 0.01
+      }
+    }
+  ]
+}

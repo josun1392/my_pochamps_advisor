@@ -38,11 +38,13 @@ class VisibleBaseline:
             raise ValueError("no_policy_action")
         if self.kind == "random":
             return self.rng.choice(allowed)
-        from poke_env.battle import Battle, Move, Pokemon
+        from poke_env.battle import Move, Pokemon
         from poke_env.player import MaxBasePowerPlayer, SimpleHeuristicsPlayer
 
         if self.episode != observation["episode_id"]:
-            self.battle = Battle(
+            from advisor.learned_champions_metadata import make_champions_battle
+
+            self.battle = make_champions_battle(
                 "offline-policy",
                 "self" if observation["side"] == "self" else "opponent",
                 logging.getLogger("offline-poke-baseline"),

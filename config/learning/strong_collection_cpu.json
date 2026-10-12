@@ -1,0 +1,34 @@
+{
+  "catalog": "models/showdown_initial_v1/catalog.json",
+  "decisions": 32768,
+  "envs": 8,
+  "memory_mib": 12288,
+  "cpu_percent": 50,
+  "max_runtime_seconds": 600,
+  "curriculum_version": "showdown-learning-curriculum-v6",
+  "seed": 2309,
+  "stochastic_learned": true,
+  "models": {
+    "v2": "models/showdown_action_v2/model.zip",
+    "v3": "models/showdown_generalization_v3/model.zip",
+    "v4": "models/showdown_tactical_v4/model.zip",
+    "control": "models/showdown_general_mc_experiment/control/model.zip"
+  },
+  "behaviors": [
+    "heuristic",
+    "champions_heuristic",
+    "tactical_heuristic",
+    "v2",
+    "v3",
+    "v4",
+    "control"
+  ],
+  "opponents": [
+    "champions_heuristic",
+    "tactical_heuristic",
+    "v2",
+    "v3",
+    "v4",
+    "control"
+  ]
+}

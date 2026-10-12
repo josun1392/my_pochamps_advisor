@@ -36,6 +36,7 @@ class ShowdownLearningEnv(gym.Env):
         self.curriculum_version = curriculum_version
         self.opponents = opponents or ("random", "max_power", "heuristic")
         self.opponent_factory = opponent_factory
+        self._behavior_cache = {}
         try:
             self.reset()
         except BaseException:
@@ -83,6 +84,34 @@ class ShowdownLearningEnv(gym.Env):
 
     def action_masks(self):
         return np.asarray(self.current["action_mask"], dtype=bool)
+
+    def behavior_action(self, kind, stochastic=False):
+        """Offline collection helper: the actor receives only its own partial view."""
+        if kind not in self._behavior_cache:
+            self._behavior_cache[kind] = (
+                self.opponent_factory(kind, self.index + 47)
+                if self.opponent_factory
+                else VisibleBaseline(kind, self.index + 47)
+            )
+        actor = self._behavior_cache[kind]
+        if stochastic and hasattr(actor, "infer"):
+            probabilities = np.asarray(
+                actor.infer(self.current)["action_probabilities"]
+            )
+            action = int(
+                self.np_random.choice(35, p=probabilities / probabilities.sum())
+            )
+        else:
+            action = actor.act(self.current)
+        if not self.action_masks()[action]:
+            raise ValueError("masked_public_behavior_action")
+        return action
+
+    def behavior_decision(self, kind, stochastic=False):
+        from advisor.learned_tactical_diagnostics import action_class
+
+        action = self.behavior_action(kind, stochastic)
+        return {"action": action, "category": action_class(self.current, action)}
 
     def step(self, action):
         if (

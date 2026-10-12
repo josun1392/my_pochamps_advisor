@@ -52,6 +52,7 @@ def validate_config(config):
         "showdown-learning-curriculum-v3",
         "showdown-learning-curriculum-v4",
         "showdown-learning-curriculum-v5",
+        "showdown-learning-curriculum-v6",
     }:
         raise ValueError("unsupported_learning_curriculum")
     rivals = config.get("evaluation_opponents", ["random", "max_power", "heuristic"])
@@ -112,6 +113,40 @@ def validate_config(config):
         raise ValueError("invalid_reference_models")
     rollout = 128 * config.get("envs", 4)
     for experiment in config["experiments"]:
+        frozen = experiment.get("frozen_opponents", {})
+        if (
+            not isinstance(frozen, dict)
+            or len(frozen) > 4
+            or set(frozen)
+            & {
+                "random",
+                "max_power",
+                "heuristic",
+                "champions_heuristic",
+                "tactical_heuristic",
+                "previous",
+                "historical",
+            }
+            or any(
+                not isinstance(name, str)
+                or not name.isidentifier()
+                or not isinstance(path, str)
+                for name, path in frozen.items()
+            )
+        ):
+            raise ValueError("invalid_frozen_opponents")
+        offline = experiment.get("offline")
+        if offline is not None and (
+            not isinstance(offline, dict)
+            or offline.get("mode", "awr") not in {"bc", "awr"}
+            or not 1 <= offline.get("epochs", 8) <= 32
+            or not isinstance(offline.get("dataset"), str)
+            or not 0.1 <= offline.get("temperature", 1.0) <= 5
+            or not 1e-6 <= offline.get("learning_rate", 5e-5) <= 1e-3
+            or not 0 <= offline.get("entropy", 0.01) <= 0.1
+            or experiment.get("warmstart_decisions", 0)
+        ):
+            raise ValueError("invalid_offline_learning_config")
         if experiment.get("encoder_version", VERSION) not in {
             VERSION,
             "showdown-learned-observation-v1",
@@ -157,6 +192,7 @@ def validate_config(config):
                 "previous",
                 "historical",
             }
+            - set(frozen)
         ):
             raise ValueError("unsupported_opponent_mixture")
         if experiment.get("teacher", "heuristic") not in {
@@ -544,6 +580,17 @@ def run(config, output, *, resume=False, require_detached=False):
                 )
                 if policy is not None
             }
+            extra = {}
+            for kind, path in experiment.get("frozen_opponents", {}).items():
+                policy = LearnedPolicy(path, catalog)
+                references[kind] = (str(Path(path).resolve()), policy.model_id)
+                extra[kind] = policy.model_id
+            previous_extra = state.get("frozen_extra_opponents")
+            if state.get("latest"):
+                if previous_extra is not None and previous_extra != extra:
+                    raise ValueError("frozen_opponent_identity_changed_on_resume")
+            state["frozen_extra_opponents"] = extra
+            atomic_json(state_path, state)
             factories = [
                 LearningEnvFactory(
                     str(checkout),
@@ -692,6 +739,11 @@ def run(config, output, *, resume=False, require_detached=False):
                             "historical": historical.model_id if historical else None,
                         },
                         "warmstart": state.get("warmstart"),
+                        "offline": state.get("offline"),
+                        "offline_learning_scope": "masked_executed_episode_return_weighting_not_Q_learning_or_optimal_action_labels"
+                        if experiment.get("offline")
+                        else None,
+                        "extra_opponent_model_ids": extra,
                         "training_metrics": details,
                         "vector_backend": config.get("vector_backend", "dummy"),
                         "cpu_threads": config.get("cpu_threads", 1),
@@ -825,7 +877,59 @@ def run(config, output, *, resume=False, require_detached=False):
                         warm_episodes.extend(collection_env.drain_completed())
                         collection_env.close()
                 state["warmstart_decisions"] += state["warmstart"]["decisions"]
-                checkpoint("initial", {})
+                state["offline"] = None
+                if not experiment.get("offline"):
+                    checkpoint("initial", {})
+            if experiment.get("offline") and not (state.get("offline") or {}).get(
+                "complete", False
+            ):
+                from advisor.learned_offline import fit_offline
+
+                saved_offline = state.get("offline")
+
+                def offline_epoch(progress):
+                    nonlocal saved_offline
+                    state["offline"] = {
+                        **progress,
+                        "complete": progress["completed_epochs"]
+                        >= experiment["offline"].get("epochs", 8),
+                    }
+                    # Existing immutable checkpoints preserve optimizer and epoch identity.
+                    if (
+                        progress["completed_epochs"] % 4 == 0
+                        and not state["offline"]["complete"]
+                    ):
+                        checkpoint("offline", progress)
+                        saved_offline = state["offline"].copy()
+                        torch.set_num_threads(config.get("cpu_threads", 1))
+
+                torch.set_num_threads(config.get("cpu_threads", 1))
+                offline_config = dict(experiment["offline"])
+                if saved_offline:
+                    offline_config["dataset_id"] = saved_offline["dataset_id"]
+                fitted = fit_offline(
+                    model,
+                    encoder,
+                    offline_config,
+                    seed,
+                    budget,
+                    completed_epochs=(state.get("offline") or {}).get(
+                        "completed_epochs", 0
+                    ),
+                    on_epoch=offline_epoch,
+                )
+                state["offline"] = {
+                    **fitted,
+                    "complete": fitted["completed_epochs"]
+                    >= experiment["offline"].get("epochs", 8),
+                }
+                if not budget.stopping():
+                    checkpoint("offline_complete", fitted)
+                    state["plateau"] = 0
+                else:
+                    state["offline_stopped_launch"] = fitted
+                    # Restore only the epoch that belongs to the persisted model.
+                    state["offline"] = saved_offline
             while (
                 state["experiment_steps"] < experiment["steps"]
                 and not budget.stopping()
@@ -1015,6 +1119,11 @@ def main():
     parser.add_argument("--config", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--offline-dataset",
+        type=Path,
+        help="Override the public trajectory dataset for offline experiments",
+    )
     parser.add_argument("--detach", action="store_true")
     parser.add_argument(
         "--require-detached", action="store_true", help=argparse.SUPPRESS
@@ -1035,10 +1144,14 @@ def main():
     config = json.loads(args.config.read_text(encoding="utf-8-sig"))
     if args.checkout:
         config["checkout"] = str(args.checkout.resolve())
+    if args.offline_dataset:
+        for experiment in config["experiments"]:
+            if experiment.get("offline"):
+                experiment["offline"]["dataset"] = str(args.offline_dataset.resolve())
     if not config.get("checkout"):
         parser.error("--checkout or config checkout is required")
     validate_config(config)
-    if args.detach and args.checkout:
+    if args.detach and (args.checkout or args.offline_dataset):
         args.output.mkdir(parents=True, exist_ok=True)
         effective = args.output / "effective-config.json"
         atomic_json(effective, config)
