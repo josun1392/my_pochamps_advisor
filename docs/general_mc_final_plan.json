@@ -1,0 +1,103 @@
+{
+  "schema_version": "general-mc-final-plan-v1",
+  "locked_utc": "2026-10-12 03:31:59 UTC",
+  "selection": {
+    "criterion": "highest_wins_common_validation_32000_32_cases_five_rivals_ties_first",
+    "paths": {
+      "control": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_warm_pilot\\experiment_00\\checkpoint_0002_ppo_53248_ffd1823f\\model.zip",
+      "public": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_warm_pilot\\experiment_01\\checkpoint_0004_ppo_6144_89235bec\\model.zip"
+    },
+    "labels": {
+      "control": "warm_control_1423",
+      "public": "warm_public_1423"
+    },
+    "scores": {
+      "rl_control_1237": {
+        "wins": 87,
+        "n": 160
+      },
+      "rl_public_1237": {
+        "wins": 85,
+        "n": 160
+      },
+      "rl_control_1301": {
+        "wins": 81,
+        "n": 160
+      },
+      "rl_public_1301": {
+        "wins": 81,
+        "n": 160
+      },
+      "warm_control_1423": {
+        "wins": 90,
+        "n": 160
+      },
+      "warm_public_1423": {
+        "wins": 88,
+        "n": 160
+      },
+      "warm_control_1559": {
+        "wins": 77,
+        "n": 160
+      },
+      "warm_public_1559": {
+        "wins": 77,
+        "n": 160
+      },
+      "previous_tactical": {
+        "wins": 81,
+        "n": 160
+      },
+      "tactical_heuristic": {
+        "wins": 99,
+        "n": 160
+      }
+    },
+    "resources": {
+      "tree_cpu_seconds": 80.34375,
+      "peak_job_memory_bytes": 1305305088,
+      "active_processes": 1
+    },
+    "network": {
+      "blocked_external_attempts": 0
+    }
+  },
+  "final_offset": 680000,
+  "cases_per_rival": 64,
+  "scopes": [
+    {
+      "curriculum": "showdown-learning-curriculum-v5",
+      "split": "test"
+    },
+    {
+      "curriculum": "showdown-learning-curriculum-v5",
+      "split": "unseen"
+    },
+    {
+      "curriculum": "showdown-learning-curriculum-v3",
+      "split": "test"
+    }
+  ],
+  "models": [
+    "candidate",
+    "public_candidate",
+    "previous_action",
+    "previous_generalization",
+    "previous_tactical"
+  ],
+  "baselines": [
+    "random",
+    "max_power",
+    "heuristic",
+    "champions_heuristic",
+    "tactical_heuristic"
+  ],
+  "rivals": [
+    "max_power",
+    "heuristic",
+    "champions_heuristic",
+    "tactical_heuristic",
+    "frozen_previous_tactical_v4"
+  ],
+  "analysis": "paired case-cluster bootstrap; descriptive pooled Wilson; no training/model selection after final inspection; preserve v4 unless broad and unseen comparisons support promotion"
+}

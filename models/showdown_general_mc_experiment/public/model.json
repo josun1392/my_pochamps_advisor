@@ -1,0 +1,123 @@
+{
+  "schema_version": "showdown-learned-model-v1",
+  "evidence_class": "learned_policy_value",
+  "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
+  "algorithm": "sb3-contrib-MaskablePPO",
+  "versions": {
+    "torch": "2.8.0+cpu",
+    "sb3-contrib": "2.7.1",
+    "stable-baselines3": "2.7.1",
+    "gymnasium": "1.2.3",
+    "poke-env": "0.10.0",
+    "numpy": "2.4.6"
+  },
+  "policy_class": "PublicInteractionPolicy",
+  "model_seed": 1423,
+  "encoder_version": "showdown-learned-observation-v4",
+  "catalog_fingerprint": "16269b410552a4c47196bebc1edfd16f98d35115f04540a11bf1ca30efcf3b87",
+  "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+  "format_id": "gen9championsbssregmc",
+  "action_schema_version": "showdown-policy-actions-v1",
+  "model_sha256": "55b4050e80d236dfb9f49fe047c6bb8ed422e55e4e634ef9bdb29f781ed4570b",
+  "total_steps": 6144,
+  "optimizer_steps": 256,
+  "parameter_count": 152514,
+  "observation_dim": 8474,
+  "device": "cpu",
+  "gamma": 0.99,
+  "curriculum_version": "showdown-learning-curriculum-v5",
+  "experiment": {
+    "seed": 1423,
+    "steps": 12288,
+    "encoder_version": "showdown-learned-observation-v4",
+    "historical_model": "models/showdown_generalization_v3/model.zip",
+    "opponents": [
+      "max_power",
+      "champions_heuristic",
+      "tactical_heuristic",
+      "previous",
+      "historical"
+    ],
+    "teacher": "tactical_heuristic",
+    "warmstart_decisions": 2048,
+    "warmstart_epochs": 4,
+    "warmstart_learning_rate": 0.0001,
+    "learning_rate": 5e-05,
+    "ent_coef": 0.01,
+    "fresh_optimizer": true,
+    "transfer_model": "models/showdown_tactical_v4/model.zip"
+  },
+  "stage": "ppo",
+  "initial_model": null,
+  "optimizer_initialization": "fresh",
+  "weight_transfer_source_sha256": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+  "weight_transfer_optimizer": "fresh_shape_compatible_optimizer",
+  "weight_transfer_optimizer_scope": "current_initialization",
+  "opponent_model_ids": {
+    "previous": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+    "historical": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d"
+  },
+  "warmstart": {
+    "decisions": 2048,
+    "attempted": 2051,
+    "episodes": 172,
+    "optimizer_updates": 64,
+    "last_loss": 1.0927783250808716,
+    "learning_rate": 0.0001,
+    "teacher_demonstration_action_accuracy": 0.7314453125,
+    "parameter_l1_change": 264.4908752441406,
+    "attempted_teacher_action_classes": {
+      "attack": 1373,
+      "switch": 43,
+      "setup": 96,
+      "replacement": 272,
+      "status_or_field": 75,
+      "recovery": 184,
+      "defense": 8
+    },
+    "retained_teacher_action_classes": {
+      "attack": 1371,
+      "switch": 43,
+      "setup": 96,
+      "replacement": 271,
+      "status_or_field": 75,
+      "recovery": 184,
+      "defense": 8
+    },
+    "teacher_action_accuracy_by_class": {
+      "attack": 0.8796498905908097,
+      "switch": 0.13953488372093023,
+      "setup": 0.020833333333333332,
+      "replacement": 0.9003690036900369,
+      "status_or_field": 0.04,
+      "recovery": 0.20108695652173914,
+      "defense": 0.0
+    }
+  },
+  "training_metrics": {
+    "collected_transitions": 6144,
+    "trained_rollout_transitions": 6144,
+    "parameter_l1_change": 159.43963623046875,
+    "optimizer_updates": 192,
+    "partial_rollout_discarded_on_resume": false,
+    "ppo": {
+      "train/learning_rate": 5e-05,
+      "train/entropy_loss": -0.734182171523571,
+      "train/policy_gradient_loss": -0.0037363748997449875,
+      "train/value_loss": 0.45279047451913357,
+      "train/approx_kl": 0.001225932501256466,
+      "train/clip_fraction": 0.001953125,
+      "train/loss": 0.17865407466888428,
+      "train/explained_variance": 0.11099213361740112,
+      "train/n_updates": 48.0,
+      "train/clip_range": 0.2
+    }
+  },
+  "vector_backend": "subproc",
+  "cpu_threads": 4,
+  "gpu_memory_fraction": null,
+  "episode_outcomes_this_checkpoint": {
+    "self": 222,
+    "opponent": 263
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "repeated_seed": 1871,
+  "new_ppo_transitions_per_run": 512,
+  "retained_teacher_decisions_per_run": 128,
+  "ended_battles_per_run": 49,
+  "all_policy_tensors_identical": true,
+  "optimizer_updates_per_run": 18,
+  "episode_outcomes_identical": true,
+  "validation_scores_identical": true,
+  "conditional_audit_reproduced_states": 24,
+  "conditional_audit_reproduced_battles": 72,
+  "source_nonce_hashes_expected_different": true
+}

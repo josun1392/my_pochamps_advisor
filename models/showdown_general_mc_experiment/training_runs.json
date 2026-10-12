@@ -1,0 +1,555 @@
+{
+  "matched_rl_pilot": {
+    "status": "complete",
+    "transitions": 32768,
+    "trained_rollout_transitions": 32768,
+    "completed_battles": 2585,
+    "warmstart_decisions": 0,
+    "episode_outcomes": {
+      "self": 1320,
+      "opponent": 1265
+    },
+    "wall_seconds_this_launch": 189.12457549999817,
+    "resources": {
+      "native_rss_bytes": 566759424,
+      "gpu_peak_allocated_bytes": 0,
+      "python_cpu_seconds": 318.9375,
+      "wall_seconds_this_launch": 182.24690139999439,
+      "tree_cpu_seconds": 631.53125,
+      "peak_job_memory_bytes": 5281234944,
+      "active_processes": 1
+    },
+    "experiments": [
+      {
+        "index": 0,
+        "seed": 1237,
+        "encoder": "showdown-learned-observation-v3",
+        "best": {
+          "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_rl_pilot\\experiment_00\\checkpoint_0001_ppo_45056_84fe4cf2\\model.zip",
+          "experiment": 0,
+          "steps": 45056,
+          "score": 0.6041666666666666,
+          "wins": 58,
+          "n": 96,
+          "truncated": 0,
+          "stage": "ppo"
+        },
+        "scores": [
+          [
+            "initial",
+            40960,
+            54,
+            96
+          ],
+          [
+            "ppo",
+            45056,
+            58,
+            96
+          ],
+          [
+            "ppo",
+            49152,
+            54,
+            96
+          ]
+        ],
+        "warmstart": {
+          "decisions": 0,
+          "optimizer_updates": 0
+        },
+        "ppo": {
+          "train/learning_rate": 5e-05,
+          "train/entropy_loss": -0.42581397108733654,
+          "train/policy_gradient_loss": -0.0036843723355559632,
+          "train/value_loss": 0.3891620859503746,
+          "train/approx_kl": 0.0014617347624152899,
+          "train/clip_fraction": 0.00341796875,
+          "train/loss": 0.11473093926906586,
+          "train/explained_variance": 0.29383766651153564,
+          "train/n_updates": 352.0,
+          "train/clip_range": 0.2
+        }
+      },
+      {
+        "index": 1,
+        "seed": 1237,
+        "encoder": "showdown-learned-observation-v4",
+        "best": {
+          "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_rl_pilot\\experiment_01\\checkpoint_0004_ppo_4096_fc9d166c\\model.zip",
+          "experiment": 1,
+          "steps": 4096,
+          "score": 0.5729166666666666,
+          "wins": 55,
+          "n": 96,
+          "truncated": 0,
+          "stage": "ppo"
+        },
+        "scores": [
+          [
+            "initial",
+            0,
+            54,
+            96
+          ],
+          [
+            "ppo",
+            4096,
+            55,
+            96
+          ],
+          [
+            "ppo",
+            8192,
+            55,
+            96
+          ]
+        ],
+        "warmstart": {
+          "decisions": 0,
+          "optimizer_updates": 0
+        },
+        "ppo": {
+          "train/learning_rate": 5e-05,
+          "train/entropy_loss": -0.49337976053357124,
+          "train/policy_gradient_loss": -0.005500011349795386,
+          "train/value_loss": 0.32425392232835293,
+          "train/approx_kl": 0.002428126521408558,
+          "train/clip_fraction": 0.0068359375,
+          "train/loss": 0.14592263102531433,
+          "train/explained_variance": 0.3774188756942749,
+          "train/n_updates": 32.0,
+          "train/clip_range": 0.2
+        }
+      },
+      {
+        "index": 2,
+        "seed": 1301,
+        "encoder": "showdown-learned-observation-v3",
+        "best": {
+          "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_rl_pilot\\experiment_02\\checkpoint_0006_initial_40960_63ba5766\\model.zip",
+          "experiment": 2,
+          "steps": 40960,
+          "score": 0.5625,
+          "wins": 54,
+          "n": 96,
+          "truncated": 0,
+          "stage": "initial"
+        },
+        "scores": [
+          [
+            "initial",
+            40960,
+            54,
+            96
+          ],
+          [
+            "ppo",
+            45056,
+            53,
+            96
+          ],
+          [
+            "ppo",
+            49152,
+            53,
+            96
+          ]
+        ],
+        "warmstart": {
+          "decisions": 0,
+          "optimizer_updates": 0
+        },
+        "ppo": null
+      },
+      {
+        "index": 3,
+        "seed": 1301,
+        "encoder": "showdown-learned-observation-v4",
+        "best": {
+          "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_rl_pilot\\experiment_03\\checkpoint_0009_initial_0_183c4cfb\\model.zip",
+          "experiment": 3,
+          "steps": 0,
+          "score": 0.5625,
+          "wins": 54,
+          "n": 96,
+          "truncated": 0,
+          "stage": "initial"
+        },
+        "scores": [
+          [
+            "initial",
+            0,
+            54,
+            96
+          ],
+          [
+            "ppo",
+            4096,
+            53,
+            96
+          ],
+          [
+            "ppo",
+            8192,
+            54,
+            96
+          ]
+        ],
+        "warmstart": {
+          "decisions": 0,
+          "optimizer_updates": 0
+        },
+        "ppo": null
+      }
+    ]
+  },
+  "matched_warm_pilot": {
+    "status": "complete",
+    "transitions": 49152,
+    "trained_rollout_transitions": 49152,
+    "completed_battles": 4712,
+    "warmstart_decisions": 8192,
+    "episode_outcomes": {
+      "opponent": 2384,
+      "self": 2328
+    },
+    "wall_seconds_this_launch": 280.36853949999204,
+    "resources": {
+      "native_rss_bytes": 569970688,
+      "gpu_peak_allocated_bytes": 0,
+      "python_cpu_seconds": 470.546875,
+      "wall_seconds_this_launch": 271.789686899996,
+      "tree_cpu_seconds": 873.265625,
+      "peak_job_memory_bytes": 5542297600,
+      "active_processes": 1
+    },
+    "experiments": [
+      {
+        "index": 0,
+        "seed": 1423,
+        "encoder": "showdown-learned-observation-v3",
+        "best": {
+          "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_warm_pilot\\experiment_00\\checkpoint_0002_ppo_53248_ffd1823f\\model.zip",
+          "experiment": 0,
+          "steps": 53248,
+          "score": 0.5859375,
+          "wins": 75,
+          "n": 128,
+          "truncated": 0,
+          "stage": "ppo"
+        },
+        "scores": [
+          [
+            "initial",
+            40960,
+            68,
+            128
+          ],
+          [
+            "ppo",
+            47104,
+            72,
+            128
+          ],
+          [
+            "ppo",
+            53248,
+            75,
+            128
+          ]
+        ],
+        "warmstart": {
+          "decisions": 2048,
+          "attempted": 2051,
+          "episodes": 172,
+          "optimizer_updates": 64,
+          "last_loss": 1.103111743927002,
+          "learning_rate": 0.0001,
+          "teacher_demonstration_action_accuracy": 0.732421875,
+          "parameter_l1_change": 254.12745666503906,
+          "attempted_teacher_action_classes": {
+            "attack": 1373,
+            "switch": 43,
+            "setup": 96,
+            "replacement": 272,
+            "status_or_field": 75,
+            "recovery": 184,
+            "defense": 8
+          },
+          "retained_teacher_action_classes": {
+            "attack": 1371,
+            "switch": 43,
+            "setup": 96,
+            "replacement": 271,
+            "status_or_field": 75,
+            "recovery": 184,
+            "defense": 8
+          },
+          "teacher_action_accuracy_by_class": {
+            "attack": 0.8840262582056893,
+            "switch": 0.16279069767441862,
+            "setup": 0.020833333333333332,
+            "replacement": 0.9003690036900369,
+            "status_or_field": 0.04,
+            "recovery": 0.17391304347826086,
+            "defense": 0.0
+          }
+        },
+        "ppo": {
+          "train/learning_rate": 5e-05,
+          "train/entropy_loss": -0.3755087722092867,
+          "train/policy_gradient_loss": -0.002578820043709129,
+          "train/value_loss": 0.3608812913298607,
+          "train/approx_kl": 0.0012740809470415115,
+          "train/clip_fraction": 0.00439453125,
+          "train/loss": 0.15299686789512634,
+          "train/explained_variance": 0.3400138020515442,
+          "train/n_updates": 416.0,
+          "train/clip_range": 0.2
+        }
+      },
+      {
+        "index": 1,
+        "seed": 1423,
+        "encoder": "showdown-learned-observation-v4",
+        "best": {
+          "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_warm_pilot\\experiment_01\\checkpoint_0004_ppo_6144_89235bec\\model.zip",
+          "experiment": 1,
+          "steps": 6144,
+          "score": 0.5703125,
+          "wins": 73,
+          "n": 128,
+          "truncated": 0,
+          "stage": "ppo"
+        },
+        "scores": [
+          [
+            "initial",
+            0,
+            68,
+            128
+          ],
+          [
+            "ppo",
+            6144,
+            73,
+            128
+          ],
+          [
+            "ppo",
+            12288,
+            70,
+            128
+          ]
+        ],
+        "warmstart": {
+          "decisions": 2048,
+          "attempted": 2051,
+          "episodes": 172,
+          "optimizer_updates": 64,
+          "last_loss": 1.0927783250808716,
+          "learning_rate": 0.0001,
+          "teacher_demonstration_action_accuracy": 0.7314453125,
+          "parameter_l1_change": 264.4908752441406,
+          "attempted_teacher_action_classes": {
+            "attack": 1373,
+            "switch": 43,
+            "setup": 96,
+            "replacement": 272,
+            "status_or_field": 75,
+            "recovery": 184,
+            "defense": 8
+          },
+          "retained_teacher_action_classes": {
+            "attack": 1371,
+            "switch": 43,
+            "setup": 96,
+            "replacement": 271,
+            "status_or_field": 75,
+            "recovery": 184,
+            "defense": 8
+          },
+          "teacher_action_accuracy_by_class": {
+            "attack": 0.8796498905908097,
+            "switch": 0.13953488372093023,
+            "setup": 0.020833333333333332,
+            "replacement": 0.9003690036900369,
+            "status_or_field": 0.04,
+            "recovery": 0.20108695652173914,
+            "defense": 0.0
+          }
+        },
+        "ppo": {
+          "train/learning_rate": 5e-05,
+          "train/entropy_loss": -0.734182171523571,
+          "train/policy_gradient_loss": -0.0037363748997449875,
+          "train/value_loss": 0.45279047451913357,
+          "train/approx_kl": 0.001225932501256466,
+          "train/clip_fraction": 0.001953125,
+          "train/loss": 0.17865407466888428,
+          "train/explained_variance": 0.11099213361740112,
+          "train/n_updates": 48.0,
+          "train/clip_range": 0.2
+        }
+      },
+      {
+        "index": 2,
+        "seed": 1559,
+        "encoder": "showdown-learned-observation-v3",
+        "best": {
+          "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_warm_pilot\\experiment_02\\checkpoint_0006_initial_40960_0ab65f9d\\model.zip",
+          "experiment": 2,
+          "steps": 40960,
+          "score": 0.5625,
+          "wins": 72,
+          "n": 128,
+          "truncated": 0,
+          "stage": "initial"
+        },
+        "scores": [
+          [
+            "initial",
+            40960,
+            72,
+            128
+          ],
+          [
+            "ppo",
+            47104,
+            69,
+            128
+          ],
+          [
+            "ppo",
+            53248,
+            68,
+            128
+          ]
+        ],
+        "warmstart": {
+          "decisions": 2048,
+          "attempted": 2059,
+          "episodes": 168,
+          "optimizer_updates": 64,
+          "last_loss": 1.2052509784698486,
+          "learning_rate": 0.0001,
+          "teacher_demonstration_action_accuracy": 0.6953125,
+          "parameter_l1_change": 275.8917236328125,
+          "attempted_teacher_action_classes": {
+            "attack": 1270,
+            "replacement": 255,
+            "status_or_field": 148,
+            "recovery": 220,
+            "setup": 108,
+            "switch": 50,
+            "defense": 8
+          },
+          "retained_teacher_action_classes": {
+            "attack": 1264,
+            "replacement": 253,
+            "status_or_field": 148,
+            "recovery": 220,
+            "setup": 107,
+            "switch": 50,
+            "defense": 6
+          },
+          "teacher_action_accuracy_by_class": {
+            "attack": 0.8860759493670886,
+            "replacement": 0.8774703557312253,
+            "status_or_field": 0.14189189189189189,
+            "recovery": 0.2545454545454545,
+            "setup": 0.0,
+            "switch": 0.1,
+            "defense": 0.0
+          }
+        },
+        "ppo": null
+      },
+      {
+        "index": 3,
+        "seed": 1559,
+        "encoder": "showdown-learned-observation-v4",
+        "best": {
+          "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\matched_warm_pilot\\experiment_03\\checkpoint_0010_ppo_6144_9e25081a\\model.zip",
+          "experiment": 3,
+          "steps": 6144,
+          "score": 0.5703125,
+          "wins": 73,
+          "n": 128,
+          "truncated": 0,
+          "stage": "ppo"
+        },
+        "scores": [
+          [
+            "initial",
+            0,
+            72,
+            128
+          ],
+          [
+            "ppo",
+            6144,
+            73,
+            128
+          ],
+          [
+            "ppo",
+            12288,
+            70,
+            128
+          ]
+        ],
+        "warmstart": {
+          "decisions": 2048,
+          "attempted": 2059,
+          "episodes": 168,
+          "optimizer_updates": 64,
+          "last_loss": 1.1869906187057495,
+          "learning_rate": 0.0001,
+          "teacher_demonstration_action_accuracy": 0.6953125,
+          "parameter_l1_change": 287.5797119140625,
+          "attempted_teacher_action_classes": {
+            "attack": 1270,
+            "replacement": 255,
+            "status_or_field": 148,
+            "recovery": 220,
+            "setup": 108,
+            "switch": 50,
+            "defense": 8
+          },
+          "retained_teacher_action_classes": {
+            "attack": 1264,
+            "replacement": 253,
+            "status_or_field": 148,
+            "recovery": 220,
+            "setup": 107,
+            "switch": 50,
+            "defense": 6
+          },
+          "teacher_action_accuracy_by_class": {
+            "attack": 0.8837025316455697,
+            "replacement": 0.8774703557312253,
+            "status_or_field": 0.14189189189189189,
+            "recovery": 0.2727272727272727,
+            "setup": 0.0,
+            "switch": 0.08,
+            "defense": 0.0
+          }
+        },
+        "ppo": {
+          "train/learning_rate": 5e-05,
+          "train/entropy_loss": -0.7852471433579922,
+          "train/policy_gradient_loss": -0.004137989832088351,
+          "train/value_loss": 0.4188849162310362,
+          "train/approx_kl": 0.0016440171748399734,
+          "train/clip_fraction": 0.00390625,
+          "train/loss": 0.18370473384857178,
+          "train/explained_variance": 0.17629557847976685,
+          "train/n_updates": 48.0,
+          "train/clip_range": 0.2
+        }
+      }
+    ]
+  }
+}

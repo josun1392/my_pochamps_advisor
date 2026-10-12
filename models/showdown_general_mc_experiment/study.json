@@ -1,0 +1,37 @@
+{
+  "schema_version": "general-mc-learning-study-v1",
+  "status": "PARTIAL",
+  "promotion": "No V5 release; production ranking unchanged. Public-interaction model rejected for unseen regression; control retained as experimental broader-training candidate; V4/V2/V3 remain rollback/benchmarks.",
+  "selected_validation_only": {
+    "control": {
+      "label": "warm_control_1423",
+      "path": "models\\showdown_general_mc_experiment\\control\\model.zip",
+      "sha256": "30bc6c34b702137cf63c4fe12c3e4e3ff9e3cfdf6cdd7a52195ce40b5566b896"
+    },
+    "public": {
+      "label": "warm_public_1423",
+      "path": "models\\showdown_general_mc_experiment\\public\\model.zip",
+      "sha256": "55b4050e80d236dfb9f49fe047c6bb8ed422e55e4e634ef9bdb29f781ed4570b"
+    }
+  },
+  "training_seeds": [
+    1237,
+    1301,
+    1423,
+    1559
+  ],
+  "matched_architecture_runs": 8,
+  "new_ppo_transitions": 81920,
+  "retained_teacher_decisions": 8192,
+  "ended_training_battles": 7297,
+  "final_battles": 9600,
+  "final_case_clusters_per_scope": 64,
+  "final_rivals": 5,
+  "fixed_opponent_ids": {
+    "previous": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+    "historical": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d"
+  },
+  "final_plan": "docs/general_mc_final_plan.json",
+  "runtime_source": "c79874b experiments were executed before the later validation-load RNG isolation fix. Checkpoint optimizer/weights retained; no retraining/tuning after final inspection. Native fixed-case outcome evaluation remains deterministic.",
+  "uncertainty": "paired case-cluster bootstrap; descriptive pooled Wilson; nominal exploratory intervals without multiple-comparison adjustment; policy-specific value MSE is on visited trajectories."
+}

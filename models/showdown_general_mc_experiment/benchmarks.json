@@ -1,0 +1,918 @@
+{
+  "cpu_scaling_verified": {
+    "results": [
+      {
+        "backend": "dummy",
+        "workers": 1,
+        "startup_seconds": 0.45258040000044275,
+        "transitions": 1024,
+        "completed_battles": 67,
+        "sampling_seconds": 3.735013599987724,
+        "transitions_per_second": 274.16232165884634,
+        "profile_top": [
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-migration-upstream\\initial-learning\\venv\\Lib\\site-packages\\stable_baselines3\\common\\vec_env\\base_vec_env.py",
+            "line": 214,
+            "function": "step",
+            "calls": 128,
+            "self_seconds": 0.0001496,
+            "cumulative_seconds": 1.1239460000000001
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-migration-upstream\\initial-learning\\venv\\Lib\\site-packages\\stable_baselines3\\common\\vec_env\\dummy_vec_env.py",
+            "line": 56,
+            "function": "step_wait",
+            "calls": 128,
+            "self_seconds": 0.0008713000000000001,
+            "cumulative_seconds": 1.1237558
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_gym.py",
+            "line": 79,
+            "function": "step",
+            "calls": 128,
+            "self_seconds": 0.0025209,
+            "cumulative_seconds": 1.0575047
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 158,
+            "function": "step",
+            "calls": 141,
+            "self_seconds": 0.0007234,
+            "cumulative_seconds": 0.4388591
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_tactics_encoder.py",
+            "line": 124,
+            "function": "encode",
+            "calls": 135,
+            "self_seconds": 0.0078169,
+            "cumulative_seconds": 0.376854
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copy.py",
+            "line": 128,
+            "function": "deepcopy",
+            "calls": 317703,
+            "self_seconds": 0.1722392,
+            "cumulative_seconds": 0.332959
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copy.py",
+            "line": 227,
+            "function": "_deepcopy_dict",
+            "calls": 23014,
+            "self_seconds": 0.0404935,
+            "cumulative_seconds": 0.32593150000000004
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 63,
+            "function": "_install",
+            "calls": 148,
+            "self_seconds": 0.0001404,
+            "cumulative_seconds": 0.3028866
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 80,
+            "function": "_project_transition",
+            "calls": 148,
+            "self_seconds": 0.0037751000000000004,
+            "cumulative_seconds": 0.3027462
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_action_encoder.py",
+            "line": 50,
+            "function": "encode",
+            "calls": 135,
+            "self_seconds": 0.024513100000000003,
+            "cumulative_seconds": 0.28209100000000004
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_observation.py",
+            "line": 42,
+            "function": "project_policy_observation",
+            "calls": 296,
+            "self_seconds": 0.0592063,
+            "cumulative_seconds": 0.26015320000000003
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copy.py",
+            "line": 201,
+            "function": "_deepcopy_list",
+            "calls": 8771,
+            "self_seconds": 0.029533900000000002,
+            "cumulative_seconds": 0.22461430000000002
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 147,
+            "function": "observation",
+            "calls": 289,
+            "self_seconds": 0.0011145,
+            "cumulative_seconds": 0.20152350000000002
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 46,
+            "function": "_request",
+            "calls": 155,
+            "self_seconds": 0.0003215,
+            "cumulative_seconds": 0.1599268
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_worker.py",
+            "line": 53,
+            "function": "run",
+            "calls": 155,
+            "self_seconds": 0.0013043,
+            "cumulative_seconds": 0.15780480000000002
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\queue.py",
+            "line": 154,
+            "function": "get",
+            "calls": 155,
+            "self_seconds": 0.0011435,
+            "cumulative_seconds": 0.14363610000000002
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\threading.py",
+            "line": 295,
+            "function": "wait",
+            "calls": 155,
+            "self_seconds": 0.0006887,
+            "cumulative_seconds": 0.14162950000000002
+          },
+          {
+            "file": "~",
+            "line": 0,
+            "function": "<method 'acquire' of '_thread.lock' objects>",
+            "calls": 775,
+            "self_seconds": 0.1402075,
+            "cumulative_seconds": 0.1402075
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_encoder.py",
+            "line": 39,
+            "function": "identifier",
+            "calls": 51561,
+            "self_seconds": 0.0283202,
+            "cumulative_seconds": 0.08658220000000001
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_encoder.py",
+            "line": 110,
+            "function": "encode",
+            "calls": 135,
+            "self_seconds": 0.007021100000000001,
+            "cumulative_seconds": 0.0824855
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_encoder.py",
+            "line": 73,
+            "function": "_species",
+            "calls": 35376,
+            "self_seconds": 0.0121834,
+            "cumulative_seconds": 0.07364710000000001
+          },
+          {
+            "file": "~",
+            "line": 0,
+            "function": "<method 'get' of 'dict' objects>",
+            "calls": 1230286,
+            "self_seconds": 0.0685094,
+            "cumulative_seconds": 0.0685105
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_tactics_encoder.py",
+            "line": 98,
+            "function": "_tactic",
+            "calls": 6261,
+            "self_seconds": 0.0161418,
+            "cumulative_seconds": 0.0647414
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_baselines.py",
+            "line": 35,
+            "function": "act",
+            "calls": 141,
+            "self_seconds": 0.0030451000000000002,
+            "cumulative_seconds": 0.060611500000000006
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_encoder.py",
+            "line": 76,
+            "function": "_row",
+            "calls": 2250,
+            "self_seconds": 0.015656200000000002,
+            "cumulative_seconds": 0.05921100000000001
+          }
+        ]
+      },
+      {
+        "backend": "dummy",
+        "workers": 2,
+        "startup_seconds": 0.9692167000030167,
+        "transitions": 1024,
+        "completed_battles": 63,
+        "sampling_seconds": 3.624210800000583,
+        "transitions_per_second": 282.5442714314066,
+        "profile_top": []
+      },
+      {
+        "backend": "dummy",
+        "workers": 4,
+        "startup_seconds": 1.757803000000422,
+        "transitions": 1024,
+        "completed_battles": 64,
+        "sampling_seconds": 3.963742599997204,
+        "transitions_per_second": 258.3416995848122,
+        "profile_top": []
+      },
+      {
+        "backend": "dummy",
+        "workers": 8,
+        "startup_seconds": 3.64043239998864,
+        "transitions": 1024,
+        "completed_battles": 70,
+        "sampling_seconds": 4.378034099994693,
+        "transitions_per_second": 233.89493471538773,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 1,
+        "startup_seconds": 2.6205474000016693,
+        "transitions": 1024,
+        "completed_battles": 67,
+        "sampling_seconds": 3.953959300008137,
+        "transitions_per_second": 258.9809156603844,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 2,
+        "startup_seconds": 2.77532390000124,
+        "transitions": 1024,
+        "completed_battles": 63,
+        "sampling_seconds": 2.70530940000026,
+        "transitions_per_second": 378.5149306766544,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 4,
+        "startup_seconds": 3.0568627000029664,
+        "transitions": 1024,
+        "completed_battles": 64,
+        "sampling_seconds": 1.7933611000044039,
+        "transitions_per_second": 570.9948766020883,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 8,
+        "startup_seconds": 3.5941391000087606,
+        "transitions": 1024,
+        "completed_battles": 70,
+        "sampling_seconds": 1.5114641999971354,
+        "transitions_per_second": 677.4887556066103,
+        "profile_top": []
+      }
+    ],
+    "resources": {
+      "tree_cpu_seconds": 114.671875,
+      "peak_job_memory_bytes": 8326930432,
+      "active_processes": 1
+    },
+    "network": {
+      "blocked_external_attempts": 0
+    }
+  },
+  "cpu_scaling_optimized": {
+    "schema_version": "showdown-learning-benchmark-v1",
+    "configuration": {
+      "checkout": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-mc-install-93162ded436d489fb541ab54eb392653",
+      "catalog": "models\\showdown_initial_v1\\catalog.json",
+      "output": "C:\\Users\\jsp33\\AppData\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\cpu_scaling_optimized",
+      "mode": "sampling",
+      "workers": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "backend": [
+        "dummy",
+        "subproc"
+      ],
+      "device": "cpu",
+      "cpu_threads": 1,
+      "steps": 1024,
+      "max_runtime_seconds": 300
+    },
+    "torch_version": "2.8.0+cpu",
+    "device": "cpu",
+    "cpu_threads": 1,
+    "gpu_name": null,
+    "gpu_peak_allocated_bytes": 0,
+    "weights_discarded": true,
+    "results": [
+      {
+        "backend": "dummy",
+        "workers": 1,
+        "startup_seconds": 0.4317029999947408,
+        "transitions": 1024,
+        "completed_battles": 67,
+        "truncated": 0,
+        "seconds": 3.817088900003,
+        "transitions_per_second": 268.2672651399854,
+        "update_seconds": 0,
+        "sampling_and_other_seconds": 3.817088900003,
+        "profile_top": [
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-migration-upstream\\initial-learning\\venv\\Lib\\site-packages\\stable_baselines3\\common\\vec_env\\base_vec_env.py",
+            "line": 214,
+            "function": "step",
+            "calls": 128,
+            "self_seconds": 0.0001664,
+            "cumulative_seconds": 1.0759119000000001
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-migration-upstream\\initial-learning\\venv\\Lib\\site-packages\\stable_baselines3\\common\\vec_env\\dummy_vec_env.py",
+            "line": 56,
+            "function": "step_wait",
+            "calls": 128,
+            "self_seconds": 0.0009554,
+            "cumulative_seconds": 1.0757115000000002
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_gym.py",
+            "line": 79,
+            "function": "step",
+            "calls": 128,
+            "self_seconds": 0.0024594,
+            "cumulative_seconds": 1.0014036000000002
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 158,
+            "function": "step",
+            "calls": 140,
+            "self_seconds": 0.0007696000000000001,
+            "cumulative_seconds": 0.43075990000000003
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copy.py",
+            "line": 128,
+            "function": "deepcopy",
+            "calls": 307029,
+            "self_seconds": 0.17747680000000002,
+            "cumulative_seconds": 0.34170350000000005
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copy.py",
+            "line": 227,
+            "function": "_deepcopy_dict",
+            "calls": 22173,
+            "self_seconds": 0.041432000000000004,
+            "cumulative_seconds": 0.33444860000000004
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_tactics_encoder.py",
+            "line": 126,
+            "function": "encode",
+            "calls": 136,
+            "self_seconds": 0.007648800000000001,
+            "cumulative_seconds": 0.3251488
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 63,
+            "function": "_install",
+            "calls": 148,
+            "self_seconds": 0.0001518,
+            "cumulative_seconds": 0.2984949
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 80,
+            "function": "_project_transition",
+            "calls": 148,
+            "self_seconds": 0.004247,
+            "cumulative_seconds": 0.2983431
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_action_encoder.py",
+            "line": 50,
+            "function": "encode",
+            "calls": 136,
+            "self_seconds": 0.0250317,
+            "cumulative_seconds": 0.2954835
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_observation.py",
+            "line": 42,
+            "function": "project_policy_observation",
+            "calls": 296,
+            "self_seconds": 0.0569428,
+            "cumulative_seconds": 0.25450700000000004
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\copy.py",
+            "line": 201,
+            "function": "_deepcopy_list",
+            "calls": 8656,
+            "self_seconds": 0.029633800000000002,
+            "cumulative_seconds": 0.2300354
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 147,
+            "function": "observation",
+            "calls": 288,
+            "self_seconds": 0.0011973,
+            "cumulative_seconds": 0.20576480000000003
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_environment.py",
+            "line": 46,
+            "function": "_request",
+            "calls": 156,
+            "self_seconds": 0.00035420000000000004,
+            "cumulative_seconds": 0.1624024
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\showdown_worker.py",
+            "line": 53,
+            "function": "run",
+            "calls": 156,
+            "self_seconds": 0.0013587,
+            "cumulative_seconds": 0.160115
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\queue.py",
+            "line": 154,
+            "function": "get",
+            "calls": 156,
+            "self_seconds": 0.0011672,
+            "cumulative_seconds": 0.1452117
+          },
+          {
+            "file": "C:\\Users\\jsp33\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\threading.py",
+            "line": 295,
+            "function": "wait",
+            "calls": 156,
+            "self_seconds": 0.0006862000000000001,
+            "cumulative_seconds": 0.1431186
+          },
+          {
+            "file": "~",
+            "line": 0,
+            "function": "<method 'acquire' of '_thread.lock' objects>",
+            "calls": 780,
+            "self_seconds": 0.14169040000000002,
+            "cumulative_seconds": 0.14169040000000002
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_encoder.py",
+            "line": 110,
+            "function": "encode",
+            "calls": 136,
+            "self_seconds": 0.0073936,
+            "cumulative_seconds": 0.085787
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_encoder.py",
+            "line": 39,
+            "function": "identifier",
+            "calls": 45537,
+            "self_seconds": 0.025745200000000003,
+            "cumulative_seconds": 0.07804140000000001
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_encoder.py",
+            "line": 73,
+            "function": "_species",
+            "calls": 35607,
+            "self_seconds": 0.013485100000000002,
+            "cumulative_seconds": 0.0768192
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_gym.py",
+            "line": 45,
+            "function": "reset",
+            "calls": 8,
+            "self_seconds": 0.0008821,
+            "cumulative_seconds": 0.06464500000000001
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_encoder.py",
+            "line": 76,
+            "function": "_row",
+            "calls": 2247,
+            "self_seconds": 0.0163645,
+            "cumulative_seconds": 0.061559100000000005
+          },
+          {
+            "file": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\advisor\\learned_baselines.py",
+            "line": 35,
+            "function": "act",
+            "calls": 140,
+            "self_seconds": 0.0031017,
+            "cumulative_seconds": 0.060329400000000005
+          },
+          {
+            "file": "~",
+            "line": 0,
+            "function": "<method 'get' of 'dict' objects>",
+            "calls": 1002133,
+            "self_seconds": 0.0597873,
+            "cumulative_seconds": 0.0597892
+          }
+        ]
+      },
+      {
+        "backend": "dummy",
+        "workers": 2,
+        "startup_seconds": 0.9546908000047551,
+        "transitions": 1024,
+        "completed_battles": 63,
+        "truncated": 0,
+        "seconds": 3.627573999998276,
+        "transitions_per_second": 282.28231870679593,
+        "update_seconds": 0,
+        "sampling_and_other_seconds": 3.627573999998276,
+        "profile_top": []
+      },
+      {
+        "backend": "dummy",
+        "workers": 4,
+        "startup_seconds": 1.6501319999952102,
+        "transitions": 1024,
+        "completed_battles": 64,
+        "truncated": 0,
+        "seconds": 3.9546314000035636,
+        "transitions_per_second": 258.93690117341333,
+        "update_seconds": 0,
+        "sampling_and_other_seconds": 3.9546314000035636,
+        "profile_top": []
+      },
+      {
+        "backend": "dummy",
+        "workers": 8,
+        "startup_seconds": 3.4937115000066115,
+        "transitions": 1024,
+        "completed_battles": 70,
+        "truncated": 0,
+        "seconds": 4.34055090000038,
+        "transitions_per_second": 235.91475450729314,
+        "update_seconds": 0,
+        "sampling_and_other_seconds": 4.34055090000038,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 1,
+        "startup_seconds": 2.567966200003866,
+        "transitions": 1024,
+        "completed_battles": 67,
+        "truncated": 0,
+        "seconds": 4.285582999989856,
+        "transitions_per_second": 238.94065288256553,
+        "update_seconds": 0,
+        "sampling_and_other_seconds": 4.285582999989856,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 2,
+        "startup_seconds": 2.64330080000218,
+        "transitions": 1024,
+        "completed_battles": 63,
+        "truncated": 0,
+        "seconds": 2.6437727000011364,
+        "transitions_per_second": 387.3252795142184,
+        "update_seconds": 0,
+        "sampling_and_other_seconds": 2.6437727000011364,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 4,
+        "startup_seconds": 2.8150015999999596,
+        "transitions": 1024,
+        "completed_battles": 64,
+        "truncated": 0,
+        "seconds": 1.7832848999969428,
+        "transitions_per_second": 574.2212026814983,
+        "update_seconds": 0,
+        "sampling_and_other_seconds": 1.7832848999969428,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 8,
+        "startup_seconds": 3.2711130999960005,
+        "transitions": 1024,
+        "completed_battles": 70,
+        "truncated": 0,
+        "seconds": 1.3807073000061791,
+        "transitions_per_second": 741.64886359,
+        "update_seconds": 0,
+        "sampling_and_other_seconds": 1.3807073000061791,
+        "profile_top": []
+      }
+    ],
+    "resources": {
+      "tree_cpu_seconds": 109.265625,
+      "peak_job_memory_bytes": 8363745280,
+      "active_processes": 1
+    },
+    "network": {
+      "blocked_external_attempts": 0
+    }
+  },
+  "gpu_benchmark": {
+    "torch": "2.8.0+cu128",
+    "cuda": "12.8",
+    "gpu": "NVIDIA GeForce RTX 5070 Ti",
+    "capability": [
+      12,
+      0
+    ],
+    "native_ppo": [
+      {
+        "device": "cpu",
+        "threads": 1,
+        "transitions": 2048,
+        "wall_seconds": 10.738767499991809,
+        "rollout_seconds": 9.664251399968634,
+        "update_seconds": 1.039712999961921,
+        "completed_battles": 173,
+        "gpu_peak_allocated": 0
+      },
+      {
+        "device": "cpu",
+        "threads": 4,
+        "transitions": 2048,
+        "wall_seconds": 9.388861700004782,
+        "rollout_seconds": 8.704309599997941,
+        "update_seconds": 0.6599799000105122,
+        "completed_battles": 173,
+        "gpu_peak_allocated": 0
+      },
+      {
+        "device": "cuda",
+        "threads": 1,
+        "transitions": 2048,
+        "wall_seconds": 10.12721620000957,
+        "rollout_seconds": 9.458249800009071,
+        "update_seconds": 0.6450831999973161,
+        "completed_battles": 177,
+        "gpu_peak_allocated": 90526208
+      }
+    ],
+    "inference": [
+      {
+        "device": "cpu",
+        "batch": 1,
+        "median_ms": 0.2747000035014935
+      },
+      {
+        "device": "cpu",
+        "batch": 4,
+        "median_ms": 0.3894499968737364
+      },
+      {
+        "device": "cpu",
+        "batch": 32,
+        "median_ms": 1.5823499925318174
+      },
+      {
+        "device": "cpu",
+        "batch": 128,
+        "median_ms": 5.333449997124262
+      },
+      {
+        "device": "cuda",
+        "batch": 1,
+        "median_ms": 1.3341500016395003
+      },
+      {
+        "device": "cuda",
+        "batch": 4,
+        "median_ms": 1.517900003818795
+      },
+      {
+        "device": "cuda",
+        "batch": 32,
+        "median_ms": 1.4704499917570502
+      },
+      {
+        "device": "cuda",
+        "batch": 128,
+        "median_ms": 1.573549998283852
+      }
+    ],
+    "larger_micro": [
+      {
+        "device": "cpu",
+        "batch": 128,
+        "parameters": 656193,
+        "20_micro_updates_seconds": 1.6693548999901395,
+        "scope": "synthetic_gradient_throughput_not_policy_training_strength"
+      },
+      {
+        "device": "cuda",
+        "batch": 128,
+        "parameters": 656193,
+        "20_micro_updates_seconds": 0.03525200000149198,
+        "scope": "synthetic_gradient_throughput_not_policy_training_strength"
+      }
+    ],
+    "resources": {
+      "tree_cpu_seconds": 74.625,
+      "peak_job_memory_bytes": 4261044224,
+      "active_processes": 5
+    },
+    "network": {
+      "blocked_external_attempts": 0
+    }
+  },
+  "ppo_parallel_before": {
+    "schema_version": "showdown-learning-benchmark-v1",
+    "configuration": {
+      "checkout": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-mc-install-93162ded436d489fb541ab54eb392653",
+      "catalog": "models\\showdown_initial_v1\\catalog.json",
+      "output": "C:\\Users\\jsp33\\AppData\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\ppo_parallel_before",
+      "mode": "ppo",
+      "workers": [
+        4
+      ],
+      "backend": [
+        "dummy",
+        "subproc"
+      ],
+      "device": "cpu",
+      "cpu_threads": 4,
+      "steps": 2048,
+      "max_runtime_seconds": 300
+    },
+    "torch_version": "2.8.0+cpu",
+    "device": "cpu",
+    "cpu_threads": 4,
+    "gpu_name": null,
+    "gpu_peak_allocated_bytes": 0,
+    "weights_discarded": true,
+    "results": [
+      {
+        "backend": "dummy",
+        "workers": 4,
+        "startup_seconds": 1.545129200007068,
+        "transitions": 2048,
+        "completed_battles": 132,
+        "truncated": 0,
+        "seconds": 8.147356100002071,
+        "transitions_per_second": 251.36988918398686,
+        "update_seconds": 0.5867104000062682,
+        "sampling_and_other_seconds": 7.560645699995803,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 4,
+        "startup_seconds": 2.6819276999885915,
+        "transitions": 2048,
+        "completed_battles": 132,
+        "truncated": 0,
+        "seconds": 4.027416900004027,
+        "transitions_per_second": 508.5145270155548,
+        "update_seconds": 0.5966485999961151,
+        "sampling_and_other_seconds": 3.4307683000079123,
+        "profile_top": []
+      }
+    ],
+    "resources": {
+      "tree_cpu_seconds": 77.109375,
+      "peak_job_memory_bytes": 4698054656,
+      "active_processes": 1
+    },
+    "network": {
+      "blocked_external_attempts": 0
+    }
+  },
+  "ppo_parallel_after": {
+    "schema_version": "showdown-learning-benchmark-v1",
+    "configuration": {
+      "checkout": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-mc-install-93162ded436d489fb541ab54eb392653",
+      "catalog": "models\\showdown_initial_v1\\catalog.json",
+      "output": "C:\\Users\\jsp33\\AppData\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\ppo_parallel_after",
+      "mode": "ppo",
+      "workers": [
+        4
+      ],
+      "backend": [
+        "dummy",
+        "subproc"
+      ],
+      "device": "cpu",
+      "cpu_threads": 4,
+      "steps": 2048,
+      "max_runtime_seconds": 300
+    },
+    "torch_version": "2.8.0+cpu",
+    "device": "cpu",
+    "cpu_threads": 4,
+    "gpu_name": null,
+    "gpu_peak_allocated_bytes": 0,
+    "weights_discarded": true,
+    "results": [
+      {
+        "backend": "dummy",
+        "workers": 4,
+        "startup_seconds": 1.5449226000055205,
+        "transitions": 2048,
+        "completed_battles": 132,
+        "truncated": 0,
+        "seconds": 8.114027400006307,
+        "transitions_per_second": 252.40240130300867,
+        "update_seconds": 0.5986320000083651,
+        "sampling_and_other_seconds": 7.515395399997942,
+        "profile_top": []
+      },
+      {
+        "backend": "subproc",
+        "workers": 4,
+        "startup_seconds": 2.6592425999988336,
+        "transitions": 2048,
+        "completed_battles": 132,
+        "truncated": 0,
+        "seconds": 3.9686980999977095,
+        "transitions_per_second": 516.0382443807408,
+        "update_seconds": 0.582930500007933,
+        "sampling_and_other_seconds": 3.3857675999897765,
+        "profile_top": []
+      }
+    ],
+    "resources": {
+      "tree_cpu_seconds": 76.328125,
+      "peak_job_memory_bytes": 4699058176,
+      "active_processes": 1
+    },
+    "network": {
+      "blocked_external_attempts": 0
+    }
+  },
+  "ppo_parallel_cuda": {
+    "schema_version": "showdown-learning-benchmark-v1",
+    "configuration": {
+      "checkout": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-mc-install-93162ded436d489fb541ab54eb392653",
+      "catalog": "models\\showdown_initial_v1\\catalog.json",
+      "output": "C:\\Users\\jsp33\\AppData\\Local\\PokeAdvice\\training\\general_mc_2026-10-12\\ppo_parallel_cuda",
+      "mode": "ppo",
+      "workers": [
+        4
+      ],
+      "backend": [
+        "subproc"
+      ],
+      "device": "cuda",
+      "cpu_threads": 4,
+      "steps": 2048,
+      "max_runtime_seconds": 300
+    },
+    "torch_version": "2.8.0+cu128",
+    "device": "cuda",
+    "cpu_threads": 4,
+    "gpu_name": "NVIDIA GeForce RTX 5070 Ti",
+    "gpu_peak_allocated_bytes": 90519040,
+    "weights_discarded": true,
+    "results": [
+      {
+        "backend": "subproc",
+        "workers": 4,
+        "startup_seconds": 2.724552500003483,
+        "transitions": 2048,
+        "completed_battles": 128,
+        "truncated": 0,
+        "seconds": 5.226965099995141,
+        "transitions_per_second": 391.81436279379477,
+        "update_seconds": 0.6129492000036407,
+        "sampling_and_other_seconds": 4.6140158999915,
+        "profile_top": []
+      }
+    ],
+    "resources": {
+      "tree_cpu_seconds": 31.25,
+      "peak_job_memory_bytes": 9569615872,
+      "active_processes": 1
+    },
+    "network": {
+      "blocked_external_attempts": 0
+    }
+  }
+}

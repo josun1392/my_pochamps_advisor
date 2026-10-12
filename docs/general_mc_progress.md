@@ -111,3 +111,10 @@ CUDA8GiB/15%allocator control passed,confirming Windows memory headroom issue.
 All owned experiment processes finished; no unattended job is promised.
 Remaining: finalize report/artifact commit,push,verify canonical remote and
 original master's five unchanged paths. Elapsed clock starts02:12:38 UTC.
+
+04:55:39 UTC: f24a76f RNG/info fix and a3b3642 optional test guard committed.
+All saved own control PIDs verified exited. Original master691d2df and exact
+five pre-existing status paths unchanged. Prior model directories byte-identical.
+Final public/artifact12 tests passed. Main training and fresh final tests closed;
+no further strength tuning after final. Remaining only artifact/report commit,
+canonical branch push and clean-status verification. Elapsed163m01s so far.
