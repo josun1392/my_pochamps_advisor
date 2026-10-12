@@ -74,6 +74,40 @@ class TacticalActionConditionedPolicy(ActionConditionedPolicy):
         self.mlp_extractor = ActionExtractor(TACTICAL_CONTEXT, TACTICAL_ACTION)
 
 
+class PublicInteractionPolicy(ActionConditionedPolicy):
+    def _build_mlp_extractor(self):
+        from advisor.learned_public_interactions import CONTEXT, ACTION
+
+        self.mlp_extractor = ActionExtractor(CONTEXT, ACTION)
+
+
+def transfer_v3_weights(target, source):
+    """Function-preserving feature extension; optimizer moments are not transferred."""
+    from advisor.learned_tactics_encoder import CONTEXT as OC, ACTION as OA
+    from advisor.learned_public_interactions import CONTEXT as NC, ACTION as NA
+
+    if not isinstance(source, TacticalActionConditionedPolicy) or not isinstance(
+        target, PublicInteractionPolicy
+    ):
+        raise ValueError("v3_to_public_interaction_transfer_required")
+    columns = {
+        "mlp_extractor.context.0.weight": list(range(OC)),
+        "mlp_extractor.scorer.0.weight": list(range(64 + OA - 1)) + [64 + NA - 1],
+        "mlp_extractor.critic.0.weight": list(range(OC))
+        + [NC + i for i in range(OA - 1)]
+        + [NC + NA - 1],
+    }
+    old, new = source.state_dict(), target.state_dict()
+    with torch.no_grad():
+        for key, value in old.items():
+            if key in columns:
+                new[key].zero_()
+                new[key][:, columns[key]] = value.to(new[key].device)
+            else:
+                new[key].copy_(value)
+        target.load_state_dict(new)
+
+
 def transfer_v2_weights(target, source):
     """Embed the frozen v2 function in v3; new public features initially have zero weight.
 
@@ -104,7 +138,7 @@ def transfer_v2_weights(target, source):
         for key, weights in old.items():
             if key in columns:
                 new[key].zero_()
-                new[key][:, columns[key]] = weights
+                new[key][:, columns[key]] = weights.to(new[key].device)
             else:
                 new[key].copy_(weights)
         target.load_state_dict(new)

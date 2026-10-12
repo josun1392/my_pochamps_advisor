@@ -5,6 +5,7 @@ hidden sets, ability assumptions, duration predictions or damage calculations.
 """
 
 import json
+from functools import lru_cache
 from pathlib import Path
 import numpy as np
 from advisor.learned_action_encoder import (
@@ -95,6 +96,7 @@ class TacticalObservationEncoder(ActionObservationEncoder):
             {"base": self.catalog, "tactics": self.tactics}
         )
 
+    @lru_cache(maxsize=1024)
     def _tactic(self, move_id):
         move = self.tactics["moves"].get(identifier(move_id), {})
         boosts = (
@@ -102,7 +104,7 @@ class TacticalObservationEncoder(ActionObservationEncoder):
             if move.get("target") == "self"
             else move.get("self_boosts", {})
         )
-        return (
+        return tuple(
             [
                 float(move.get("status") == s)
                 for s in ("brn", "par", "slp", "frz", "psn", "tox")
@@ -156,7 +158,7 @@ class TacticalObservationEncoder(ActionObservationEncoder):
             )
             extra.append(
                 self._tactic(move)
-                + (move_pools[target] if target is not None else [0.0] * 31)
+                + tuple(move_pools[target] if target is not None else [0.0] * 31)
             )
         # Legal indicator stays last for the masked critic pooling contract.
         rows = np.concatenate(
@@ -170,5 +172,5 @@ class TacticalObservationEncoder(ActionObservationEncoder):
                 rows.flatten(),
             )
         )
-        assert result.shape == (self.dimension,)
+        assert result.shape == (CONTEXT + 35 * ACTION,)
         return result.astype(np.float32, copy=False)

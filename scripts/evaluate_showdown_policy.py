@@ -28,6 +28,25 @@ def wilson(wins, n):
     return [center - margin, center + margin]
 
 
+def native_heal_failures(history):
+    """Count explicit native public heal failures, not full-HP legality guesses."""
+    total, longest, run = 0, 0, 0
+    last_failed = False
+    for line in history:
+        parts = line.split("|")
+        if len(parts) > 2 and parts[2].startswith("p1"):
+            if parts[1] in {"move", "switch", "drag"}:
+                if not last_failed or parts[1] != "move":
+                    run = 0
+                last_failed = False
+            elif parts[1] == "-fail" and len(parts) > 3 and parts[3] == "heal":
+                total += 1
+                run += 1
+                longest = max(longest, run)
+                last_failed = True
+    return total, longest
+
+
 def paired_comparisons(records, policies):
     """Resample paired case clusters, retaining all configured rival strata."""
     cases = sorted({r["case"] for r in records})
@@ -64,6 +83,8 @@ def paired_comparisons(records, policies):
             "previous_action",
             "previous_initial",
             "previous_generalization",
+            "previous_tactical",
+            "control",
             "cold_v2",
         ):
             if base not in scores or kind == base:
@@ -131,6 +152,7 @@ def evaluate(
                     steps = 0
                     action_counts = Counter()
                     tactical_counts = Counter()
+                    requested_heal_full_hp = 0
                     prefix_history_length = len(
                         env.observation("self", include_history=True)["public_history"]
                     )
@@ -154,6 +176,17 @@ def evaluate(
                             action = player.act(own)
                         if tactical_diagnostics:
                             d = diagnostics.describe(own, action)
+                            active = own["state"]["self_side"]["active_identity"]
+                            active_row = (
+                                own["state"]["self_side"]["pokemon"].get(active, {})
+                                if isinstance(active, str)
+                                else {}
+                            )
+                            if (
+                                d["selected"] == "recovery"
+                                and active_row.get("hp_fraction") == 1
+                            ):
+                                requested_heal_full_hp += 1
                             tactical_counts["selected:" + d["selected"]] += 1
                             for available in d["available"]:
                                 tactical_counts["available:" + available] += 1
@@ -204,6 +237,7 @@ def evaluate(
                         and parts[1] == "move"
                         and parts[2].startswith("p1")
                     )
+                    heal_failures, longest_failures = native_heal_failures(history)
                     error = (
                         float(
                             np.mean(
@@ -231,6 +265,11 @@ def evaluate(
                             else None,
                             "action_counts": dict(action_counts),
                             "native_own_move_counts": dict(own_moves),
+                            "native_own_failed_heals": heal_failures,
+                            "native_own_max_consecutive_failed_heals": longest_failures,
+                            "requested_heal_full_hp": requested_heal_full_hp
+                            if tactical_diagnostics
+                            else None,
                             "tactical_counts": dict(tactical_counts),
                             "curriculum_start": start_info,
                             "public_event_counts": dict(
@@ -287,6 +326,18 @@ def evaluate(
                             Counter(),
                         )
                     ),
+                    "native_own_failed_heals": sum(
+                        r["native_own_failed_heals"] for r in rows
+                    ),
+                    "native_own_max_consecutive_failed_heals": max(
+                        (r["native_own_max_consecutive_failed_heals"] for r in rows),
+                        default=0,
+                    ),
+                    "requested_heal_full_hp": sum(
+                        r["requested_heal_full_hp"] for r in rows
+                    )
+                    if tactical_diagnostics
+                    else None,
                     "tactical_counts": dict(
                         sum((Counter(r["tactical_counts"]) for r in rows), Counter())
                     ),

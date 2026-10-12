@@ -23,7 +23,7 @@ The standalone trainer blocks external Python network connections; only local
 loopback traffic needed by Windows asyncio is allowed.
 Runtime cannot exceed six hours; resource configuration is validated before start.
 Copy the config to a new file to change seeds, budgets or opponent mixtures. Never
-reuse a run directory with a different config. No GPU use is enabled.
+reuse a run directory with a different config. CPU is the default.
 To extend a completed run, create a new config/run directory and set an experiment's
 `initial_model` to the preserved best checkpoint and `warmstart_decisions` to0.
 Its encoder must match `encoder_version`. The optimizer is restored; `steps` is the
@@ -124,3 +124,48 @@ Affordance counts use only public type priors/HP/request legality. First-action
 branch diagnostics (`evaluate_showdown_tactical_branches.py`) reuse native
 checkpoints and fixed continuations; they are sampled conditional evidence,
 never optimal-action or exact-probability labels.
+
+General M-C presets (native-validated55 training/20 species-disjoint unseen
+species, role-conditioned items/selections, no extra action rewards):
+
+```powershell
+uv run --extra learning python scripts/train_showdown_autonomous.py --config config/learning/general_interactive_cpu.json --checkout $engine --output $run
+# Dedicated foreground terminal:8 spawn workers,50% tree CPU,12GiB committed memory.
+uv run --extra learning python scripts/train_showdown_autonomous.py --config config/learning/general_dedicated_cpu.json --checkout $engine --output $run
+uv run --extra learning python scripts/benchmark_showdown_learning.py --checkout $engine --output (Join-Path $env:LOCALAPPDATA 'PokeAdvice\training\cpu-benchmark')
+```
+
+Use separate output directories. Both presets stop after30 minutes even if their
+step budget is incomplete. They retain the existing V4 model/observation-v3 and
+CPU default. `vector_backend="subproc"` uses maintained SB3 spawn workers and
+step_async/step_wait; it is parallel on-policy sampling with a batch barrier,
+not a new asynchronous/off-policy algorithm. Default `dummy` preserves prior
+single-process behavior. Frozen opponent files are hash-bound in each worker.
+Four Torch threads suit measured current CPU updates; workers/inference use one.
+Memory must cover spawned Python/Torch processes; worker-aware process limits,
+CPU/memory job caps, STOP/deadline and checkpoint recovery stay enforced.
+
+`fresh_optimizer=true` explicitly discards old optimizer moments for a *new*
+same-encoder experiment; an interrupted `--resume` always restores saved moments.
+Changed observation dimensions use `transfer_model` and a fresh optimizer:
+observation-v2 to v3 or v3 to experimental public-interaction v4. This does not
+claim to recover old optimizer tensors across shape changes. Experimental
+observation-v4 is not a released V5 strategy model or a recommendation-policy change.
+
+CUDA is optional and **not faster end-to-end for the current small model**.
+The default uv learning extra intentionally stays CPU. For an isolated Python3.11
+environment, install the same pinned learning packages and replace Torch with:
+
+```powershell
+python -m pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+python scripts/benchmark_showdown_learning.py --checkout $engine --mode ppo --backend dummy --workers 4 --steps 2048 --device cuda --output $gpuBenchmark
+```
+
+PyTorch2.8/cu128 includes sm120 kernels verified on RTX5070Ti. A trainer config
+may set `device="cuda"`, `gpu_memory_fraction=0.25`; unavailable CUDA fails closed.
+The fraction caps this process's Torch allocator, not other apps or all driver
+allocations. Windows committed-memory limits also need headroom (at least8GiB
+for the tested2-worker CUDA smoke); an undersized job can surface CUDA OOM.
+CUDA/CPU random sampling streams differ; reproducibility is within a fixed device,
+package version and configuration, not guaranteed across devices. UI inference
+continues on CPU. Larger batch/model compute speed alone is not strategic strength.

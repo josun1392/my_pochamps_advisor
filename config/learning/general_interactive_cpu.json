@@ -1,0 +1,41 @@
+{
+  "schema_version": "showdown-autonomous-training-v1",
+  "catalog": "models/showdown_initial_v1/catalog.json",
+  "previous_model": "models/showdown_tactical_v4/model.zip",
+  "curriculum_version": "showdown-learning-curriculum-v5",
+  "max_runtime_seconds": 1800,
+  "envs": 4,
+  "vector_backend": "subproc",
+  "cpu_threads": 4,
+  "memory_mib": 8192,
+  "cpu_percent": 25,
+  "validation_cases": 48,
+  "validation_offset": 27000,
+  "evaluation_opponents": [
+    "max_power",
+    "champions_heuristic",
+    "tactical_heuristic",
+    "previous"
+  ],
+  "checkpoint_steps": 8192,
+  "plateau_patience": 3,
+  "experiments": [
+    {
+      "seed": 1601,
+      "steps": 65536,
+      "encoder_version": "showdown-learned-observation-v3",
+      "initial_model": "models/showdown_tactical_v4/model.zip",
+      "historical_model": "models/showdown_generalization_v3/model.zip",
+      "opponents": [
+        "max_power",
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical"
+      ],
+      "warmstart_decisions": 0,
+      "learning_rate": 0.00005,
+      "ent_coef": 0.01
+    }
+  ]
+}

@@ -18,15 +18,17 @@ import numpy as np
 import torch
 from sb3_contrib import MaskablePPO
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from advisor.learned_action_encoder import make_encoder, VERSION
 from advisor.learned_action_policy import (
     ActionConditionedPolicy,
     TacticalActionConditionedPolicy,
     transfer_v2_weights,
+    PublicInteractionPolicy,
+    transfer_v3_weights,
 )
 from advisor.learned_baselines import VisibleBaseline
-from advisor.learned_gym import ShowdownLearningEnv
+from advisor.learned_parallel import LearningEnvFactory
 from advisor.learned_policy import LearnedPolicy
 from advisor.learning_resources import (
     WindowsJob,
@@ -49,6 +51,7 @@ def validate_config(config):
         CURRICULUM,
         "showdown-learning-curriculum-v3",
         "showdown-learning-curriculum-v4",
+        "showdown-learning-curriculum-v5",
     }:
         raise ValueError("unsupported_learning_curriculum")
     rivals = config.get("evaluation_opponents", ["random", "max_power", "heuristic"])
@@ -72,12 +75,25 @@ def validate_config(config):
     if not 30 <= config.get("max_runtime_seconds", 0) <= 21600:
         raise ValueError("runtime_must_be_bounded_30_to_21600_seconds")
     if (
-        not 1 <= config.get("envs", 4) <= 4
-        or not 1024 <= config.get("memory_mib", 3072) <= 4096
+        not 1 <= config.get("envs", 4) <= 8
+        or not 1024 <= config.get("memory_mib", 3072) <= 16384
     ):
         raise ValueError("unsafe_worker_or_memory_budget")
-    if not 1 <= config.get("cpu_percent", 12.5) <= 25:
+    if not 1 <= config.get("cpu_percent", 12.5) <= 75:
         raise ValueError("unsafe_cpu_budget")
+    if config.get("vector_backend", "dummy") not in {"dummy", "subproc"} or config.get(
+        "device", "cpu"
+    ) not in {"cpu", "cuda"}:
+        raise ValueError("unsupported_vector_or_device")
+    if (
+        not 1 <= config.get("cpu_threads", 1) <= 8
+        or not 0.05 <= config.get("gpu_memory_fraction", 0.25) <= 0.5
+    ):
+        raise ValueError("unsafe_tensor_resource_budget")
+    if config.get("vector_backend") == "subproc" and config.get(
+        "memory_mib", 3072
+    ) < 1024 + 768 * config.get("envs", 4):
+        raise ValueError("insufficient_spawn_memory_budget")
     if not 1 <= config.get("validation_cases", 24) <= 64:
         raise ValueError("bounded_validation_required")
     if (
@@ -100,11 +116,16 @@ def validate_config(config):
             VERSION,
             "showdown-learned-observation-v1",
             "showdown-learned-observation-v3",
+            "showdown-learned-observation-v4",
         }:
             raise ValueError("unsupported_encoder")
         if experiment.get("transfer_model") and (
             experiment.get("initial_model")
-            or experiment.get("encoder_version") != "showdown-learned-observation-v3"
+            or experiment.get("encoder_version")
+            not in {
+                "showdown-learned-observation-v3",
+                "showdown-learned-observation-v4",
+            }
         ):
             raise ValueError("transfer_requires_fresh_v3_optimizer")
         if (
@@ -221,7 +242,7 @@ def save_checkpoint(model, encoder, directory, metadata):
             "optimizer_steps": optimizer_steps(model),
             "parameter_count": sum(p.numel() for p in model.policy.parameters()),
             "observation_dim": encoder.dimension,
-            "device": "cpu",
+            "device": model.device.type,
             "gamma": model.gamma,
             "curriculum_version": CURRICULUM,
             **metadata,
@@ -249,12 +270,13 @@ def warmstart(
     budget,
     learning_rate=3e-4,
     teacher_kind="heuristic",
+    collection_env=None,
 ):
     """Supervised visible heuristic targets; upstream policy/optimizer stay authoritative."""
     if not count:
         return {"decisions": 0, "optimizer_updates": 0}
     rows = []
-    env = vector.envs[0]
+    env = collection_env if collection_env is not None else vector.envs[0]
     teacher = VisibleBaseline(teacher_kind, seed + 41)
     env.reset(seed=seed + 7300)
     attempted = 0
@@ -292,10 +314,12 @@ def warmstart(
     rows = rows[:count]
     if not rows:
         return {"decisions": 0, "optimizer_updates": 0, "episodes": episodes}
-    x = torch.tensor(np.stack([r[0] for r in rows]))
+    x = torch.tensor(np.stack([r[0] for r in rows]), device=model.device)
     masks = np.stack([r[1] for r in rows])
-    actions = torch.tensor([r[2] for r in rows])
-    returns = torch.tensor([r[3] for r in rows], dtype=torch.float32)
+    actions = torch.tensor([r[2] for r in rows], device=model.device)
+    returns = torch.tensor(
+        [r[3] for r in rows], dtype=torch.float32, device=model.device
+    )
     generator = torch.Generator().manual_seed(seed)
     updates = 0
     last_loss = None
@@ -404,7 +428,18 @@ def run(config, output, *, resume=False, require_detached=False):
         job = WindowsJob(
             memory_mib=config.get("memory_mib", 3072),
             cpu_percent=config.get("cpu_percent", 12.5),
+            active_process_limit=max(12, 4 * config.get("envs", 4) + 8)
+            if config.get("vector_backend") == "subproc"
+            else 12,
         )
+        device = config.get("device", "cpu")
+        if device == "cuda":
+            os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+            if not torch.cuda.is_available():
+                raise RuntimeError("configured_cuda_unavailable_no_silent_fallback")
+            torch.cuda.set_per_process_memory_fraction(
+                config.get("gpu_memory_fraction", 0.25)
+            )
         if require_detached and job.inherited_job:
             raise RuntimeError("trainer_still_in_launcher_job_persistence_not_verified")
         if resume:
@@ -448,7 +483,7 @@ def run(config, output, *, resume=False, require_detached=False):
             },
         )
         atomic_json(state_path, state)
-        torch.set_num_threads(1)
+        torch.set_num_threads(config.get("cpu_threads", 1))
         torch.use_deterministic_algorithms(True)
         network = enforce_local_network_only()
         catalog = Path(config["catalog"]).resolve()
@@ -501,42 +536,46 @@ def run(config, output, *, resume=False, require_detached=False):
             )
             atomic_json(state_path, state)
 
-            def opponents(kind, rival_seed):
-                if kind == "previous":
-                    if not previous:
-                        raise ValueError("previous_opponent_requires_model")
-                    return previous
-                if kind == "historical":
-                    if not historical:
-                        raise ValueError("historical_opponent_requires_checkpoint")
-                    return historical
-                return VisibleBaseline(kind, rival_seed)
-
-            instances = []
-            try:
-                for i in range(config.get("envs", 4)):
-                    instances.append(
-                        ShowdownLearningEnv(
-                            checkout,
-                            encoder,
-                            index_offset=i * 100000,
-                            curriculum_version=curriculum,
-                            opponents=experiment.get("opponents"),
-                            opponent_factory=opponents,
+            references = {
+                kind: (str(path), policy.model_id)
+                for kind, path, policy in (
+                    ("previous", config.get("previous_model"), previous),
+                    ("historical", historical_path, historical),
+                )
+                if policy is not None
+            }
+            factories = [
+                LearningEnvFactory(
+                    str(checkout),
+                    str(catalog),
+                    encoder.version,
+                    i * 100000,
+                    curriculum,
+                    tuple(
+                        experiment.get(
+                            "opponents", ["random", "max_power", "heuristic"]
                         )
-                    )
-                vector = DummyVecEnv([lambda env=env: env for env in instances])
-            except BaseException:
-                for env in instances:
-                    env.close()
-                raise
+                    ),
+                    references,
+                )
+                for i in range(config.get("envs", 4))
+            ]
+            vector = (
+                SubprocVecEnv(factories, start_method="spawn")
+                if config.get("vector_backend", "dummy") == "subproc"
+                else DummyVecEnv(factories)
+            )
             source = state["latest"] if state["experiment_index"] == number else None
             initial_source = source or experiment.get("initial_model")
             if initial_source:
                 loaded = LearnedPolicy(initial_source, catalog)
                 if loaded.encoder.version != encoder.version:
                     raise ValueError("initial_model_encoder_mismatch")
-                model = loaded.model
+                model = (
+                    loaded.model
+                    if device == "cpu" and loaded.model.n_envs == vector.num_envs
+                    else MaskablePPO.load(initial_source, env=vector, device=device)
+                )
                 model.set_env(vector)
                 if not source:
                     model.seed = seed
@@ -544,9 +583,17 @@ def run(config, output, *, resume=False, require_detached=False):
                     model.learning_rate = experiment.get("learning_rate", 1e-4)
                     model._setup_lr_schedule()
                     model.ent_coef = experiment.get("ent_coef", 0.005)
+                    if experiment.get("fresh_optimizer", False):
+                        model.policy.optimizer = model.policy.optimizer_class(
+                            model.policy.parameters(),
+                            lr=model.learning_rate,
+                            **model.policy.optimizer_kwargs,
+                        )
             else:
                 model = MaskablePPO(
-                    TacticalActionConditionedPolicy
+                    PublicInteractionPolicy
+                    if encoder.version == "showdown-learned-observation-v4"
+                    else TacticalActionConditionedPolicy
                     if encoder.version == "showdown-learned-observation-v3"
                     else ActionConditionedPolicy
                     if encoder.version == VERSION
@@ -560,10 +607,15 @@ def run(config, output, *, resume=False, require_detached=False):
                     ent_coef=experiment.get("ent_coef", 0.005),
                     target_kl=0.03,
                     seed=seed,
-                    device="cpu",
+                    device=device,
                     verbose=0,
                     policy_kwargs={}
-                    if encoder.version in {VERSION, "showdown-learned-observation-v3"}
+                    if encoder.version
+                    in {
+                        VERSION,
+                        "showdown-learned-observation-v3",
+                        "showdown-learned-observation-v4",
+                    }
                     else {"net_arch": {"pi": [64, 64], "vf": [64, 64]}},
                 )
             vector.seed(seed + state["experiment_steps"] + state["launches"] * 10000)
@@ -574,13 +626,25 @@ def run(config, output, *, resume=False, require_detached=False):
             )
             if not initial_source and experiment.get("transfer_model"):
                 transfer_source = LearnedPolicy(experiment["transfer_model"], catalog)
-                if transfer_source.encoder.version != VERSION:
-                    raise ValueError("v2_transfer_source_required")
-                transfer_v2_weights(model.policy, transfer_source.model.policy)
+                if encoder.version == "showdown-learned-observation-v4":
+                    if (
+                        transfer_source.encoder.version
+                        != "showdown-learned-observation-v3"
+                    ):
+                        raise ValueError("v3_transfer_source_required")
+                    transfer_v3_weights(model.policy, transfer_source.model.policy)
+                else:
+                    if transfer_source.encoder.version != VERSION:
+                        raise ValueError("v2_transfer_source_required")
+                    transfer_v2_weights(model.policy, transfer_source.model.policy)
                 transfer_id = transfer_source.model_id
+            warm_episodes = []
 
             def checkpoint(stage, details):
-                episodes = [row for env in vector.envs for row in env.completed]
+                episodes = warm_episodes + [
+                    row for rows in vector.env_method("drain_completed") for row in rows
+                ]
+                warm_episodes.clear()
                 outcomes = Counter(
                     "truncated" if row["truncated"] else row["winner"] or "draw"
                     for row in episodes
@@ -606,6 +670,9 @@ def run(config, output, *, resume=False, require_detached=False):
                         "initial_model": experiment.get("initial_model"),
                         "optimizer_initialization": "restored_same_encoder"
                         if initial_source
+                        and (source or not experiment.get("fresh_optimizer", False))
+                        else "fresh_same_encoder"
+                        if initial_source
                         else "fresh",
                         "weight_transfer_source_sha256": transfer_id,
                         "weight_transfer_optimizer": "fresh_shape_compatible_optimizer"
@@ -622,14 +689,19 @@ def run(config, output, *, resume=False, require_detached=False):
                         },
                         "warmstart": state.get("warmstart"),
                         "training_metrics": details,
+                        "vector_backend": config.get("vector_backend", "dummy"),
+                        "cpu_threads": config.get("cpu_threads", 1),
+                        "gpu_memory_fraction": config.get("gpu_memory_fraction", 0.25)
+                        if device == "cuda"
+                        else None,
                         "episode_outcomes_this_checkpoint": dict(outcomes),
                     },
                 )
                 restored = LearnedPolicy(path, catalog)
-                view = vector.envs[0].current
+                view = vector.get_attr("current", indices=0)[0]
                 if not any(view["action_mask"]):
-                    vector.envs[0].reset()
-                    view = vector.envs[0].current
+                    vector.env_method("reset", indices=0)
+                    view = vector.get_attr("current", indices=0)[0]
                 a, b = (
                     restored.act(view),
                     int(
@@ -645,9 +717,7 @@ def run(config, output, *, resume=False, require_detached=False):
                 state["latest"] = path
                 state["optimizer_steps"] = optimizer_steps(model)
                 state["experiment_index"] = number
-                state["completed_battles"] += sum(
-                    len(env.completed) for env in vector.envs
-                )
+                state["completed_battles"] += len(episodes)
                 # Preserve the compatible counter and explicitly identify time limits.
                 state["episode_count_scope"] = "ended_including_time_limit_truncations"
                 totals = state.setdefault("episode_outcomes", {})
@@ -656,12 +726,14 @@ def run(config, output, *, resume=False, require_detached=False):
                 state["outcome_tally_scope"] = (
                     "checkpoints_written_by_outcome_aware_trainer"
                 )
-                for env in vector.envs:
-                    env.completed.clear()
                 state["resources"] = {
                     "native_rss_bytes": sum(
-                        env.native.resources["rss_bytes"] for env in vector.envs
+                        resource["rss_bytes"]
+                        for resource in vector.env_method("learning_resources")
                     ),
+                    "gpu_peak_allocated_bytes": torch.cuda.max_memory_allocated()
+                    if device == "cuda"
+                    else 0,
                     "python_cpu_seconds": __import__("time").process_time(),
                     "wall_seconds_this_launch": perf_counter() - started,
                     **job.usage(),
@@ -721,19 +793,33 @@ def run(config, output, *, resume=False, require_detached=False):
                 state["experiment_steps"] = 0
                 state["plateau"] = 0
                 state["experiment_best_score"] = -1
-                state["warmstart"] = warmstart(
-                    model,
-                    vector,
-                    encoder,
-                    experiment.get("warmstart_decisions", 0),
-                    experiment.get("warmstart_epochs", 8),
-                    seed,
-                    budget,
-                    experiment.get(
-                        "warmstart_learning_rate", experiment.get("learning_rate", 1e-4)
-                    ),
-                    experiment.get("teacher", "heuristic"),
+                collection_env = (
+                    factories[0]()
+                    if config.get("vector_backend") == "subproc"
+                    and experiment.get("warmstart_decisions", 0)
+                    else None
                 )
+                torch.set_num_threads(config.get("cpu_threads", 1))
+                try:
+                    state["warmstart"] = warmstart(
+                        model,
+                        vector,
+                        encoder,
+                        experiment.get("warmstart_decisions", 0),
+                        experiment.get("warmstart_epochs", 8),
+                        seed,
+                        budget,
+                        experiment.get(
+                            "warmstart_learning_rate",
+                            experiment.get("learning_rate", 1e-4),
+                        ),
+                        experiment.get("teacher", "heuristic"),
+                        collection_env=collection_env,
+                    )
+                finally:
+                    if collection_env is not None:
+                        warm_episodes.extend(collection_env.drain_completed())
+                        collection_env.close()
                 state["warmstart_decisions"] += state["warmstart"]["decisions"]
                 checkpoint("initial", {})
             while (
@@ -749,6 +835,7 @@ def run(config, output, *, resume=False, require_detached=False):
                     config.get("checkpoint_steps", 8192),
                     experiment["steps"] - state["experiment_steps"],
                 )
+                torch.set_num_threads(config.get("cpu_threads", 1))
                 model.learn(
                     total_timesteps=chunk,
                     reset_num_timesteps=False,
@@ -851,7 +938,18 @@ def run(config, output, *, resume=False, require_detached=False):
     except BaseException as error:
         atomic_json(
             output / "failure.json",
-            {"error": type(error).__name__, "message": str(error), "time": time()},
+            {
+                "error": type(error).__name__,
+                "message": str(error),
+                "time": time(),
+                "resources": job.usage() if "job" in locals() else {},
+                "gpu_peak_allocated_bytes": torch.cuda.max_memory_allocated()
+                if torch.cuda.is_initialized()
+                else 0,
+                "gpu_peak_reserved_bytes": torch.cuda.max_memory_reserved()
+                if torch.cuda.is_initialized()
+                else 0,
+            },
         )
         raise
     finally:

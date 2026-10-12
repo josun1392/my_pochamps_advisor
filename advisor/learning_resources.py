@@ -91,7 +91,12 @@ def process_alive(pid):
 class WindowsJob:
     """Kill the complete trainer/native-worker tree when its owner exits."""
 
-    def __init__(self, *, memory_mib=3072, cpu_percent=12.5):
+    def __init__(self, *, memory_mib=3072, cpu_percent=12.5, active_process_limit=12):
+        if (
+            type(active_process_limit) is not int
+            or not 12 <= active_process_limit <= 64
+        ):
+            raise ValueError("unsafe_active_process_limit")
         if os.name != "nt":
             raise RuntimeError("hard_resource_launcher_currently_requires_windows")
         k = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -166,7 +171,7 @@ class WindowsJob:
             limits.basic.flags = (
                 0x2000 | 0x200 | 0x8
             )  # kill-on-close, aggregate memory, active processes
-            limits.basic.active_limit = 12
+            limits.basic.active_limit = active_process_limit
             limits.job_memory = memory_mib * 1024 * 1024
             self._check(
                 k.SetInformationJobObject(

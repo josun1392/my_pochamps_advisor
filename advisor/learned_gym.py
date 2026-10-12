@@ -121,8 +121,29 @@ class ShowdownLearningEnv(gym.Env):
             float(result["rewards"]["self"]),
             result["terminated"],
             result["truncated"],
-            {"native_outcome": result},
+            {
+                "schema_version": "showdown-learning-info-v2",
+                "native_outcome": {
+                    k: result[k]
+                    for k in (
+                        "revision",
+                        "decisions",
+                        "terminated",
+                        "truncated",
+                        "winner",
+                        "action_rejected",
+                        "rewards",
+                    )
+                },
+            },
         )
+
+    def drain_completed(self):
+        rows, self.completed = self.completed, []
+        return rows
+
+    def learning_resources(self):
+        return dict(self.native.resources)
 
     def close(self):
         self.native.close()

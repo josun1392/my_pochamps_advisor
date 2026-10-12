@@ -43,7 +43,11 @@ def main():
     parser.add_argument(
         "--curriculum-version",
         default="showdown-learning-curriculum-v3",
-        choices=["showdown-learning-curriculum-v3", "showdown-learning-curriculum-v4"],
+        choices=[
+            "showdown-learning-curriculum-v3",
+            "showdown-learning-curriculum-v4",
+            "showdown-learning-curriculum-v5",
+        ],
     )
     parser.add_argument("--tactical-diagnostics", action="store_true")
     parser.add_argument("--tactical-baseline", action="store_true")

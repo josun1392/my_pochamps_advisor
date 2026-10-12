@@ -186,4 +186,8 @@ def make_encoder(catalog, version):
         from advisor.learned_tactics_encoder import TacticalObservationEncoder
 
         return TacticalObservationEncoder(catalog)
+    if version == "showdown-learned-observation-v4":
+        from advisor.learned_public_interactions import PublicInteractionEncoder
+
+        return PublicInteractionEncoder(catalog)
     raise ValueError("unsupported_learning_encoder")
