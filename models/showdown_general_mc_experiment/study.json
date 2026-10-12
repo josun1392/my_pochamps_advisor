@@ -33,5 +33,6 @@
   },
   "final_plan": "docs/general_mc_final_plan.json",
   "runtime_source": "c79874b experiments were executed before the later validation-load RNG isolation fix. Checkpoint optimizer/weights retained; no retraining/tuning after final inspection. Native fixed-case outcome evaluation remains deterministic.",
-  "uncertainty": "paired case-cluster bootstrap; descriptive pooled Wilson; nominal exploratory intervals without multiple-comparison adjustment; policy-specific value MSE is on visited trajectories."
+  "uncertainty": "paired case-cluster bootstrap; descriptive pooled Wilson; nominal exploratory intervals without multiple-comparison adjustment; policy-specific value MSE is on visited trajectories.",
+  "raw_evidence_format": "gzip JSON; gzip.decompress reproduces original bytes exactly"
 }

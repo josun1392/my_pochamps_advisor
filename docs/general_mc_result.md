@@ -147,6 +147,8 @@ SB3 checkpoint 로딩이 전역 Python/NumPy/Torch RNG를 재설정하는
 선택한 일반 후보(SHA30bc6c34...),`public/model.zip`은 거절된 실험 비교
 체크포인트(SHA55b4050e...)다. 모델/optimizer manifest,8실험 기록,
 9600전 전체 결과,조건부 분기,벤치마크와 재현성 증거를 함께 보존했다.
+큰 대전·검증 원본은 `.json.gz`로 무손실 보존했고 압축 해제 byte 일치를
+검증했다. 읽기 예: `json.loads(gzip.decompress(path.read_bytes()))`.
 기존 v1–v4 파일은 기준9a3e1c6과 byte diff가 없다.
 
 ```powershell
