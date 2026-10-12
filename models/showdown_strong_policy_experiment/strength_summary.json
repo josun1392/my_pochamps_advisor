@@ -1,0 +1,2710 @@
+{
+  "final_scopes": {
+    "coherent_test": {
+      "table": [
+        {
+          "policy": "random",
+          "wins": 82,
+          "losses": 494,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.1423611111111111,
+          "wilson_95": [
+            0.11619117908425573,
+            0.17326976971036323
+          ],
+          "native_own_failed_heals": 88,
+          "requested_heal_full_hp": 136,
+          "action_counts": {
+            "attack_or_status": 5965,
+            "forced_switch": 1205,
+            "voluntary_switch": 1351,
+            "wait": 624
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "max_power",
+          "wins": 156,
+          "losses": 420,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.2708333333333333,
+          "wilson_95": [
+            0.23614893317869812,
+            0.30855419905863046
+          ],
+          "native_own_failed_heals": 12,
+          "requested_heal_full_hp": 12,
+          "action_counts": {
+            "attack_or_status": 5166,
+            "forced_switch": 1063,
+            "wait": 766
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "heuristic",
+          "wins": 320,
+          "losses": 256,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5555555555555556,
+          "wilson_95": [
+            0.5147407213330262,
+            0.5956342769124698
+          ],
+          "native_own_failed_heals": 2,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4821,
+            "forced_switch": 943,
+            "wait": 980,
+            "voluntary_switch": 54
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "champions_heuristic",
+          "wins": 336,
+          "losses": 240,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5833333333333334,
+          "wilson_95": [
+            0.5426495692899977,
+            0.6229129280782464
+          ],
+          "native_own_failed_heals": 23,
+          "requested_heal_full_hp": 32,
+          "action_counts": {
+            "attack_or_status": 5630,
+            "forced_switch": 906,
+            "wait": 990,
+            "voluntary_switch": 51
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "tactical_heuristic",
+          "wins": 334,
+          "losses": 242,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5798611111111112,
+          "wilson_95": [
+            0.5391539156954201,
+            0.6195101442824806
+          ],
+          "native_own_failed_heals": 16,
+          "requested_heal_full_hp": 28,
+          "action_counts": {
+            "voluntary_switch": 165,
+            "attack_or_status": 5971,
+            "wait": 953,
+            "forced_switch": 879
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "learner_2393",
+          "wins": 280,
+          "losses": 296,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.4861111111111111,
+          "wilson_95": [
+            0.4455216252407611,
+            0.5268846251978647
+          ],
+          "native_own_failed_heals": 52,
+          "requested_heal_full_hp": 451,
+          "action_counts": {
+            "voluntary_switch": 84,
+            "attack_or_status": 5722,
+            "wait": 981,
+            "forced_switch": 962
+          },
+          "value_discounted_return_mse": 0.587939979745923
+        },
+        {
+          "policy": "learner_2477",
+          "wins": 327,
+          "losses": 249,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5677083333333334,
+          "wilson_95": [
+            0.5269350411560151,
+            0.6075844879556834
+          ],
+          "native_own_failed_heals": 14,
+          "requested_heal_full_hp": 42,
+          "action_counts": {
+            "voluntary_switch": 249,
+            "attack_or_status": 4842,
+            "wait": 995,
+            "forced_switch": 904
+          },
+          "value_discounted_return_mse": 0.5844922257799325
+        },
+        {
+          "policy": "learner_2591",
+          "wins": 321,
+          "losses": 255,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5572916666666666,
+          "wilson_95": [
+            0.5164812725849193,
+            0.5973429443557485
+          ],
+          "native_own_failed_heals": 23,
+          "requested_heal_full_hp": 115,
+          "action_counts": {
+            "voluntary_switch": 127,
+            "attack_or_status": 5130,
+            "wait": 992,
+            "forced_switch": 918
+          },
+          "value_discounted_return_mse": 0.6025392368983915
+        },
+        {
+          "policy": "bc_selected",
+          "wins": 322,
+          "losses": 254,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5590277777777778,
+          "wilson_95": [
+            0.5182223209386176,
+            0.5990511146972219
+          ],
+          "native_own_failed_heals": 8,
+          "requested_heal_full_hp": 35,
+          "action_counts": {
+            "voluntary_switch": 42,
+            "attack_or_status": 5163,
+            "wait": 989,
+            "forced_switch": 939
+          },
+          "value_discounted_return_mse": 0.6460658269221589
+        },
+        {
+          "policy": "awr_selected",
+          "wins": 319,
+          "losses": 257,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5538194444444444,
+          "wilson_95": [
+            0.5130006665953717,
+            0.5939251129549525
+          ],
+          "native_own_failed_heals": 18,
+          "requested_heal_full_hp": 45,
+          "action_counts": {
+            "voluntary_switch": 42,
+            "attack_or_status": 5183,
+            "wait": 988,
+            "forced_switch": 939
+          },
+          "value_discounted_return_mse": 0.6344058100520427
+        },
+        {
+          "policy": "control",
+          "wins": 322,
+          "losses": 254,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5590277777777778,
+          "wilson_95": [
+            0.5182223209386176,
+            0.5990511146972219
+          ],
+          "native_own_failed_heals": 24,
+          "requested_heal_full_hp": 47,
+          "action_counts": {
+            "voluntary_switch": 46,
+            "attack_or_status": 5109,
+            "wait": 997,
+            "forced_switch": 944
+          },
+          "value_discounted_return_mse": 0.6097094193478665
+        },
+        {
+          "policy": "previous_action",
+          "wins": 317,
+          "losses": 259,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5503472222222222,
+          "wilson_95": [
+            0.5095220444083205,
+            0.5905052977516604
+          ],
+          "native_own_failed_heals": 1,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 5072,
+            "forced_switch": 979,
+            "wait": 989,
+            "voluntary_switch": 49
+          },
+          "value_discounted_return_mse": 0.793767019853853
+        },
+        {
+          "policy": "previous_generalization",
+          "wins": 325,
+          "losses": 251,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5642361111111112,
+          "wilson_95": [
+            0.5234484547762909,
+            0.6041726369450641
+          ],
+          "native_own_failed_heals": 6,
+          "requested_heal_full_hp": 6,
+          "action_counts": {
+            "attack_or_status": 4928,
+            "forced_switch": 959,
+            "wait": 989,
+            "voluntary_switch": 3
+          },
+          "value_discounted_return_mse": 0.6484944052300096
+        },
+        {
+          "policy": "previous_tactical",
+          "wins": 313,
+          "losses": 263,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5434027777777778,
+          "wilson_95": [
+            0.5025707344686923,
+            0.5836597329106015
+          ],
+          "native_own_failed_heals": 68,
+          "requested_heal_full_hp": 623,
+          "action_counts": {
+            "voluntary_switch": 168,
+            "attack_or_status": 5994,
+            "wait": 961,
+            "forced_switch": 920
+          },
+          "value_discounted_return_mse": 0.5977548494568469
+        }
+      ],
+      "best_validation_candidate_comparisons": [
+        {
+          "policy": "learner_2477",
+          "baseline": "heuristic",
+          "paired_win_fraction_difference": 0.012152777777777781,
+          "case_cluster_bootstrap_95": [
+            -0.04166666666666666,
+            0.06597222222222222
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "tactical_heuristic",
+          "paired_win_fraction_difference": -0.012152777777777781,
+          "case_cluster_bootstrap_95": [
+            -0.07643229166666667,
+            0.057291666666666664
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_action",
+          "paired_win_fraction_difference": 0.01736111111111111,
+          "case_cluster_bootstrap_95": [
+            -0.04344618055555557,
+            0.07638888888888888
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_generalization",
+          "paired_win_fraction_difference": 0.0034722222222222216,
+          "case_cluster_bootstrap_95": [
+            -0.06770833333333333,
+            0.07118055555555557
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_tactical",
+          "paired_win_fraction_difference": 0.024305555555555552,
+          "case_cluster_bootstrap_95": [
+            -0.022569444444444444,
+            0.07118055555555557
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "control",
+          "paired_win_fraction_difference": 0.00868055555555556,
+          "case_cluster_bootstrap_95": [
+            -0.046875,
+            0.06423611111111112
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        }
+      ],
+      "root_value_diagnostics": {
+        "learner_2393": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": -0.09075610467152728,
+          "mean_discounted_terminal_target": -0.018730522960084987,
+          "common_initial_state_mean_squared_error": 0.43392188610802407,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "learner_2477": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.0032622533763060346,
+          "mean_discounted_terminal_target": 0.13211318047877849,
+          "common_initial_state_mean_squared_error": 0.4882754865346861,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "learner_2591": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.18793181894579902,
+          "mean_discounted_terminal_target": 0.1113412870378621,
+          "common_initial_state_mean_squared_error": 0.4797545972135014,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_selected": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.019017075249090947,
+          "mean_discounted_terminal_target": 0.11532914530977595,
+          "common_initial_state_mean_squared_error": 0.4978921180110765,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_selected": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.0019204922985712376,
+          "mean_discounted_terminal_target": 0.1059985989042695,
+          "common_initial_state_mean_squared_error": 0.500866626763096,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "control": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.05302074473487058,
+          "mean_discounted_terminal_target": 0.11494017157606558,
+          "common_initial_state_mean_squared_error": 0.475873442238336,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_action": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.3472698445742329,
+          "mean_discounted_terminal_target": 0.09615284361735277,
+          "common_initial_state_mean_squared_error": 0.642664580080427,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_generalization": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.11218697308504488,
+          "mean_discounted_terminal_target": 0.123750577815035,
+          "common_initial_state_mean_squared_error": 0.44621948957196905,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_tactical": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.23968187876986727,
+          "mean_discounted_terminal_target": 0.08701946474170075,
+          "common_initial_state_mean_squared_error": 0.4724564418127277,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        }
+      }
+    },
+    "native_current_unseen40": {
+      "table": [
+        {
+          "policy": "random",
+          "wins": 70,
+          "losses": 506,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.12152777777777778,
+          "wilson_95": [
+            0.09732251428159333,
+            0.1507478101709646
+          ],
+          "native_own_failed_heals": 42,
+          "requested_heal_full_hp": 77,
+          "action_counts": {
+            "attack_or_status": 4319,
+            "wait": 577,
+            "voluntary_switch": 1031,
+            "forced_switch": 1172
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "max_power",
+          "wins": 146,
+          "losses": 430,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.2534722222222222,
+          "wilson_95": [
+            0.21966143424663626,
+            0.2905495110389749
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4570,
+            "wait": 781,
+            "forced_switch": 1074
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "heuristic",
+          "wins": 328,
+          "losses": 248,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5694444444444444,
+          "wilson_95": [
+            0.5286790855480482,
+            0.6092896622588219
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4229,
+            "wait": 1021,
+            "forced_switch": 976,
+            "voluntary_switch": 41
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "champions_heuristic",
+          "wins": 319,
+          "losses": 257,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5538194444444444,
+          "wilson_95": [
+            0.5130006665953717,
+            0.5939251129549525
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4424,
+            "wait": 1015,
+            "forced_switch": 980,
+            "voluntary_switch": 41
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "tactical_heuristic",
+          "wins": 329,
+          "losses": 247,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5711805555555556,
+          "wilson_95": [
+            0.530423631701719,
+            0.6109943348003228
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4485,
+            "wait": 999,
+            "voluntary_switch": 162,
+            "forced_switch": 919
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "learner_2393",
+          "wins": 307,
+          "losses": 269,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5329861111111112,
+          "wilson_95": [
+            0.49215854986417257,
+            0.573376605344091
+          ],
+          "native_own_failed_heals": 20,
+          "requested_heal_full_hp": 144,
+          "action_counts": {
+            "attack_or_status": 4395,
+            "wait": 1003,
+            "forced_switch": 979,
+            "voluntary_switch": 61
+          },
+          "value_discounted_return_mse": 0.7044639215137365
+        },
+        {
+          "policy": "learner_2477",
+          "wins": 314,
+          "losses": 262,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5451388888888888,
+          "wilson_95": [
+            0.5043078213928016,
+            0.5853718646816639
+          ],
+          "native_own_failed_heals": 3,
+          "requested_heal_full_hp": 4,
+          "action_counts": {
+            "attack_or_status": 4076,
+            "wait": 1006,
+            "forced_switch": 964,
+            "voluntary_switch": 241
+          },
+          "value_discounted_return_mse": 0.6817965178051938
+        },
+        {
+          "policy": "learner_2591",
+          "wins": 320,
+          "losses": 256,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5555555555555556,
+          "wilson_95": [
+            0.5147407213330262,
+            0.5956342769124698
+          ],
+          "native_own_failed_heals": 5,
+          "requested_heal_full_hp": 10,
+          "action_counts": {
+            "attack_or_status": 4212,
+            "wait": 1013,
+            "forced_switch": 975,
+            "voluntary_switch": 87
+          },
+          "value_discounted_return_mse": 0.6969642158545273
+        },
+        {
+          "policy": "bc_selected",
+          "wins": 329,
+          "losses": 247,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5711805555555556,
+          "wilson_95": [
+            0.530423631701719,
+            0.6109943348003228
+          ],
+          "native_own_failed_heals": 5,
+          "requested_heal_full_hp": 8,
+          "action_counts": {
+            "attack_or_status": 4255,
+            "wait": 1018,
+            "forced_switch": 980,
+            "voluntary_switch": 34
+          },
+          "value_discounted_return_mse": 0.7128839332815323
+        },
+        {
+          "policy": "awr_selected",
+          "wins": 323,
+          "losses": 253,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5607638888888888,
+          "wilson_95": [
+            0.5199638670009806,
+            0.6007587873300305
+          ],
+          "native_own_failed_heals": 5,
+          "requested_heal_full_hp": 8,
+          "action_counts": {
+            "attack_or_status": 4258,
+            "wait": 1010,
+            "forced_switch": 976,
+            "voluntary_switch": 39
+          },
+          "value_discounted_return_mse": 0.7292847202285982
+        },
+        {
+          "policy": "control",
+          "wins": 313,
+          "losses": 263,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5434027777777778,
+          "wilson_95": [
+            0.5025707344686923,
+            0.5836597329106015
+          ],
+          "native_own_failed_heals": 3,
+          "requested_heal_full_hp": 4,
+          "action_counts": {
+            "attack_or_status": 4242,
+            "wait": 1000,
+            "forced_switch": 978,
+            "voluntary_switch": 31
+          },
+          "value_discounted_return_mse": 0.7460612230794619
+        },
+        {
+          "policy": "previous_action",
+          "wins": 304,
+          "losses": 272,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5277777777777778,
+          "wilson_95": [
+            0.48695908555244993,
+            0.5682284135702982
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4311,
+            "wait": 996,
+            "forced_switch": 986,
+            "voluntary_switch": 12
+          },
+          "value_discounted_return_mse": 0.8384414131494116
+        },
+        {
+          "policy": "previous_generalization",
+          "wins": 315,
+          "losses": 261,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.546875,
+          "wilson_95": [
+            0.5060454017050027,
+            0.5870835030646346
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4328,
+            "wait": 1006,
+            "forced_switch": 1006
+          },
+          "value_discounted_return_mse": 0.8278411031863726
+        },
+        {
+          "policy": "previous_tactical",
+          "wins": 283,
+          "losses": 293,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.4913194444444444,
+          "wilson_95": [
+            0.4506859463144465,
+            0.5320679602096947
+          ],
+          "native_own_failed_heals": 56,
+          "requested_heal_full_hp": 199,
+          "action_counts": {
+            "attack_or_status": 4410,
+            "wait": 984,
+            "forced_switch": 984,
+            "voluntary_switch": 170
+          },
+          "value_discounted_return_mse": 0.768519330718614
+        }
+      ],
+      "best_validation_candidate_comparisons": [
+        {
+          "policy": "learner_2477",
+          "baseline": "heuristic",
+          "paired_win_fraction_difference": -0.024305555555555552,
+          "case_cluster_bootstrap_95": [
+            -0.08511284722222223,
+            0.03472222222222222
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "tactical_heuristic",
+          "paired_win_fraction_difference": -0.026041666666666668,
+          "case_cluster_bootstrap_95": [
+            -0.1111111111111111,
+            0.057291666666666664
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_action",
+          "paired_win_fraction_difference": 0.01736111111111111,
+          "case_cluster_bootstrap_95": [
+            -0.0469184027777778,
+            0.08333333333333333
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_generalization",
+          "paired_win_fraction_difference": -0.0017361111111111119,
+          "case_cluster_bootstrap_95": [
+            -0.05902777777777778,
+            0.05729166666666666
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_tactical",
+          "paired_win_fraction_difference": 0.05381944444444445,
+          "case_cluster_bootstrap_95": [
+            0.01736111111111111,
+            0.0920138888888889
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "control",
+          "paired_win_fraction_difference": 0.001736111111111113,
+          "case_cluster_bootstrap_95": [
+            -0.048611111111111105,
+            0.05381944444444445
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        }
+      ],
+      "root_value_diagnostics": {
+        "learner_2393": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": -0.0249400460452307,
+          "mean_discounted_terminal_target": 0.06371435783808133,
+          "common_initial_state_mean_squared_error": 0.506274395591046,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "learner_2477": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.07168561310633474,
+          "mean_discounted_terminal_target": 0.08758380907367579,
+          "common_initial_state_mean_squared_error": 0.5055638938152368,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "learner_2591": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.1780415221922643,
+          "mean_discounted_terminal_target": 0.10680469095757635,
+          "common_initial_state_mean_squared_error": 0.5087640883782635,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_selected": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.062410073915089015,
+          "mean_discounted_terminal_target": 0.13458431496288978,
+          "common_initial_state_mean_squared_error": 0.5207435408958703,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_selected": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.04758863673729744,
+          "mean_discounted_terminal_target": 0.11583308198240105,
+          "common_initial_state_mean_squared_error": 0.5277777952154674,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "control": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.13223892831107756,
+          "mean_discounted_terminal_target": 0.08396448563079169,
+          "common_initial_state_mean_squared_error": 0.5092622881233169,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_action": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.3973993076748836,
+          "mean_discounted_terminal_target": 0.05542078651457031,
+          "common_initial_state_mean_squared_error": 0.7454723487842951,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_generalization": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.1792077915063904,
+          "mean_discounted_terminal_target": 0.08996710547198032,
+          "common_initial_state_mean_squared_error": 0.6450816451267355,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_tactical": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.2731116077896634,
+          "mean_discounted_terminal_target": -0.01158958072768503,
+          "common_initial_state_mean_squared_error": 0.6417780260091779,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        }
+      }
+    },
+    "native_test": {
+      "table": [
+        {
+          "policy": "random",
+          "wins": 67,
+          "losses": 509,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.11631944444444445,
+          "wilson_95": [
+            0.09264222886260214,
+            0.14508043950444055
+          ],
+          "native_own_failed_heals": 37,
+          "requested_heal_full_hp": 27,
+          "action_counts": {
+            "attack_or_status": 4674,
+            "forced_switch": 1205,
+            "voluntary_switch": 1146,
+            "wait": 580
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "max_power",
+          "wins": 141,
+          "losses": 435,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.24479166666666666,
+          "wilson_95": [
+            0.21144506345870984,
+            0.2815197883510425
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4631,
+            "forced_switch": 1120,
+            "wait": 765
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "heuristic",
+          "wins": 282,
+          "losses": 294,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.4895833333333333,
+          "wilson_95": [
+            0.44896401819476733,
+            0.530340669634202
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4314,
+            "forced_switch": 1039,
+            "voluntary_switch": 55,
+            "wait": 921
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "champions_heuristic",
+          "wins": 292,
+          "losses": 284,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5069444444444444,
+          "wilson_95": [
+            0.4662052368421979,
+            0.5475916379384891
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4456,
+            "forced_switch": 1036,
+            "voluntary_switch": 55,
+            "wait": 933
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "tactical_heuristic",
+          "wins": 302,
+          "losses": 274,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5243055555555556,
+          "wilson_95": [
+            0.48349522481983154,
+            0.564793836912573
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4550,
+            "forced_switch": 979,
+            "voluntary_switch": 165,
+            "wait": 912
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "learner_2393",
+          "wins": 280,
+          "losses": 296,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.4861111111111111,
+          "wilson_95": [
+            0.4455216252407611,
+            0.5268846251978647
+          ],
+          "native_own_failed_heals": 27,
+          "requested_heal_full_hp": 122,
+          "action_counts": {
+            "attack_or_status": 4338,
+            "forced_switch": 974,
+            "wait": 904,
+            "voluntary_switch": 86
+          },
+          "value_discounted_return_mse": 0.6794695006098372
+        },
+        {
+          "policy": "learner_2477",
+          "wins": 300,
+          "losses": 276,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5208333333333334,
+          "wilson_95": [
+            0.4800333206237175,
+            0.5613573037183437
+          ],
+          "native_own_failed_heals": 19,
+          "requested_heal_full_hp": 19,
+          "action_counts": {
+            "attack_or_status": 4228,
+            "forced_switch": 960,
+            "wait": 925,
+            "voluntary_switch": 224
+          },
+          "value_discounted_return_mse": 0.6638339874026534
+        },
+        {
+          "policy": "learner_2591",
+          "wins": 295,
+          "losses": 281,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5121527777777778,
+          "wilson_95": [
+            0.47138710866508254,
+            0.5527574222011197
+          ],
+          "native_own_failed_heals": 21,
+          "requested_heal_full_hp": 38,
+          "action_counts": {
+            "attack_or_status": 4335,
+            "forced_switch": 975,
+            "voluntary_switch": 119,
+            "wait": 925
+          },
+          "value_discounted_return_mse": 0.7113173309421695
+        },
+        {
+          "policy": "bc_selected",
+          "wins": 285,
+          "losses": 291,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.4947916666666667,
+          "wilson_95": [
+            0.45413126535710596,
+            0.5355210785573787
+          ],
+          "native_own_failed_heals": 27,
+          "requested_heal_full_hp": 43,
+          "action_counts": {
+            "attack_or_status": 4409,
+            "forced_switch": 1004,
+            "voluntary_switch": 55,
+            "wait": 922
+          },
+          "value_discounted_return_mse": 0.7257888931321362
+        },
+        {
+          "policy": "awr_selected",
+          "wins": 289,
+          "losses": 287,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5017361111111112,
+          "wilson_95": [
+            0.46102775306132054,
+            0.5424214656338513
+          ],
+          "native_own_failed_heals": 27,
+          "requested_heal_full_hp": 44,
+          "action_counts": {
+            "attack_or_status": 4405,
+            "forced_switch": 1001,
+            "voluntary_switch": 59,
+            "wait": 913
+          },
+          "value_discounted_return_mse": 0.721367117949868
+        },
+        {
+          "policy": "control",
+          "wins": 283,
+          "losses": 293,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.4913194444444444,
+          "wilson_95": [
+            0.4506859463144465,
+            0.5320679602096947
+          ],
+          "native_own_failed_heals": 19,
+          "requested_heal_full_hp": 22,
+          "action_counts": {
+            "attack_or_status": 4321,
+            "forced_switch": 987,
+            "wait": 904,
+            "voluntary_switch": 51
+          },
+          "value_discounted_return_mse": 0.6714978624722687
+        },
+        {
+          "policy": "previous_action",
+          "wins": 279,
+          "losses": 297,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.484375,
+          "wilson_95": [
+            0.44380116065197633,
+            0.525155871091478
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4489,
+            "forced_switch": 1044,
+            "wait": 884,
+            "voluntary_switch": 18
+          },
+          "value_discounted_return_mse": 0.7867100141216214
+        },
+        {
+          "policy": "previous_generalization",
+          "wins": 279,
+          "losses": 297,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.484375,
+          "wilson_95": [
+            0.44380116065197633,
+            0.525155871091478
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4375,
+            "wait": 901,
+            "forced_switch": 1021,
+            "voluntary_switch": 2
+          },
+          "value_discounted_return_mse": 0.7552624236271801
+        },
+        {
+          "policy": "previous_tactical",
+          "wins": 304,
+          "losses": 272,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5277777777777778,
+          "wilson_95": [
+            0.48695908555244993,
+            0.5682284135702982
+          ],
+          "native_own_failed_heals": 39,
+          "requested_heal_full_hp": 221,
+          "action_counts": {
+            "attack_or_status": 4618,
+            "wait": 928,
+            "forced_switch": 975,
+            "voluntary_switch": 193
+          },
+          "value_discounted_return_mse": 0.7644549084490785
+        }
+      ],
+      "best_validation_candidate_comparisons": [
+        {
+          "policy": "learner_2477",
+          "baseline": "heuristic",
+          "paired_win_fraction_difference": 0.031249999999999997,
+          "case_cluster_bootstrap_95": [
+            -0.029513888888888885,
+            0.09726562499999976
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "tactical_heuristic",
+          "paired_win_fraction_difference": -0.0034722222222222238,
+          "case_cluster_bootstrap_95": [
+            -0.07122395833333334,
+            0.0625
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_action",
+          "paired_win_fraction_difference": 0.036458333333333336,
+          "case_cluster_bootstrap_95": [
+            -0.024305555555555563,
+            0.09552951388888865
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_generalization",
+          "paired_win_fraction_difference": 0.03645833333333332,
+          "case_cluster_bootstrap_95": [
+            -0.019097222222222224,
+            0.09548611111111112
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_tactical",
+          "paired_win_fraction_difference": -0.006944444444444452,
+          "case_cluster_bootstrap_95": [
+            -0.0625,
+            0.04513888888888889
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "control",
+          "paired_win_fraction_difference": 0.029513888888888885,
+          "case_cluster_bootstrap_95": [
+            -0.022569444444444448,
+            0.08333333333333333
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        }
+      ],
+      "root_value_diagnostics": {
+        "learner_2393": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": -0.0766304111602949,
+          "mean_discounted_terminal_target": -0.02347712190218279,
+          "common_initial_state_mean_squared_error": 0.4983073968493101,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "learner_2477": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": -0.010101350903520748,
+          "mean_discounted_terminal_target": 0.04199422963254812,
+          "common_initial_state_mean_squared_error": 0.48563218877431025,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "learner_2591": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.15828072824903452,
+          "mean_discounted_terminal_target": 0.025860610478809793,
+          "common_initial_state_mean_squared_error": 0.47454443976409505,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_selected": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": -0.025741695377898093,
+          "mean_discounted_terminal_target": -0.008827225033693023,
+          "common_initial_state_mean_squared_error": 0.520259866980813,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_selected": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": -0.04312036720997033,
+          "mean_discounted_terminal_target": 0.004294835979165135,
+          "common_initial_state_mean_squared_error": 0.5128724834677844,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "control": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.016826471095555462,
+          "mean_discounted_terminal_target": -0.012514975771913081,
+          "common_initial_state_mean_squared_error": 0.4945783142455579,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_action": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.33908152416552184,
+          "mean_discounted_terminal_target": -0.030166573255116545,
+          "common_initial_state_mean_squared_error": 0.6422286794353648,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_generalization": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.07528553856051683,
+          "mean_discounted_terminal_target": -0.027375125369484166,
+          "common_initial_state_mean_squared_error": 0.5756223328444052,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_tactical": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.21431637210480403,
+          "mean_discounted_terminal_target": 0.05336288973952274,
+          "common_initial_state_mean_squared_error": 0.5798285606899213,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        }
+      }
+    },
+    "fresh17_test": {
+      "table": [
+        {
+          "policy": "random",
+          "wins": 60,
+          "losses": 516,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.10416666666666667,
+          "wilson_95": [
+            0.08178713318194372,
+            0.13179100431889673
+          ],
+          "native_own_failed_heals": 25,
+          "requested_heal_full_hp": 60,
+          "action_counts": {
+            "attack_or_status": 4300,
+            "wait": 616,
+            "voluntary_switch": 1125,
+            "forced_switch": 1231
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "max_power",
+          "wins": 152,
+          "losses": 424,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.2638888888888889,
+          "wilson_95": [
+            0.22954538043667,
+            0.30136087701997155
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4410,
+            "wait": 820,
+            "forced_switch": 1092
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "heuristic",
+          "wins": 310,
+          "losses": 266,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5381944444444444,
+          "wilson_95": [
+            0.49736242956356036,
+            0.5785203817302182
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4171,
+            "wait": 1023,
+            "forced_switch": 1040,
+            "voluntary_switch": 21
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "champions_heuristic",
+          "wins": 306,
+          "losses": 270,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.53125,
+          "wilson_95": [
+            0.49042490493745483,
+            0.5716610315756366
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4456,
+            "wait": 1031,
+            "forced_switch": 1031,
+            "voluntary_switch": 21
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "tactical_heuristic",
+          "wins": 305,
+          "losses": 271,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5295138888888888,
+          "wilson_95": [
+            0.4886917502699803,
+            0.5699449675479393
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4580,
+            "wait": 990,
+            "forced_switch": 965,
+            "voluntary_switch": 154
+          },
+          "value_discounted_return_mse": null
+        },
+        {
+          "policy": "learner_2393",
+          "wins": 325,
+          "losses": 251,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5642361111111112,
+          "wilson_95": [
+            0.5234484547762909,
+            0.6041726369450641
+          ],
+          "native_own_failed_heals": 20,
+          "requested_heal_full_hp": 173,
+          "action_counts": {
+            "attack_or_status": 4393,
+            "wait": 1016,
+            "forced_switch": 1025,
+            "voluntary_switch": 49
+          },
+          "value_discounted_return_mse": 0.7548214779542239
+        },
+        {
+          "policy": "learner_2477",
+          "wins": 328,
+          "losses": 248,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5694444444444444,
+          "wilson_95": [
+            0.5286790855480482,
+            0.6092896622588219
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4145,
+            "wait": 1027,
+            "forced_switch": 985,
+            "voluntary_switch": 206
+          },
+          "value_discounted_return_mse": 0.6701652138822188
+        },
+        {
+          "policy": "learner_2591",
+          "wins": 332,
+          "losses": 244,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5763888888888888,
+          "wilson_95": [
+            0.5356602882875814,
+            0.6161053342999756
+          ],
+          "native_own_failed_heals": 17,
+          "requested_heal_full_hp": 44,
+          "action_counts": {
+            "attack_or_status": 4228,
+            "wait": 1024,
+            "forced_switch": 1018,
+            "voluntary_switch": 71
+          },
+          "value_discounted_return_mse": 0.7312215969795958
+        },
+        {
+          "policy": "bc_selected",
+          "wins": 318,
+          "losses": 258,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5520833333333334,
+          "wilson_95": [
+            0.5112611078035724,
+            0.5922154530515803
+          ],
+          "native_own_failed_heals": 29,
+          "requested_heal_full_hp": 67,
+          "action_counts": {
+            "attack_or_status": 4355,
+            "wait": 1025,
+            "forced_switch": 1018,
+            "voluntary_switch": 21
+          },
+          "value_discounted_return_mse": 0.7210810015931775
+        },
+        {
+          "policy": "awr_selected",
+          "wins": 316,
+          "losses": 260,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5486111111111112,
+          "wilson_95": [
+            0.5077834758792832,
+            0.5887946475855259
+          ],
+          "native_own_failed_heals": 29,
+          "requested_heal_full_hp": 67,
+          "action_counts": {
+            "attack_or_status": 4318,
+            "wait": 1018,
+            "forced_switch": 1023,
+            "voluntary_switch": 21
+          },
+          "value_discounted_return_mse": 0.7309277078734742
+        },
+        {
+          "policy": "control",
+          "wins": 320,
+          "losses": 256,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5555555555555556,
+          "wilson_95": [
+            0.5147407213330262,
+            0.5956342769124698
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 8,
+          "action_counts": {
+            "attack_or_status": 4260,
+            "wait": 1022,
+            "forced_switch": 1029,
+            "voluntary_switch": 13
+          },
+          "value_discounted_return_mse": 0.7278806026726135
+        },
+        {
+          "policy": "previous_action",
+          "wins": 309,
+          "losses": 267,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5364583333333334,
+          "wilson_95": [
+            0.49562731182273456,
+            0.5768062807758723
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4299,
+            "wait": 1021,
+            "forced_switch": 1020,
+            "voluntary_switch": 31
+          },
+          "value_discounted_return_mse": 0.7852040908491097
+        },
+        {
+          "policy": "previous_generalization",
+          "wins": 319,
+          "losses": 257,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5538194444444444,
+          "wilson_95": [
+            0.5130006665953717,
+            0.5939251129549525
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 4260,
+            "wait": 1035,
+            "forced_switch": 1020,
+            "voluntary_switch": 1
+          },
+          "value_discounted_return_mse": 0.7641327472904631
+        },
+        {
+          "policy": "previous_tactical",
+          "wins": 318,
+          "losses": 258,
+          "draws": 0,
+          "truncated": 0,
+          "n": 576,
+          "win_fraction": 0.5520833333333334,
+          "wilson_95": [
+            0.5112611078035724,
+            0.5922154530515803
+          ],
+          "native_own_failed_heals": 114,
+          "requested_heal_full_hp": 262,
+          "action_counts": {
+            "attack_or_status": 4518,
+            "wait": 1013,
+            "forced_switch": 993,
+            "voluntary_switch": 129
+          },
+          "value_discounted_return_mse": 0.7832024810887732
+        }
+      ],
+      "best_validation_candidate_comparisons": [
+        {
+          "policy": "learner_2477",
+          "baseline": "heuristic",
+          "paired_win_fraction_difference": 0.03125000000000001,
+          "case_cluster_bootstrap_95": [
+            -0.01909722222222222,
+            0.085112847222222
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "tactical_heuristic",
+          "paired_win_fraction_difference": 0.03993055555555556,
+          "case_cluster_bootstrap_95": [
+            -0.02951388888888888,
+            0.11111111111111112
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_action",
+          "paired_win_fraction_difference": 0.03298611111111111,
+          "case_cluster_bootstrap_95": [
+            -0.02777777777777778,
+            0.09895833333333333
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_generalization",
+          "paired_win_fraction_difference": 0.015625000000000003,
+          "case_cluster_bootstrap_95": [
+            -0.03819444444444444,
+            0.07118055555555554
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "previous_tactical",
+          "paired_win_fraction_difference": 0.017361111111111115,
+          "case_cluster_bootstrap_95": [
+            -0.03125,
+            0.06944444444444445
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        },
+        {
+          "policy": "learner_2477",
+          "baseline": "control",
+          "paired_win_fraction_difference": 0.01388888888888889,
+          "case_cluster_bootstrap_95": [
+            -0.024305555555555552,
+            0.05381944444444445
+          ],
+          "independent_case_clusters": 96,
+          "resamples": 2000
+        }
+      ],
+      "root_value_diagnostics": {
+        "learner_2393": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": -7.740110595477745e-05,
+          "mean_discounted_terminal_target": 0.11952376610389918,
+          "common_initial_state_mean_squared_error": 0.5277272753472729,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "learner_2477": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.08749823756321955,
+          "mean_discounted_terminal_target": 0.12999672310179386,
+          "common_initial_state_mean_squared_error": 0.49674431115907813,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "learner_2591": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.16212914428372946,
+          "mean_discounted_terminal_target": 0.14232196329747887,
+          "common_initial_state_mean_squared_error": 0.48195628730044016,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_selected": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.02866930621045564,
+          "mean_discounted_terminal_target": 0.09872989411748406,
+          "common_initial_state_mean_squared_error": 0.4883651268610403,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_selected": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.013495371000317391,
+          "mean_discounted_terminal_target": 0.09132637534840225,
+          "common_initial_state_mean_squared_error": 0.48719715045516615,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "control": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.1327831837879785,
+          "mean_discounted_terminal_target": 0.10438182730193331,
+          "common_initial_state_mean_squared_error": 0.48053203423345575,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_action": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.37422862461729284,
+          "mean_discounted_terminal_target": 0.07050972480538033,
+          "common_initial_state_mean_squared_error": 0.5733077432379233,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_generalization": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.20857330008099476,
+          "mean_discounted_terminal_target": 0.10153967208722085,
+          "common_initial_state_mean_squared_error": 0.4825598232111554,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_tactical": {
+          "same_initial_case_clusters": 96,
+          "mean_prediction": 0.28657737776908715,
+          "mean_discounted_terminal_target": 0.09683204059539052,
+          "common_initial_state_mean_squared_error": 0.5754708362489896,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        }
+      }
+    },
+    "matched_fresh17": {
+      "table": [
+        {
+          "policy": "ppo_2393",
+          "wins": 170,
+          "losses": 118,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5902777777777778,
+          "wilson_95": [
+            0.5326550720136659,
+            0.6455238618846478
+          ],
+          "native_own_failed_heals": 13,
+          "requested_heal_full_hp": 56,
+          "action_counts": {
+            "attack_or_status": 2230,
+            "wait": 506,
+            "forced_switch": 512,
+            "voluntary_switch": 12
+          },
+          "value_discounted_return_mse": 0.7885511993165626
+        },
+        {
+          "policy": "bc_2393",
+          "wins": 173,
+          "losses": 115,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.6006944444444444,
+          "wilson_95": [
+            0.5431640311644509,
+            0.6555740104913609
+          ],
+          "native_own_failed_heals": 17,
+          "requested_heal_full_hp": 51,
+          "action_counts": {
+            "attack_or_status": 2173,
+            "wait": 503,
+            "forced_switch": 502,
+            "voluntary_switch": 47
+          },
+          "value_discounted_return_mse": 0.7330979165872845
+        },
+        {
+          "policy": "awr_2393",
+          "wins": 179,
+          "losses": 109,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.6215277777777778,
+          "wilson_95": [
+            0.5642606876886629,
+            0.6755955694821443
+          ],
+          "native_own_failed_heals": 17,
+          "requested_heal_full_hp": 51,
+          "action_counts": {
+            "attack_or_status": 2209,
+            "wait": 518,
+            "forced_switch": 509,
+            "voluntary_switch": 13
+          },
+          "value_discounted_return_mse": 0.7947239418978191
+        },
+        {
+          "policy": "ppo_2477",
+          "wins": 169,
+          "losses": 119,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5868055555555556,
+          "wilson_95": [
+            0.5291578353975294,
+            0.6421680625816187
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 2153,
+            "wait": 509,
+            "forced_switch": 514,
+            "voluntary_switch": 40
+          },
+          "value_discounted_return_mse": 0.7364730347710847
+        },
+        {
+          "policy": "bc_2477",
+          "wins": 166,
+          "losses": 122,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5763888888888888,
+          "wilson_95": [
+            0.518683224253292,
+            0.6320835659683582
+          ],
+          "native_own_failed_heals": 13,
+          "requested_heal_full_hp": 47,
+          "action_counts": {
+            "attack_or_status": 2151,
+            "wait": 507,
+            "forced_switch": 499,
+            "voluntary_switch": 62
+          },
+          "value_discounted_return_mse": 0.7185897364413179
+        },
+        {
+          "policy": "awr_2477",
+          "wins": 171,
+          "losses": 117,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.59375,
+          "wilson_95": [
+            0.5361551759324085,
+            0.6488767938850716
+          ],
+          "native_own_failed_heals": 13,
+          "requested_heal_full_hp": 39,
+          "action_counts": {
+            "attack_or_status": 2211,
+            "wait": 519,
+            "forced_switch": 509,
+            "voluntary_switch": 9
+          },
+          "value_discounted_return_mse": 0.7520812126311042
+        },
+        {
+          "policy": "ppo_2591",
+          "wins": 173,
+          "losses": 115,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.6006944444444444,
+          "wilson_95": [
+            0.5431640311644509,
+            0.6555740104913609
+          ],
+          "native_own_failed_heals": 13,
+          "requested_heal_full_hp": 40,
+          "action_counts": {
+            "attack_or_status": 2194,
+            "wait": 503,
+            "forced_switch": 511,
+            "voluntary_switch": 35
+          },
+          "value_discounted_return_mse": 0.7009946440489601
+        },
+        {
+          "policy": "bc_2591",
+          "wins": 170,
+          "losses": 118,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5902777777777778,
+          "wilson_95": [
+            0.5326550720136659,
+            0.6455238618846478
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 2129,
+            "wait": 498,
+            "forced_switch": 513,
+            "voluntary_switch": 23
+          },
+          "value_discounted_return_mse": 0.7488523311684879
+        },
+        {
+          "policy": "awr_2591",
+          "wins": 169,
+          "losses": 119,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5868055555555556,
+          "wilson_95": [
+            0.5291578353975294,
+            0.6421680625816187
+          ],
+          "native_own_failed_heals": 13,
+          "requested_heal_full_hp": 39,
+          "action_counts": {
+            "attack_or_status": 2165,
+            "wait": 503,
+            "forced_switch": 500,
+            "voluntary_switch": 57
+          },
+          "value_discounted_return_mse": 0.7065810051827064
+        },
+        {
+          "policy": "control",
+          "wins": 168,
+          "losses": 120,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5833333333333334,
+          "wilson_95": [
+            0.5256634553312419,
+            0.6388094067287401
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 2171,
+            "wait": 508,
+            "forced_switch": 513,
+            "voluntary_switch": 13
+          },
+          "value_discounted_return_mse": 0.7381722667887467
+        },
+        {
+          "policy": "previous_action",
+          "wins": 156,
+          "losses": 132,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5416666666666666,
+          "wilson_95": [
+            0.4839504310785417,
+            0.5982859999514492
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 2183,
+            "wait": 515,
+            "forced_switch": 510,
+            "voluntary_switch": 13
+          },
+          "value_discounted_return_mse": 0.777109630771132
+        },
+        {
+          "policy": "previous_generalization",
+          "wins": 165,
+          "losses": 123,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5729166666666666,
+          "wilson_95": [
+            0.5151973541284554,
+            0.6287164001740289
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 2123,
+            "wait": 512,
+            "forced_switch": 509,
+            "voluntary_switch": 1
+          },
+          "value_discounted_return_mse": 0.8279120999193195
+        },
+        {
+          "policy": "previous_tactical",
+          "wins": 166,
+          "losses": 122,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5763888888888888,
+          "wilson_95": [
+            0.518683224253292,
+            0.6320835659683582
+          ],
+          "native_own_failed_heals": 83,
+          "requested_heal_full_hp": 173,
+          "action_counts": {
+            "attack_or_status": 2352,
+            "wait": 499,
+            "forced_switch": 498,
+            "voluntary_switch": 71
+          },
+          "value_discounted_return_mse": 0.8281778457457922
+        }
+      ],
+      "best_validation_candidate_comparisons": [],
+      "root_value_diagnostics": {
+        "ppo_2393": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": -0.004513719002716243,
+          "mean_discounted_terminal_target": 0.16752819291221097,
+          "common_initial_state_mean_squared_error": 0.584016351746773,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_2393": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": -0.09298534491487469,
+          "mean_discounted_terminal_target": 0.18808207460065737,
+          "common_initial_state_mean_squared_error": 0.6491028015014321,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_2393": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": -0.003999173718815048,
+          "mean_discounted_terminal_target": 0.22445824845746598,
+          "common_initial_state_mean_squared_error": 0.6193869849253142,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "ppo_2477": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": -0.025504638642208494,
+          "mean_discounted_terminal_target": 0.16105323523684387,
+          "common_initial_state_mean_squared_error": 0.5765361845943224,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_2477": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.12111692003478917,
+          "mean_discounted_terminal_target": 0.14237868188520272,
+          "common_initial_state_mean_squared_error": 0.5880762404965393,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_2477": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": -0.025654992370012526,
+          "mean_discounted_terminal_target": 0.17566238801265532,
+          "common_initial_state_mean_squared_error": 0.5959465564740455,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "ppo_2591": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.1498664174384127,
+          "mean_discounted_terminal_target": 0.18753831063542267,
+          "common_initial_state_mean_squared_error": 0.5245511292808933,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_2591": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.1139423396574178,
+          "mean_discounted_terminal_target": 0.168201210483205,
+          "common_initial_state_mean_squared_error": 0.5283814626351204,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_2591": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.09485999759635888,
+          "mean_discounted_terminal_target": 0.16122219962333972,
+          "common_initial_state_mean_squared_error": 0.5353355893209015,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "control": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.1206785222554269,
+          "mean_discounted_terminal_target": 0.15636264991830662,
+          "common_initial_state_mean_squared_error": 0.562366966299405,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_action": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.3424800214318869,
+          "mean_discounted_terminal_target": 0.0805946380178031,
+          "common_initial_state_mean_squared_error": 0.5457250660275338,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_generalization": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.18925066179751107,
+          "mean_discounted_terminal_target": 0.13769863080868802,
+          "common_initial_state_mean_squared_error": 0.5783361671363143,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_tactical": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.2757486609237579,
+          "mean_discounted_terminal_target": 0.13879449468242658,
+          "common_initial_state_mean_squared_error": 0.6535598756000697,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        }
+      }
+    },
+    "matched_native": {
+      "table": [
+        {
+          "policy": "ppo_2393",
+          "wins": 131,
+          "losses": 157,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.4548611111111111,
+          "wilson_95": [
+            0.3983217350797479,
+            0.512588797971095
+          ],
+          "native_own_failed_heals": 25,
+          "requested_heal_full_hp": 71,
+          "action_counts": {
+            "attack_or_status": 2368,
+            "forced_switch": 481,
+            "voluntary_switch": 37,
+            "wait": 485
+          },
+          "value_discounted_return_mse": 0.6464247015283985
+        },
+        {
+          "policy": "bc_2393",
+          "wins": 140,
+          "losses": 148,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.4861111111111111,
+          "wilson_95": [
+            0.4289510889714214,
+            0.5436367673519148
+          ],
+          "native_own_failed_heals": 19,
+          "requested_heal_full_hp": 67,
+          "action_counts": {
+            "attack_or_status": 2355,
+            "forced_switch": 481,
+            "wait": 479,
+            "voluntary_switch": 101
+          },
+          "value_discounted_return_mse": 0.702372076484123
+        },
+        {
+          "policy": "awr_2393",
+          "wins": 146,
+          "losses": 142,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5069444444444444,
+          "wilson_95": [
+            0.44949381273649325,
+            0.5642122591018385
+          ],
+          "native_own_failed_heals": 19,
+          "requested_heal_full_hp": 67,
+          "action_counts": {
+            "attack_or_status": 2380,
+            "forced_switch": 494,
+            "wait": 477,
+            "voluntary_switch": 35
+          },
+          "value_discounted_return_mse": 0.7020201561590738
+        },
+        {
+          "policy": "ppo_2477",
+          "wins": 143,
+          "losses": 145,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.4965277777777778,
+          "wilson_95": [
+            0.43921016359081944,
+            0.5539368004900145
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 4,
+          "action_counts": {
+            "attack_or_status": 2301,
+            "forced_switch": 473,
+            "wait": 480,
+            "voluntary_switch": 84
+          },
+          "value_discounted_return_mse": 0.7018390851873102
+        },
+        {
+          "policy": "bc_2477",
+          "wins": 147,
+          "losses": 141,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5104166666666666,
+          "wilson_95": [
+            0.4529271567907819,
+            0.5676319509667157
+          ],
+          "native_own_failed_heals": 19,
+          "requested_heal_full_hp": 65,
+          "action_counts": {
+            "attack_or_status": 2370,
+            "wait": 490,
+            "forced_switch": 461,
+            "voluntary_switch": 93
+          },
+          "value_discounted_return_mse": 0.6695433455795031
+        },
+        {
+          "policy": "awr_2477",
+          "wins": 132,
+          "losses": 156,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.4583333333333333,
+          "wilson_95": [
+            0.4017140000485507,
+            0.5160495689214581
+          ],
+          "native_own_failed_heals": 19,
+          "requested_heal_full_hp": 67,
+          "action_counts": {
+            "attack_or_status": 2416,
+            "forced_switch": 493,
+            "wait": 485,
+            "voluntary_switch": 23
+          },
+          "value_discounted_return_mse": 0.7158107444596168
+        },
+        {
+          "policy": "ppo_2591",
+          "wins": 140,
+          "losses": 148,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.4861111111111111,
+          "wilson_95": [
+            0.4289510889714214,
+            0.5436367673519148
+          ],
+          "native_own_failed_heals": 21,
+          "requested_heal_full_hp": 35,
+          "action_counts": {
+            "attack_or_status": 2343,
+            "forced_switch": 473,
+            "voluntary_switch": 69,
+            "wait": 482
+          },
+          "value_discounted_return_mse": 0.7484468228552678
+        },
+        {
+          "policy": "bc_2591",
+          "wins": 144,
+          "losses": 144,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5,
+          "wilson_95": [
+            0.44263531652639665,
+            0.5573646834736034
+          ],
+          "native_own_failed_heals": 19,
+          "requested_heal_full_hp": 22,
+          "action_counts": {
+            "attack_or_status": 2291,
+            "forced_switch": 473,
+            "wait": 476,
+            "voluntary_switch": 57
+          },
+          "value_discounted_return_mse": 0.7007821587084709
+        },
+        {
+          "policy": "awr_2591",
+          "wins": 142,
+          "losses": 146,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.4930555555555556,
+          "wilson_95": [
+            0.4357877408981614,
+            0.5505061872635066
+          ],
+          "native_own_failed_heals": 19,
+          "requested_heal_full_hp": 68,
+          "action_counts": {
+            "attack_or_status": 2365,
+            "forced_switch": 482,
+            "wait": 478,
+            "voluntary_switch": 56
+          },
+          "value_discounted_return_mse": 0.6885529254126906
+        },
+        {
+          "policy": "control",
+          "wins": 143,
+          "losses": 145,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.4965277777777778,
+          "wilson_95": [
+            0.43921016359081944,
+            0.5539368004900145
+          ],
+          "native_own_failed_heals": 19,
+          "requested_heal_full_hp": 19,
+          "action_counts": {
+            "attack_or_status": 2329,
+            "forced_switch": 483,
+            "wait": 483,
+            "voluntary_switch": 22
+          },
+          "value_discounted_return_mse": 0.6815962699564063
+        },
+        {
+          "policy": "previous_action",
+          "wins": 135,
+          "losses": 153,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.46875,
+          "wilson_95": [
+            0.4119073272779883,
+            0.5264153494495183
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 2396,
+            "forced_switch": 512,
+            "wait": 453,
+            "voluntary_switch": 11
+          },
+          "value_discounted_return_mse": 0.7559189832208957
+        },
+        {
+          "policy": "previous_generalization",
+          "wins": 139,
+          "losses": 149,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.4826388888888889,
+          "wilson_95": [
+            0.4255368620788757,
+            0.5401979583252945
+          ],
+          "native_own_failed_heals": 0,
+          "requested_heal_full_hp": 0,
+          "action_counts": {
+            "attack_or_status": 2323,
+            "wait": 471,
+            "forced_switch": 494,
+            "voluntary_switch": 2
+          },
+          "value_discounted_return_mse": 0.708964770765938
+        },
+        {
+          "policy": "previous_tactical",
+          "wins": 160,
+          "losses": 128,
+          "draws": 0,
+          "truncated": 0,
+          "n": 288,
+          "win_fraction": 0.5555555555555556,
+          "wilson_95": [
+            0.49781011672903974,
+            0.6118384579776152
+          ],
+          "native_own_failed_heals": 29,
+          "requested_heal_full_hp": 117,
+          "action_counts": {
+            "attack_or_status": 2497,
+            "wait": 492,
+            "forced_switch": 462,
+            "voluntary_switch": 118
+          },
+          "value_discounted_return_mse": 0.7083523716140676
+        }
+      ],
+      "best_validation_candidate_comparisons": [],
+      "root_value_diagnostics": {
+        "ppo_2393": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": -0.09546613290391785,
+          "mean_discounted_terminal_target": -0.07787638111667934,
+          "common_initial_state_mean_squared_error": 0.5097986482743021,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_2393": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": -0.056747698108665645,
+          "mean_discounted_terminal_target": -0.022944272792370185,
+          "common_initial_state_mean_squared_error": 0.44598278139615216,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_2393": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.045902323324601944,
+          "mean_discounted_terminal_target": 0.01446952380575109,
+          "common_initial_state_mean_squared_error": 0.5027263679583295,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "ppo_2477": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": -0.04904506234500635,
+          "mean_discounted_terminal_target": -0.0014770760416170671,
+          "common_initial_state_mean_squared_error": 0.5367338048555133,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_2477": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.09832980995997787,
+          "mean_discounted_terminal_target": 0.020189102334668963,
+          "common_initial_state_mean_squared_error": 0.44660822830419233,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_2477": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.0014760469396909077,
+          "mean_discounted_terminal_target": -0.07001168173905652,
+          "common_initial_state_mean_squared_error": 0.5014181195680183,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "ppo_2591": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.18403042270801961,
+          "mean_discounted_terminal_target": -0.01858045939031251,
+          "common_initial_state_mean_squared_error": 0.4956997955242888,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "bc_2591": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.14505808847025037,
+          "mean_discounted_terminal_target": 0.0027544080809672653,
+          "common_initial_state_mean_squared_error": 0.5073274734658572,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "awr_2591": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.11778596419996272,
+          "mean_discounted_terminal_target": -0.011067722210071457,
+          "common_initial_state_mean_squared_error": 0.5283565461670874,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "control": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.026536396879237145,
+          "mean_discounted_terminal_target": 0.0018352633785699891,
+          "common_initial_state_mean_squared_error": 0.5567706269340703,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_action": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.3703046713732571,
+          "mean_discounted_terminal_target": -0.05997888150107319,
+          "common_initial_state_mean_squared_error": 0.6155509205587003,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_generalization": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.12373208293380837,
+          "mean_discounted_terminal_target": -0.028424066426343448,
+          "common_initial_state_mean_squared_error": 0.6148640851608127,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        },
+        "previous_tactical": {
+          "same_initial_case_clusters": 48,
+          "mean_prediction": 0.2515392867499031,
+          "mean_discounted_terminal_target": 0.10741970700969604,
+          "common_initial_state_mean_squared_error": 0.5400577934226619,
+          "scope": "fixed_rival_mixture_sampled_discounted_return_not_exact_win_probability"
+        }
+      }
+    }
+  },
+  "matched_approaches": {
+    "matched_fresh17": {
+      "ppo": {
+        "wins": 512,
+        "n": 864,
+        "mean_win_fraction": 0.5925925925925926,
+        "seed_win_fractions": [
+          0.5902777777777778,
+          0.5868055555555555,
+          0.6006944444444445
+        ]
+      },
+      "bc": {
+        "wins": 509,
+        "n": 864,
+        "mean_win_fraction": 0.5891203703703703,
+        "seed_win_fractions": [
+          0.6006944444444444,
+          0.576388888888889,
+          0.5902777777777778
+        ],
+        "paired_difference_vs_ppo": -0.00347222222222222,
+        "seed_and_case_cluster_bootstrap_95": [
+          -0.04632523148148148,
+          0.043981481481481476
+        ]
+      },
+      "awr": {
+        "wins": 519,
+        "n": 864,
+        "mean_win_fraction": 0.6006944444444444,
+        "seed_win_fractions": [
+          0.6215277777777778,
+          0.59375,
+          0.5868055555555556
+        ],
+        "paired_difference_vs_ppo": 0.008101851851851853,
+        "seed_and_case_cluster_bootstrap_95": [
+          -0.03472222222222223,
+          0.054398148148148154
+        ]
+      }
+    },
+    "matched_native": {
+      "ppo": {
+        "wins": 414,
+        "n": 864,
+        "mean_win_fraction": 0.4791666666666667,
+        "seed_win_fractions": [
+          0.4548611111111111,
+          0.49652777777777773,
+          0.48611111111111116
+        ]
+      },
+      "bc": {
+        "wins": 431,
+        "n": 864,
+        "mean_win_fraction": 0.49884259259259256,
+        "seed_win_fractions": [
+          0.48611111111111116,
+          0.5104166666666666,
+          0.5
+        ],
+        "paired_difference_vs_ppo": 0.01967592592592592,
+        "seed_and_case_cluster_bootstrap_95": [
+          -0.03125,
+          0.07291666666666667
+        ]
+      },
+      "awr": {
+        "wins": 420,
+        "n": 864,
+        "mean_win_fraction": 0.4861111111111111,
+        "seed_win_fractions": [
+          0.5069444444444445,
+          0.4583333333333333,
+          0.4930555555555555
+        ],
+        "paired_difference_vs_ppo": 0.0069444444444444475,
+        "seed_and_case_cluster_bootstrap_95": [
+          -0.06828703703703703,
+          0.07523148148148148
+        ]
+      }
+    }
+  },
+  "resources": {
+    "final": {
+      "wall_seconds": 901.1913783000055,
+      "network": {
+        "blocked_external_attempts": 0
+      },
+      "tree_cpu_seconds": 936.046875,
+      "peak_job_memory_bytes": 1499025408,
+      "active_processes": 1
+    },
+    "fresh_final": {
+      "wall_seconds": 290.13842730000033,
+      "network": {
+        "blocked_external_attempts": 0
+      },
+      "tree_cpu_seconds": 300.46875,
+      "peak_job_memory_bytes": 1412857856,
+      "active_processes": 1
+    },
+    "matched_final": {
+      "wall_seconds": 319.39858280000044,
+      "network": {
+        "blocked_external_attempts": 0
+      },
+      "tree_cpu_seconds": 332.828125,
+      "peak_job_memory_bytes": 1592516608,
+      "active_processes": 1
+    }
+  },
+  "tactical_conditional_audit": {
+    "recovery": {
+      "selected": {
+        "wins": 3,
+        "n": 6
+      },
+      "tactical": {
+        "wins": 4,
+        "n": 6
+      },
+      "max_power": {
+        "wins": 3,
+        "n": 6
+      }
+    },
+    "setup": {
+      "selected": {
+        "wins": 10,
+        "n": 15
+      },
+      "tactical": {
+        "wins": 7,
+        "n": 15
+      },
+      "max_power": {
+        "wins": 9,
+        "n": 15
+      }
+    },
+    "switch": {
+      "selected": {
+        "wins": 8,
+        "n": 11
+      },
+      "tactical": {
+        "wins": 6,
+        "n": 11
+      },
+      "max_power": {
+        "wins": 8,
+        "n": 11
+      }
+    }
+  },
+  "all_final_outcomes": {
+    "self": 19807,
+    "opponent": 19937
+  }
+}

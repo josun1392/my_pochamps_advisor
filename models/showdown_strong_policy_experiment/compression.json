@@ -1,0 +1,44 @@
+{
+  "analysis.json": {
+    "source_sha256": "459242f04d9aea0169a46a5dc413b825e1624aed7c89946125e225534e96ea1d",
+    "uncompressed_bytes": 3090986,
+    "compressed_bytes": 223071,
+    "byte_exact_roundtrip": true
+  },
+  "training.json": {
+    "source_sha256": "ea771b0c29712768eaccfc8fbbf7d5647d5a5923ac57ce68c11ee157a204d3ff",
+    "uncompressed_bytes": 237924,
+    "compressed_bytes": 18671,
+    "byte_exact_roundtrip": true
+  },
+  "validation\\summary.json": {
+    "source_sha256": "b45de5372be36d08bf0d78e44e8b404376fdbe1643cb05df6b9652491fdaea92",
+    "uncompressed_bytes": 2032948,
+    "compressed_bytes": 151088,
+    "byte_exact_roundtrip": true
+  },
+  "extension_validation\\summary.json": {
+    "source_sha256": "6bd27aa32fe8789568481e9d6080531ba587604dc0d0f01b869cc15ada0d52f2",
+    "uncompressed_bytes": 457225,
+    "compressed_bytes": 38629,
+    "byte_exact_roundtrip": true
+  },
+  "final\\summary.json": {
+    "source_sha256": "02dd319faf678710df74e25fd4155d6b00ecaab4cf9efe13a94d3e98bf710d77",
+    "uncompressed_bytes": 1982434,
+    "compressed_bytes": 171141,
+    "byte_exact_roundtrip": true
+  },
+  "fresh_final\\summary.json": {
+    "source_sha256": "d43dd80737bb9ab4ae0410767ed06125a7563481618ca4f0824a7c056af07198",
+    "uncompressed_bytes": 514524,
+    "compressed_bytes": 43441,
+    "byte_exact_roundtrip": true
+  },
+  "matched_final\\summary.json": {
+    "source_sha256": "91c60866cf66c5de93d6a8de0664639dc4fb08927186a7dd76e08d93b944aa14",
+    "uncompressed_bytes": 1008905,
+    "compressed_bytes": 77674,
+    "byte_exact_roundtrip": true
+  }
+}
