@@ -3,9 +3,12 @@
 from copy import deepcopy
 import os
 from pathlib import Path
-import numpy as np
 import pytest
-import torch
+
+np = pytest.importorskip("numpy")
+torch = pytest.importorskip("torch")
+pytest.importorskip("sb3_contrib")
+pytest.importorskip("poke_env")
 from sb3_contrib import MaskablePPO
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from advisor.learned_action_encoder import make_encoder
