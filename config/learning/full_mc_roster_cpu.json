@@ -1,0 +1,120 @@
+{
+  "schema_version": "showdown-autonomous-training-v1",
+  "catalog": "models/showdown_mc_domain_v1/catalog.json",
+  "previous_model": "models/showdown_full_mc_study_v1/catalog_bindings/v4/model.zip",
+  "max_runtime_seconds": 7200,
+  "envs": 8,
+  "vector_backend": "subproc",
+  "cpu_threads": 4,
+  "memory_mib": 12288,
+  "cpu_percent": 50,
+  "validation_cases": 32,
+  "evaluation_opponents": [
+    "max_power",
+    "champions_heuristic",
+    "tactical_heuristic",
+    "previous"
+  ],
+  "checkpoint_steps": 32768,
+  "plateau_patience": 4,
+  "final_test_cases": 0,
+  "curriculum_version": "showdown-learning-curriculum-v8",
+  "validation_offset": 1521000,
+  "experiments": [
+    {
+      "name": "roster_42013_warm",
+      "seed": 42013,
+      "steps": 131072,
+      "encoder_version": "showdown-learned-observation-v3",
+      "historical_model": "models/showdown_full_mc_study_v1/catalog_bindings/v3/model.zip",
+      "frozen_opponents": {
+        "frozen_v2": "models/showdown_full_mc_study_v1/catalog_bindings/v2/model.zip",
+        "frozen_control": "models/showdown_full_mc_study_v1/catalog_bindings/control/model.zip"
+      },
+      "opponents": [
+        "max_power",
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical",
+        "frozen_v2",
+        "frozen_control"
+      ],
+      "warmstart_decisions": 0,
+      "learning_rate": 5e-05,
+      "ent_coef": 0.01,
+      "initial_model": "models/showdown_full_mc_study_v1/catalog_bindings/ppo2477/model.zip"
+    },
+    {
+      "name": "roster_42019_warm",
+      "seed": 42019,
+      "steps": 131072,
+      "encoder_version": "showdown-learned-observation-v3",
+      "historical_model": "models/showdown_full_mc_study_v1/catalog_bindings/v3/model.zip",
+      "frozen_opponents": {
+        "frozen_v2": "models/showdown_full_mc_study_v1/catalog_bindings/v2/model.zip",
+        "frozen_control": "models/showdown_full_mc_study_v1/catalog_bindings/control/model.zip"
+      },
+      "opponents": [
+        "max_power",
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical",
+        "frozen_v2",
+        "frozen_control"
+      ],
+      "warmstart_decisions": 0,
+      "learning_rate": 5e-05,
+      "ent_coef": 0.01,
+      "initial_model": "models/showdown_full_mc_study_v1/catalog_bindings/ppo2477/model.zip"
+    },
+    {
+      "name": "roster_42023_warm",
+      "seed": 42023,
+      "steps": 131072,
+      "encoder_version": "showdown-learned-observation-v3",
+      "historical_model": "models/showdown_full_mc_study_v1/catalog_bindings/v3/model.zip",
+      "frozen_opponents": {
+        "frozen_v2": "models/showdown_full_mc_study_v1/catalog_bindings/v2/model.zip",
+        "frozen_control": "models/showdown_full_mc_study_v1/catalog_bindings/control/model.zip"
+      },
+      "opponents": [
+        "max_power",
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical",
+        "frozen_v2",
+        "frozen_control"
+      ],
+      "warmstart_decisions": 0,
+      "learning_rate": 5e-05,
+      "ent_coef": 0.01,
+      "initial_model": "models/showdown_full_mc_study_v1/catalog_bindings/ppo2477/model.zip"
+    },
+    {
+      "name": "roster_42013_fresh",
+      "seed": 42013,
+      "steps": 131072,
+      "encoder_version": "showdown-learned-observation-v3",
+      "historical_model": "models/showdown_full_mc_study_v1/catalog_bindings/v3/model.zip",
+      "frozen_opponents": {
+        "frozen_v2": "models/showdown_full_mc_study_v1/catalog_bindings/v2/model.zip",
+        "frozen_control": "models/showdown_full_mc_study_v1/catalog_bindings/control/model.zip"
+      },
+      "opponents": [
+        "max_power",
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical",
+        "frozen_v2",
+        "frozen_control"
+      ],
+      "warmstart_decisions": 0,
+      "learning_rate": 5e-05,
+      "ent_coef": 0.01
+    }
+  ]
+}

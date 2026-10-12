@@ -44,6 +44,7 @@ def curriculum_identity(catalog=None):
         "advisor/learned_full_domain.py",
         "advisor/learned_native_curriculum.py",
         "advisor/learned_scenarios.py",
+        "advisor/learned_gym.py",
         "advisor/showdown_observation.py",
         "advisor/showdown_environment.py",
         "tools/showdown_bridge/environment.cjs",

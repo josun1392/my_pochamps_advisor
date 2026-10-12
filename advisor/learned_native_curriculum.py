@@ -74,6 +74,10 @@ def native_case(split, index, *, version=VERSION):
         raise ValueError("fresh_final_bank_cannot_be_used_for_training_or_selection")
     if version == "showdown-learning-curriculum-v7":
         bank = _full_bank()
+    elif version == "showdown-learning-curriculum-v8":
+        from advisor.learned_full_roster import load_bank as full_roster_bank
+
+        bank = full_roster_bank()
     else:
         bank = (
             _load_bank(FRESH_BANK, version) if version == FRESH_VERSION else load_bank()

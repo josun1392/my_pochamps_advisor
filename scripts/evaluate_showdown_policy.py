@@ -125,6 +125,10 @@ def evaluate(
         from advisor.learned_full_domain import curriculum_identity
 
         full_domain_identity = curriculum_identity()
+    elif curriculum_version == "showdown-learning-curriculum-v8":
+        from advisor.learned_full_roster import study_identity
+
+        full_domain_identity = study_identity()
     started = perf_counter()
     records = []
     rivals = rivals or {kind: kind for kind in ("random", "max_power", "heuristic")}

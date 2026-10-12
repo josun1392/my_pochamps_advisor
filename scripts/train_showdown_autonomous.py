@@ -54,6 +54,7 @@ def validate_config(config):
         "showdown-learning-curriculum-v5",
         "showdown-learning-curriculum-v6",
         "showdown-learning-curriculum-v7",
+        "showdown-learning-curriculum-v8",
     }:
         raise ValueError("unsupported_learning_curriculum")
     rivals = config.get("evaluation_opponents", ["random", "max_power", "heuristic"])
@@ -433,6 +434,10 @@ def training_config_fingerprint(config):
         from advisor.learned_full_domain import curriculum_identity
 
         identity = curriculum_identity(config["catalog"])
+    elif config.get("curriculum_version") == "showdown-learning-curriculum-v8":
+        from advisor.learned_full_roster import study_identity
+
+        identity = study_identity(config["catalog"])
     content = (
         config if identity is None else {**config, "full_domain_identity": identity}
     )
@@ -802,6 +807,15 @@ def run(config, output, *, resume=False, require_detached=False):
                 totals = state.setdefault("episode_outcomes", {})
                 for outcome, count in outcomes.items():
                     totals[outcome] = totals.get(outcome, 0) + count
+                coverage = state.setdefault("sampled_domain_coverage", {})
+                for worker_counts in vector.env_method("drain_coverage"):
+                    for category, counts in worker_counts.items():
+                        previous_counts = Counter(coverage.get(category, {}))
+                        previous_counts.update(counts)
+                        coverage[category] = dict(previous_counts)
+                state["coverage_scope"] = (
+                    "Coordinator fixtures actually reset, self/opponent six-slot rosters and selected three sets; includes active incomplete episodes. Not public actor/critic input, nor executed-move frequency."
+                )
                 state["outcome_tally_scope"] = (
                     "checkpoints_written_by_outcome_aware_trainer"
                 )

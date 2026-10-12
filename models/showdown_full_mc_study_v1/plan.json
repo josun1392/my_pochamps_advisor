@@ -1,0 +1,72 @@
+{
+  "mission": "FULL_MC_MULTI_SEED_POLICY_TRAINING_V1",
+  "baseline": "65a20ca2ca0c7caabba1d2fee4e17d3a9492c8d7",
+  "frozen_models": {
+    "control": "30bc6c34b702137cf63c4fe12c3e4e3ff9e3cfdf6cdd7a52195ce40b5566b896",
+    "ppo2477": "c7f120d7ff5f14c127e030affb1887412c55012eea818dd40b6d98e1242df151",
+    "v2": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+    "v3": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+    "v4": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641"
+  },
+  "configs": {
+    "full_mc_disjoint_cpu.json": "40db0c80bfb58aa0074b3708f2e4a071bb214d93d0de098532836ffe93894080",
+    "full_mc_roster_cpu.json": "5f0e9d72fb631675b5b6fce8ab722d6ac2bcdec331911b8ed77e953dc7d77284"
+  },
+  "new_transition_upper_budget": 1048576,
+  "selection": "per-experiment highest validation wins, no truncations, earliest checkpoint on ties; old baselines preserved regardless. Primary full-roster learned candidate highest validation selected warm seed. No promotion without independent scope-supported advantage.",
+  "validation": {
+    "v7": {
+      "offset": 1511000,
+      "cases": 32
+    },
+    "v8": {
+      "offset": 1521000,
+      "cases": 32
+    },
+    "rivals": [
+      "max_power",
+      "champions_heuristic",
+      "tactical_heuristic",
+      "v4"
+    ]
+  },
+  "final": {
+    "rivals": [
+      "max_power",
+      "heuristic",
+      "champions_heuristic",
+      "tactical_heuristic",
+      "v4",
+      "ppo2477"
+    ],
+    "cases": 96,
+    "scopes": [
+      {
+        "name": "species_test",
+        "curriculum_version": "showdown-learning-curriculum-v7",
+        "split": "test",
+        "offset": 2611000
+      },
+      {
+        "name": "species_reserved",
+        "curriculum_version": "showdown-learning-curriculum-v7",
+        "split": "unseen",
+        "offset": 2631000
+      },
+      {
+        "name": "full_roster_test",
+        "curriculum_version": "showdown-learning-curriculum-v8",
+        "split": "test",
+        "offset": 2621000
+      },
+      {
+        "name": "full_roster_rare_forms",
+        "curriculum_version": "showdown-learning-curriculum-v8",
+        "split": "unseen",
+        "offset": 2641000
+      }
+    ]
+  },
+  "lineage_scope": "Only fresh V7 learners claim species-disjoint input exposure; warm ancestors may have seen V7 test species. V8 exposes all historical reserves; new joint-team/moveset/seed tests, no species- or individual-set-unseen claim.",
+  "production_policy": "unchanged guaranteed-first; experimental only"
+}

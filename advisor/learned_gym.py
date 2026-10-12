@@ -2,6 +2,7 @@
 
 import gymnasium as gym
 import numpy as np
+from collections import Counter
 from advisor.showdown_environment import ShowdownEnvironment
 from advisor.learned_baselines import VisibleBaseline
 from advisor.learned_scenarios import scenario
@@ -37,6 +38,7 @@ class ShowdownLearningEnv(gym.Env):
         self.opponents = opponents or ("random", "max_power", "heuristic")
         self.opponent_factory = opponent_factory
         self._behavior_cache = {}
+        self.coverage_counts = {}
         try:
             self.reset()
         except BaseException:
@@ -57,6 +59,28 @@ class ShowdownLearningEnv(gym.Env):
         from advisor.learned_tactical_curriculum import reset_learning_episode
 
         self.start_info = reset_learning_episode(self.native, current)
+        if self.curriculum_version in {
+            "showdown-learning-curriculum-v7",
+            "showdown-learning-curriculum-v8",
+        }:
+            # Privileged coordinator telemetry only. Never placed in observation,
+            # info, reward, actor/critic features or labels.
+            for side, team in current["teams"].items():
+                selected = current["preview"][side]
+                for scope, sets in (
+                    ("roster", team),
+                    ("brought", [team[i - 1] for i in selected]),
+                ):
+                    for p in sets:
+                        for field, values in (
+                            ("species", [p["species"]]),
+                            ("moves", p["moves"]),
+                            ("abilities", [p["ability"]]),
+                            ("items", [p["item"] or "known_absence"]),
+                        ):
+                            self.coverage_counts.setdefault(
+                                f"{side}_{scope}_{field}", Counter()
+                            ).update(values)
         kind = (options or {}).get(
             "opponent", self.opponents[index % len(self.opponents)]
         )
@@ -178,6 +202,11 @@ class ShowdownLearningEnv(gym.Env):
     def drain_completed(self):
         rows, self.completed = self.completed, []
         return rows
+
+    def drain_coverage(self):
+        result = {key: dict(value) for key, value in self.coverage_counts.items()}
+        self.coverage_counts.clear()
+        return result
 
     def learning_resources(self):
         return dict(self.native.resources)
