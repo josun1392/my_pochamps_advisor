@@ -22,6 +22,7 @@ class ShowdownLearningEnv(gym.Env):
         curriculum_version="showdown-learning-curriculum-v1",
         opponents=None,
         opponent_factory=None,
+        collect_tactical_metrics=False,
     ):
         self.native = ShowdownEnvironment(checkout, max_decisions=max_decisions)
         self.encoder, self.split, self.index, self.offset = (
@@ -39,6 +40,8 @@ class ShowdownLearningEnv(gym.Env):
         self.opponent_factory = opponent_factory
         self._behavior_cache = {}
         self.coverage_counts = {}
+        self.collect_tactical_metrics = collect_tactical_metrics
+        self.tactical_counts = Counter()
         try:
             self.reset()
         except BaseException:
@@ -144,6 +147,10 @@ class ShowdownLearningEnv(gym.Env):
             or not self.action_masks()[int(action)]
         ):
             raise ValueError("masked_learning_action")
+        if self.collect_tactical_metrics:
+            from advisor.learned_tactical_diagnostics import action_class
+
+            self.tactical_counts[action_class(self.current, int(action))] += 1
         result = self.native.step(
             {
                 "self": int(action),
@@ -210,6 +217,14 @@ class ShowdownLearningEnv(gym.Env):
 
     def learning_resources(self):
         return dict(self.native.resources)
+
+    def drain_tactical_counts(self):
+        result = dict(self.tactical_counts)
+        self.tactical_counts.clear()
+        return result
+
+    def pending_completed_count(self):
+        return len(self.completed)
 
     def close(self):
         self.native.close()

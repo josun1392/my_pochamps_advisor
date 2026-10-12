@@ -290,11 +290,16 @@ def save_checkpoint(model, encoder, directory, metadata):
 
 
 class BudgetCallback(BaseCallback):
-    def __init__(self, budget):
+    def __init__(self, budget, progress=None):
         super().__init__()
         self.budget = budget
+        self.progress = progress
+        self.last_progress = 0
 
     def _on_step(self):
+        if self.progress and time() - self.last_progress >= 2:
+            self.progress(self.model.num_timesteps)
+            self.last_progress = time()
         return not self.budget.stopping()
 
 
@@ -444,7 +449,15 @@ def training_config_fingerprint(config):
     return sha256(json.dumps(content, sort_keys=True).encode()).hexdigest(), identity
 
 
-def run(config, output, *, resume=False, require_detached=False):
+def run(
+    config,
+    output,
+    *,
+    resume=False,
+    require_detached=False,
+    event_callback=None,
+    resource_job=None,
+):
     validate_config(config)
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -483,8 +496,20 @@ def run(config, output, *, resume=False, require_detached=False):
         "launches": 0,
     }
     vector = None
+
+    def notify(phase, **extra):
+        if event_callback:
+            event_callback(
+                {
+                    "phase": phase,
+                    "transitions": state["transitions"],
+                    "completed_battles": state["completed_battles"],
+                    **extra,
+                }
+            )
+
     try:
-        job = WindowsJob(
+        job = resource_job or WindowsJob(
             memory_mib=config.get("memory_mib", 3072),
             cpu_percent=config.get("cpu_percent", 12.5),
             active_process_limit=max(12, 4 * config.get("envs", 4) + 8)
@@ -627,6 +652,7 @@ def run(config, output, *, resume=False, require_detached=False):
                         )
                     ),
                     references,
+                    config.get("collect_tactical_metrics", False),
                 )
                 for i in range(config.get("envs", 4))
             ]
@@ -816,6 +842,10 @@ def run(config, output, *, resume=False, require_detached=False):
                 state["coverage_scope"] = (
                     "Coordinator fixtures actually reset, self/opponent six-slot rosters and selected three sets; includes active incomplete episodes. Not public actor/critic input, nor executed-move frequency."
                 )
+                tactical = Counter(state.get("public_tactical_action_counts", {}))
+                for counts in vector.env_method("drain_tactical_counts"):
+                    tactical.update(counts)
+                state["public_tactical_action_counts"] = dict(tactical)
                 state["outcome_tally_scope"] = (
                     "checkpoints_written_by_outcome_aware_trainer"
                 )
@@ -835,15 +865,22 @@ def run(config, output, *, resume=False, require_detached=False):
                 atomic_json(state_path, state)
                 if budget.stopping():
                     return False
-                result = evaluate(
-                    checkout,
-                    catalog,
-                    {"candidate": restored},
-                    cases=config.get("validation_cases", 24),
-                    offset=config.get("validation_offset", 7000),
-                    curriculum_version=curriculum,
-                    rivals=evaluation_rivals,
-                )
+                notify("evaluating", resources=state["resources"], checkpoint=path)
+                try:
+                    result = evaluate(
+                        checkout,
+                        catalog,
+                        {"candidate": restored},
+                        cases=config.get("validation_cases", 24),
+                        offset=config.get("validation_offset", 7000),
+                        curriculum_version=curriculum,
+                        rivals=evaluation_rivals,
+                        stopping=budget.stopping,
+                    )
+                except TimeoutError:
+                    if budget.stopping():
+                        return False
+                    raise
                 atomic_json(directory / "validation.json", result)
                 summary = next(
                     row for row in result["summaries"] if row["opponent"] == "all"
@@ -981,10 +1018,23 @@ def run(config, output, *, resume=False, require_detached=False):
                     experiment["steps"] - state["experiment_steps"],
                 )
                 torch.set_num_threads(config.get("cpu_threads", 1))
+                notify("running", resources=job.usage())
+
+                def live_progress(current):
+                    pending = sum(vector.env_method("pending_completed_count"))
+                    notify(
+                        "running",
+                        transitions=state["transitions"] + current - steps_before,
+                        completed_battles=state["completed_battles"] + pending,
+                        resources=job.usage(),
+                    )
+
                 model.learn(
                     total_timesteps=chunk,
                     reset_num_timesteps=False,
-                    callback=BudgetCallback(budget),
+                    callback=BudgetCallback(
+                        budget, live_progress if event_callback else None
+                    ),
                 )
                 taken = model.num_timesteps - steps_before
                 state["experiment_steps"] += taken

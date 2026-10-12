@@ -20,6 +20,7 @@ class LearningEnvFactory:
     curriculum_version: str
     opponents: tuple
     references: dict
+    collect_tactical_metrics: bool = False
 
     def __call__(self):
         import torch
@@ -47,4 +48,5 @@ class LearningEnvFactory:
             curriculum_version=self.curriculum_version,
             opponents=self.opponents,
             opponent_factory=opponent,
+            collect_tactical_metrics=self.collect_tactical_metrics,
         )
