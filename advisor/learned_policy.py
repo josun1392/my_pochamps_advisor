@@ -96,6 +96,8 @@ class LearnedPolicy:
             "encoder_version": self.encoder.version,
             "action_schema_version": "showdown-policy-actions-v1",
             "model_id": self.model_id,
+            "public_catalog_coverage": self.encoder.coverage(observation),
+            "public_state_version": observation["state"].get("state_version"),
             "episode_id": observation["episode_id"],
             "revision": observation["revision"],
             "side": observation["side"],

@@ -7,8 +7,13 @@ if (execFileSync('git', ['-C', process.argv[2], 'rev-parse', 'HEAD'], {encoding:
   throw new Error('learning_catalog_requires_pinned_engine');
 }
 const dex = loadEngine(process.argv[2]).Dex.mod('champions');
+const allSpecies = new Map(dex.species.all().map(p => [p.id,p]));
+for (const p of dex.species.all()) for (const name of [...(p.cosmeticFormes || []),...(p.otherFormes || [])]) {
+  const alias = dex.species.get(name);
+  if (alias.exists) allSpecies.set(alias.id,alias);
+}
 const species = {}, moves = {}, effectiveness = {};
-for (const p of dex.species.all()) if (p.exists) {
+for (const p of allSpecies.values()) if (p.exists) {
   species[p.id] = {types:p.types, base_stats:p.baseStats};
 }
 for (const m of dex.moves.all()) if (m.exists) {
@@ -17,7 +22,7 @@ for (const m of dex.moves.all()) if (m.exists) {
 }
 for (const t of dex.types.all()) if (t.exists) {
   effectiveness[t.name] = {};
-  for (const p of dex.species.all()) if (p.exists) {
+  for (const p of allSpecies.values()) if (p.exists) {
     effectiveness[t.name][p.id] = dex.getImmunity(t.name,p.types) ? 2 ** dex.getEffectiveness(t.name,p.types) : 0;
   }
 }

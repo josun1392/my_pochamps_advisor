@@ -46,7 +46,8 @@ def project_policy_observation(native: dict, history: list[str]) -> dict:
     role = "p1" if native["side"] == "self" else "p2"
     sides = {s: {"active_identity": unknown(), "pokemon": {}, "preview": []} for s in ("p1", "p2")}
     field = {"weather": unknown(), "terrain": unknown()}
-    for line in history:
+    appearances = {}
+    for event_index, line in enumerate(history):
         parts = line.split("|")
         if len(parts) < 2:
             continue
@@ -71,11 +72,39 @@ def project_policy_observation(native: dict, history: list[str]) -> dict:
             continue
         identity = args[0]
         side = sides[identity[:2]]
+        prior = side["pokemon"].get(identity)
+        if kind in {"switch", "drag"}:
+            appearances[identity[:2]] = {"identity":identity,"start":event_index,"prior":deepcopy(prior)}
+            # Public preview can establish identity ambiguity, never hidden identity.
+            possible_illusion = identity[:2] != role and any(
+                _id(p["details"].split(",")[0]).startswith("zoroark") for p in side["preview"]
+            ) and not _id(args[1].split(",")[0]).startswith("zoroark")
+            if possible_illusion:
+                side["pokemon"][identity] = _pokemon(identity)
+                side["pokemon"][identity]["identity_scope"] = "public_apparent_identity_unconfirmed"
+        if kind == "replace" and side["active_identity"] != identity:
+            segment = appearances.get(identity[:2])
+            if segment and segment["identity"] == side["active_identity"]:
+                apparent = segment["identity"]
+                # Reproject just the confirmed actor's current public appearance.
+                # Never transfer a different real teammate's earlier item/moves.
+                public_chunk = [p.replace(f"|{apparent}|",f"|{identity}|")
+                                for p in history[segment["start"]:event_index]]
+                replay = project_policy_observation({**native,"own_request":{},"visible_active_health":[]},public_chunk)
+                projected_side = "self_side" if identity[:2] == role else "opponent_side"
+                actor = replay["state"][projected_side]["pokemon"].get(identity,_pokemon(identity))
+                actor["identity_scope"] = "public_protocol_replacement_confirmed"
+                side["pokemon"][identity] = actor
+                if segment["prior"] is None:
+                    side["pokemon"].pop(apparent,None)
+                else:
+                    side["pokemon"][apparent] = segment["prior"]
         row = side["pokemon"].setdefault(identity, _pokemon(identity))
-        if kind in {"switch", "drag", "replace"} and len(args) >= 3:
+        if kind in {"switch", "drag", "replace"} and len(args) >= 2:
             row["details"] = args[1]
             side["active_identity"] = identity
-            _condition(row, args[2], own=identity[:2] == role)
+            if len(args) >= 3:
+                _condition(row, args[2], own=identity[:2] == role)
             row["stat_stages"] = {}
         elif kind in {"-damage", "-heal", "-sethp"} and len(args) >= 2:
             _condition(row, args[1], own=identity[:2] == role)
@@ -122,7 +151,12 @@ def project_policy_observation(native: dict, history: list[str]) -> dict:
         name = pokemon["ident"].split(": ", 1)[1]
         identity = next((key for key in own["pokemon"] if key.split(": ", 1)[1] == name), pokemon["ident"])
         row = own["pokemon"].setdefault(identity, _pokemon(identity, pokemon["details"]))
-        row["details"] = pokemon["details"]
+        # Native own-request details describe the registered/base form for some
+        # temporary transformations. Preserve the latest public active formechange
+        # instead of replacing Castform-Sunny/Blade/Hero with the base form.
+        row["request_details"] = pokemon["details"]
+        if not pokemon.get("active") or not row["details"]:
+            row["details"] = pokemon["details"]
         _condition(row, pokemon["condition"], own=True)
         item = pokemon.get("item", unknown())
         ability = pokemon.get("ability", unknown())
@@ -138,6 +172,22 @@ def project_policy_observation(native: dict, history: list[str]) -> dict:
     result = deepcopy(native)
     result["interpretation"] = "hypothetical_player_visible_observation_not_live_truth"
     result["public_history"] = list(history)
-    result["state"] = {"state_version": "showdown-policy-state-v1", "self_side": sides[role],
+    # Preserve protocol facts even when the fixed legacy feature encoders do not
+    # model their state semantics. This additive audit is not a mechanics oracle.
+    unmodeled = {}
+    for line in history:
+        event = line.split("|")[1] if "|" in line else ""
+        if event in {"-transform", "-start", "-end", "-singleturn", "-singlemove",
+                     "-activate", "-copyboost", "-swapboost", "-fieldactivate",
+                     "-sidestart", "-sideend"} or (
+            event in {"-fieldstart", "-fieldend"} and "terrain" not in line.lower()
+        ):
+            unmodeled[event] = unmodeled.get(event, 0) + 1
+    result["projection_coverage"] = {
+        "schema_version": "showdown-public-projection-coverage-v1",
+        "preserved_unmodeled_state_events": unmodeled,
+        "scope": "Lossy structured summary; complete player-visible protocol retained in public_history. Fixed learned encoders are lossy features, not complete mechanics state.",
+    }
+    result["state"] = {"state_version": "showdown-policy-state-v2", "self_side": sides[role],
                        "opponent_side": sides["p2" if role == "p1" else "p1"], "field": field}
     return result

@@ -1,0 +1,29 @@
+{
+  "schema_version": "showdown-mc-legal-domain-v1",
+  "tool_source_sha256": {
+    "tools/showdown_bridge/legal-domain.cjs": "08cb2f44c182341f3bbebf89de4c2cb99fc465f0717cb9f7f70e30a2ef0cd22e",
+    "tools/showdown_bridge/full-domain.cjs": "43ad31b7523695c2babfcbaac06601d2edb8bd4a16efab903edddb249c0dba96",
+    "tools/showdown_bridge/learning-catalog.cjs": "988eefaaa59763f720d7098aecab76cac15fd7f2bc176449c272fac9c9f07fff",
+    "scripts/build_showdown_full_domain.py": "14ed78e8dc5df848d76c44c915dbe302564a0dd5982e7a0cdc9e5068fc4635e0"
+  },
+  "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+  "format_id": "gen9championsbssregmc",
+  "content_sha256": "f94b71da6aabcd4bd61d4f3b60da17d8733f07c063f26345312ddef882c7853b",
+  "compressed_sha256": "e8ff6ba46e66f8c1e87df6dcb229d46e8c9b538ee90ca780af9f591a1bd38a4b",
+  "public_dex_sha256": "b5c6a07b4d76458048e3a0725b0157b4449ad1aa06333efd32bf80dc63e96ee8",
+  "counts": {
+    "public_catalog_species": 1586,
+    "base_species": 231,
+    "forms": 396,
+    "moves": 510,
+    "abilities": 202,
+    "items": 166
+  },
+  "wall_seconds": 7.894063799991272,
+  "catalog_sha256": "15f3cdb8d73582b3a5e94f9ec1d70f22444756afb572d7e670b180e47777bbf9",
+  "resources": {
+    "tree_cpu_seconds": 9.4375,
+    "peak_job_memory_bytes": 293453824,
+    "active_processes": 1
+  }
+}

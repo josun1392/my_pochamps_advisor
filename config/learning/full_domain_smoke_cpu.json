@@ -1,0 +1,25 @@
+{
+  "schema_version": "showdown-autonomous-training-v1",
+  "catalog": "models/showdown_mc_domain_v1/catalog.json",
+  "curriculum_version": "showdown-learning-curriculum-v7",
+  "max_runtime_seconds": 180,
+  "envs": 8,
+  "vector_backend": "subproc",
+  "cpu_threads": 4,
+  "memory_mib": 12288,
+  "cpu_percent": 50,
+  "validation_cases": 8,
+  "validation_offset": 740000,
+  "evaluation_opponents": ["max_power", "tactical_heuristic"],
+  "checkpoint_steps": 1024,
+  "plateau_patience": 3,
+  "experiments": [{
+    "seed": 8059,
+    "steps": 2048,
+    "encoder_version": "showdown-learned-observation-v3",
+    "opponents": ["random", "max_power", "tactical_heuristic"],
+    "warmstart_decisions": 0,
+    "learning_rate": 0.00005,
+    "ent_coef": 0.01
+  }]
+}

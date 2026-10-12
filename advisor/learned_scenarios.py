@@ -131,6 +131,7 @@ def scenario(split, index, *, version="showdown-learning-curriculum-v1"):
     if version in {
         "showdown-learning-curriculum-v6",
         "showdown-learning-curriculum-v6-fresh17",
+        "showdown-learning-curriculum-v7",
     }:
         from advisor.learned_native_curriculum import native_case
 

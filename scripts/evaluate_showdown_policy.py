@@ -120,6 +120,11 @@ def evaluate(
 ):
     if not 1 <= cases <= 256 or split not in {"validation", "test", "unseen"}:
         raise ValueError("bounded_held_out_evaluation_required")
+    full_domain_identity = None
+    if curriculum_version == "showdown-learning-curriculum-v7":
+        from advisor.learned_full_domain import curriculum_identity
+
+        full_domain_identity = curriculum_identity()
     started = perf_counter()
     records = []
     rivals = rivals or {kind: kind for kind in ("random", "max_power", "heuristic")}
@@ -355,6 +360,11 @@ def evaluate(
         "schema_version": "showdown-learned-evaluation-v1",
         "split": split,
         "curriculum_version": curriculum_version,
+        **(
+            {"full_domain_identity": full_domain_identity}
+            if full_domain_identity
+            else {}
+        ),
         "cases_per_opponent": cases,
         "offset": offset,
         "interpretation": "held_out_sampled_win_frequencies_not_exact_probabilities",

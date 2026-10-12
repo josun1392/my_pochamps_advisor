@@ -1,0 +1,172 @@
+{
+  "schema_version": "showdown-full-domain-verification-v1",
+  "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+  "format_id": "gen9championsbssregmc",
+  "inventory_content_sha256": "f94b71da6aabcd4bd61d4f3b60da17d8733f07c063f26345312ddef882c7853b",
+  "generation": {
+    "sample_teams": 4096,
+    "fixture_teams": 1267,
+    "repeat_sample_equal": true,
+    "inventory_reproduced": true,
+    "coverage": {
+      "species": 307,
+      "moves": 510,
+      "abilities": 202,
+      "items": 167
+    },
+    "attempts": {
+      "sets": 31171,
+      "teams": 4122
+    },
+    "rejections": {
+      "item_clause_collision": 6491,
+      "bounded_legal_set_retry_exhausted": 26
+    },
+    "modes": {
+      "upstream": 15399,
+      "domain": 15772
+    },
+    "fixtures_sha256": "a36a86834f9ad50d31107d55eb6b3f785a014841090938a9a27ed7447f5f8715",
+    "seconds": 13.292785899990122
+  },
+  "execution": {
+    "initial_and_post_action_encoder_checks": 10136,
+    "native_fixture_progressions": 1267,
+    "activated_mega_forms": 82,
+    "native_initial_action_gates": [],
+    "public_event_counts": {
+      "": 2529,
+      "-singleturn": 1265,
+      "move": 2534,
+      "-activate": 911,
+      "-weather": 227,
+      "upkeep": 1262,
+      "turn": 1256,
+      "detailschange": 82,
+      "-mega": 82,
+      "-damage": 28,
+      "-fail": 152,
+      "-ability": 18,
+      "-start": 37,
+      "faint": 6,
+      "-prepare": 24,
+      "-sidestart": 32,
+      "-boost": 123,
+      "-clearallboost": 2,
+      "-copyboost": 4,
+      "-fieldstart": 17,
+      "-zbroken": 1,
+      "-unboost": 14,
+      "-formechange": 14,
+      "-anim": 2,
+      "drag": 5,
+      "-enditem": 5,
+      "-clearnegativeboost": 1,
+      "-heal": 1,
+      "-setboost": 1,
+      "-singlemove": 1,
+      "-fieldactivate": 3,
+      "-transform": 2
+    },
+    "preserved_unmodeled_public_event_counts": {
+      "-singleturn": 1265,
+      "-activate": 912,
+      "-start": 37,
+      "-sidestart": 32,
+      "-transform": 4,
+      "-copyboost": 4,
+      "-fieldstart": 8,
+      "-singlemove": 1,
+      "-fieldactivate": 3
+    },
+    "seconds": 14.076855199993588
+  },
+  "ability_transformations": [
+    "castformsunny",
+    "castformrainy",
+    "castformsnowy",
+    "aegislashblade",
+    "mimikyubusted",
+    "morpekohangry",
+    "palafinhero"
+  ],
+  "battles": {
+    "count": 32,
+    "terminal": 32,
+    "truncated": 0,
+    "outcomes": {
+      "self": 12,
+      "opponent": 20
+    }
+  },
+  "native_resources": {
+    "episodes": 1,
+    "rss_bytes": 234954752,
+    "heap_used_bytes": 156469744
+  },
+  "partitions": {
+    "test": 12,
+    "train": 168,
+    "unseen": 39,
+    "validation": 12
+  },
+  "legacy_catalog_missing_species": [
+    "alcremiesaltedcream",
+    "florgesblue",
+    "florgesorange",
+    "florgeswhite",
+    "florgesyellow",
+    "furfroudandy",
+    "furfroudebutante",
+    "furfroudiamond",
+    "furfrouheart",
+    "furfroukabuki",
+    "furfroulareine",
+    "furfroumatron",
+    "furfroupharaoh",
+    "furfroustar"
+  ],
+  "model_identity_preserved": {
+    "showdown_initial_v1": "00a9d85a9288f7f818f1c25f2cfb6c16e9c369387cc5a7ed0fd66568b9f099c0",
+    "showdown_action_v2": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+    "showdown_generalization_v3": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+    "showdown_tactical_v4": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641"
+  },
+  "unsupported_poke_env_effect_warnings": {
+    "Unexpected effect 'MEGA_SOL' received. Effect.UNKNOWN will be used instead. If this is unexpected, please open an issue at https://github.com/hsahovic/poke-env/issues/ along with this error message and a description of your program.": 1
+  },
+  "wall_seconds": 33.82086269999854,
+  "resources": {
+    "tree_cpu_seconds": 40.265625,
+    "peak_job_memory_bytes": 1268400128,
+    "active_processes": 1
+  },
+  "network": {
+    "blocked_external_attempts": 0
+  },
+  "public_state_version": "showdown-policy-state-v2",
+  "full_domain_identity": {
+    "schema_version": "showdown-full-domain-training-binding-v1",
+    "curriculum_version": "showdown-learning-curriculum-v7",
+    "public_state_version": "showdown-policy-state-v2",
+    "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+    "inventory_content_sha256": "f94b71da6aabcd4bd61d4f3b60da17d8733f07c063f26345312ddef882c7853b",
+    "bank_sha256": "db28dd8c9464b4bedc7880e88b0e6b5b577eefb8408e1931d89e3c7fbd4c878d",
+    "catalog_sha256": "15f3cdb8d73582b3a5e94f9ec1d70f22444756afb572d7e670b180e47777bbf9",
+    "generator_source_sha256": {
+      "tools/showdown_bridge/legal-domain.cjs": "08cb2f44c182341f3bbebf89de4c2cb99fc465f0717cb9f7f70e30a2ef0cd22e",
+      "tools/showdown_bridge/full-domain.cjs": "43ad31b7523695c2babfcbaac06601d2edb8bd4a16efab903edddb249c0dba96",
+      "tools/showdown_bridge/learning-catalog.cjs": "988eefaaa59763f720d7098aecab76cac15fd7f2bc176449c272fac9c9f07fff",
+      "scripts/build_showdown_full_domain.py": "14ed78e8dc5df848d76c44c915dbe302564a0dd5982e7a0cdc9e5068fc4635e0"
+    },
+    "adapter_source_sha256": {
+      "advisor/learned_full_domain.py": "15f9670ab7ff8dd8c821ccd6315644bb502f0328d4d234654f6c10da49b84a2d",
+      "advisor/learned_native_curriculum.py": "ff2246ca96ecc3b6d964225ef85307f41743945e888a7f02b8c7c28fc54ffc81",
+      "advisor/learned_scenarios.py": "d2507491100e19238b718516ed12b8a4db5c36af9a0b3bd4d4d890f479a5690f",
+      "advisor/showdown_observation.py": "2e90ff0d6422f2fb6d0b16b6994607fc23ad933d803339718cfd09c0863d63f2",
+      "advisor/showdown_environment.py": "6130e866590f9a3a10d08e3f2e5ce999b5eea91c4d46816a5627ffe24a3b9ece",
+      "tools/showdown_bridge/environment.cjs": "7f72e92b3014eb019d8bfaf553211ca1f062febab863ae7f17729227809dc0df",
+      "tools/showdown_bridge/legal-battle.cjs": "e672b6793755b7c4aa9aaf2316fe98d359babb7016756b6b9a64ae33d4f953e1"
+    }
+  }
+}

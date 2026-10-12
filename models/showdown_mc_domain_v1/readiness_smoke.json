@@ -1,0 +1,125 @@
+{
+  "schema_version": "showdown-full-domain-learning-readiness-v1",
+  "scope": "Four bounded readiness runs with same seed 8059, not independent strength experiments. Final-only strategic evaluation untouched.",
+  "total_transitions": 8192,
+  "completed_battles": 401,
+  "optimizer_steps": 256,
+  "total_training_wall_seconds": 63.456476300008944,
+  "final_run": {
+    "schema_version": "showdown-autonomous-run-v1",
+    "config_fingerprint": "ea1f7c1e31c6bc0f929c446f6a59b403f12502b50ef8553cefa6dec3cce0c11b",
+    "full_domain_identity": {
+      "schema_version": "showdown-full-domain-training-binding-v1",
+      "curriculum_version": "showdown-learning-curriculum-v7",
+      "public_state_version": "showdown-policy-state-v2",
+      "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+      "inventory_content_sha256": "f94b71da6aabcd4bd61d4f3b60da17d8733f07c063f26345312ddef882c7853b",
+      "bank_sha256": "db28dd8c9464b4bedc7880e88b0e6b5b577eefb8408e1931d89e3c7fbd4c878d",
+      "catalog_sha256": "15f3cdb8d73582b3a5e94f9ec1d70f22444756afb572d7e670b180e47777bbf9",
+      "generator_source_sha256": {
+        "tools/showdown_bridge/legal-domain.cjs": "08cb2f44c182341f3bbebf89de4c2cb99fc465f0717cb9f7f70e30a2ef0cd22e",
+        "tools/showdown_bridge/full-domain.cjs": "43ad31b7523695c2babfcbaac06601d2edb8bd4a16efab903edddb249c0dba96",
+        "tools/showdown_bridge/learning-catalog.cjs": "988eefaaa59763f720d7098aecab76cac15fd7f2bc176449c272fac9c9f07fff",
+        "scripts/build_showdown_full_domain.py": "14ed78e8dc5df848d76c44c915dbe302564a0dd5982e7a0cdc9e5068fc4635e0"
+      },
+      "adapter_source_sha256": {
+        "advisor/learned_full_domain.py": "15f9670ab7ff8dd8c821ccd6315644bb502f0328d4d234654f6c10da49b84a2d",
+        "advisor/learned_native_curriculum.py": "ff2246ca96ecc3b6d964225ef85307f41743945e888a7f02b8c7c28fc54ffc81",
+        "advisor/learned_scenarios.py": "d2507491100e19238b718516ed12b8a4db5c36af9a0b3bd4d4d890f479a5690f",
+        "advisor/showdown_observation.py": "2e90ff0d6422f2fb6d0b16b6994607fc23ad933d803339718cfd09c0863d63f2",
+        "advisor/showdown_environment.py": "6130e866590f9a3a10d08e3f2e5ce999b5eea91c4d46816a5627ffe24a3b9ece",
+        "tools/showdown_bridge/environment.cjs": "7f72e92b3014eb019d8bfaf553211ca1f062febab863ae7f17729227809dc0df",
+        "tools/showdown_bridge/legal-battle.cjs": "e672b6793755b7c4aa9aaf2316fe98d359babb7016756b6b9a64ae33d4f953e1"
+      }
+    },
+    "experiment_index": 1,
+    "experiment_steps": 0,
+    "latest": null,
+    "best": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-migration-upstream\\domain-learning-state-v2-smoke\\experiment_00\\checkpoint_0000_initial_0_8cecfa74\\model.zip",
+    "best_score": 0.125,
+    "evaluations": [
+      {
+        "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-migration-upstream\\domain-learning-state-v2-smoke\\experiment_00\\checkpoint_0000_initial_0_8cecfa74\\model.zip",
+        "experiment": 0,
+        "steps": 0,
+        "score": 0.125,
+        "wins": 2,
+        "n": 16,
+        "truncated": 0,
+        "stage": "initial"
+      },
+      {
+        "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-migration-upstream\\domain-learning-state-v2-smoke\\experiment_00\\checkpoint_0001_ppo_1024_07aa8052\\model.zip",
+        "experiment": 0,
+        "steps": 1024,
+        "score": 0.125,
+        "wins": 2,
+        "n": 16,
+        "truncated": 0,
+        "stage": "ppo"
+      },
+      {
+        "checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-migration-upstream\\domain-learning-state-v2-smoke\\experiment_00\\checkpoint_0002_ppo_2048_dbbb4b66\\model.zip",
+        "experiment": 0,
+        "steps": 2048,
+        "score": 0.125,
+        "wins": 2,
+        "n": 16,
+        "truncated": 0,
+        "stage": "ppo"
+      }
+    ],
+    "completed_battles": 102,
+    "transitions": 2048,
+    "trained_rollout_transitions": 2048,
+    "warmstart_decisions": 0,
+    "launches": 1,
+    "status": "complete",
+    "previous_model_id": null,
+    "frozen_historical_experiment": 0,
+    "frozen_historical_path": null,
+    "frozen_historical_model_id": null,
+    "frozen_extra_opponents": {},
+    "plateau": 2,
+    "experiment_best_score": 0.125,
+    "warmstart": {
+      "decisions": 0,
+      "optimizer_updates": 0
+    },
+    "offline": null,
+    "optimizer_steps": 64,
+    "episode_count_scope": "ended_including_time_limit_truncations",
+    "episode_outcomes": {
+      "self": 27,
+      "opponent": 75
+    },
+    "outcome_tally_scope": "checkpoints_written_by_outcome_aware_trainer",
+    "resources": {
+      "native_rss_bytes": 1205948416,
+      "gpu_peak_allocated_bytes": 0,
+      "python_cpu_seconds": 19.203125,
+      "wall_seconds_this_launch": 13.666157300001942,
+      "tree_cpu_seconds": 73.046875,
+      "peak_job_memory_bytes": 8667779072,
+      "active_processes": 1
+    },
+    "wall_seconds_this_launch": 15.929058499998064,
+    "network": {
+      "blocked_external_attempts": 0
+    }
+  },
+  "trained_checkpoint": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-migration-upstream\\domain-learning-state-v2-smoke\\experiment_00\\checkpoint_0002_ppo_2048_dbbb4b66\\model.zip",
+  "trained_model_sha256": "86df319fccc1fed2f0dc579b6aacfcf9ba9979f381cf52a9a7485c4900b408dc",
+  "changed_parameter_elements": 136067,
+  "checkpoint_reloaded_legal_inference": true,
+  "ui_proof": {
+    "schema_version": "showdown-full-domain-ui-readiness-v1",
+    "status": "passed",
+    "model_sha256": "86df319fccc1fed2f0dc579b6aacfcf9ba9979f381cf52a9a7485c4900b408dc",
+    "learned_scenarios": 8,
+    "default_recommendations_equal": true,
+    "runtime_snapshot_unchanged": true,
+    "exact_ledgers_equal": true,
+    "catalog_identity": "a1023b8a5cde8ac1e67873310031b425504509b1a8e608871087f41b18ba42b3"
+  }
+}

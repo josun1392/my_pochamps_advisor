@@ -71,7 +71,31 @@ class PartialObservationEncoder:
         self.catalog_fingerprint = fingerprint(self.catalog)
 
     def _species(self, details):
-        return self.catalog["species"].get(identifier(details), {})
+        key = identifier(details)
+        result = self.catalog["species"].get(key, {})
+        if key and not result and self.catalog.get("legal_domain_version"):
+            raise ValueError("species_outside_full_domain_public_catalog")
+        return result
+
+    def coverage(self, observation):
+        """Public identifiers only; classify old catalog gaps without fabricating facts."""
+        details = []
+        for side in ("self_side", "opponent_side"):
+            public = observation["state"][side]
+            details.extend(p.get("details", "") for p in public["preview"])
+            details.extend(p.get("details", "") for p in public["pokemon"].values())
+        missing = sorted(
+            {
+                identifier(p)
+                for p in details
+                if p and identifier(p) not in self.catalog["species"]
+            }
+        )
+        return {
+            "schema_version": "showdown-public-catalog-coverage-v1",
+            "missing_species": missing,
+            "catalog_fingerprint": self.catalog_fingerprint,
+        }
 
     def _row(self, row):
         species = self._species(row.get("details", ""))

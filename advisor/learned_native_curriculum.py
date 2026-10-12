@@ -15,7 +15,7 @@ FRESH_VERSION = "showdown-learning-curriculum-v6-fresh17"
 FRESH_BANK = Path(__file__).resolve().parents[1] / "models/showdown_native_fresh17"
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=3)
 def _load_bank(path, version):
     manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
     compressed = (path / "teams.json.gz").read_bytes()
@@ -44,10 +44,40 @@ def load_bank():
     return _load_bank(BANK, VERSION)
 
 
+@lru_cache(maxsize=1)
+def _full_bank():
+    from advisor.learned_full_domain import BANK, CURRICULUM, DOMAIN, load_inventory
+
+    bank = _load_bank(BANK, CURRICULUM)
+    inventory = load_inventory()
+    raw = gzip.decompress((DOMAIN / "inventory.json.gz").read_bytes())
+    if bank.get("inventory_sha256") != sha256(raw).hexdigest():
+        raise ValueError("curriculum_domain_identity_mismatch")
+    pools = bank["partition_species"]
+    if any(set(pools[a]) & set(pools[b]) for a in pools for b in pools if a != b):
+        raise ValueError("full_domain_partition_overlap")
+    for split, pool in pools.items():
+        allowed = {
+            e["start_species"]
+            for e in inventory["species"].values()
+            if e["base_species"] in pool
+        }
+        if any(
+            p["species"] not in allowed for team in bank["teams"][split] for p in team
+        ):
+            raise ValueError("full_domain_team_outside_partition")
+    return bank
+
+
 def native_case(split, index, *, version=VERSION):
     if version == FRESH_VERSION and split != "unseen":
         raise ValueError("fresh_final_bank_cannot_be_used_for_training_or_selection")
-    bank = _load_bank(FRESH_BANK, version) if version == FRESH_VERSION else load_bank()
+    if version == "showdown-learning-curriculum-v7":
+        bank = _full_bank()
+    else:
+        bank = (
+            _load_bank(FRESH_BANK, version) if version == FRESH_VERSION else load_bank()
+        )
     rng = random.Random(
         int.from_bytes(sha256(f"{version}:{split}:{index}".encode()).digest(), "big")
     )

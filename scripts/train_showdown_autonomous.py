@@ -53,6 +53,7 @@ def validate_config(config):
         "showdown-learning-curriculum-v4",
         "showdown-learning-curriculum-v5",
         "showdown-learning-curriculum-v6",
+        "showdown-learning-curriculum-v7",
     }:
         raise ValueError("unsupported_learning_curriculum")
     rivals = config.get("evaluation_opponents", ["random", "max_power", "heuristic"])
@@ -426,11 +427,23 @@ def warmstart(
     }
 
 
+def training_config_fingerprint(config):
+    identity = None
+    if config.get("curriculum_version") == "showdown-learning-curriculum-v7":
+        from advisor.learned_full_domain import curriculum_identity
+
+        identity = curriculum_identity(config["catalog"])
+    content = (
+        config if identity is None else {**config, "full_domain_identity": identity}
+    )
+    return sha256(json.dumps(content, sort_keys=True).encode()).hexdigest(), identity
+
+
 def run(config, output, *, resume=False, require_detached=False):
     validate_config(config)
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    fingerprint = sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
+    fingerprint, full_domain_identity = training_config_fingerprint(config)
     lock = output / "run.lock"
     if lock.exists():
         old = json.loads(lock.read_text())
@@ -447,6 +460,11 @@ def run(config, output, *, resume=False, require_detached=False):
     state = {
         "schema_version": "showdown-autonomous-run-v1",
         "config_fingerprint": fingerprint,
+        **(
+            {"full_domain_identity": full_domain_identity}
+            if full_domain_identity
+            else {}
+        ),
         "experiment_index": 0,
         "experiment_steps": 0,
         "latest": None,
@@ -717,6 +735,11 @@ def run(config, output, *, resume=False, require_detached=False):
                     {
                         "experiment": experiment,
                         "curriculum_version": curriculum,
+                        **(
+                            {"full_domain_identity": full_domain_identity}
+                            if full_domain_identity
+                            else {}
+                        ),
                         "stage": stage,
                         "initial_model": experiment.get("initial_model"),
                         "optimizer_initialization": "restored_same_encoder"

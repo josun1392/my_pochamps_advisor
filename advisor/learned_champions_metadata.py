@@ -2,6 +2,7 @@
 
 from copy import copy
 from functools import lru_cache
+from hashlib import sha256
 import json
 from pathlib import Path
 from advisor.showdown_bridge import FORMAT_ID, SHOWDOWN_COMMIT
@@ -18,6 +19,17 @@ def champions_data():
         Path(__file__).resolve().parents[1]
         / "models/showdown_native_curriculum_v6/public_dex.json"
     )
+    full_domain = (
+        Path(__file__).resolve().parents[1]
+        / "models/showdown_mc_domain_v1/public_dex.json"
+    )
+    if full_domain.exists():
+        source = full_domain
+        manifest = json.loads(
+            source.with_name("manifest.json").read_text(encoding="utf-8")
+        )
+        if sha256(source.read_bytes()).hexdigest() != manifest.get("public_dex_sha256"):
+            raise ValueError("champions_public_metadata_hash_mismatch")
     if source.exists():
         public = json.loads(source.read_text(encoding="utf-8"))
         if (
