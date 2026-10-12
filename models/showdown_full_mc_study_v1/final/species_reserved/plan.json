@@ -1,0 +1,68 @@
+{
+  "catalog": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_mc_domain_v1\\catalog.json",
+  "max_runtime_seconds": 1800,
+  "models": {
+    "previous_action": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\catalog_bindings\\v2\\model.zip",
+    "previous_generalization": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\catalog_bindings\\v3\\model.zip",
+    "previous_tactical": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\catalog_bindings\\v4\\model.zip",
+    "control": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\catalog_bindings\\control\\model.zip",
+    "previous": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\catalog_bindings\\ppo2477\\model.zip",
+    "disjoint_41011_fresh": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\selected\\disjoint_41011_fresh\\model.zip",
+    "disjoint_41017_fresh": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\selected\\disjoint_41017_fresh\\model.zip",
+    "disjoint_41023_fresh": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\selected\\disjoint_41023_fresh\\model.zip",
+    "disjoint_41011_warm": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\selected\\disjoint_41011_warm\\model.zip",
+    "roster_42013_warm": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\selected\\roster_42013_warm\\model.zip",
+    "roster_42019_warm": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\selected\\roster_42019_warm\\model.zip",
+    "roster_42023_warm": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\selected\\roster_42023_warm\\model.zip",
+    "roster_42013_fresh": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\selected\\roster_42013_fresh\\model.zip"
+  },
+  "baselines": [
+    "random",
+    "max_power",
+    "heuristic",
+    "champions_heuristic",
+    "tactical_heuristic"
+  ],
+  "rivals": {
+    "max_power": "max_power",
+    "heuristic": "heuristic",
+    "champions_heuristic": "champions_heuristic",
+    "tactical_heuristic": "tactical_heuristic",
+    "v4": {
+      "model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\catalog_bindings\\v4\\model.zip"
+    },
+    "ppo2477": {
+      "model": "C:\\Users\\jsp33\\.codex\\worktrees\\showdown-mc-integration-v1\\poke_advisor\\models\\showdown_full_mc_study_v1\\catalog_bindings\\ppo2477\\model.zip"
+    }
+  },
+  "tactical_diagnostics": true,
+  "scopes": [
+    {
+      "name": "species_reserved",
+      "curriculum_version": "showdown-learning-curriculum-v7",
+      "split": "unseen",
+      "offset": 2631000,
+      "cases": 96
+    }
+  ],
+  "checkout": "C:\\Users\\jsp33\\AppData\\Local\\Temp\\poke-showdown-mc-install-93162ded436d489fb541ab54eb392653",
+  "policy_model_ids": {
+    "previous_action": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+    "previous_generalization": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d",
+    "previous_tactical": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+    "control": "30bc6c34b702137cf63c4fe12c3e4e3ff9e3cfdf6cdd7a52195ce40b5566b896",
+    "previous": "c7f120d7ff5f14c127e030affb1887412c55012eea818dd40b6d98e1242df151",
+    "disjoint_41011_fresh": "a18ef94d701a43eba2b8efe9905e05dc2f24c35598a9019f2c2cc0ff1f75053d",
+    "disjoint_41017_fresh": "279da11bcd8c5127e1031b47bb5714521fc0335e7fc0c1037a8493ae8ce01aae",
+    "disjoint_41023_fresh": "04367d5fa283817d3e40f8bf9aa5626615179e68c0012cca86c9158071439922",
+    "disjoint_41011_warm": "664c1c667a0de0541b49aad70fb3f08c24613f3ec73a75320865c02f1cb15740",
+    "roster_42013_warm": "dc9d7453a8182cf83dbfcfe3702f87e1866a67b43d891bb8f1bcae8ce03ff44b",
+    "roster_42019_warm": "3e79b76df93a49669658bb83dbb3ed6a4918eaa683e94001254cc4f5a07fdf51",
+    "roster_42023_warm": "79ee36bb919f67f13946f5dfef774a7b0c3157b6a9cb40e25ccd4d1f504cca45",
+    "roster_42013_fresh": "5a179bbd7efd297232b403792939b9f0b5caaf4981588375a0d87fae92e61547"
+  },
+  "rival_model_ids": {
+    "v4": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+    "ppo2477": "c7f120d7ff5f14c127e030affb1887412c55012eea818dd40b6d98e1242df151"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "wall_seconds": 650.2761161999952,
+  "network": {
+    "blocked_external_attempts": 0
+  },
+  "unsupported_public_effect_warning_counts": {
+    "MEGA_SOL": 462
+  },
+  "tree_cpu_seconds": 654.9375,
+  "peak_job_memory_bytes": 1627361280,
+  "active_processes": 1
+}

@@ -60,16 +60,24 @@ def prepare(run_root):
                 source.parent / "validation.json", target / "validation.json"
             )
             models[name] = str(target / "model.zip")
-            evidence["selected"][name] = {
-                **best,
-                "model_sha256": sha256((target / "model.zip").read_bytes()).hexdigest(),
-                "new_training_transitions": sum(
+            experiment_rows = [
+                row for row in state["evaluations"] if row["experiment"] == index
+            ]
+            retained_rows = experiment_rows[: experiment_rows.index(best) + 1]
+
+            def transitions(entries):
+                return sum(
                     json.loads(
                         Path(row["checkpoint"]).with_suffix(".json").read_text()
                     )["training_metrics"].get("collected_transitions", 0)
-                    for row in state["evaluations"]
-                    if row["experiment"] == index
-                ),
+                    for row in entries
+                )
+
+            evidence["selected"][name] = {
+                **best,
+                "model_sha256": sha256((target / "model.zip").read_bytes()).hexdigest(),
+                "new_training_transitions_spent": transitions(experiment_rows),
+                "selected_new_training_transitions": transitions(retained_rows),
                 "initialization": "warm historical policy"
                 if experiment.get("initial_model")
                 else "fresh independent actor/critic",

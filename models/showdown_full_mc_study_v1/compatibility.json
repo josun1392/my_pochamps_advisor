@@ -1,0 +1,68 @@
+{
+  "selected_reload_results": [
+    {
+      "model": "disjoint_41011_fresh",
+      "sha256": "a18ef94d701a43eba2b8efe9905e05dc2f24c35598a9019f2c2cc0ff1f75053d",
+      "legal_action": "move 4",
+      "missing_public_catalog_species": []
+    },
+    {
+      "model": "disjoint_41011_warm",
+      "sha256": "664c1c667a0de0541b49aad70fb3f08c24613f3ec73a75320865c02f1cb15740",
+      "legal_action": "move 4",
+      "missing_public_catalog_species": []
+    },
+    {
+      "model": "disjoint_41017_fresh",
+      "sha256": "279da11bcd8c5127e1031b47bb5714521fc0335e7fc0c1037a8493ae8ce01aae",
+      "legal_action": "move 4",
+      "missing_public_catalog_species": []
+    },
+    {
+      "model": "disjoint_41023_fresh",
+      "sha256": "04367d5fa283817d3e40f8bf9aa5626615179e68c0012cca86c9158071439922",
+      "legal_action": "move 4",
+      "missing_public_catalog_species": []
+    },
+    {
+      "model": "roster_42013_fresh",
+      "sha256": "5a179bbd7efd297232b403792939b9f0b5caaf4981588375a0d87fae92e61547",
+      "legal_action": "move 4",
+      "missing_public_catalog_species": []
+    },
+    {
+      "model": "roster_42013_warm",
+      "sha256": "dc9d7453a8182cf83dbfcfe3702f87e1866a67b43d891bb8f1bcae8ce03ff44b",
+      "legal_action": "move 4",
+      "missing_public_catalog_species": []
+    },
+    {
+      "model": "roster_42019_warm",
+      "sha256": "3e79b76df93a49669658bb83dbb3ed6a4918eaa683e94001254cc4f5a07fdf51",
+      "legal_action": "move 4",
+      "missing_public_catalog_species": []
+    },
+    {
+      "model": "roster_42023_warm",
+      "sha256": "79ee36bb919f67f13946f5dfef774a7b0c3157b6a9cb40e25ccd4d1f504cca45",
+      "legal_action": "move 4",
+      "missing_public_catalog_species": []
+    }
+  ],
+  "ui_model": "roster_42019_warm",
+  "ui_scenarios": 8,
+  "runtime_truth_immutable": true,
+  "exact_ledgers_and_preferred_frontier_equal": true,
+  "external_provider_requests": 0,
+  "network": {
+    "blocked_external_attempts": 0
+  },
+  "elapsed_s": 3.243722400002298,
+  "preview_policy_implemented": false,
+  "production_default_changed": false,
+  "resources": {
+    "tree_cpu_seconds": 6.234375,
+    "peak_job_memory_bytes": 1245306880,
+    "active_processes": 1
+  }
+}

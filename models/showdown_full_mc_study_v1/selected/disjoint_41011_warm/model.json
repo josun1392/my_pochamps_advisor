@@ -1,0 +1,103 @@
+{
+  "schema_version": "showdown-learned-model-v1",
+  "evidence_class": "learned_policy_value",
+  "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
+  "algorithm": "sb3-contrib-MaskablePPO",
+  "versions": {
+    "torch": "2.8.0+cpu",
+    "sb3-contrib": "2.7.1",
+    "stable-baselines3": "2.7.1",
+    "gymnasium": "1.2.3",
+    "poke-env": "0.10.0",
+    "numpy": "2.4.6"
+  },
+  "policy_class": "TacticalActionConditionedPolicy",
+  "model_seed": 41011,
+  "encoder_version": "showdown-learned-observation-v3",
+  "catalog_fingerprint": "a1023b8a5cde8ac1e67873310031b425504509b1a8e608871087f41b18ba42b3",
+  "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+  "format_id": "gen9championsbssregmc",
+  "action_schema_version": "showdown-policy-actions-v1",
+  "model_sha256": "664c1c667a0de0541b49aad70fb3f08c24613f3ec73a75320865c02f1cb15740",
+  "total_steps": 151552,
+  "optimizer_steps": 3072,
+  "parameter_count": 142338,
+  "observation_dim": 7411,
+  "device": "cpu",
+  "gamma": 0.99,
+  "curriculum_version": "showdown-learning-curriculum-v7",
+  "experiment": {
+    "name": "disjoint_41011_warm",
+    "seed": 41011,
+    "steps": 131072,
+    "encoder_version": "showdown-learned-observation-v3",
+    "historical_model": "models/showdown_full_mc_study_v1/catalog_bindings/v3/model.zip",
+    "frozen_opponents": {
+      "frozen_v2": "models/showdown_full_mc_study_v1/catalog_bindings/v2/model.zip",
+      "frozen_control": "models/showdown_full_mc_study_v1/catalog_bindings/control/model.zip"
+    },
+    "opponents": [
+      "max_power",
+      "champions_heuristic",
+      "tactical_heuristic",
+      "previous",
+      "historical",
+      "frozen_v2",
+      "frozen_control"
+    ],
+    "warmstart_decisions": 0,
+    "learning_rate": 5e-05,
+    "ent_coef": 0.01,
+    "initial_model": "models/showdown_full_mc_study_v1/catalog_bindings/ppo2477/model.zip"
+  },
+  "full_domain_identity": {
+    "schema_version": "showdown-full-domain-training-binding-v1",
+    "curriculum_version": "showdown-learning-curriculum-v7",
+    "public_state_version": "showdown-policy-state-v2",
+    "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+    "inventory_content_sha256": "f94b71da6aabcd4bd61d4f3b60da17d8733f07c063f26345312ddef882c7853b",
+    "bank_sha256": "db28dd8c9464b4bedc7880e88b0e6b5b577eefb8408e1931d89e3c7fbd4c878d",
+    "catalog_sha256": "15f3cdb8d73582b3a5e94f9ec1d70f22444756afb572d7e670b180e47777bbf9",
+    "generator_source_sha256": {
+      "tools/showdown_bridge/legal-domain.cjs": "08cb2f44c182341f3bbebf89de4c2cb99fc465f0717cb9f7f70e30a2ef0cd22e",
+      "tools/showdown_bridge/full-domain.cjs": "43ad31b7523695c2babfcbaac06601d2edb8bd4a16efab903edddb249c0dba96",
+      "tools/showdown_bridge/learning-catalog.cjs": "988eefaaa59763f720d7098aecab76cac15fd7f2bc176449c272fac9c9f07fff",
+      "scripts/build_showdown_full_domain.py": "14ed78e8dc5df848d76c44c915dbe302564a0dd5982e7a0cdc9e5068fc4635e0"
+    },
+    "adapter_source_sha256": {
+      "advisor/learned_full_domain.py": "877826f1101dca383f317d449f824c1abbba72944df85fe40491e068a177b271",
+      "advisor/learned_native_curriculum.py": "565719c8a3e11042f0f5d8b9c045be53352f2a1da06a100902a8c14f242c814c",
+      "advisor/learned_scenarios.py": "1a00cceda02539d4fa31eb6b70cc5dfde2814ee7e7f44fc1037069d14bf1ec37",
+      "advisor/learned_gym.py": "21a30c954b9dd05a32306be18f615cd37002c18adea3c1b0653bea4e5e55e13a",
+      "advisor/showdown_observation.py": "2e90ff0d6422f2fb6d0b16b6994607fc23ad933d803339718cfd09c0863d63f2",
+      "advisor/showdown_environment.py": "6130e866590f9a3a10d08e3f2e5ce999b5eea91c4d46816a5627ffe24a3b9ece",
+      "tools/showdown_bridge/environment.cjs": "7f72e92b3014eb019d8bfaf553211ca1f062febab863ae7f17729227809dc0df",
+      "tools/showdown_bridge/legal-battle.cjs": "e672b6793755b7c4aa9aaf2316fe98d359babb7016756b6b9a64ae33d4f953e1"
+    }
+  },
+  "stage": "initial",
+  "initial_model": "models/showdown_full_mc_study_v1/catalog_bindings/ppo2477/model.zip",
+  "optimizer_initialization": "restored_same_encoder",
+  "weight_transfer_source_sha256": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+  "weight_transfer_optimizer": "fresh_shape_compatible_optimizer",
+  "weight_transfer_optimizer_scope": "ancestor_transfer_only",
+  "opponent_model_ids": {
+    "previous": "986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641",
+    "historical": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d"
+  },
+  "warmstart": {
+    "decisions": 0,
+    "optimizer_updates": 0
+  },
+  "offline": null,
+  "offline_learning_scope": null,
+  "extra_opponent_model_ids": {
+    "frozen_v2": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+    "frozen_control": "30bc6c34b702137cf63c4fe12c3e4e3ff9e3cfdf6cdd7a52195ce40b5566b896"
+  },
+  "training_metrics": {},
+  "vector_backend": "subproc",
+  "cpu_threads": 4,
+  "gpu_memory_fraction": null,
+  "episode_outcomes_this_checkpoint": {}
+}
