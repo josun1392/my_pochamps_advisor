@@ -110,3 +110,10 @@ checkpoint unchanged, external attempts0. All three trainer control PIDs are
 dead; final evaluation and Qt verification exec sessions finished successfully.
 Result: PARTIAL strategic-strength objective; engineering/learning/evaluation
 completed. Published artifacts are experimental, original v2 remains unchanged.
+
+00:29:32 UTC final verification: migration worktree clean; local and canonical
+remote both `cd533a504f88101dfe37aa289a82e358a58a6943`. Three validated milestones
+`11e0940`, `b79da4e`, `cd533a5` pushed. Original master still
+`691d2dfab74f0eaed0488dad9735d808be14927b`, same five pre-existing changes.
+No running training/evaluation workers. Measured elapsed 72min01s from mission
+start through final verification; this closing journal commit follows.
