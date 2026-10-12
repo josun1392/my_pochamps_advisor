@@ -35,11 +35,32 @@ def test_gym_info_has_no_opponent_private_request_or_future_rng(checkout):
         opponents=["max_power"],
     )
     try:
-        env.reset(seed=781)
+        original_step = env.native.step
+
+        def future_transition(*args, **kwargs):
+            result = original_step(*args, **kwargs)
+            # Future privileged coordinator fields must not propagate to callbacks.
+            result["observations"] = {
+                "opponent": {"own_request": {"item": "hidden-test-marker"}}
+            }
+            return result
+
+        env.native.step = future_transition
+        _, reset_info = env.reset(seed=781)
+        assert set(reset_info) == {
+            "schema_version",
+            "episode_id",
+            "revision",
+            "request_state",
+        }
         for _ in range(96):
             action = int(np.flatnonzero(env.action_masks())[-1])
             _, _, ended, truncated, info = env.step(action)
             assert info["schema_version"] == "showdown-learning-info-v2"
+            assert (
+                info["episode_id"] == env.current["episode_id"]
+                and info["revision"] == env.current["revision"]
+            )
             assert set(info["native_outcome"]) == {
                 "revision",
                 "decisions",
@@ -55,6 +76,55 @@ def test_gym_info_has_no_opponent_private_request_or_future_rng(checkout):
         assert env.learning_resources()["rss_bytes"] > 0
     finally:
         env.close()
+
+
+def test_public_event_copy_isolation_and_malformed_transition_invalidates_handle(
+    checkout, monkeypatch
+):
+    from advisor.showdown_environment import (
+        ShowdownEnvironment,
+        ShowdownEnvironmentError,
+    )
+    from advisor.learned_scenarios import scenario
+    from advisor.learned_baselines import VisibleBaseline
+
+    with ShowdownEnvironment(checkout) as env:
+        env.reset(
+            scenario("validation", 32011, version="showdown-learning-curriculum-v5")
+        )
+        original = env.observation("self", include_history=True)
+        cp = env.save()
+        changed = deepcopy(original)
+        changed["public_history"].append("|hidden-mutated-test-marker")
+        assert env.observation("self", include_history=True) == original
+        raw = env.worker.run
+
+        def malformed(request):
+            result = raw(request)
+            if any(r["operation"] == "step" for r in request["requests"]):
+                result["results"][0]["observations"]["opponent"]["events"] = [
+                    {"malformed": "not a public string"}
+                ]
+            return result
+
+        monkeypatch.setattr(env.worker, "run", malformed)
+        actions = {
+            side: VisibleBaseline("max_power").act(
+                env.observation(side, include_history=True)
+            )
+            for side in ("self", "opponent")
+        }
+        with pytest.raises(
+            ShowdownEnvironmentError,
+            match="invalid_environment_transition_restore_saved_checkpoint",
+        ):
+            env.step(actions, revision=original["revision"])
+        with pytest.raises(ShowdownEnvironmentError, match="episode_not_initialized"):
+            env.observation("self")
+        monkeypatch.setattr(env.worker, "run", raw)
+        env.restart(cp)
+        restored = env.observation("self", include_history=True)
+        assert restored["public_history"] == original["public_history"]
 
 
 def test_public_history_failure_order_and_wish_are_samples(checkout):
@@ -198,6 +268,56 @@ def test_worker_and_tensor_limits_fail_closed():
         changed = dict(config, **{key: bad})
         with pytest.raises(ValueError):
             validate_config(changed)
+
+
+def test_trusted_model_reload_preserves_global_sampling_rng():
+    import random
+
+    random.seed(1853)
+    np.random.seed(1853)
+    torch.manual_seed(1853)
+    py, np_state, ts = (
+        random.getstate(),
+        np.random.get_state(),
+        torch.get_rng_state().clone(),
+    )
+    LearnedPolicy(ROOT / "models/showdown_tactical_v4/model.zip", CATALOG)
+    assert random.getstate() == py
+    actual = np.random.get_state()
+    assert actual[0] == np_state[0] and actual[2:] == np_state[2:]
+    np.testing.assert_array_equal(actual[1], np_state[1])
+    torch.testing.assert_close(torch.get_rng_state(), ts, rtol=0, atol=0)
+
+
+def test_preserved_experimental_artifacts_reload_without_mutating_native_truth(
+    checkout,
+):
+    import json
+    from advisor.showdown_environment import ShowdownEnvironment
+    from advisor.learned_scenarios import scenario
+
+    root = ROOT / "models/showdown_general_mc_experiment"
+    with ShowdownEnvironment(checkout) as env:
+        env.reset(
+            scenario("validation", 32011, version="showdown-learning-curriculum-v5")
+        )
+        view = env.observation("self", include_history=True)
+        cp = env.save()
+        for role in ("control", "public"):
+            path = root / role / "model.zip"
+            manifest = json.loads(path.with_suffix(".json").read_text())
+            policy = LearnedPolicy(
+                path, CATALOG, expected_model_id=manifest["model_sha256"]
+            )
+            proof = policy.infer(view)
+            assert view["action_mask"][proof["action_index"]]
+            assert proof["evidence_class"] == "learned_policy_value"
+            assert (
+                proof["episode_id"] == view["episode_id"]
+                and proof["revision"] == view["revision"]
+            )
+            assert sum(proof["action_probabilities"]) == pytest.approx(1)
+        assert env.save() == cp
 
 
 def test_failed_heal_counts_require_native_failure_events():

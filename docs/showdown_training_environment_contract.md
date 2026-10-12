@@ -93,3 +93,10 @@ and [tested poke-env revision](https://github.com/hsahovic/poke-env/tree/7ff6212
 The latter's offline protocol parser worked, but its server-centric environment and
 persistent team-order masks are not directly compatible with this local worker.
 No additional simulation engine, RL framework or mechanics implementation was added.
+
+The Gym adapter's `showdown-learning-info-v2` reset/step metadata contains only
+public episode/revision/phase identity and realized scalar outcomes. Opponent
+policy kind, both private requests, hidden sets/checkpoints and future RNG do not
+cross this boundary. Ended-episode coordinator metrics may retain the configured
+opponent identity for evaluation accounting; those metrics are not actor inputs.
+Native coordinator transitions/checkpoints remain privileged and unchanged.

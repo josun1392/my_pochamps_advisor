@@ -37,9 +37,11 @@ CPU1=10.74s,CPU4=9.39s,CUDA1=10.13s. Batch1 inference CPU0.275ms vs CUDA1.334ms;
 larger656k-parameter batch128 compute-only update20x CPU1.669s/CUDA0.035s.
 GPU remains optional, CPU remains default. Results under local gpu_benchmark/.
 
-Found/fixed a real privacy side channel: Gym info.native_outcome contained both
-projected private requests. Now only public outcome/reward scalars leave Gym;
-trusted native coordinator API unchanged. Cached static native move metadata.
+Correction after direct baseline source comparison: Native step already returned
+only scalar transitions; no opponent-private step-info leak existed. Gym now
+explicitly whitelists those fields as defense against future additions. Reset
+info did disclose the configured opponent policy kind; now only public identity
+leaves that boundary. Native coordinator API unchanged. Cached static metadata.
 Added maintained SB3 spawn/async vector execution, worker-safe frozen SHA paths,
 configurable CPU/device/memory limits and correct parallel episode accounting.
 
@@ -83,3 +85,29 @@ wrong level (test defect fixed). Focused UI/public24 passed and final public9
 passed, including hidden-set/seed isolation and action-row permutation.
 Next: commit engineering, lock fresh final V5test/unseen plus legacy V3broad
 offset680000/64cases/five frozen rivals; never retune after inspecting final.
+
+04:51 UTC final checkpoint: final9600 battles all terminated,no draw/truncation.
+General control W185/183/203 of320 across coherent/unseen/legacy broad;
+V4 W168/163/212. Unseen paired+6.25pp CI[1.24,12.19], other scope intervals
+include0. Public candidate W176/164/208; unseen regresses vs V2/heuristics.
+No V5 release or default recommendation change. Preserve both experiments,
+all raw outcomes,selection,benchmarks,reproducibility under
+models/showdown_general_mc_experiment. Control SHA30bc6c34...,public55b4050e....
+
+407 broad offline passed. After RNG/metadata fix131 related passed; final12
+public/artifact tests passed. Baseline UI layout failures remain separate.
+Model loading's global RNG reset isolated; two seed1871 functional512-transition
+runs have identical tensors,optimizer step counts,49 ended outcomes and validation.
+These are functional smokes, not further strength tuning. Main81920 PPO/8192
+teacher/7297 ended counts exclude functional and discarded benchmark learning.
+Native24-state72-branch audit reproduced exact actions/outcomes under fixed
+continuations; not optimal labels. Committed engineering c79874b and pushed.
+
+PPO4worker benchmark CPU4 Dummy8.15s/Subproc4.03s for2048 transitions;
+CUDA4 Subproc5.23s,90.5MB Torch peak,8.91GiB total committed. Current CPU wins.
+History-copy trial had only noise-sized timing differences and was rejected;
+native environment source restored to its pre-task contents via task-owned edits.
+CUDA8GiB/15%allocator control passed,confirming Windows memory headroom issue.
+All owned experiment processes finished; no unattended job is promised.
+Remaining: finalize report/artifact commit,push,verify canonical remote and
+original master's five unchanged paths. Elapsed clock starts02:12:38 UTC.

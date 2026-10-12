@@ -3,6 +3,7 @@
 from hashlib import sha256
 import json
 import math
+import random
 from pathlib import Path
 import numpy as np
 import torch
@@ -49,7 +50,20 @@ class LearnedPolicy:
             raise ValueError("model_manifest_or_contract_mismatch")
         # SB3 zip uses pickle internally. Only artifacts produced/verified locally
         # by the trusted coordinator are accepted; hashes do not sandbox untrusted files.
-        self.model = MaskablePPO.load(path, device="cpu")
+        # SB3 loading calls set_random_seed. Validation/inference must not reset
+        # another learner's global sampling stream as a hidden side effect.
+        py_state, np_state = random.getstate(), np.random.get_state()
+        devices = (
+            list(range(torch.cuda.device_count()))
+            if torch.cuda.is_initialized()
+            else []
+        )
+        with torch.random.fork_rng(devices=devices):
+            try:
+                self.model = MaskablePPO.load(path, device="cpu")
+            finally:
+                random.setstate(py_state)
+                np.random.set_state(np_state)
         if self.model.action_space.n != 35 or self.model.observation_space.shape != (
             self.encoder.dimension,
         ):

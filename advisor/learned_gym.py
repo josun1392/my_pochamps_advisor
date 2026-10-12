@@ -71,7 +71,15 @@ class ShowdownLearningEnv(gym.Env):
             self.observation_space = gym.spaces.Box(
                 -2, 4, shape=encoded.shape, dtype=np.float32
             )
-        return encoded, {"opponent": kind}
+        return encoded, self._policy_info()
+
+    def _policy_info(self):
+        return {
+            "schema_version": "showdown-learning-info-v2",
+            "episode_id": self.current["episode_id"],
+            "revision": self.current["revision"],
+            "request_state": self.current["request_state"],
+        }
 
     def action_masks(self):
         return np.asarray(self.current["action_mask"], dtype=bool)
@@ -122,7 +130,7 @@ class ShowdownLearningEnv(gym.Env):
             result["terminated"],
             result["truncated"],
             {
-                "schema_version": "showdown-learning-info-v2",
+                **self._policy_info(),
                 "native_outcome": {
                     k: result[k]
                     for k in (

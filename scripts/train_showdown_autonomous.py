@@ -638,6 +638,10 @@ def run(config, output, *, resume=False, require_detached=False):
                         raise ValueError("v2_transfer_source_required")
                     transfer_v2_weights(model.policy, transfer_source.model.policy)
                 transfer_id = transfer_source.model_id
+            if not source:
+                # Keep independent seeds and matched architecture trials after
+                # all checkpoint constructors/weight transfers have finished.
+                model.set_random_seed(seed)
             warm_episodes = []
 
             def checkpoint(stage, details):
