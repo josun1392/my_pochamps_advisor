@@ -128,6 +128,10 @@ UNSEEN = [
 def scenario(split, index, *, version="showdown-learning-curriculum-v1"):
     if split not in {"train", "validation", "test", "unseen"}:
         raise ValueError("invalid_curriculum_split")
+    if version == "showdown-learning-curriculum-v4":
+        from advisor.learned_tactical_curriculum import tactical_case
+
+        return tactical_case(split, index)
     if version == "showdown-learning-curriculum-v1":
         seed = {
             "train": 100000,

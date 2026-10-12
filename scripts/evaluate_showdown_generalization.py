@@ -40,6 +40,13 @@ def main():
     )
     parser.add_argument("--cases", type=int, default=96)
     parser.add_argument("--offset", type=int, default=90000)
+    parser.add_argument(
+        "--curriculum-version",
+        default="showdown-learning-curriculum-v3",
+        choices=["showdown-learning-curriculum-v3", "showdown-learning-curriculum-v4"],
+    )
+    parser.add_argument("--tactical-diagnostics", action="store_true")
+    parser.add_argument("--tactical-baseline", action="store_true")
     parser.add_argument("--max-runtime-seconds", type=int, default=900)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -53,6 +60,8 @@ def main():
     job = WindowsJob(memory_mib=3072, cpu_percent=12.5)
     network = enforce_local_network_only()
     policies = {kind: kind for kind in ("random", "heuristic", "champions_heuristic")}
+    if args.tactical_baseline:
+        policies.update(max_power="max_power", tactical_heuristic="tactical_heuristic")
     for entry in args.model:
         label, path = entry.split("=", 1)
         if not label or label in policies:
@@ -61,6 +70,8 @@ def main():
     frozen = LearnedPolicy(args.frozen_opponent, args.catalog)
     rivals = {kind: kind for kind in ("max_power", "heuristic", "champions_heuristic")}
     rivals["previous"] = frozen
+    if args.tactical_baseline:
+        rivals["tactical_heuristic"] = "tactical_heuristic"
     try:
         for split in args.split:
 
@@ -88,7 +99,8 @@ def main():
                 split=split,
                 cases=args.cases,
                 offset=args.offset,
-                curriculum_version="showdown-learning-curriculum-v3",
+                curriculum_version=args.curriculum_version,
+                tactical_diagnostics=args.tactical_diagnostics,
                 rivals=rivals,
                 stopping=budget.stopping,
                 progress=progress,

@@ -57,10 +57,13 @@ def paired_comparisons(records, policies):
             "random",
             "heuristic",
             "champions_heuristic",
+            "tactical_heuristic",
+            "max_power",
             "untrained",
             "previous",
             "previous_action",
             "previous_initial",
+            "previous_generalization",
             "cold_v2",
         ):
             if base not in scores or kind == base:
@@ -92,6 +95,7 @@ def evaluate(
     rivals=None,
     stopping=None,
     progress=None,
+    tactical_diagnostics=False,
 ):
     if not 1 <= cases <= 256 or split not in {"validation", "test", "unseen"}:
         raise ValueError("bounded_held_out_evaluation_required")
@@ -106,7 +110,13 @@ def evaluate(
                 for index in range(offset, offset + cases):
                     if stopping and stopping():
                         raise TimeoutError("held_out_evaluation_budget_exhausted")
-                    env.reset(scenario(split, index, version=curriculum_version))
+                    from advisor.learned_tactical_curriculum import (
+                        reset_learning_episode,
+                    )
+
+                    start_info = reset_learning_episode(
+                        env, scenario(split, index, version=curriculum_version)
+                    )
                     rival = (
                         VisibleBaseline(rival_policy, index + 919)
                         if isinstance(rival_policy, str)
@@ -120,6 +130,16 @@ def evaluate(
                     values = []
                     steps = 0
                     action_counts = Counter()
+                    tactical_counts = Counter()
+                    prefix_history_length = len(
+                        env.observation("self", include_history=True)["public_history"]
+                    )
+                    if tactical_diagnostics:
+                        from advisor.learned_tactical_diagnostics import (
+                            TacticalDiagnostics,
+                        )
+
+                        diagnostics = TacticalDiagnostics()
                     while True:
                         own, other = (
                             env.observation("self", include_history=True),
@@ -132,6 +152,30 @@ def evaluate(
                                 values.append(proof["discounted_return_estimate"])
                         else:
                             action = player.act(own)
+                        if tactical_diagnostics:
+                            d = diagnostics.describe(own, action)
+                            tactical_counts["selected:" + d["selected"]] += 1
+                            for available in d["available"]:
+                                tactical_counts["available:" + available] += 1
+                                tactical_counts[
+                                    f"available:{available}:selected:{d['selected']}"
+                                ] += 1
+                            if d.get("public_type_prior") == "unfavorable" and d.get(
+                                "better_bench_prior"
+                            ):
+                                tactical_counts["unfavorable_better_bench"] += 1
+                                tactical_counts[
+                                    "unfavorable_better_bench:selected:" + d["selected"]
+                                ] += 1
+                            if (
+                                d.get("hp_band") == "injured"
+                                and "recovery" in d["available"]
+                            ):
+                                tactical_counts["injured_recovery_available"] += 1
+                                tactical_counts[
+                                    "injured_recovery_available:selected:"
+                                    + d["selected"]
+                                ] += 1
                         action_counts[
                             "wait"
                             if action == 26
@@ -151,7 +195,7 @@ def evaluate(
                     reward = result["rewards"]["self"]
                     history = env.observation("self", include_history=True)[
                         "public_history"
-                    ]
+                    ][prefix_history_length:]
                     own_moves = Counter(
                         identifier(parts[3])
                         for line in history
@@ -187,6 +231,8 @@ def evaluate(
                             else None,
                             "action_counts": dict(action_counts),
                             "native_own_move_counts": dict(own_moves),
+                            "tactical_counts": dict(tactical_counts),
+                            "curriculum_start": start_info,
                             "public_event_counts": dict(
                                 Counter(
                                     line.split("|")[1]
@@ -240,6 +286,9 @@ def evaluate(
                             (Counter(r["native_own_move_counts"]) for r in rows),
                             Counter(),
                         )
+                    ),
+                    "tactical_counts": dict(
+                        sum((Counter(r["tactical_counts"]) for r in rows), Counter())
                     ),
                     "public_event_counts": dict(
                         sum(

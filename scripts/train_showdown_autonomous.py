@@ -48,6 +48,7 @@ def validate_config(config):
         "showdown-learning-curriculum-v1",
         CURRICULUM,
         "showdown-learning-curriculum-v3",
+        "showdown-learning-curriculum-v4",
     }:
         raise ValueError("unsupported_learning_curriculum")
     rivals = config.get("evaluation_opponents", ["random", "max_power", "heuristic"])
@@ -56,7 +57,14 @@ def validate_config(config):
         or len(rivals) > 6
         or len(set(rivals)) != len(rivals)
         or set(rivals)
-        - {"random", "max_power", "heuristic", "champions_heuristic", "previous"}
+        - {
+            "random",
+            "max_power",
+            "heuristic",
+            "champions_heuristic",
+            "tactical_heuristic",
+            "previous",
+        }
     ):
         raise ValueError("invalid_evaluation_opponents")
     if "previous" in rivals and not config.get("previous_model"):
@@ -124,6 +132,7 @@ def validate_config(config):
                 "max_power",
                 "heuristic",
                 "champions_heuristic",
+                "tactical_heuristic",
                 "previous",
                 "historical",
             }
@@ -132,6 +141,7 @@ def validate_config(config):
         if experiment.get("teacher", "heuristic") not in {
             "heuristic",
             "champions_heuristic",
+            "tactical_heuristic",
         }:
             raise ValueError("unsupported_warmstart_teacher")
         if (
@@ -245,13 +255,20 @@ def warmstart(
     env.reset(seed=seed + 7300)
     attempted = 0
     episodes = 0
+    classes = Counter()
     while len(rows) < count and attempted < count * 8 and not budget.stopping():
         episode = []
         env.reset()
         while not budget.stopping():
             view = env.current
             action = teacher.act(view)
-            episode.append((encoder.encode(view), env.action_masks().copy(), action))
+            from advisor.learned_tactical_diagnostics import action_class
+
+            category = action_class(view, action)
+            classes[category] += 1
+            episode.append(
+                (encoder.encode(view), env.action_masks().copy(), action, category)
+            )
             _, reward, terminated, truncated, _ = env.step(action)
             attempted += 1
             if terminated or truncated:
@@ -263,8 +280,9 @@ def warmstart(
                             mask,
                             action,
                             reward * model.gamma ** (len(episode) - i - 1),
+                            category,
                         )
-                        for i, (x, mask, action) in enumerate(episode)
+                        for i, (x, mask, action, category) in enumerate(episode)
                     )
                 break
     rows = rows[:count]
@@ -306,6 +324,7 @@ def warmstart(
     for group, rate in zip(model.policy.optimizer.param_groups, old_rates):
         group["lr"] = rate
     correct = 0
+    class_correct = Counter()
     with torch.no_grad():
         for indices in torch.arange(len(rows)).split(128):
             distribution = model.policy.get_distribution(
@@ -314,6 +333,11 @@ def warmstart(
             correct += int(
                 (distribution.distribution.probs.argmax(1) == actions[indices]).sum()
             )
+            matches = (
+                distribution.distribution.probs.argmax(1) == actions[indices]
+            ).tolist()
+            for i, match in zip(indices.tolist(), matches):
+                class_correct[rows[i][4]] += int(match)
     delta = float(
         (torch.cat([p.detach().flatten() for p in model.policy.parameters()]) - before)
         .abs()
@@ -330,6 +354,11 @@ def warmstart(
         "learning_rate": learning_rate,
         "teacher_demonstration_action_accuracy": correct / len(rows),
         "parameter_l1_change": delta,
+        "attempted_teacher_action_classes": dict(classes),
+        "retained_teacher_action_classes": dict(Counter(r[4] for r in rows)),
+        "teacher_action_accuracy_by_class": {
+            k: class_correct[k] / n for k, n in Counter(r[4] for r in rows).items()
+        },
     }
 
 

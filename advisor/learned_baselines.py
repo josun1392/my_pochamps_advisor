@@ -15,7 +15,13 @@ _RANDOM_LOCK = RLock()
 
 class VisibleBaseline:
     def __init__(self, kind="random", seed=0):
-        if kind not in {"random", "max_power", "heuristic", "champions_heuristic"}:
+        if kind not in {
+            "random",
+            "max_power",
+            "heuristic",
+            "champions_heuristic",
+            "tactical_heuristic",
+        }:
             raise ValueError("invalid_baseline")
         self.kind, self.rng, self.battle, self.episode, self.revision = (
             kind,
@@ -60,7 +66,7 @@ class VisibleBaseline:
             return 26
         player = object.__new__(
             SimpleHeuristicsPlayer
-            if self.kind in {"heuristic", "champions_heuristic"}
+            if self.kind in {"heuristic", "champions_heuristic", "tactical_heuristic"}
             else MaxBasePowerPlayer
         )
         player._format = "gen9championsbssregmc"
@@ -68,7 +74,7 @@ class VisibleBaseline:
         if observation["request_state"] == "switch" and self.battle.available_switches:
             choices = self.battle.available_switches
             if (
-                self.kind in {"heuristic", "champions_heuristic"}
+                self.kind in {"heuristic", "champions_heuristic", "tactical_heuristic"}
                 and self.battle.opponent_active_pokemon
             ):
                 order = max(
@@ -87,7 +93,9 @@ class VisibleBaseline:
                 random.setstate(self.rng.getstate())
                 try:
                     order = (
-                        self._champions_choice(player)
+                        self._tactical_choice(player)
+                        if self.kind == "tactical_heuristic"
+                        else self._champions_choice(player)
                         if self.kind == "champions_heuristic"
                         else player.choose_move(self.battle).order
                     )
@@ -112,6 +120,63 @@ class VisibleBaseline:
                 if native is order and i in allowed:
                     return i
         return self.rng.choice(allowed)
+
+    def _tactical_choice(self, player):
+        """New experimental teacher; old benchmark policies retain their semantics.
+
+        Reuses public poke-env matchup priors. These thresholds are heuristic,
+        not damage/KO guarantees. Corrects the upstream Target enum setup gate.
+        """
+        battle = self.battle
+        own, other = battle.active_pokemon, battle.opponent_active_pokemon
+        if own and other:
+            matchup = player._estimate_matchup(own, other)
+            if battle.available_switches:
+                best = max(
+                    battle.available_switches,
+                    key=lambda p: player._estimate_matchup(p, other),
+                )
+                score = player._estimate_matchup(best, other)
+                if matchup < -1 and score > 0 and score - matchup > 2:
+                    return best
+            if 0 < own.current_hp_fraction < 0.65 and matchup >= -0.3:
+                heal = next(
+                    (
+                        m
+                        for m in battle.available_moves
+                        if m.heal and getattr(m.target, "name", "").lower() == "self"
+                    ),
+                    None,
+                )
+                if heal:
+                    return heal
+            # Do not set up when finishing a weakened target or after a revealed
+            # reset/phaze/Unaware; hidden moves and abilities are never queried.
+            revealed_reset = any(
+                m in other.moves for m in ("haze", "whirlwind", "roar", "clearsmog")
+            )
+            if (
+                own.current_hp_fraction > 0.75
+                and other.current_hp_fraction > 0.4
+                and matchup > 0
+                and not revealed_reset
+                and other.ability != "unaware"
+            ):
+                for move in battle.available_moves:
+                    positive = [s for s, n in (move.boosts or {}).items() if n > 0]
+                    if (
+                        positive
+                        and sum(move.boosts.values()) >= 2
+                        and getattr(move.target, "name", "").lower() == "self"
+                        and all(own.boosts[s] < 2 for s in positive)
+                    ):
+                        if (
+                            "def" in positive
+                            and other.base_stats["spa"] > other.base_stats["atk"]
+                        ):
+                            continue
+                        return move
+        return self._champions_choice(player)
 
     def _champions_choice(self, player):
         """Experimental public tactics around poke-env's maintained baseline.

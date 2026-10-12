@@ -53,7 +53,9 @@ class ShowdownLearningEnv(gym.Env):
             if self.curriculum_version != "showdown-learning-curriculum-v1"
             else scenario(self.split, index)
         )
-        self.native.reset(current)
+        from advisor.learned_tactical_curriculum import reset_learning_episode
+
+        self.start_info = reset_learning_episode(self.native, current)
         kind = (options or {}).get(
             "opponent", self.opponents[index % len(self.opponents)]
         )
