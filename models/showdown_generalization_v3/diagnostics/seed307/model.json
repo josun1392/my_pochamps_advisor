@@ -1,0 +1,71 @@
+{
+  "schema_version": "showdown-learned-model-v1",
+  "evidence_class": "learned_policy_value",
+  "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
+  "algorithm": "sb3-contrib-MaskablePPO",
+  "versions": {
+    "torch": "2.8.0+cpu",
+    "sb3-contrib": "2.7.1",
+    "stable-baselines3": "2.7.1",
+    "gymnasium": "1.2.3",
+    "poke-env": "0.10.0",
+    "numpy": "2.4.6"
+  },
+  "policy_class": "TacticalActionConditionedPolicy",
+  "model_seed": 307,
+  "encoder_version": "showdown-learned-observation-v3",
+  "catalog_fingerprint": "7418c63254ae1dd5aa4152c9f42f2ab732a67581a5028215e2acd5d5654c7a0f",
+  "engine_commit": "942cda71d14bf0618bd57991708a2e2734b6daba",
+  "format_id": "gen9championsbssregmc",
+  "action_schema_version": "showdown-policy-actions-v1",
+  "model_sha256": "b3911b2fc6f0c05d4480c63ac81b2f032bd27145e17f82c0dc4fc984e786a727",
+  "total_steps": 0,
+  "optimizer_steps": 768,
+  "parameter_count": 142338,
+  "observation_dim": 7411,
+  "device": "cpu",
+  "gamma": 0.99,
+  "curriculum_version": "showdown-learning-curriculum-v3",
+  "experiment": {
+    "seed": 307,
+    "encoder_version": "showdown-learned-observation-v3",
+    "steps": 16384,
+    "warmstart_decisions": 8192,
+    "warmstart_epochs": 12,
+    "teacher": "champions_heuristic",
+    "learning_rate": 0.0001,
+    "warmstart_learning_rate": 0.0003,
+    "ent_coef": 0.003,
+    "opponents": [
+      "heuristic",
+      "champions_heuristic",
+      "max_power",
+      "previous",
+      "historical"
+    ],
+    "transfer_model": "models/showdown_action_v2/model.zip"
+  },
+  "stage": "initial",
+  "initial_model": null,
+  "weight_transfer_source_sha256": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+  "weight_transfer_optimizer": "fresh_shape_compatible_optimizer",
+  "opponent_model_ids": {
+    "previous": "364e30469d8a30106f90c04e0fc59a601b92f541af8b41235d08bd67af06d667",
+    "historical": "fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d"
+  },
+  "warmstart": {
+    "decisions": 8192,
+    "attempted": 8196,
+    "episodes": 773,
+    "optimizer_updates": 768,
+    "last_loss": 0.740235447883606,
+    "learning_rate": 0.0003,
+    "teacher_demonstration_action_accuracy": 0.86328125,
+    "parameter_l1_change": 1875.568359375
+  },
+  "training_metrics": {},
+  "episode_outcomes_this_checkpoint": {
+    "self": 410,
+    "opponent": 363
+  }
+}

@@ -201,6 +201,27 @@ def test_paired_clusters_use_configured_rival_count():
     assert result[0]["case_cluster_bootstrap_95"] == [1, 1]
 
 
+def test_native_evaluation_records_executed_player_moves(checkout):
+    from scripts.evaluate_showdown_policy import evaluate
+
+    result = evaluate(
+        checkout,
+        CATALOG,
+        {"heuristic": "heuristic"},
+        cases=1,
+        offset=11000,
+        curriculum_version=CURRICULUM,
+        rivals={"heuristic": "heuristic"},
+    )
+    row = result["records"][0]
+    assert sum(row["native_own_move_counts"].values()) > 0
+    assert (
+        result["summaries"][0]["native_own_move_counts"]
+        == row["native_own_move_counts"]
+    )
+    assert "pivot" in result["action_count_scope"]
+
+
 def test_adapted_public_baseline_completes_native_battle(checkout):
     own, other = (
         VisibleBaseline("champions_heuristic", 41),

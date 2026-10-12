@@ -65,3 +65,48 @@ seeds101/211/307 (16384 each), 8192 teacher decisions each. Independent rollout/
 demonstration/minibatch seeds share a declared frozen pretrained source. Seed307
 uses the experimental tactical teacher; this factor is not causally isolated.
 All candidates use corrected projection, new output `training_verified`.
+
+Commits pushed: `11e0940` (broad curriculum/input) and `b79da4e` (Haze and
+function-preserving transfer). Later targeted lifecycle/evaluation checks: 3
+passed. Historical opponent now freezes a new budget's initial checkpoint where
+available; optimizer-initialization metadata distinguishes restoration/transfer.
+
+00:03 UTC verified experiment bundle completed in 791.66 s: 114688 actual PPO
+transitions, 40960 teacher decisions, 15131 battles, no truncations. Peak commit
+3075407872 bytes (below 3 GiB), tree CPU 868.30 s, external network attempts 0.
+Validation wins/96: cold v2 39→43→38; cold v3 37→38→40; transferred v3 seed101
+38→49, seed211 40→38, seed307 38→36. Warm-only checkpoints retained for seeds
+211/307; their extra PPO regressed validation. No claim of isolated teacher gain.
+
+Bounded continuation seed401 restored seed101 optimizer and trained against a
+frozen version of that checkpoint plus original v2 and public baselines. 49152
+new PPO transitions / 4858 battles in approximately 242 s. Validation 49→49→46→49
+triggered plateau stopping; original 49-win source preserved. No final tuning.
+
+Final selection locked BEFORE reading new test/unseen results: original seed101
+v3 16384-PPO checkpoint (plus 8192 teacher decisions). Fresh v3 curriculum,
+offset90000, 96 case clusters × 4 fixed rivals, test and disjoint unseen.
+Predeclared primary comparisons: selected vs frozen v2 and maintained heuristic.
+Other seeds, cold models, v1, random and adapted heuristic are diagnostics only;
+final results will not select another model. All training processes completed.
+
+00:13–00:18 UTC final evaluation completed: 7680/7680 battles terminated,
+zero draws/truncations/external attempts. Selected vs original v2: test +6.0pp
+CI[0,11.7], unseen -0.8pp CI[-3.9,2.6]. Heuristic superiority not established.
+v1 improvement supported; native public tactical heuristic has modest independent
+gain. No model reselection/tuning after seeing final results. Switching remains
+a material learned-behavior weakness (selected 2/10 voluntary switches vs v2
+30/80). Full evidence packaged in models/showdown_generalization_v3.
+
+Final relevant regression checkpoint: 250 passed, offline guard attempts0.
+Actual Qt inference/rollback proof passed, p50/p95 1.509/2.022ms; UI931ms.
+Selected artifact fe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d,
+16384 new PPO +8192 teacher decisions, 142338 parameters.
+Active computations finished; next action: artifact reload check, exact stage,
+commit/push, verify canonical remote and original master, Korean final report.
+
+00:26:33 UTC packaged artifact reload/inference passed, legal native choice,
+checkpoint unchanged, external attempts0. All three trainer control PIDs are
+dead; final evaluation and Qt verification exec sessions finished successfully.
+Result: PARTIAL strategic-strength objective; engineering/learning/evaluation
+completed. Published artifacts are experimental, original v2 remains unchanged.

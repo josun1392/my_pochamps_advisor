@@ -52,7 +52,7 @@ def main():
     budget = RuntimeLimit(args.output, args.max_runtime_seconds)
     job = WindowsJob(memory_mib=3072, cpu_percent=12.5)
     network = enforce_local_network_only()
-    policies = {kind: kind for kind in ("heuristic", "champions_heuristic")}
+    policies = {kind: kind for kind in ("random", "heuristic", "champions_heuristic")}
     for entry in args.model:
         label, path = entry.split("=", 1)
         if not label or label in policies:

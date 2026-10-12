@@ -13,6 +13,7 @@ import numpy as np
 from advisor.learned_baselines import VisibleBaseline
 from advisor.learned_policy import LearnedPolicy
 from advisor.learned_scenarios import scenario
+from advisor.learned_encoder import identifier
 from advisor.showdown_environment import ShowdownEnvironment
 
 
@@ -60,6 +61,7 @@ def paired_comparisons(records, policies):
             "previous",
             "previous_action",
             "previous_initial",
+            "cold_v2",
         ):
             if base not in scores or kind == base:
                 continue
@@ -147,6 +149,17 @@ def evaluate(
                         if result["terminated"] or result["truncated"]:
                             break
                     reward = result["rewards"]["self"]
+                    history = env.observation("self", include_history=True)[
+                        "public_history"
+                    ]
+                    own_moves = Counter(
+                        identifier(parts[3])
+                        for line in history
+                        for parts in [line.split("|")]
+                        if len(parts) > 3
+                        and parts[1] == "move"
+                        and parts[2].startswith("p1")
+                    )
                     error = (
                         float(
                             np.mean(
@@ -173,6 +186,7 @@ def evaluate(
                             if values
                             else None,
                             "action_counts": dict(action_counts),
+                            "native_own_move_counts": dict(own_moves),
                             "public_event_counts": dict(
                                 Counter(
                                     line.split("|")[1]
@@ -221,6 +235,12 @@ def evaluate(
                     "action_counts": dict(
                         sum((Counter(r["action_counts"]) for r in rows), Counter())
                     ),
+                    "native_own_move_counts": dict(
+                        sum(
+                            (Counter(r["native_own_move_counts"]) for r in rows),
+                            Counter(),
+                        )
+                    ),
                     "public_event_counts": dict(
                         sum(
                             (Counter(r["public_event_counts"]) for r in rows), Counter()
@@ -248,6 +268,7 @@ def evaluate(
         "summaries": summaries,
         "paired_comparisons": paired_comparisons(records, policies),
         "uncertainty_scope": "per_stratum_Wilson_and_paired_case_cluster_bootstrap; pooled_Wilson_is_descriptive",
+        "action_count_scope": "forced_switch_includes_faint_or_pivot_request_switch; native_own_move_counts_are_public_executed_moves",
         "records": records,
     }
 

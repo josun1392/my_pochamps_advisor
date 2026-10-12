@@ -449,7 +449,7 @@ def run(config, output, *, resume=False, require_detached=False):
             historical_path = freeze_historical_reference(
                 state,
                 number,
-                config.get("previous_model"),
+                experiment.get("initial_model") or config.get("previous_model"),
                 resumed=bool(state.get("latest")),
                 required="historical" in experiment.get("opponents", []),
             )
@@ -570,6 +570,9 @@ def run(config, output, *, resume=False, require_detached=False):
                         "curriculum_version": curriculum,
                         "stage": stage,
                         "initial_model": experiment.get("initial_model"),
+                        "optimizer_initialization": "restored_same_encoder"
+                        if initial_source
+                        else "fresh",
                         "weight_transfer_source_sha256": transfer_id,
                         "weight_transfer_optimizer": "fresh_shape_compatible_optimizer"
                         if transfer_id
