@@ -46,3 +46,34 @@ Terminal rewards/gamma/encoder/network unchanged; Adam restored same encoder.
 Validation48 cases x5 fixed rivals at17000; periodic8192 checkpoints. Final
 test disabled in trainer; fresh final plan must be locked after validation.
 Config/checkpoints: local task output `training_config.json`, `training/`.
+
+01:21 UTC: engineering milestone `861deee` pushed to canonical branch.
+Further focused UI/consumer tests61 passed; native branch/warm-start accounting
+tests8 passed, external attempts0. Counterfactual368 complete native branches
+(8 configurations/motif, fixed continuations) found both helpful and harmful
+tactics: defensive physical recovery5/8 vs attack2/8; steel matchup switch5/8
+vs attack2/8; intuitive fire switch4/8 vs attack8/8. Names are public-prior
+coverage labels, not oracle annotations. No policy bonus for merely switching.
+Seed501 validation149→158→168→157; source-independent seed607161→159→169→171
+out of240. Third seed still running. Peak tree commit2.23GiB at433s; no failures.
+Class-aware diagnostics and trainer template added; rewards/networks unchanged.
+Final selection pending complete validation, no new final scenarios inspected.
+
+01:23 UTC initial league run complete:73728 PPO+24576 teacher,8052 terminal
+episodes(5157 wins/2895 losses),659.24s/treeCPU737.28s,peak2.45GiB,external0.
+Validation-selected709 checkpoint174/240, SHA986ea2ba562d0b34df50ec2ca88ae3171e37031f6f358e9aa5813ffe01412641.
+Locked league-only final plan offset180000 before starting broad evaluation.
+403 broad offline regressions passed; unrelated baseline layout tests excluded.
+
+Audit found later seeds' historical rivals freeze earlier seeds' best: legitimate
+league behavior, not identical-condition independent replication. Corrected
+earlier wording. Common initial weights/RNG seeds remain documented. Added
+optional `historical_model`; omitted field preserves legacy league semantics.
+Frozen identity/resume tests and native teacher accounting3 passed.
+
+01:28 UTC launching independent replication:811/919/1021, all initial and
+historical reference SHAfe52cd3b4e288c242176a6574769bdf1cd8fb5dbedad8b015496cb5b5dcfd57d,
+8192 teacher decisions x8epochs +16384 PPO per seed,max1200s,CPU12.5%,3GiB.
+Original league final is secondary, not inspected for tuning. Independent
+selection/new primary final offset280000 will be locked before reading ANY
+final results. Config `independent_config.json`, output `independent/`.

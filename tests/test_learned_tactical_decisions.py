@@ -122,3 +122,67 @@ def test_trainer_accepts_versioned_tactical_curriculum():
     c["experiments"][0]["teacher"] = "tactical_heuristic"
     c["experiments"][0]["opponents"] = ["tactical_heuristic"]
     assert validate_config(c) == c
+
+
+def test_native_branch_restarts_have_reproducible_terminal_results(checkout):
+    from scripts.evaluate_showdown_tactical_branches import evaluate_branches
+
+    a = evaluate_branches(checkout, offset=18000, cycles=1)
+    b = evaluate_branches(checkout, offset=18000, cycles=1)
+    assert a == b
+    assert all(not r["truncated"] for r in a["records"])
+    assert {r["first_class"] for r in a["records"]} >= {
+        "attack",
+        "switch",
+        "setup",
+        "recovery",
+    }
+
+
+def test_native_teacher_updates_and_class_accounting(checkout):
+    import numpy as np
+    import torch
+    from types import SimpleNamespace
+    from stable_baselines3.common.vec_env import DummyVecEnv
+    from advisor.learned_gym import ShowdownLearningEnv
+    from advisor.learned_policy import LearnedPolicy
+    from scripts.train_showdown_autonomous import warmstart
+
+    torch.set_num_threads(1)
+    policy = LearnedPolicy(
+        ROOT / "models/showdown_generalization_v3/model.zip", CATALOG
+    )
+    env = ShowdownLearningEnv(
+        checkout,
+        policy.encoder,
+        curriculum_version=VERSION,
+        opponents=["tactical_heuristic"],
+    )
+    vector = DummyVecEnv([lambda: env])
+    try:
+        proof = warmstart(
+            policy.model,
+            vector,
+            policy.encoder,
+            128,
+            1,
+            501,
+            SimpleNamespace(stopping=lambda: False),
+            teacher_kind="tactical_heuristic",
+        )
+        assert (
+            proof["decisions"]
+            == sum(proof["retained_teacher_action_classes"].values())
+            == 128
+        )
+        assert proof["parameter_l1_change"] > 0 and proof["optimizer_updates"] > 0
+        assert np.isfinite(proof["last_loss"])
+        correct = sum(
+            proof["retained_teacher_action_classes"][k] * v
+            for k, v in proof["teacher_action_accuracy_by_class"].items()
+        )
+        assert correct / 128 == pytest.approx(
+            proof["teacher_demonstration_action_accuracy"]
+        )
+    finally:
+        vector.close()

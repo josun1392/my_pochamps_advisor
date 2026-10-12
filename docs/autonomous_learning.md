@@ -89,3 +89,38 @@ Final artifacts are experimental opt-in inputs to the existing learned-strategy
 interface: use the selected model path, its manifest SHA and the matching catalog.
 They do not replace exact evidence or sampled native evaluation. v1 remains a
 working rollback artifact at `models/showdown_initial_v1/model.zip`.
+
+Tactical curriculum experiment (V4 curriculum; compatible V3 encoder/model):
+
+```powershell
+uv run --extra learning python scripts/train_showdown_autonomous.py --config config/learning/tactical_cpu.json --checkout $engine --output $run
+```
+
+This bounded 30-minute template uses three independent training seeds, a frozen
+V3 source, public tactical demonstrations and native-progressed mid-battle
+starts. Half the curriculum remains broad; unseen species remain reserved.
+Change the output directory for a new run. Prefix/motif metadata is coordinator
+only; agent tensors and rewards retain their original contracts. The new
+`tactical_heuristic` teacher corrects poke-env's Target enum setup gate without
+changing `heuristic` or `champions_heuristic` benchmark behavior.
+Warm-start manifests report retained/attempted teacher action classes and fit
+accuracy by class. These are supervised-fit metrics, not strategic strength.
+Do not infer good switching from switching frequency alone.
+For independent seed comparisons set each experiment's `historical_model` to
+the same trusted frozen checkpoint. Omitting it preserves the existing league
+behavior: a later experiment can freeze a previous experiment's selected best.
+The opponent manifest records the actual SHA in either case.
+
+For a NEW, predeclared held-out evaluation after validation-only selection:
+
+```powershell
+uv run --extra learning python scripts/evaluate_showdown_generalization.py --checkout $engine --frozen-opponent models/showdown_generalization_v3/model.zip --model "candidate=$model" --model "previous_action=models/showdown_action_v2/model.zip" --model "previous_generalization=models/showdown_generalization_v3/model.zip" --curriculum-version showdown-learning-curriculum-v4 --tactical-baseline --tactical-diagnostics --cases 96 --offset 180000 --output $evaluation
+```
+
+The recorded study's offset180000 is already inspected after its final report;
+choose a fresh offset for later studies. Evaluate V3 broad curriculum separately
+to avoid claiming that tactical fixture performance proves broad strength.
+Affordance counts use only public type priors/HP/request legality. First-action
+branch diagnostics (`evaluate_showdown_tactical_branches.py`) reuse native
+checkpoints and fixed continuations; they are sampled conditional evidence,
+never optimal-action or exact-probability labels.

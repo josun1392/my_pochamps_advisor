@@ -1,0 +1,84 @@
+{
+  "schema_version": "showdown-autonomous-training-v1",
+  "catalog": "models/showdown_initial_v1/catalog.json",
+  "previous_model": "models/showdown_action_v2/model.zip",
+  "curriculum_version": "showdown-learning-curriculum-v4",
+  "max_runtime_seconds": 1800,
+  "envs": 4,
+  "memory_mib": 3072,
+  "cpu_percent": 12.5,
+  "validation_cases": 48,
+  "validation_offset": 17000,
+  "evaluation_opponents": [
+    "max_power",
+    "heuristic",
+    "champions_heuristic",
+    "tactical_heuristic",
+    "previous"
+  ],
+  "checkpoint_steps": 8192,
+  "plateau_patience": 3,
+  "final_test_cases": 0,
+  "experiments": [
+    {
+      "seed": 501,
+      "steps": 24576,
+      "encoder_version": "showdown-learned-observation-v3",
+      "initial_model": "models/showdown_generalization_v3/model.zip",
+      "historical_model": "models/showdown_generalization_v3/model.zip",
+      "teacher": "tactical_heuristic",
+      "warmstart_decisions": 8192,
+      "warmstart_epochs": 8,
+      "warmstart_learning_rate": 0.0001,
+      "learning_rate": 0.00005,
+      "ent_coef": 0.01,
+      "opponents": [
+        "max_power",
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical"
+      ]
+    },
+    {
+      "seed": 607,
+      "steps": 24576,
+      "encoder_version": "showdown-learned-observation-v3",
+      "initial_model": "models/showdown_generalization_v3/model.zip",
+      "historical_model": "models/showdown_generalization_v3/model.zip",
+      "teacher": "tactical_heuristic",
+      "warmstart_decisions": 8192,
+      "warmstart_epochs": 8,
+      "warmstart_learning_rate": 0.0001,
+      "learning_rate": 0.00005,
+      "ent_coef": 0.01,
+      "opponents": [
+        "max_power",
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical"
+      ]
+    },
+    {
+      "seed": 709,
+      "steps": 24576,
+      "encoder_version": "showdown-learned-observation-v3",
+      "initial_model": "models/showdown_generalization_v3/model.zip",
+      "historical_model": "models/showdown_generalization_v3/model.zip",
+      "teacher": "tactical_heuristic",
+      "warmstart_decisions": 8192,
+      "warmstart_epochs": 8,
+      "warmstart_learning_rate": 0.0001,
+      "learning_rate": 0.00005,
+      "ent_coef": 0.01,
+      "opponents": [
+        "max_power",
+        "champions_heuristic",
+        "tactical_heuristic",
+        "previous",
+        "historical"
+      ]
+    }
+  ]
+}

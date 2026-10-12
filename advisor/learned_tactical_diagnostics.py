@@ -43,7 +43,11 @@ def action_class(observation, action):
         "kingsshield",
     }:
         return "defense"
-    return "attack" if m.base_power else "status_or_field"
+    return (
+        "attack"
+        if m.category.name.lower() in {"physical", "special"}
+        else "status_or_field"
+    )
 
 
 class TacticalDiagnostics:

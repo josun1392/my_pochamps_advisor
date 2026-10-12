@@ -95,6 +95,46 @@ def test_historical_opponent_binding_survives_best_model_change_and_resume():
         )
 
 
+def test_explicit_historical_opponent_keeps_seed_experiments_independent():
+    from scripts.train_showdown_autonomous import freeze_historical_reference
+
+    state = {"best": "prior-seed-best.zip"}
+    assert (
+        freeze_historical_reference(
+            state,
+            0,
+            "fallback.zip",
+            resumed=False,
+            required=True,
+            fixed_path="frozen-reference.zip",
+        )
+        == "frozen-reference.zip"
+    )
+    state["best"] = "new-league-best.zip"
+    assert (
+        freeze_historical_reference(
+            state,
+            0,
+            "fallback.zip",
+            resumed=True,
+            required=True,
+            fixed_path="frozen-reference.zip",
+        )
+        == "frozen-reference.zip"
+    )
+    assert (
+        freeze_historical_reference(
+            state,
+            1,
+            "fallback.zip",
+            resumed=False,
+            required=True,
+            fixed_path="frozen-reference.zip",
+        )
+        == "frozen-reference.zip"
+    )
+
+
 def test_action_features_public_history_masks_and_unknown(view):
     encoder = ActionObservationEncoder(CATALOG)
     original = deepcopy(view)

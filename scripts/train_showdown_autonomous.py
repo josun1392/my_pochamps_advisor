@@ -144,6 +144,8 @@ def validate_config(config):
             "tactical_heuristic",
         }:
             raise ValueError("unsupported_warmstart_teacher")
+        if experiment.get("historical_model") and "historical" not in opponents:
+            raise ValueError("fixed_historical_requires_historical_opponent")
         if (
             not 1e-6 <= experiment.get("learning_rate", 1e-4) <= 1e-3
             or not 0 <= experiment.get("ent_coef", 0.005) <= 0.1
@@ -167,7 +169,9 @@ def optimizer_steps(model):
     )
 
 
-def freeze_historical_reference(state, number, previous_path, *, resumed, required):
+def freeze_historical_reference(
+    state, number, previous_path, *, resumed, required, fixed_path=None
+):
     """An experiment's opponent cannot silently change when its best model changes."""
     if state.get("frozen_historical_experiment") == number:
         return state.get("frozen_historical_path")
@@ -175,7 +179,7 @@ def freeze_historical_reference(state, number, previous_path, *, resumed, requir
         raise ValueError(
             "legacy_resume_missing_frozen_opponent_identity_start_new_explicit_run"
         )
-    path = state.get("best") or previous_path
+    path = fixed_path or state.get("best") or previous_path
     state["frozen_historical_experiment"] = number
     state["frozen_historical_path"] = path
     state.pop("frozen_historical_model_id", None)
@@ -481,6 +485,7 @@ def run(config, output, *, resume=False, require_detached=False):
                 experiment.get("initial_model") or config.get("previous_model"),
                 resumed=bool(state.get("latest")),
                 required="historical" in experiment.get("opponents", []),
+                fixed_path=experiment.get("historical_model"),
             )
             historical = (
                 LearnedPolicy(
@@ -604,6 +609,11 @@ def run(config, output, *, resume=False, require_detached=False):
                         else "fresh",
                         "weight_transfer_source_sha256": transfer_id,
                         "weight_transfer_optimizer": "fresh_shape_compatible_optimizer"
+                        if transfer_id
+                        else None,
+                        "weight_transfer_optimizer_scope": "ancestor_transfer_only"
+                        if transfer_id and initial_source
+                        else "current_initialization"
                         if transfer_id
                         else None,
                         "opponent_model_ids": {

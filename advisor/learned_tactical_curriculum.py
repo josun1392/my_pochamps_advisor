@@ -13,7 +13,7 @@ from advisor.learned_roster import BROAD_TRAIN
 from advisor.learned_scenarios import TRAIN
 
 VERSION = "showdown-learning-curriculum-v4"
-# Opposing examples intentionally include tempting but unsafe tactical actions.
+# Contrasting public type priors; native outcomes can reverse intuitive labels.
 MOTIFS = (
     ("switch_fire", "Scizor", "Arcanine", "Rotom-Wash", ()),
     ("stay_fairy", "Scizor", "Sylveon", "Rotom-Wash", ()),
