@@ -15,6 +15,8 @@ from advisor.learned_public_interactions import (
 from advisor.showdown_bridge import SHOWDOWN_COMMIT, FORMAT_ID
 
 VERSION = "showdown-public-categorical-observation-v1"
+REQUEST_IDENTITY_VERSION = "showdown-public-categorical-observation-v2"
+VERSIONS = (VERSION, REQUEST_IDENTITY_VERSION)
 CATALOG_PATH = Path(__file__).resolve().parents[1] / "models/showdown_public_categories_v1/catalog.json"
 PAD, UNKNOWN, ABSENT = 0, 1, 2
 BITS = {"species": 11, "abilities": 9, "items": 8, "moves": 10}
@@ -131,7 +133,7 @@ class PublicCategoricalEncoder:
 
     def coverage(self, observation):
         return {**self.base.coverage(observation), "catalog_fingerprint": self.catalog_fingerprint,
-                "categorical_contract": VERSION, "known_moves_capacity": KNOWN_MOVES,
+                "categorical_contract": self.version, "known_moves_capacity": KNOWN_MOVES,
                 "structured_projection_scope": "existing_public_state_v2_not_complete_native_mechanics_state",
                 "unsupported_cases": "encode_rejects_known_identity_or_record_capacity_gaps"}
 
@@ -146,8 +148,9 @@ class PublicCategoricalEncoder:
         if len(roster) > 6:
             raise ValueError("public_roster_capacity_exceeded")
         records, own_refs = [], {}
+        own_rows = self._own_records(observation)
         for side_index, side in enumerate((own, opp)):
-            rows = sorted(side["pokemon"].items())
+            rows = own_rows if side_index == 0 else sorted(side["pokemon"].items())
             if len(rows) > 6:
                 raise ValueError("public_appearance_capacity_exceeded")
             for i, (key, row) in enumerate(rows):
@@ -158,7 +161,7 @@ class PublicCategoricalEncoder:
                     own_refs[name] = i + 1
                 # Do not merge opponent apparent aliases or infer hidden Illusion identity.
                 records.append(self._entity(row, own=side_index == 0, preview=False,
-                                            active=key == side["active_identity"]))
+                                            active=self._record_active(side, key, row)))
             records.extend([[0.0] * ENTITY for _ in range(6 - len(rows))])
         for side_index, side in enumerate((own, opp)):
             if len(side["preview"]) > 6:
@@ -183,7 +186,7 @@ class PublicCategoricalEncoder:
             move = self.token("moves", slots[slot].get("id", {})) if slot is not None and slot < len(slots) else PAD
             form = UNKNOWN if reference else PAD
             if reference:
-                own_row = sorted(own["pokemon"].items())[reference - 1][1]
+                own_row = own_rows[reference - 1][1]
                 form = self.token("species", own_row.get("details", {}))
                 if slot is not None and (10 <= index < 14 or 27 <= index < 35):
                     key = "canMegaEvo" if index < 14 else "canMegaEvoX" if index < 31 else "canMegaEvoY"
@@ -210,3 +213,31 @@ class PublicCategoricalEncoder:
         if result.shape != (self.dimension,) or not np.isfinite(result).all():
             raise ValueError("invalid_public_categorical_features")
         return result
+
+    def _own_records(self, observation):
+        return sorted(observation["state"]["self_side"]["pokemon"].items())
+
+    def _record_active(self, side, key, row):
+        return key == side["active_identity"]
+
+
+class RequestIdentityCategoricalEncoder(PublicCategoricalEncoder):
+    """Same tensors/embeddings, separately bound own-request identity semantics."""
+    version = REQUEST_IDENTITY_VERSION
+
+    def __init__(self, catalog):
+        super().__init__(catalog)
+        self.feature_contract = {**self.feature_contract, "version": self.version,
+            "schema_version": "showdown-public-categorical-contract-v2",
+            "own_record_binding": "unique_native_own_request_ident_and_latest_public_appearance_v1",
+            "wait_request_binding": "drop_only_empty_unpositioned_own_protocol_reference_v1",
+            "legacy_numeric_scope": "unchanged_v4_features_original_public_projection",
+            "opponent_binding": "unchanged_apparent_records_no_inferred_merge"}
+        self.catalog_fingerprint = fingerprint(self.feature_contract)
+
+    def _own_records(self, observation):
+        from advisor.learned_own_identity import own_player_records
+        return own_player_records(observation)
+
+    def _record_active(self, side, key, row):
+        return row.get("own_request_active", super()._record_active(side, key, row))

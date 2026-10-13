@@ -184,6 +184,10 @@ def make_encoder(catalog, version):
         from advisor.learned_public_categories import PublicCategoricalEncoder
 
         return PublicCategoricalEncoder(catalog)
+    if version == "showdown-public-categorical-observation-v2":
+        from advisor.learned_public_categories import RequestIdentityCategoricalEncoder
+
+        return RequestIdentityCategoricalEncoder(catalog)
     if version in VERSIONS:
         return OwnMoveTokenEncoder(catalog, version)
     if version == PartialObservationEncoder.version:

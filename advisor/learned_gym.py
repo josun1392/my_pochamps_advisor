@@ -6,6 +6,8 @@ from collections import Counter
 from advisor.showdown_environment import ShowdownEnvironment
 from advisor.learned_baselines import VisibleBaseline
 from advisor.learned_scenarios import scenario
+from advisor.learned_encoder import fingerprint
+from copy import deepcopy
 
 
 class ShowdownLearningEnv(gym.Env):
@@ -62,6 +64,16 @@ class ShowdownLearningEnv(gym.Env):
         from advisor.learned_tactical_curriculum import reset_learning_episode
 
         self.start_info = reset_learning_episode(self.native, current)
+        # Coordinator provenance only; neither policy features nor Gym info.
+        self._episode_identity = {
+            "schema_version": "showdown-learning-episode-identity-v1",
+            "curriculum_version": self.curriculum_version, "split": self.split,
+            "case_index": index, "scenario_id": current["scenario_id"],
+            "scenario_sha256": fingerprint(current),
+            "team_sha256": {side: fingerprint(team) for side, team in current["teams"].items()},
+            "preview": deepcopy(current["preview"]), "native_seed": list(current["seed"]),
+        }
+        self._rejected_choices = 0
         if self.curriculum_version in {
             "showdown-learning-curriculum-v7",
             "showdown-learning-curriculum-v8",
@@ -93,6 +105,7 @@ class ShowdownLearningEnv(gym.Env):
             else VisibleBaseline(kind, index + 91)
         )
         self.opponent_kind = kind
+        self._episode_identity.update(opponent=kind, opponent_model_id=getattr(self.opponent, "model_id", None))
         self.current = self.native.observation("self", include_history=True)
         encoded = self.encoder.encode(self.current)
         if self.observation_space is None:
@@ -160,6 +173,7 @@ class ShowdownLearningEnv(gym.Env):
             },
             revision=self.current["revision"],
         )
+        self._rejected_choices += int(result["action_rejected"])
         self.current = self.native.observation("self", include_history=True)
         while (
             not (result["terminated"] or result["truncated"])
@@ -182,10 +196,17 @@ class ShowdownLearningEnv(gym.Env):
                     "truncated": result["truncated"],
                     "decisions": result["decisions"],
                     "opponent": self.opponent_kind,
+                    "terminated": result["terminated"],
+                    "native_rejected_choices": self._rejected_choices,
+                    "episode_identity": deepcopy(self._episode_identity),
                 }
             )
+        # SB3 records this tensor as terminal_observation and bootstraps only
+        # TimeLimit.truncated. The real execution view remains closed/immutable.
+        final_view = (self.native.timeout_bootstrap_observation("self")
+                      if result["truncated"] else self.current)
         return (
-            self.encoder.encode(self.current),
+            self.encoder.encode(final_view),
             float(result["rewards"]["self"]),
             result["terminated"],
             result["truncated"],
@@ -225,6 +246,12 @@ class ShowdownLearningEnv(gym.Env):
 
     def pending_completed_count(self):
         return len(self.completed)
+
+    def episode_cursor(self):
+        """Coordinator audit inputs, not an exact mid-rollout restart checkpoint."""
+        return {"episode_identity": deepcopy(self._episode_identity), "next_case_index": self.index,
+                "revision": self.current["revision"], "request_state": self.current["request_state"],
+                "scope": "initial_scenario_reconstructable_no_training_action_log_or_rollout_rng_restoration"}
 
     def close(self):
         self.native.close()

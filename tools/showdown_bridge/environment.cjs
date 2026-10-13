@@ -61,10 +61,20 @@ function createEnvironmentService(engine) {
         choices}];
     }));
     episode.cursor = battle.log.length;
+    // Keep the execution view closed at its budget. Bootstrap legality is a
+    // separate, versioned public-request view, never a hidden-state query.
+    const timeoutBootstrap = truncated ? {
+      schema_version: 'showdown-public-timeout-bootstrap-v1', episode_id: owner, revision,
+      requests: Object.fromEntries(SIDES.map(side => {
+        const choices = actions(observations[side].own_request, false);
+        return [side, {action_mask: choices.map(c => c === null ? 0 : 1), choices}];
+      })),
+    } : null;
     const selfReward = terminated ? (battle.winner === 'self' ? 1 : battle.winner === 'opponent' ? -1 : 0) : 0;
     return {status: 'ready', owner, revision, decisions, terminated, truncated,
       winner: terminated ? (battle.winner || null) : null, action_rejected: rejected,
-      rewards: {self: selfReward, opponent: -selfReward}, observations};
+      rewards: {self: selfReward, opponent: -selfReward}, observations,
+      timeout_bootstrap: timeoutBootstrap};
   }
   function save(episode) {
     const native = clone(episode.battle.toJSON());

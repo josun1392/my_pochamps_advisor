@@ -254,7 +254,7 @@ def evaluate(
                         float(
                             np.mean(
                                 [
-                                    (v - (0.99 ** (len(values) - 1 - i)) * reward) ** 2
+                                    (v - (player.model.gamma ** (len(values) - 1 - i)) * reward) ** 2
                                     for i, v in enumerate(values)
                                 ]
                             )
@@ -272,6 +272,9 @@ def evaluate(
                             "decisions": steps,
                             "return": reward,
                             "value_discounted_return_mse": error,
+                            "value_gamma": player.model.gamma if isinstance(player, LearnedPolicy) else None,
+                            "training_objective": player.metadata.get("training_objective")
+                            if isinstance(player, LearnedPolicy) else None,
                             "initial_discounted_return_estimate": values[0]
                             if values
                             else None,

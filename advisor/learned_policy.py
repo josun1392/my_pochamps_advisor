@@ -11,6 +11,7 @@ from sb3_contrib import MaskablePPO
 from advisor.learned_encoder import ENCODER_VERSION
 from advisor.learned_action_encoder import make_encoder
 from advisor.showdown_bridge import SHOWDOWN_COMMIT, FORMAT_ID
+from advisor.learned_objective import objective_contract, CATEGORICAL_VERSIONS
 
 
 class LearnedPolicy:
@@ -52,10 +53,8 @@ class LearnedPolicy:
         if hasattr(self.encoder, "feature_contract") and self.metadata.get(
             "feature_contract"
         ) != self.encoder.feature_contract:
-            from advisor.learned_public_categories import VERSION as PUBLIC_CATEGORICAL_VERSION
-
             raise ValueError("public_categorical_feature_contract_mismatch"
-                             if self.encoder.version == PUBLIC_CATEGORICAL_VERSION
+                             if self.encoder.version in CATEGORICAL_VERSIONS
                              else "own_move_feature_contract_mismatch")
         # by the trusted coordinator are accepted; hashes do not sandbox untrusted files.
         # SB3 loading calls set_random_seed. Validation/inference must not reset
@@ -76,12 +75,20 @@ class LearnedPolicy:
             self.encoder.dimension,
         ):
             raise ValueError("incompatible_model_spaces")
+        if require_manifest:
+            actual = objective_contract(self.model.gamma, self.model.gae_lambda)
+            if (type(self.metadata.get("gamma", self.model.gamma)) not in (int, float)
+                    or self.metadata.get("gamma", self.model.gamma) != self.model.gamma
+                    or self.metadata.get("gae_lambda", self.model.gae_lambda) != self.model.gae_lambda
+                    or ("training_objective" in self.metadata and self.metadata["training_objective"] != actual)
+                    or (self.model.gamma == 1 and (self.encoder.version not in CATEGORICAL_VERSIONS
+                        or self.metadata.get("training_objective") != actual))):
+                raise ValueError("model_training_objective_mismatch")
         if hasattr(self.encoder, "feature_contract"):
             from advisor.learned_move_identity_policy import OwnMoveTokenPolicy
-            from advisor.learned_public_categories import VERSION as PUBLIC_CATEGORICAL_VERSION
             from advisor.learned_public_categories_policy import PublicCategoricalPolicy
 
-            required = (PublicCategoricalPolicy if self.encoder.version == PUBLIC_CATEGORICAL_VERSION
+            required = (PublicCategoricalPolicy if self.encoder.version in CATEGORICAL_VERSIONS
                         else OwnMoveTokenPolicy)
             if type(self.model.policy) is not required:
                 raise ValueError("public_categorical_policy_required"
@@ -127,6 +134,8 @@ class LearnedPolicy:
             "action_probabilities": [float(x) for x in probabilities],
             "discount_factor": self.model.gamma,
             "reward_scope": "native_sparse_terminal_win_loss_draw",
+            **({"training_objective": self.metadata["training_objective"]}
+               if "training_objective" in self.metadata else {}),
             "discounted_return_estimate": value,
         }
 

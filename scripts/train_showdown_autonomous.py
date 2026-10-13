@@ -32,8 +32,9 @@ from advisor.learned_parallel import LearningEnvFactory
 from advisor.learned_policy import LearnedPolicy
 from advisor.learned_move_identity import VERSIONS as OWN_MOVE_VERSIONS
 from advisor.learned_move_identity_policy import OwnMoveTokenPolicy, transfer_v3_to_own_move
-from advisor.learned_public_categories import VERSION as PUBLIC_CATEGORICAL_VERSION
+from advisor.learned_public_categories import VERSIONS as PUBLIC_CATEGORICAL_VERSIONS
 from advisor.learned_public_categories_policy import PublicCategoricalPolicy, transfer_public_categorical_weights
+from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
 from advisor.learning_resources import (
     WindowsJob,
     RuntimeLimit,
@@ -97,6 +98,8 @@ def validate_config(config):
         raise ValueError("unsafe_worker_or_memory_budget")
     if not 1 <= config.get("cpu_percent", 12.5) <= 75:
         raise ValueError("unsafe_cpu_budget")
+    if type(config.get("max_decisions", 256)) is not int or not 1 <= config.get("max_decisions", 256) <= 4096:
+        raise ValueError("unsafe_native_episode_budget")
     if config.get("vector_backend", "dummy") not in {"dummy", "subproc"} or config.get(
         "device", "cpu"
     ) not in {"cpu", "cuda"}:
@@ -128,6 +131,7 @@ def validate_config(config):
         raise ValueError("invalid_reference_models")
     rollout = 128 * config.get("envs", 4)
     for experiment in config["experiments"]:
+        experiment_objective(experiment, experiment.get("encoder_version", VERSION))
         frozen = experiment.get("frozen_opponents", {})
         if (
             not isinstance(frozen, dict)
@@ -168,7 +172,7 @@ def validate_config(config):
             "showdown-learned-observation-v3",
             "showdown-learned-observation-v4",
             *OWN_MOVE_VERSIONS,
-            PUBLIC_CATEGORICAL_VERSION,
+            *PUBLIC_CATEGORICAL_VERSIONS,
         }:
             raise ValueError("unsupported_encoder")
         if experiment.get("transfer_model") and (
@@ -178,7 +182,7 @@ def validate_config(config):
                 "showdown-learned-observation-v3",
                 "showdown-learned-observation-v4",
                 *OWN_MOVE_VERSIONS,
-                PUBLIC_CATEGORICAL_VERSION,
+                *PUBLIC_CATEGORICAL_VERSIONS,
             }
         ):
             raise ValueError("transfer_requires_fresh_v3_optimizer")
@@ -186,7 +190,7 @@ def validate_config(config):
             experiment.get("transfer_model") and not experiment.get("fresh_optimizer", False)
         ):
             raise ValueError("own_move_transfer_requires_explicit_fresh_optimizer")
-        if experiment.get("encoder_version") == PUBLIC_CATEGORICAL_VERSION and (
+        if experiment.get("encoder_version") in PUBLIC_CATEGORICAL_VERSIONS and (
             experiment.get("transfer_model") and not experiment.get("fresh_optimizer", False)
         ):
             raise ValueError("public_categorical_transfer_requires_explicit_fresh_optimizer")
@@ -306,9 +310,13 @@ def save_checkpoint(model, encoder, directory, metadata):
             "parameter_count": sum(p.numel() for p in model.policy.parameters()),
             "observation_dim": encoder.dimension,
             "device": model.device.type,
-            "gamma": model.gamma,
             "curriculum_version": CURRICULUM,
             **metadata,
+            "gamma": model.gamma,
+            "gae_lambda": model.gae_lambda,
+            "training_objective": objective_contract(model.gamma, model.gae_lambda),
+            **({"categorical_learning_source_sha256": categorical_learning_source_identity()}
+               if encoder.version in PUBLIC_CATEGORICAL_VERSIONS else {}),
             **({"feature_contract": encoder.feature_contract} if hasattr(encoder, "feature_contract") else {}),
         },
     )
@@ -472,6 +480,8 @@ def training_config_fingerprint(config):
     content = (
         config if identity is None else {**config, "full_domain_identity": identity}
     )
+    if any(e.get("encoder_version") in PUBLIC_CATEGORICAL_VERSIONS for e in config.get("experiments", [])):
+        content = {**content, "categorical_learning_source_sha256": categorical_learning_source_identity()}
     return sha256(json.dumps(content, sort_keys=True).encode()).hexdigest(), identity
 
 
@@ -602,7 +612,7 @@ def run(
             LearnedPolicy(
                 config["previous_model"],
                 catalog,
-                expected_model_id=state.get("previous_model_id"),
+                expected_model_id=state.get("previous_model_id") or config.get("previous_model_id"),
             )
             if config.get("previous_model")
             else None
@@ -644,7 +654,7 @@ def run(
                 LearnedPolicy(
                     historical_path,
                     catalog,
-                    expected_model_id=state.get("frozen_historical_model_id"),
+                    expected_model_id=state.get("frozen_historical_model_id") or experiment.get("historical_model_id"),
                 )
                 if historical_path
                 else None
@@ -687,6 +697,7 @@ def run(
                     ),
                     references,
                     config.get("collect_tactical_metrics", False),
+                    max_decisions=config.get("max_decisions", 256),
                 )
                 for i in range(config.get("envs", 4))
             ]
@@ -698,9 +709,11 @@ def run(
             source = state["latest"] if state["experiment_index"] == number else None
             initial_source = source or experiment.get("initial_model")
             if initial_source:
-                loaded = LearnedPolicy(initial_source, catalog)
+                loaded = LearnedPolicy(initial_source, catalog,
+                    expected_model_id=None if source else experiment.get("initial_model_id"))
                 if loaded.encoder.version != encoder.version:
                     raise ValueError("initial_model_encoder_mismatch")
+                require_resume_objective(loaded.model, experiment, encoder.version)
                 model = (
                     loaded.model
                     if device == "cpu" and loaded.model.n_envs == vector.num_envs
@@ -722,7 +735,7 @@ def run(
             else:
                 model = MaskablePPO(
                     PublicCategoricalPolicy
-                    if encoder.version == PUBLIC_CATEGORICAL_VERSION
+                    if encoder.version in PUBLIC_CATEGORICAL_VERSIONS
                     else OwnMoveTokenPolicy
                     if encoder.version in OWN_MOVE_VERSIONS
                     else PublicInteractionPolicy
@@ -736,7 +749,8 @@ def run(
                     n_steps=128,
                     batch_size=128,
                     n_epochs=4,
-                    gamma=0.99,
+                    gamma=experiment_objective(experiment, encoder.version)["gamma"],
+                    gae_lambda=experiment_objective(experiment, encoder.version)["gae_lambda"],
                     learning_rate=experiment.get("learning_rate", 1e-4),
                     ent_coef=experiment.get("ent_coef", 0.005),
                     target_kl=0.03,
@@ -750,7 +764,7 @@ def run(
                         "showdown-learned-observation-v3",
                         "showdown-learned-observation-v4",
                         *OWN_MOVE_VERSIONS,
-                        PUBLIC_CATEGORICAL_VERSION,
+                        *PUBLIC_CATEGORICAL_VERSIONS,
                     }
                     else {"net_arch": {"pi": [64, 64], "vf": [64, 64]}},
                 )
@@ -761,8 +775,9 @@ def run(
                 else None
             )
             if not initial_source and experiment.get("transfer_model"):
-                transfer_source = LearnedPolicy(experiment["transfer_model"], catalog)
-                if encoder.version == PUBLIC_CATEGORICAL_VERSION:
+                transfer_source = LearnedPolicy(experiment["transfer_model"], catalog,
+                    expected_model_id=experiment.get("transfer_model_id"))
+                if encoder.version in PUBLIC_CATEGORICAL_VERSIONS:
                     if transfer_source.encoder.version not in {
                         "showdown-learned-observation-v3", "showdown-learned-observation-v4",
                     }:
@@ -830,6 +845,8 @@ def run(
                         if initial_source
                         else "fresh",
                         "weight_transfer_source_sha256": transfer_id,
+                        "initial_value_transfer_scope": "source_value_initialization_no_functional_objective_conversion"
+                        if transfer_id else None,
                         "weight_transfer_optimizer": "fresh_shape_compatible_optimizer"
                         if transfer_id
                         else None,
@@ -848,6 +865,12 @@ def run(
                         if experiment.get("offline")
                         else None,
                         "extra_opponent_model_ids": extra,
+                        "action_selection": {
+                            "training": "upstream_maskable_ppo_stochastic",
+                            "evaluation": "learned_masked_argmax_and_seeded_public_baselines",
+                            "preview": "coordinator_seeded_random_ordered_three_of_six",
+                        },
+                        "native_max_decisions": config.get("max_decisions", 256),
                         "training_metrics": details,
                         "vector_backend": config.get("vector_backend", "dummy"),
                         "cpu_threads": config.get("cpu_threads", 1),
@@ -858,6 +881,13 @@ def run(
                     },
                 )
                 restored = LearnedPolicy(path, catalog)
+                atomic_json(directory / "episodes.json", {
+                    "schema_version": "showdown-training-episode-audit-v1",
+                    "scope": "coordinator_only_inputs_not_policy_features_or_exact_rollout_replay",
+                    "source_checkpoint": state.get("latest"), "endpoint_checkpoint_sha256": restored.model_id,
+                    "checkpoint_binding": "training_interval_endpoint_not_each_step_policy_identity",
+                    "episodes": episodes, "pending": vector.env_method("episode_cursor"),
+                })
                 view = vector.get_attr("current", indices=0)[0]
                 if not any(view["action_mask"]):
                     vector.env_method("reset", indices=0)

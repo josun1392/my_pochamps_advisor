@@ -21,6 +21,7 @@ class LearningEnvFactory:
     opponents: tuple
     references: dict
     collect_tactical_metrics: bool = False
+    max_decisions: int = 256
 
     def __call__(self):
         import torch
@@ -49,4 +50,5 @@ class LearningEnvFactory:
             opponents=self.opponents,
             opponent_factory=opponent,
             collect_tactical_metrics=self.collect_tactical_metrics,
+            max_decisions=self.max_decisions,
         )

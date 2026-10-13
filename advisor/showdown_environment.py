@@ -35,6 +35,7 @@ class ShowdownEnvironment:
         self._history = {side: [] for side in SIDES}
         self._observations = {}
         self._transition = None
+        self._timeout_bootstrap = None
         self.resources = None
 
     def __enter__(self):
@@ -106,6 +107,24 @@ class ShowdownEnvironment:
                 raise ShowdownEnvironmentError("wrong_private_request_owner")
             histories[side].extend(native["events"])
             observations[side] = project_policy_observation(native, histories[side])
+        bootstrap = row.get("timeout_bootstrap")
+        if row["truncated"]:
+            if (not isinstance(bootstrap, dict)
+                    or set(bootstrap) != {"schema_version", "episode_id", "revision", "requests"}
+                    or bootstrap["schema_version"] != "showdown-public-timeout-bootstrap-v1"
+                    or bootstrap["episode_id"] != self._owner or bootstrap["revision"] != row["revision"]
+                    or set(bootstrap["requests"]) != set(SIDES)):
+                raise ShowdownEnvironmentError("invalid_public_timeout_bootstrap")
+            for request in bootstrap["requests"].values():
+                if (set(request) != {"action_mask", "choices"} or len(request["action_mask"]) != 35
+                        or len(request["choices"]) != 35 or not any(request["action_mask"])
+                        or any(type(m) is not int or m not in (0, 1) or m != int(c is not None)
+                            or (c is not None and not isinstance(c, str))
+                            for m, c in zip(request["action_mask"], request["choices"]))):
+                    raise ShowdownEnvironmentError("invalid_public_timeout_bootstrap_actions")
+        elif bootstrap is not None:
+            raise ShowdownEnvironmentError("unexpected_public_timeout_bootstrap")
+        self._timeout_bootstrap = deepcopy(bootstrap)
         self._history, self._observations = histories, observations
         self._revision = row["revision"]
         self._worker_generation = self.worker.generation
@@ -162,6 +181,16 @@ class ShowdownEnvironment:
             return self._install(self._request([{"operation": "step", "owner": self._owner,
                                                 "revision": revision, "actions": deepcopy(actions)}])[0])
 
+    def timeout_bootstrap_observation(self, side):
+        """Player-visible continuation features for value bootstrap, never executable."""
+        with self._lock:
+            view = self.observation(side, include_history=True)
+            if not (self._transition["truncated"] and not self._transition["terminated"]
+                    and self._timeout_bootstrap is not None):
+                raise ShowdownEnvironmentError("public_timeout_bootstrap_unavailable")
+            view.update(deepcopy(self._timeout_bootstrap["requests"][side]))
+            return view
+
     @classmethod
     def batch_step(cls, entries):
         """One RPC for independent episodes on one explicitly shared worker."""
@@ -213,6 +242,7 @@ class ShowdownEnvironment:
                 pass
             self._owner = None
         self._observations = {}
+        self._timeout_bootstrap = None
 
     def close(self):
         with self._lock:
