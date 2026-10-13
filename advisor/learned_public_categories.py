@@ -59,6 +59,11 @@ class PublicCategoricalEncoder:
         if (set(self.tokens["species"]) != set(self.catalog["species"])
                 or set(self.tokens["moves"]) != set(self.catalog["moves"]) | {"recharge"}):
             raise ValueError("public_category_base_catalog_mismatch")
+        self.mega_forms = public["mega_forms_by_item"]
+        if any(item not in self.tokens["items"] or not isinstance(forms, dict)
+               or any(species not in self.tokens["species"] or form not in self.tokens["species"]
+                      for species, form in forms.items()) for item, forms in self.mega_forms.items()):
+            raise ValueError("invalid_public_mega_form_metadata")
         self.feature_contract = {
             "schema_version": "showdown-public-categorical-contract-v1",
             "version": VERSION,
@@ -80,6 +85,7 @@ class PublicCategoricalEncoder:
             "entity_dimensions": {"numeric": ENTITY_NUMERIC, "transport": ENTITY_BITS, "latent": ENTITY_LATENT},
             "action_dimensions": {"base_v4": BASE_ACTION, "transport": ACTION_BITS},
             "action_transport_order": ["own_record_reference", "own_request_move", "public_candidate_form"],
+            "mega_candidate_scope": "native_request_flag_plus_public_own_item_and_pinned_native_item_metadata_or_unknown",
             "observation_dimension": self.dimension,
             "policy_projection": "shared_entity_mlp_366_64_24_flattened_record_latents_then_existing_shared_action_scorer",
             "transport": "binary_indices_decoded_only_by_embedding_or_entity_gather",
@@ -180,9 +186,20 @@ class PublicCategoricalEncoder:
                 own_row = sorted(own["pokemon"].items())[reference - 1][1]
                 form = self.token("species", own_row.get("details", {}))
                 if slot is not None and (10 <= index < 14 or 27 <= index < 35):
-                    mega = observation["own_request"].get("active", [{}])[0].get("canMegaEvo")
+                    key = "canMegaEvo" if index < 14 else "canMegaEvoX" if index < 31 else "canMegaEvoY"
+                    mega = observation["own_request"].get("active", [{}])[0].get(key)
+                    form = UNKNOWN  # availability is not evidence of the current/base form being the candidate
                     if isinstance(mega, str):
                         form = self.token("species", mega)
+                    elif mega is True and key == "canMegaEvo":
+                        # Native M-C requests expose a boolean; reuse public native
+                        # stone metadata, not hidden Pokemon.canMegaEvo or mechanics.
+                        item = own_row.get("known_item", {})
+                        if isinstance(item, str):
+                            species = identifier(own_row.get("request_details", own_row.get("details", "")))
+                            candidate = self.mega_forms.get(identifier(item), {}).get(species)
+                            if candidate:
+                                form = self.token("species", candidate)
             if observation["action_mask"][index] and slot is not None and (not reference or move in (PAD, UNKNOWN, ABSENT)):
                 raise ValueError("unbound_public_legal_move")
             if observation["action_mask"][index] and index < 6 and not reference:

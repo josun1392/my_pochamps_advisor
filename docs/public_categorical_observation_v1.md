@@ -50,6 +50,13 @@ record, exact own-request move and public candidate form (including native Mega
 choices). The existing shared action scorer preserves row permutation behavior;
 the critic pools legal candidate rows with the original mask.
 
+Native M-C Mega request flags are boolean. Candidate form IDs are read from the
+pinned public item-to-Mega-form metadata using the authorized own item/base
+details; they are not read from a simulator Pokemon or inferred for an opponent.
+If a candidate cannot be established publicly, its ID remains Unknown. Explicit
+form strings in public requests are also supported. Other-format X/Y boolean
+requests are not treated as M-C form-name evidence.
+
 The flat observation has 15,576 float32 values: context 6,546 and 35 action rows
 of 258 values. There are 360,858 parameters, compared with V4's 152,514. The
 serialized feature contract binds the category/source hashes, token mapping,

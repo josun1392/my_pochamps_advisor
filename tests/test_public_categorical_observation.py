@@ -348,3 +348,35 @@ def test_new_encoder_factory_spawn_matches_dummy_without_privileged_inputs():
             vector.close()
     for dummy, spawned in zip(*outputs):
         np.testing.assert_array_equal(dummy, spawned)
+
+
+def test_native_boolean_mega_request_has_exact_public_candidate_form():
+    checkout = os.environ.get("POKEADVICE_SHOWDOWN_CHECKOUT")
+    if not checkout:
+        pytest.skip("external pinned native engine required")
+    from advisor.showdown_environment import ShowdownEnvironment
+    from advisor.learned_scenarios import scenario
+    encoder = PublicCategoricalEncoder(CATALOG)
+    cases = (scenario("train", i) for i in range(100))
+    case = next(c for c in cases if c["teams"]["self"][c["preview"]["self"][0] - 1]["item"].endswith("ite X"))
+    with ShowdownEnvironment(checkout) as env:
+        env.reset(case); view = env.observation("self", include_history=True)
+        assert view["own_request"]["active"][0]["canMegaEvo"] is True
+        mega = next(i for i in range(10, 14) if view["action_mask"][i])
+        _, _, actions = split(encoder, view)
+        start = BASE_ACTION - 1 + 5 + 10
+        expected = encoder.token("species", "Charizard-Mega-X")
+        assert decode(actions[mega, start:start + 11]) == expected
+        assert decode(actions[mega - 4, start:start + 11]) == encoder.token("species", "Charizard")
+        missing = deepcopy(view)
+        own = missing["state"]["self_side"]
+        own["pokemon"][own["active_identity"]]["known_item"] = {"knowledge": "unknown"}
+        _, _, rows = split(encoder, missing)
+        assert decode(rows[mega, start:start + 11]) == UNKNOWN
+        rival = env.observation("opponent", include_history=True)
+        env.step({"self": mega, "opponent": int(np.flatnonzero(rival["action_mask"])[0])}, revision=view["revision"])
+        after = env.observation("self", include_history=True)
+        _, records, _ = split(encoder, after)
+        own = after["state"]["self_side"]
+        index = [k for k, _ in sorted(own["pokemon"].items())].index(own["active_identity"])
+        assert decode(records[index, ENTITY_NUMERIC:ENTITY_NUMERIC + 11]) == expected

@@ -36,6 +36,10 @@ def build():
         "moves": sorted(set(catalog["moves"]) | {"recharge"}),
         "abilities": sorted({identifier(a) for a in inventory["abilities"] + inventory["transformation_abilities"]}),
         "items": sorted(inventory["items"]),
+        "mega_forms_by_item": {
+            item: {identifier(species): identifier(form) for species, form in row["mega_stone"].items()}
+            for item, row in sorted(inventory["items"].items()) if row.get("mega_stone")
+        },
     }
 
 
