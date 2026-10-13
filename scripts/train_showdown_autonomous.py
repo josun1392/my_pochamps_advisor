@@ -30,6 +30,8 @@ from advisor.learned_action_policy import (
 from advisor.learned_baselines import VisibleBaseline
 from advisor.learned_parallel import LearningEnvFactory
 from advisor.learned_policy import LearnedPolicy
+from advisor.learned_move_identity import VERSIONS as OWN_MOVE_VERSIONS
+from advisor.learned_move_identity_policy import OwnMoveTokenPolicy, transfer_v3_to_own_move
 from advisor.learning_resources import (
     WindowsJob,
     RuntimeLimit,
@@ -46,6 +48,15 @@ CURRICULUM = "showdown-learning-curriculum-v2"
 def validate_config(config):
     if config.get("schema_version") != "showdown-autonomous-training-v1":
         raise ValueError("unsupported_trainer_config")
+    if config.get("validation_case_bank"):
+        from advisor.learned_evaluation_bank import EvaluationCaseBank
+
+        EvaluationCaseBank(
+            config["validation_case_bank"], config.get("validation_case_bank_sha256"),
+            scope="validation",
+        )
+        if config.get("final_test_cases", 0):
+            raise ValueError("external_validation_bank_requires_separate_final_evaluation")
     if config.get("curriculum_version", CURRICULUM) not in {
         "showdown-learning-curriculum-v1",
         CURRICULUM,
@@ -154,6 +165,7 @@ def validate_config(config):
             "showdown-learned-observation-v1",
             "showdown-learned-observation-v3",
             "showdown-learned-observation-v4",
+            *OWN_MOVE_VERSIONS,
         }:
             raise ValueError("unsupported_encoder")
         if experiment.get("transfer_model") and (
@@ -162,9 +174,14 @@ def validate_config(config):
             not in {
                 "showdown-learned-observation-v3",
                 "showdown-learned-observation-v4",
+                *OWN_MOVE_VERSIONS,
             }
         ):
             raise ValueError("transfer_requires_fresh_v3_optimizer")
+        if experiment.get("encoder_version") in OWN_MOVE_VERSIONS and (
+            experiment.get("transfer_model") and not experiment.get("fresh_optimizer", False)
+        ):
+            raise ValueError("own_move_transfer_requires_explicit_fresh_optimizer")
         if (
             not rollout <= experiment["steps"] <= 1048576
             or experiment["steps"] % rollout
@@ -284,6 +301,7 @@ def save_checkpoint(model, encoder, directory, metadata):
             "gamma": model.gamma,
             "curriculum_version": CURRICULUM,
             **metadata,
+            **({"feature_contract": encoder.feature_contract} if hasattr(encoder, "feature_contract") else {}),
         },
     )
     return str(path.with_suffix(".zip"))
@@ -583,6 +601,14 @@ def run(
         )
         state["previous_model_id"] = previous.model_id if previous else None
         curriculum = config.get("curriculum_version", CURRICULUM)
+        validation_provider = None
+        if config.get("validation_case_bank"):
+            from advisor.learned_evaluation_bank import EvaluationCaseBank
+
+            validation_provider = EvaluationCaseBank(
+                config["validation_case_bank"], config["validation_case_bank_sha256"],
+                scope="validation",
+            )
         evaluation_rivals = {
             kind: previous if kind == "previous" else kind
             for kind in config.get(
@@ -687,7 +713,9 @@ def run(
                         )
             else:
                 model = MaskablePPO(
-                    PublicInteractionPolicy
+                    OwnMoveTokenPolicy
+                    if encoder.version in OWN_MOVE_VERSIONS
+                    else PublicInteractionPolicy
                     if encoder.version == "showdown-learned-observation-v4"
                     else TacticalActionConditionedPolicy
                     if encoder.version == "showdown-learned-observation-v3"
@@ -711,6 +739,7 @@ def run(
                         VERSION,
                         "showdown-learned-observation-v3",
                         "showdown-learned-observation-v4",
+                        *OWN_MOVE_VERSIONS,
                     }
                     else {"net_arch": {"pi": [64, 64], "vf": [64, 64]}},
                 )
@@ -722,7 +751,11 @@ def run(
             )
             if not initial_source and experiment.get("transfer_model"):
                 transfer_source = LearnedPolicy(experiment["transfer_model"], catalog)
-                if encoder.version == "showdown-learned-observation-v4":
+                if encoder.version in OWN_MOVE_VERSIONS:
+                    if transfer_source.encoder.version != "showdown-learned-observation-v3":
+                        raise ValueError("v3_transfer_source_required")
+                    transfer_v3_to_own_move(model.policy, transfer_source.model.policy)
+                elif encoder.version == "showdown-learned-observation-v4":
                     if (
                         transfer_source.encoder.version
                         != "showdown-learned-observation-v3"
@@ -876,6 +909,7 @@ def run(
                         curriculum_version=curriculum,
                         rivals=evaluation_rivals,
                         stopping=budget.stopping,
+                        case_provider=validation_provider,
                     )
                 except TimeoutError:
                     if budget.stopping():

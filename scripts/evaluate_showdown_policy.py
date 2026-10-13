@@ -117,6 +117,7 @@ def evaluate(
     stopping=None,
     progress=None,
     tactical_diagnostics=False,
+    case_provider=None,
 ):
     if not 1 <= cases <= 256 or split not in {"validation", "test", "unseen"}:
         raise ValueError("bounded_held_out_evaluation_required")
@@ -145,7 +146,9 @@ def evaluate(
                     )
 
                     start_info = reset_learning_episode(
-                        env, scenario(split, index, version=curriculum_version)
+                        env,
+                        case_provider(split, index) if case_provider is not None
+                        else scenario(split, index, version=curriculum_version),
                     )
                     rival = (
                         VisibleBaseline(rival_policy, index + 919)
@@ -364,6 +367,7 @@ def evaluate(
         "schema_version": "showdown-learned-evaluation-v1",
         "split": split,
         "curriculum_version": curriculum_version,
+        **({"evaluation_case_bank": case_provider.identity} if case_provider is not None else {}),
         **(
             {"full_domain_identity": full_domain_identity}
             if full_domain_identity

@@ -178,6 +178,10 @@ class ActionObservationEncoder(PartialObservationEncoder):
 
 
 def make_encoder(catalog, version):
+    from advisor.learned_move_identity import VERSIONS, OwnMoveTokenEncoder
+
+    if version in VERSIONS:
+        return OwnMoveTokenEncoder(catalog, version)
     if version == PartialObservationEncoder.version:
         return PartialObservationEncoder(catalog)
     if version == VERSION:

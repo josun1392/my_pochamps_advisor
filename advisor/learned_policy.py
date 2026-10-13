@@ -49,6 +49,10 @@ class LearnedPolicy:
         ):
             raise ValueError("model_manifest_or_contract_mismatch")
         # SB3 zip uses pickle internally. Only artifacts produced/verified locally
+        if hasattr(self.encoder, "feature_contract") and self.metadata.get(
+            "feature_contract"
+        ) != self.encoder.feature_contract:
+            raise ValueError("own_move_feature_contract_mismatch")
         # by the trusted coordinator are accepted; hashes do not sandbox untrusted files.
         # SB3 loading calls set_random_seed. Validation/inference must not reset
         # another learner's global sampling stream as a hidden side effect.
@@ -68,6 +72,11 @@ class LearnedPolicy:
             self.encoder.dimension,
         ):
             raise ValueError("incompatible_model_spaces")
+        if hasattr(self.encoder, "feature_contract"):
+            from advisor.learned_move_identity_policy import OwnMoveTokenPolicy
+
+            if not isinstance(self.model.policy, OwnMoveTokenPolicy):
+                raise ValueError("own_move_categorical_policy_required")
 
     def infer(self, observation):
         features = self.encoder.encode(observation)
