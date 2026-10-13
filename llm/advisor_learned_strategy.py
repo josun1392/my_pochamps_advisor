@@ -150,6 +150,7 @@ def valid_learned_evidence(value, binding, scenario):
                 "showdown-learned-observation-v2",
                 "showdown-learned-observation-v3",
                 "showdown-learned-observation-v4",
+                "showdown-public-categorical-observation-v1",
             }
             or proof.get("side") != "self"
             or proof.get("model_id") != value["model_id"]

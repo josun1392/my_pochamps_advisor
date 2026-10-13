@@ -52,7 +52,11 @@ class LearnedPolicy:
         if hasattr(self.encoder, "feature_contract") and self.metadata.get(
             "feature_contract"
         ) != self.encoder.feature_contract:
-            raise ValueError("own_move_feature_contract_mismatch")
+            from advisor.learned_public_categories import VERSION as PUBLIC_CATEGORICAL_VERSION
+
+            raise ValueError("public_categorical_feature_contract_mismatch"
+                             if self.encoder.version == PUBLIC_CATEGORICAL_VERSION
+                             else "own_move_feature_contract_mismatch")
         # by the trusted coordinator are accepted; hashes do not sandbox untrusted files.
         # SB3 loading calls set_random_seed. Validation/inference must not reset
         # another learner's global sampling stream as a hidden side effect.
@@ -74,9 +78,15 @@ class LearnedPolicy:
             raise ValueError("incompatible_model_spaces")
         if hasattr(self.encoder, "feature_contract"):
             from advisor.learned_move_identity_policy import OwnMoveTokenPolicy
+            from advisor.learned_public_categories import VERSION as PUBLIC_CATEGORICAL_VERSION
+            from advisor.learned_public_categories_policy import PublicCategoricalPolicy
 
-            if not isinstance(self.model.policy, OwnMoveTokenPolicy):
-                raise ValueError("own_move_categorical_policy_required")
+            required = (PublicCategoricalPolicy if self.encoder.version == PUBLIC_CATEGORICAL_VERSION
+                        else OwnMoveTokenPolicy)
+            if type(self.model.policy) is not required:
+                raise ValueError("public_categorical_policy_required"
+                                 if required is PublicCategoricalPolicy
+                                 else "own_move_categorical_policy_required")
 
     def infer(self, observation):
         features = self.encoder.encode(observation)

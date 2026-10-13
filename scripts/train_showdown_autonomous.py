@@ -32,6 +32,8 @@ from advisor.learned_parallel import LearningEnvFactory
 from advisor.learned_policy import LearnedPolicy
 from advisor.learned_move_identity import VERSIONS as OWN_MOVE_VERSIONS
 from advisor.learned_move_identity_policy import OwnMoveTokenPolicy, transfer_v3_to_own_move
+from advisor.learned_public_categories import VERSION as PUBLIC_CATEGORICAL_VERSION
+from advisor.learned_public_categories_policy import PublicCategoricalPolicy, transfer_public_categorical_weights
 from advisor.learning_resources import (
     WindowsJob,
     RuntimeLimit,
@@ -166,6 +168,7 @@ def validate_config(config):
             "showdown-learned-observation-v3",
             "showdown-learned-observation-v4",
             *OWN_MOVE_VERSIONS,
+            PUBLIC_CATEGORICAL_VERSION,
         }:
             raise ValueError("unsupported_encoder")
         if experiment.get("transfer_model") and (
@@ -175,6 +178,7 @@ def validate_config(config):
                 "showdown-learned-observation-v3",
                 "showdown-learned-observation-v4",
                 *OWN_MOVE_VERSIONS,
+                PUBLIC_CATEGORICAL_VERSION,
             }
         ):
             raise ValueError("transfer_requires_fresh_v3_optimizer")
@@ -182,6 +186,10 @@ def validate_config(config):
             experiment.get("transfer_model") and not experiment.get("fresh_optimizer", False)
         ):
             raise ValueError("own_move_transfer_requires_explicit_fresh_optimizer")
+        if experiment.get("encoder_version") == PUBLIC_CATEGORICAL_VERSION and (
+            experiment.get("transfer_model") and not experiment.get("fresh_optimizer", False)
+        ):
+            raise ValueError("public_categorical_transfer_requires_explicit_fresh_optimizer")
         if (
             not rollout <= experiment["steps"] <= 1048576
             or experiment["steps"] % rollout
@@ -713,7 +721,9 @@ def run(
                         )
             else:
                 model = MaskablePPO(
-                    OwnMoveTokenPolicy
+                    PublicCategoricalPolicy
+                    if encoder.version == PUBLIC_CATEGORICAL_VERSION
+                    else OwnMoveTokenPolicy
                     if encoder.version in OWN_MOVE_VERSIONS
                     else PublicInteractionPolicy
                     if encoder.version == "showdown-learned-observation-v4"
@@ -740,6 +750,7 @@ def run(
                         "showdown-learned-observation-v3",
                         "showdown-learned-observation-v4",
                         *OWN_MOVE_VERSIONS,
+                        PUBLIC_CATEGORICAL_VERSION,
                     }
                     else {"net_arch": {"pi": [64, 64], "vf": [64, 64]}},
                 )
@@ -751,7 +762,13 @@ def run(
             )
             if not initial_source and experiment.get("transfer_model"):
                 transfer_source = LearnedPolicy(experiment["transfer_model"], catalog)
-                if encoder.version in OWN_MOVE_VERSIONS:
+                if encoder.version == PUBLIC_CATEGORICAL_VERSION:
+                    if transfer_source.encoder.version not in {
+                        "showdown-learned-observation-v3", "showdown-learned-observation-v4",
+                    }:
+                        raise ValueError("v3_or_v4_transfer_source_required")
+                    transfer_public_categorical_weights(model.policy, transfer_source.model.policy)
+                elif encoder.version in OWN_MOVE_VERSIONS:
                     if transfer_source.encoder.version != "showdown-learned-observation-v3":
                         raise ValueError("v3_transfer_source_required")
                     transfer_v3_to_own_move(model.policy, transfer_source.model.policy)
