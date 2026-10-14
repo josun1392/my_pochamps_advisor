@@ -16,7 +16,8 @@ from advisor.showdown_bridge import SHOWDOWN_COMMIT, FORMAT_ID
 
 VERSION = "showdown-public-categorical-observation-v1"
 REQUEST_IDENTITY_VERSION = "showdown-public-categorical-observation-v2"
-VERSIONS = (VERSION, REQUEST_IDENTITY_VERSION)
+RUNTIME_ABILITY_VERSION = "showdown-public-categorical-observation-v3"
+VERSIONS = (VERSION, REQUEST_IDENTITY_VERSION, RUNTIME_ABILITY_VERSION)
 CATALOG_PATH = Path(__file__).resolve().parents[1] / "models/showdown_public_categories_v1/catalog.json"
 PAD, UNKNOWN, ABSENT = 0, 1, 2
 BITS = {"species": 11, "abilities": 9, "items": 8, "moves": 10}
@@ -241,3 +242,47 @@ class RequestIdentityCategoricalEncoder(PublicCategoricalEncoder):
 
     def _record_active(self, side, key, row):
         return row.get("own_request_active", super()._record_active(side, key, row))
+
+
+class RuntimeAbilityCategoricalEncoder(RequestIdentityCategoricalEncoder):
+    """Append-only ability vocabulary, identical transport and tensor layout."""
+    version = RUNTIME_ABILITY_VERSION
+
+    def __init__(self, catalog):
+        super().__init__(catalog)
+        from hashlib import sha256
+        path = Path(__file__).resolve().parents[1] / "models/showdown_public_categories_v3/catalog.json"
+        runtime = json.loads(path.read_text(encoding="utf-8"))
+        old = self.tokens["abilities"]
+        names = runtime["abilities"]
+        registry = runtime["native_registry"]
+        if (runtime.get("schema_version") != "showdown-public-runtime-categories-v3"
+                or runtime.get("engine_commit") != SHOWDOWN_COMMIT or runtime.get("format_id") != FORMAT_ID
+                or runtime.get("legacy_catalog_sha256") != sha256(CATALOG_PATH.read_bytes()).hexdigest()
+                or names[:len(old)] != list(old) or runtime["legacy_ability_count"] != len(old)
+                or names[len(old):] != sorted(set(names) - set(old))
+                or len(names) != len(set(names)) or len(names) + 3 > 2 ** BITS["abilities"]
+                or any(identifier(n) != n or not n for n in names)
+                or set(names) != {a["id"] for a in registry["abilities"]}
+                or registry["format_id"] != FORMAT_ID or fingerprint(registry) != runtime["native_registry_sha256"]):
+            raise ValueError("public_runtime_ability_catalog_mismatch")
+        tokens = {n: i + 3 for i,n in enumerate(names)}
+        if fingerprint(tokens) != runtime["token_map_sha256"]:
+            raise ValueError("public_runtime_ability_token_map_mismatch")
+        self.tokens["abilities"] = tokens
+        self._ability_spellings = {a["id"].casefold() for a in registry["abilities"]}
+        self._ability_spellings.update(a["name"].casefold() for a in registry["abilities"]
+                                       if identifier(a["name"]) == a["id"])
+        self.feature_contract = {**self.feature_contract,"schema_version":"showdown-public-categorical-contract-v3",
+            "version":self.version,"runtime_ability_catalog_sha256":sha256(path.read_bytes()).hexdigest(),
+            "runtime_ability_catalog_fingerprint":fingerprint(runtime),"token_map_sha256":fingerprint(self.tokens),
+            "category_counts":{k:len(t) for k,t in self.tokens.items()},
+            "runtime_ability_scope":"pinned_format_Dex_all_canonical_abilities_public_only_not_set_legality",
+            "ability_assignment":"V1_V2_tokens_preserved_canonical_additions_appended_existing_512_embeddings",
+            "compatibility":"V2_features_and_all_policy_tensors_unchanged_for_legacy_identities"}
+        self.catalog_fingerprint = fingerprint(self.feature_contract)
+
+    def token(self, kind, value):
+        if kind == "abilities" and isinstance(value, str) and value and value.casefold() not in self._ability_spellings:
+            raise ValueError("invalid_or_unsupported_public_runtime_ability_identity")
+        return super().token(kind, value)

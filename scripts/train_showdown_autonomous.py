@@ -744,6 +744,7 @@ def run(
                     references,
                     config.get("collect_tactical_metrics", False),
                     max_decisions=config.get("max_decisions", 256),
+                    diagnostic_directory=str(output / "public_encoding_failures"),
                 )
                 for i in range(config.get("envs", 4))
             ]
@@ -824,11 +825,16 @@ def run(
                 transfer_source = LearnedPolicy(experiment["transfer_model"], catalog,
                     expected_model_id=experiment.get("transfer_model_id"))
                 if encoder.version in PUBLIC_CATEGORICAL_VERSIONS:
-                    if transfer_source.encoder.version not in {
+                    if (encoder.version == "showdown-public-categorical-observation-v3"
+                            and transfer_source.encoder.version == "showdown-public-categorical-observation-v2"):
+                        from advisor.learned_public_categories_policy import transfer_runtime_ability_weights
+                        transfer_runtime_ability_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
+                    elif transfer_source.encoder.version not in {
                         "showdown-learned-observation-v3", "showdown-learned-observation-v4",
                     }:
                         raise ValueError("v3_or_v4_transfer_source_required")
-                    transfer_public_categorical_weights(model.policy, transfer_source.model.policy)
+                    else:
+                        transfer_public_categorical_weights(model.policy, transfer_source.model.policy)
                 elif encoder.version in OWN_MOVE_VERSIONS:
                     if transfer_source.encoder.version != "showdown-learned-observation-v3":
                         raise ValueError("v3_transfer_source_required")
@@ -1294,10 +1300,21 @@ def run(
         )
         raise
     finally:
-        if vector is not None:
-            vector.close()
-        budget.finished.set()
-        lock.unlink(missing_ok=True)
+        try:
+            if vector is not None:
+                try:
+                    vector.close()
+                except (EOFError, BrokenPipeError, OSError) as cleanup_error:
+                    # A crashed owned child must not mask the original failure
+                    # or prevent timer/lock cleanup. No unrelated process access.
+                    atomic_json(output / "worker_cleanup_error.json", {"error": type(cleanup_error).__name__, "message": str(cleanup_error)})
+                    for process in getattr(vector, "processes", []):
+                        if process.is_alive():
+                            process.terminate()
+                        process.join(timeout=1)
+        finally:
+            budget.finished.set()
+            lock.unlink(missing_ok=True)
 
 
 def launch_detached(config_path, output, resume):

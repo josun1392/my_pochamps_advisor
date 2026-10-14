@@ -25,6 +25,7 @@ class ShowdownLearningEnv(gym.Env):
         opponents=None,
         opponent_factory=None,
         collect_tactical_metrics=False,
+        diagnostic_directory=None,
     ):
         self.native = ShowdownEnvironment(checkout, max_decisions=max_decisions)
         self.encoder, self.split, self.index, self.offset = (
@@ -43,6 +44,7 @@ class ShowdownLearningEnv(gym.Env):
         self._behavior_cache = {}
         self.coverage_counts = {}
         self.collect_tactical_metrics = collect_tactical_metrics
+        self.diagnostic_directory = diagnostic_directory
         self.tactical_counts = Counter()
         self.retry_diagnostics = []
         self.public_behavior_counts = Counter()
@@ -111,7 +113,7 @@ class ShowdownLearningEnv(gym.Env):
         self.opponent_kind = kind
         self._episode_identity.update(opponent=kind, opponent_model_id=getattr(self.opponent, "model_id", None))
         self.current = self.native.observation("self", include_history=True)
-        encoded = self.encoder.encode(self.current)
+        encoded = self._encode_public(self.current)
         if self.observation_space is None:
             self.observation_space = gym.spaces.Box(
                 -2, 4, shape=encoded.shape, dtype=np.float32
@@ -193,7 +195,7 @@ class ShowdownLearningEnv(gym.Env):
         final_view = (self.native.timeout_bootstrap_observation("self")
                       if result["truncated"] else self.current)
         return (
-            self.encoder.encode(final_view),
+            self._encode_public(final_view),
             float(result["rewards"]["self"]),
             result["terminated"],
             result["truncated"],
@@ -213,6 +215,22 @@ class ShowdownLearningEnv(gym.Env):
                 },
             },
         )
+
+    def _encode_public(self, view):
+        try:
+            return self.encoder.encode(view)
+        except ValueError as error:
+            if getattr(self, "diagnostic_directory", None):
+                from pathlib import Path
+                from advisor.learning_resources import atomic_json
+                directory = Path(self.diagnostic_directory)
+                directory.mkdir(parents=True, exist_ok=True)
+                atomic_json(directory / f"public_encoding_failure_{view['episode_id']}_{view['revision']}.json", {
+                    "scope": "coordinator_only_actual_player_visible_view_no_checkpoint_hidden_sets_or_rng",
+                    "encoder_version": self.encoder.version, "error": str(error),
+                    "case_index": self._episode_identity["case_index"], "public_observation": view,
+                })
+            raise
 
     def _native_step(self, action):
         other = self.native.observation("opponent", include_history=True)

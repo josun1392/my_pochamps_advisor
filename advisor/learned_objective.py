@@ -4,7 +4,7 @@ from hashlib import sha256
 from pathlib import Path
 
 CATEGORICAL = "showdown-public-categorical-observation-v1"
-CATEGORICAL_VERSIONS = (CATEGORICAL, "showdown-public-categorical-observation-v2")
+CATEGORICAL_VERSIONS = (CATEGORICAL, "showdown-public-categorical-observation-v2", "showdown-public-categorical-observation-v3")
 UNDISCOUNTED = "native_terminal_win_loss_draw_undiscounted_v1"
 DISCOUNTED = "native_terminal_win_loss_draw_discounted_v1"
 
@@ -19,6 +19,8 @@ def categorical_learning_source_identity():
         "advisor/learned_tactics_encoder.py", "advisor/learned_encoder.py",
         "advisor/learned_gym.py", "advisor/learned_parallel.py",
         "scripts/train_showdown_autonomous.py", "scripts/evaluate_showdown_policy.py",
+        "scripts/build_showdown_runtime_categories.py", "tools/showdown_bridge/runtime-abilities.cjs",
+        "models/showdown_public_categories_v3/catalog.json",
     ]
     return {name: sha256((root / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() for name in names}
 

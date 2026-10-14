@@ -116,3 +116,19 @@ def transfer_public_categorical_weights(target, source):
     target.optimizer = target.optimizer_class(
         target.parameters(), lr=target.optimizer.param_groups[0]["lr"], **target.optimizer_kwargs,
     )
+
+
+def transfer_runtime_ability_weights(target, source, target_encoder, source_encoder):
+    """Strict V2->V3 tensor copy with explicitly fresh Adam; never silent resume."""
+    from advisor.learned_public_categories import REQUEST_IDENTITY_VERSION, RUNTIME_ABILITY_VERSION
+    if (type(target) is not PublicCategoricalPolicy or type(source) is not PublicCategoricalPolicy
+            or source_encoder.version != REQUEST_IDENTITY_VERSION or target_encoder.version != RUNTIME_ABILITY_VERSION
+            or source_encoder.dimension != target_encoder.dimension
+            or any(any(target_encoder.tokens[k].get(n) != token for n,token in ids.items())
+                   for k,ids in source_encoder.tokens.items())):
+        raise ValueError("runtime_ability_weight_transfer_contract_mismatch")
+    old,new=source.state_dict(),target.state_dict()
+    if old.keys() != new.keys() or any(old[k].shape != new[k].shape for k in old):
+        raise ValueError("runtime_ability_weight_transfer_tensor_mismatch")
+    target.load_state_dict(old)
+    target.optimizer = target.optimizer_class(target.parameters(), lr=target.optimizer.param_groups[0]["lr"], **target.optimizer_kwargs)
