@@ -31,6 +31,17 @@ def terminal_label_eligible(outcome, rejected_episode):
     return outcome["terminated"] and not outcome["truncated"] and not rejected_episode
 
 
+def close_owned_vector(vector, *, failed):
+    """Broken pipes can make upstream close block on unmatched replies."""
+    if failed:
+        for process in getattr(vector, "processes", []):
+            if process.is_alive():
+                process.terminate()
+            process.join(timeout=1)
+    else:
+        vector.close()
+
+
 def collect(config, output, *, resource_job=None):
     count, workers = config.get("decisions", 32768), config.get("envs", 8)
     if (
@@ -112,7 +123,7 @@ def collect(config, output, *, resource_job=None):
                 "schema_version": PUBLIC_CATEGORICAL_SCHEMA,
                 "feature_contract": encoder.feature_contract,
                 "training_objective": objective_contract(gamma, 0.95),
-                "terminal_label_scope": "native_terminated_no_truncation_no_rejected_episode",
+                "terminal_label_scope": "native_terminated_no_truncation_no_rejected_or_unsupported_episode",
                 "policy_information_scope": "owner_visible_features_masks_and_executed_choices_only",
                 "collection_source_sha256": {**categorical_learning_source_identity(),
                     "scripts/collect_showdown_public_trajectories.py": file_hash(Path(__file__)),
@@ -121,6 +132,7 @@ def collect(config, output, *, resource_job=None):
         },
     )
     vector = None
+    collection_failed = False
     diagnostics_file = (output / "public_diagnostics.jsonl").open("x", encoding="utf-8") if categorical else None
     try:
         vector = SubprocVecEnv(factories, start_method="spawn")
@@ -129,9 +141,10 @@ def collect(config, output, *, resource_job=None):
         pending = [[] for _ in range(workers)]
         pending_diagnostics = [[] for _ in range(workers)]
         rejected_episode = [False] * workers
+        unsupported_episode = [False] * workers
         rng = np.random.default_rng(config["seed"])
         behaviors = [str(rng.choice(config["behaviors"])) for _ in range(workers)]
-        attempted = discarded = ended = rejected_rows = rejected_episodes = 0
+        attempted = discarded = ended = rejected_rows = rejected_episodes = unsupported_rows = unsupported_episodes = 0
         while writer.count < count and attempted < count * 4 and not budget.stopping():
             masks = get_action_masks(vector)
             decisions = [
@@ -162,6 +175,7 @@ def collect(config, output, *, resource_job=None):
                         raise ValueError("public_collection_action_binding_mismatch")
                     pending_diagnostics[i].append(evidence)
                     rejected_episode[i] |= evidence["native_rejections"] > 0
+                    unsupported_episode[i] |= evidence["terminal_encoding_unavailable"]
             attempted += workers
             for i in np.flatnonzero(dones):
                 ended += 1
@@ -169,7 +183,7 @@ def collect(config, output, *, resource_job=None):
                 completed = vector.env_method("drain_completed", indices=int(i))[0]
                 if categorical and (len(completed) != 1 or completed[0]["winner"] != outcome["winner"]):
                     raise ValueError("public_collection_terminal_binding_mismatch")
-                if terminal_label_eligible(outcome, rejected_episode[i]):
+                if terminal_label_eligible(outcome, rejected_episode[i] or unsupported_episode[i]):
                     first_row = writer.count
                     writer.add_episode(pending[i], float(rewards[i]), behaviors[i])
                     if categorical:
@@ -180,13 +194,16 @@ def collect(config, output, *, resource_job=None):
                                 "episode": writer.episodes - 1, "behavior": behaviors[i],
                                 "opponent_policy": completed[0]["opponent"], **evidence}) + "\n")
                 else:
-                    if rejected_episode[i]:
+                    if unsupported_episode[i]:
+                        unsupported_rows += len(pending[i]); unsupported_episodes += 1
+                    elif rejected_episode[i]:
                         rejected_rows += len(pending[i]); rejected_episodes += 1
                     else:
                         discarded += len(pending[i])
                 pending[i] = []
                 pending_diagnostics[i] = []
                 rejected_episode[i] = False
+                unsupported_episode[i] = False
                 behaviors[i] = str(rng.choice(config["behaviors"]))
         if diagnostics_file is not None:
             diagnostics_file.flush()
@@ -199,6 +216,8 @@ def collect(config, output, *, resource_job=None):
                 "discarded_incomplete_rows": sum(map(len, pending)),
                 **({"discarded_rejected_episode_rows": rejected_rows,
                     "discarded_rejected_episodes": rejected_episodes,
+                    "discarded_unsupported_episode_rows": unsupported_rows,
+                    "discarded_unsupported_episodes": unsupported_episodes,
                     "public_diagnostics_sha256": file_hash(output / "public_diagnostics.jsonl"),
                     "curriculum_binding": __import__("advisor.learned_full_roster", fromlist=["study_identity"]).study_identity(config["catalog"]),
                 } if categorical else {}),
@@ -229,12 +248,14 @@ def collect(config, output, *, resource_job=None):
         )
         return manifest
     except BaseException as error:
+        collection_failed = True
         atomic_json(
             output / "failure.json",
             {
                 "error": type(error).__name__,
                 "message": str(error),
                 "resources": job.usage(),
+                "worker_exitcodes": [p.exitcode for p in getattr(vector, "processes", [])],
             },
         )
         raise
@@ -242,7 +263,7 @@ def collect(config, output, *, resource_job=None):
         try:
             if vector is not None:
                 try:
-                    vector.close()
+                    close_owned_vector(vector, failed=collection_failed)
                 except (EOFError, BrokenPipeError, OSError):
                     for process in getattr(vector, "processes", []):
                         if process.is_alive():

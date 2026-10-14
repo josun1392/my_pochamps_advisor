@@ -119,7 +119,7 @@ def load_dataset(path, encoder, *, expected_id=None, gamma=0.99):
         if (encoder.version != RUNTIME_ABILITY_VERSION or gamma != 1.0
                 or manifest.get("feature_contract") != getattr(encoder, "feature_contract", None)
                 or manifest.get("training_objective") != objective_contract(gamma, 0.95)
-                or manifest.get("terminal_label_scope") != "native_terminated_no_truncation_no_rejected_episode"
+                or manifest.get("terminal_label_scope") != "native_terminated_no_truncation_no_rejected_or_unsupported_episode"
                 or manifest.get("policy_information_scope") != "owner_visible_features_masks_and_executed_choices_only"):
             raise ValueError("public_categorical_offline_contract_mismatch")
         diagnostics = path / "public_diagnostics.jsonl"

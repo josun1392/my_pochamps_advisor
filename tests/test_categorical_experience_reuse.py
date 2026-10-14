@@ -11,7 +11,7 @@ from advisor.learned_offline import load_dataset, fit_offline, file_hash, PUBLIC
 from advisor.learned_objective import objective_contract
 from advisor.learning_resources import atomic_json
 from advisor.learned_gym import ShowdownLearningEnv
-from scripts.collect_showdown_public_trajectories import collect, terminal_label_eligible
+from scripts.collect_showdown_public_trajectories import collect, terminal_label_eligible, close_owned_vector
 from scripts.train_showdown_autonomous import optimizer_steps
 from tests.test_public_categorical_observation import model
 
@@ -30,6 +30,19 @@ def test_truncation_and_rejected_episodes_never_supply_labels():
     assert not terminal_label_eligible({"terminated": False, "truncated": True}, False)
     assert not terminal_label_eligible({"terminated": True, "truncated": False}, True)
     assert not terminal_label_eligible({"terminated": False, "truncated": False}, False)
+
+
+def test_failed_owned_vector_skips_blocking_close():
+    calls = []
+    class Process:
+        def is_alive(self): return True
+        def terminate(self): calls.append("terminate")
+        def join(self, timeout): calls.append(("join", timeout))
+    class Vector:
+        processes = [Process()]
+        def close(self): raise AssertionError("broken IPC close must not be retried")
+    close_owned_vector(Vector(), failed=True)
+    assert calls == ["terminate", ("join", 1)]
 
 
 @pytest.fixture(scope="module")
@@ -66,7 +79,8 @@ def test_native_collection_and_matched_offline_updates(checkout, tmp_path):
     records = [json.loads(line) for line in (path / "public_diagnostics.jsonl").read_text().splitlines()]
     assert len(records) == len(arrays["actions"])
     assert all(r["row"] == i and r["action"] == int(arrays["actions"][i])
-               and r["native_rejections"] == 0 for i, r in enumerate(records))
+               and r["native_rejections"] == 0 and not r["terminal_encoding_unavailable"]
+               for i, r in enumerate(records))
     assert all(not {"teams", "native_state", "checkpoint", "seed", "opponent_request"} & r.keys() for r in records)
     bc, awr = model(encoder), model(encoder)
     awr.policy.load_state_dict(bc.policy.state_dict())
@@ -103,5 +117,33 @@ def test_collection_cache_survives_auto_reset_without_gym_info_leak(checkout):
         assert all(not k.startswith("opponent:") for k in evidence["counts"])
         env.reset()
         assert env.collection_step_diagnostics() == evidence
+    finally:
+        env.close()
+
+
+def test_unsupported_true_terminal_transport_never_is_a_data_label(checkout):
+    env = ShowdownLearningEnv(checkout, make_encoder(CATALOG, VERSION),
+        curriculum_version="showdown-learning-curriculum-v8", opponents=["max_power"],
+        collect_tactical_metrics=True, collect_public_trajectories=True)
+    encode = env._encode_public
+    def reject_terminal(view):
+        if view["terminated"]:
+            raise ValueError("ambiguous_own_public_identity")
+        return encode(view)
+    env._encode_public = reject_terminal
+    try:
+        for _ in range(96):
+            before = env.encoder.encode(env.current)
+            action = env.behavior_action("max_power")
+            x, reward, terminal, truncated, info = env.step(action)
+            if terminal:
+                np.testing.assert_array_equal(x, before)
+                assert info["collector_terminal_encoding_unavailable"]
+                assert env.collection_step_diagnostics()["terminal_encoding_unavailable"]
+                assert not terminal_label_eligible(info["native_outcome"], True)
+                assert not truncated and reward in (-1, 0, 1)
+                break
+        else:
+            pytest.fail("actual native terminal episode did not complete")
     finally:
         env.close()

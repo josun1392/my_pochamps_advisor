@@ -173,6 +173,7 @@ class ShowdownLearningEnv(gym.Env):
             raise ValueError("masked_learning_action")
         if getattr(self, "collect_public_trajectories", False):
             from advisor.learned_failure_opponent import request_move
+            collection_previous_features = self.encoder.encode(self.current)
             before_counts = Counter(self.public_behavior_counts)
             before_rejections = self._rejected_choices
             before_history = len(self.current["public_history"])
@@ -217,13 +218,27 @@ class ShowdownLearningEnv(gym.Env):
         # TimeLimit.truncated. The real execution view remains closed/immutable.
         final_view = (self.native.timeout_bootstrap_observation("self")
                       if result["truncated"] else self.current)
+        terminal_encoding_unavailable = False
+        try:
+            final_features = self._encode_public(final_view)
+        except ValueError:
+            if not (getattr(self, "collect_public_trajectories", False) and result["terminated"]):
+                raise
+            # Collector-only administrative terminal transport. VecEnv resets
+            # before the next actor call; the collector excludes this entire
+            # episode. No placeholder is a data row, value target or bootstrap.
+            final_features = collection_previous_features
+            terminal_encoding_unavailable = True
+        if getattr(self, "collect_public_trajectories", False):
+            self._collection_step["terminal_encoding_unavailable"] = terminal_encoding_unavailable
         return (
-            self._encode_public(final_view),
+            final_features,
             float(result["rewards"]["self"]),
             result["terminated"],
             result["truncated"],
             {
                 **self._policy_info(),
+                **({"collector_terminal_encoding_unavailable": True} if terminal_encoding_unavailable else {}),
                 "native_outcome": {
                     k: result[k]
                     for k in (
