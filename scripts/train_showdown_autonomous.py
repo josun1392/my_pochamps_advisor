@@ -323,6 +323,36 @@ def save_checkpoint(model, encoder, directory, metadata):
     return str(path.with_suffix(".zip"))
 
 
+def require_finite_ppo(model, *, rollout=False):
+    """Stop before another rollout/checkpoint if learning state is non-finite."""
+    for value in model.policy.parameters():
+        if not torch.isfinite(value).all():
+            raise ValueError("nonfinite_ppo_parameters")
+    for state in model.policy.optimizer.state.values():
+        for value in state.values():
+            if isinstance(value, torch.Tensor) and not torch.isfinite(value).all():
+                raise ValueError("nonfinite_ppo_optimizer_state")
+    for key, value in list(model.logger.name_to_value.items()):
+        if not key.startswith("train/") or not isinstance(value, (float, int, np.floating)):
+            continue
+        if np.isfinite(value):
+            if key == "train/explained_variance":
+                model.logger.record("train/explained_variance_defined", 1.0)
+            continue
+        # Upstream explained variance is undefined for constant return targets,
+        # rather than a failed loss/gradient. Make this scope explicit in logs.
+        if (key == "train/explained_variance" and np.isnan(value)
+                and np.isfinite(model.rollout_buffer.returns).all()
+                and np.var(model.rollout_buffer.returns) == 0):
+            model.logger.record("train/explained_variance_defined", 0.0)
+            continue
+        raise ValueError("nonfinite_ppo_metric:" + key)
+    if rollout:
+        for key in ("observations", "rewards", "values", "returns", "advantages"):
+            if not np.isfinite(getattr(model.rollout_buffer, key)).all():
+                raise ValueError("nonfinite_ppo_rollout:" + key)
+
+
 class BudgetCallback(BaseCallback):
     def __init__(self, budget, progress=None):
         super().__init__()
@@ -335,6 +365,15 @@ class BudgetCallback(BaseCallback):
             self.progress(self.model.num_timesteps)
             self.last_progress = time()
         return not self.budget.stopping()
+
+    def _on_rollout_start(self):
+        require_finite_ppo(self.model)
+
+    def _on_rollout_end(self):
+        require_finite_ppo(self.model, rollout=True)
+
+    def _on_training_end(self):
+        require_finite_ppo(self.model)
 
 
 def warmstart(
