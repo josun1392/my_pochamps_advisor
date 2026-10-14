@@ -17,6 +17,7 @@ from uuid import uuid4
 import numpy as np
 import torch
 from sb3_contrib import MaskablePPO
+from advisor.learned_regularized_ppo import RegularizedMaskablePPO, regularizer_contract, model_regularizer_contract
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from advisor.learned_action_encoder import make_encoder, VERSION
@@ -49,6 +50,8 @@ CURRICULUM = "showdown-learning-curriculum-v2"
 
 
 def validate_config(config):
+    if config.get("transition_budget_scope", "legacy_collected_v1") not in {"legacy_collected_v1", "trained_rollouts_v1"}:
+        raise ValueError("invalid_transition_budget_scope")
     if config.get("schema_version") != "showdown-autonomous-training-v1":
         raise ValueError("unsupported_trainer_config")
     if config.get("validation_selection_mode", "best_and_plateau") not in {
@@ -150,6 +153,10 @@ def validate_config(config):
     rollout = 128 * config.get("envs", 4)
     for experiment in config["experiments"]:
         experiment_objective(experiment, experiment.get("encoder_version", VERSION))
+        if "zero_avoiding_beta" in experiment:
+            regularizer_contract(experiment["zero_avoiding_beta"])
+            if experiment["zero_avoiding_beta"] and experiment.get("ent_coef", .005) <= 0:
+                raise ValueError("regularizer_requires_positive_entropy_coefficient")
         frozen = experiment.get("frozen_opponents", {})
         if (
             not isinstance(frozen, dict)
@@ -172,6 +179,12 @@ def validate_config(config):
             )
         ):
             raise ValueError("invalid_frozen_opponents")
+        frozen_ids = experiment.get("frozen_opponent_ids")
+        if frozen_ids is not None and (not isinstance(frozen_ids, dict)
+                or set(frozen_ids) != set(frozen)
+                or any(not isinstance(v, str) or len(v) != 64
+                       or any(c not in "0123456789abcdef" for c in v) for v in frozen_ids.values())):
+            raise ValueError("invalid_frozen_opponent_ids")
         offline = experiment.get("offline")
         if offline is not None and (
             not isinstance(offline, dict)
@@ -305,6 +318,8 @@ def save_checkpoint(model, encoder, directory, metadata):
             "evidence_class": "learned_policy_value",
             "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
             "algorithm": "sb3-contrib-MaskablePPO",
+            **({"training_regularizer": model_regularizer_contract(model)}
+               if model_regularizer_contract(model) is not None else {}),
             "versions": {
                 p: importlib.metadata.version(p)
                 for p in (
@@ -789,7 +804,7 @@ def run(
             }
             extra = {}
             for kind, path in experiment.get("frozen_opponents", {}).items():
-                policy = LearnedPolicy(path, catalog)
+                policy = LearnedPolicy(path, catalog, expected_model_id=experiment.get("frozen_opponent_ids", {}).get(kind))
                 references[kind] = (str(Path(path).resolve()), policy.model_id)
                 extra[kind] = policy.model_id
             previous_extra = state.get("frozen_extra_opponents")
@@ -833,11 +848,24 @@ def run(
                 if loaded.encoder.version != encoder.version:
                     raise ValueError("initial_model_encoder_mismatch")
                 require_resume_objective(loaded.model, experiment, encoder.version)
+                requested_regularizer = (regularizer_contract(experiment["zero_avoiding_beta"])
+                                         if "zero_avoiding_beta" in experiment else None)
+                actual_regularizer = model_regularizer_contract(loaded.model)
+                if actual_regularizer != requested_regularizer and (
+                        source or actual_regularizer is not None or requested_regularizer is None):
+                    raise ValueError("resume_regularizer_contract_mismatch")
+                # Enabling a new objective from an explicitly declared legacy parent
+                # preserves compatible tensors AND Adam, never a mid-rollout claim.
+                algorithm = RegularizedMaskablePPO if requested_regularizer else type(loaded.model)
                 model = (
                     loaded.model
-                    if device == "cpu" and loaded.model.n_envs == vector.num_envs
-                    else MaskablePPO.load(initial_source, env=vector, device=device)
+                    if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer
+                    else algorithm.load(initial_source, env=vector, device=device,
+                                        **({"zero_avoiding_beta": requested_regularizer["beta"]}
+                                           if requested_regularizer else {}))
                 )
+                if model_regularizer_contract(model) != requested_regularizer:
+                    raise ValueError("training_regularizer_restore_failed")
                 model.set_env(vector)
                 if not source:
                     model.seed = seed
@@ -852,7 +880,8 @@ def run(
                             **model.policy.optimizer_kwargs,
                         )
             else:
-                model = MaskablePPO(
+                algorithm = RegularizedMaskablePPO if "zero_avoiding_beta" in experiment else MaskablePPO
+                model = algorithm(
                     PublicCategoricalPolicy
                     if encoder.version in PUBLIC_CATEGORICAL_VERSIONS
                     else OwnMoveTokenPolicy
@@ -876,6 +905,8 @@ def run(
                     seed=seed,
                     device=device,
                     verbose=0,
+                    **({"zero_avoiding_beta": experiment["zero_avoiding_beta"]}
+                       if "zero_avoiding_beta" in experiment else {}),
                     policy_kwargs={}
                     if encoder.version
                     in {
@@ -1268,13 +1299,13 @@ def run(
                     callback=callback,
                 )
                 taken = model.num_timesteps - steps_before
-                state["experiment_steps"] += taken
                 state["transitions"] += taken
                 trained = (
                     taken
                     // (128 * config.get("envs", 4))
                     * (128 * config.get("envs", 4))
                 )
+                state["experiment_steps"] += (trained if config.get("transition_budget_scope") == "trained_rollouts_v1" else taken)
                 state["trained_rollout_transitions"] = (
                     state.get("trained_rollout_transitions", 0) + trained
                 )
@@ -1297,6 +1328,7 @@ def run(
                     "partial_rollout_discarded_on_resume": taken
                     % (128 * config.get("envs", 4))
                     != 0,
+                    "transition_budget_scope": config.get("transition_budget_scope", "legacy_collected_v1"),
                 }
                 metrics["ppo"] = {
                     k: float(v)

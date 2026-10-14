@@ -6,6 +6,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import argparse
 from collections import Counter
+from copy import deepcopy
 import json
 from math import sqrt
 from time import perf_counter
@@ -13,7 +14,7 @@ import numpy as np
 from advisor.learned_baselines import VisibleBaseline
 from advisor.learned_policy import LearnedPolicy
 from advisor.learned_scenarios import scenario
-from advisor.learned_encoder import identifier
+from advisor.learned_encoder import identifier, fingerprint
 from advisor.showdown_environment import ShowdownEnvironment
 
 
@@ -28,13 +29,13 @@ def wilson(wins, n):
     return [center - margin, center + margin]
 
 
-def native_heal_failures(history):
+def native_heal_failures(history, role="p1"):
     """Count explicit native public heal failures, not full-HP legality guesses."""
     total, longest, run = 0, 0, 0
     last_failed = False
     for line in history:
         parts = line.split("|")
-        if len(parts) > 2 and parts[2].startswith("p1"):
+        if len(parts) > 2 and parts[2].startswith(role):
             if parts[1] in {"move", "switch", "drag"}:
                 if not last_failed or parts[1] != "move":
                     run = 0
@@ -45,6 +46,22 @@ def native_heal_failures(history):
                 longest = max(longest, run)
                 last_failed = True
     return total, longest
+
+
+def seat_scenario(case, candidate_seat):
+    """Swap actual teams/preview roles, preserving their internal order and seed."""
+    if candidate_seat not in ("p1", "p2"):
+        raise ValueError("invalid_candidate_seat")
+    case = deepcopy(case)
+    if candidate_seat == "p2":
+        if case.get("history"):
+            raise ValueError("seat_swap_cannot_reinterpret_observed_history")
+        for key in ("teams", "preview"):
+            if key in case:
+                case[key] = {"self": case[key]["opponent"], "opponent": case[key]["self"]}
+        if "learning_start" in case:
+            case["learning_start"]["prefix"] = [list(reversed(p)) for p in case["learning_start"].get("prefix", [])]
+    return case
 
 
 def paired_comparisons(records, policies):
@@ -118,7 +135,12 @@ def evaluate(
     progress=None,
     tactical_diagnostics=False,
     case_provider=None,
+    candidate_seat="p1",
 ):
+    if candidate_seat not in ("p1", "p2"):
+        raise ValueError("invalid_candidate_seat")
+    candidate_side = "self" if candidate_seat == "p1" else "opponent"
+    rival_side = "opponent" if candidate_side == "self" else "self"
     if not 1 <= cases <= 256 or split not in {"validation", "test", "unseen"}:
         raise ValueError("bounded_held_out_evaluation_required")
     full_domain_identity = None
@@ -145,11 +167,10 @@ def evaluate(
                         reset_learning_episode,
                     )
 
-                    start_info = reset_learning_episode(
-                        env,
-                        case_provider(split, index) if case_provider is not None
-                        else scenario(split, index, version=curriculum_version),
-                    )
+                    canonical_case = (case_provider(split, index) if case_provider is not None
+                                      else scenario(split, index, version=curriculum_version))
+                    native_case = seat_scenario(canonical_case, candidate_seat)
+                    start_info = reset_learning_episode(env, native_case)
                     rival = (
                         VisibleBaseline(rival_policy, index + 919)
                         if isinstance(rival_policy, str)
@@ -165,6 +186,7 @@ def evaluate(
                     action_counts = Counter()
                     tactical_counts = Counter()
                     requested_heal_full_hp = 0
+                    native_rejections = 0
                     prefix_history_length = len(
                         env.observation("self", include_history=True)["public_history"]
                     )
@@ -176,8 +198,8 @@ def evaluate(
                         diagnostics = TacticalDiagnostics()
                     while True:
                         own, other = (
-                            env.observation("self", include_history=True),
-                            env.observation("opponent", include_history=True),
+                            env.observation(candidate_side, include_history=True),
+                            env.observation(rival_side, include_history=True),
                         )
                         if isinstance(player, LearnedPolicy):
                             proof = player.infer(own)
@@ -231,14 +253,15 @@ def evaluate(
                             else "attack_or_status"
                         ] += 1
                         result = env.step(
-                            {"self": action, "opponent": rival.act(other)},
+                            {candidate_side: action, rival_side: rival.act(other)},
                             revision=own["revision"],
                         )
                         steps += 1
+                        native_rejections += int(result["action_rejected"])
                         if result["terminated"] or result["truncated"]:
                             break
-                    reward = result["rewards"]["self"]
-                    history = env.observation("self", include_history=True)[
+                    reward = result["rewards"][candidate_side]
+                    history = env.observation(candidate_side, include_history=True)[
                         "public_history"
                     ][prefix_history_length:]
                     own_moves = Counter(
@@ -247,9 +270,9 @@ def evaluate(
                         for parts in [line.split("|")]
                         if len(parts) > 3
                         and parts[1] == "move"
-                        and parts[2].startswith("p1")
+                        and parts[2].startswith(candidate_seat)
                     )
-                    heal_failures, longest_failures = native_heal_failures(history)
+                    heal_failures, longest_failures = native_heal_failures(history, candidate_seat)
                     error = (
                         float(
                             np.mean(
@@ -267,7 +290,14 @@ def evaluate(
                             "policy": kind,
                             "opponent": opponent,
                             "case": index,
-                            "winner": result["winner"],
+                            "winner": ("self" if result["winner"] == candidate_side else "opponent"
+                                       if result["winner"] == rival_side else None),
+                            "raw_native_winner": result["winner"],
+                            "candidate_seat": candidate_seat,
+                            "canonical_scenario_sha256": fingerprint(canonical_case),
+                            "native_scenario_sha256": fingerprint(native_case),
+                            "initial_native_seed": native_case.get("seed"),
+                            "native_choice_rejections": native_rejections,
                             "truncated": result["truncated"],
                             "decisions": steps,
                             "return": reward,
@@ -291,7 +321,7 @@ def evaluate(
                                 Counter(
                                     line.split("|")[1]
                                     for line in env.observation(
-                                        "self", include_history=True
+                                        candidate_side, include_history=True
                                     )["public_history"]
                                     if line.startswith("|")
                                 )
@@ -378,6 +408,7 @@ def evaluate(
         ),
         "cases_per_opponent": cases,
         "offset": offset,
+        "candidate_seat": candidate_seat,
         "interpretation": "held_out_sampled_win_frequencies_not_exact_probabilities",
         "elapsed_s": perf_counter() - started,
         "policies": {

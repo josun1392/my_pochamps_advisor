@@ -67,7 +67,9 @@ class LearnedPolicy:
         )
         with torch.random.fork_rng(devices=devices):
             try:
-                self.model = MaskablePPO.load(path, device="cpu")
+                from advisor.learned_regularized_ppo import checkpoint_algorithm, validate_loaded_regularizer
+                self.model = checkpoint_algorithm(self.metadata).load(path, device="cpu")
+                validate_loaded_regularizer(self.model, self.metadata)
             finally:
                 random.setstate(py_state)
                 np.random.set_state(np_state)

@@ -9,6 +9,7 @@ from advisor.learned_encoder import fingerprint
 from advisor.showdown_bridge import FORMAT_ID, SHOWDOWN_COMMIT
 
 VERSION = "showdown-native-training-subset-v1"
+VERSION_64 = "showdown-native-training-subset-v2"
 
 
 class NativeTrainingSubset:
@@ -19,15 +20,16 @@ class NativeTrainingSubset:
         if sha256(raw).hexdigest() != expected_sha256:
             raise ValueError("training_subset_hash_mismatch")
         contract = json.loads(raw)
-        if any(contract.get(k) != v for k, v in {
-            "schema_version": VERSION, "engine_commit": SHOWDOWN_COMMIT,
+        version = contract.get("schema_version")
+        if version not in (VERSION, VERSION_64) or any(contract.get(k) != v for k, v in {
+            "engine_commit": SHOWDOWN_COMMIT,
             "format_id": FORMAT_ID, "parent_curriculum": "showdown-learning-curriculum-v8",
             "parent_split": "train", "parent_bank_sha256": study_identity()["bank_sha256"],
         }.items()):
             raise ValueError("training_subset_authority_mismatch")
         indices = contract.get("team_indices")
         bank = load_bank()["teams"]["train"]
-        if (not isinstance(indices, list) or len(indices) not in (1, 16)
+        if (not isinstance(indices, list) or len(indices) not in ((1, 16) if version == VERSION else (64,))
                 or len(set(indices)) != len(indices)
                 or any(type(i) is not int or not 0 <= i < len(bank) for i in indices)):
             raise ValueError("training_subset_membership_mismatch")
@@ -36,7 +38,7 @@ class NativeTrainingSubset:
             raise ValueError("training_subset_team_identity_mismatch")
         mode = contract.get("selection_mode")
         if ((len(teams) == 1 and mode != "shared_fixed_ordered3")
-                or (len(teams) == 16 and mode != "independent_random_ordered3")
+                or (len(teams) > 1 and mode != "independent_random_ordered3")
                 or (mode == "shared_fixed_ordered3" and contract.get("preview") != [1, 2, 3])):
             raise ValueError("training_subset_selection_mismatch")
         namespace = contract.get("seed_namespace")
@@ -67,7 +69,7 @@ class NativeTrainingSubset:
         preview = ({side: [1, 2, 3] for side in teams}
                    if self.contract["selection_mode"] == "shared_fixed_ordered3"
                    else {side: rng.sample(range(1, 7), 3) for side in teams})
-        return {"scenario_id": f"{VERSION}:{namespace}:{index}", "teams": teams,
+        return {"scenario_id": f"{self.contract['schema_version']}:{namespace}:{index}", "teams": teams,
                 "preview": preview, "seed": [rng.randrange(65536) for _ in range(4)],
                 "history": [], "assumptions": [
                     "Frozen native V8 training subset; hypothetical coordinator truth, not observed truth."
