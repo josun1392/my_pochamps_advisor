@@ -51,6 +51,8 @@ CURRICULUM = "showdown-learning-curriculum-v2"
 def validate_config(config):
     if config.get("schema_version") != "showdown-autonomous-training-v1":
         raise ValueError("unsupported_trainer_config")
+    if config.get("terminal_transport_version") not in (None, "native-opaque-terminal-transport-v1"):
+        raise ValueError("unsupported_native_terminal_transport")
     if config.get("validation_case_bank"):
         from advisor.learned_evaluation_bank import EvaluationCaseBank
 
@@ -578,6 +580,7 @@ def run(
         "launches": 0,
     }
     vector = None
+    execution_failed = False
 
     def notify(phase, **extra):
         if event_callback:
@@ -745,6 +748,7 @@ def run(
                     config.get("collect_tactical_metrics", False),
                     max_decisions=config.get("max_decisions", 256),
                     diagnostic_directory=str(output / "public_encoding_failures"),
+                    terminal_transport_version=config.get("terminal_transport_version"),
                 )
                 for i in range(config.get("envs", 4))
             ]
@@ -1283,6 +1287,7 @@ def run(
         atomic_json(state_path, state)
         return state
     except BaseException as error:
+        execution_failed = True
         atomic_json(
             output / "failure.json",
             {
@@ -1303,7 +1308,8 @@ def run(
         try:
             if vector is not None:
                 try:
-                    vector.close()
+                    from scripts.collect_showdown_public_trajectories import close_owned_vector
+                    close_owned_vector(vector, failed=execution_failed)
                 except (EOFError, BrokenPipeError, OSError) as cleanup_error:
                     # A crashed owned child must not mask the original failure
                     # or prevent timer/lock cleanup. No unrelated process access.

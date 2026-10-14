@@ -24,6 +24,7 @@ class LearningEnvFactory:
     max_decisions: int = 256
     diagnostic_directory: str | None = None
     collect_public_trajectories: bool = False
+    terminal_transport_version: str | None = None
 
     def __call__(self):
         import torch
@@ -64,4 +65,5 @@ class LearningEnvFactory:
             max_decisions=self.max_decisions,
             diagnostic_directory=self.diagnostic_directory,
             collect_public_trajectories=self.collect_public_trajectories,
+            terminal_transport_version=self.terminal_transport_version,
         )

@@ -147,3 +147,47 @@ def test_unsupported_true_terminal_transport_never_is_a_data_label(checkout):
             pytest.fail("actual native terminal episode did not complete")
     finally:
         env.close()
+
+
+def test_native_opaque_terminal_never_enters_actor_critic_or_timeout_bootstrap(checkout):
+    from stable_baselines3.common.vec_env import DummyVecEnv
+    from sb3_contrib import MaskablePPO
+    from advisor.learned_public_categories_policy import PublicCategoricalPolicy
+    from advisor.learned_gym import OPAQUE_TERMINAL
+    vector = DummyVecEnv([lambda: ShowdownLearningEnv(checkout, make_encoder(CATALOG, VERSION),
+        curriculum_version="showdown-learning-curriculum-v8", opponents=["max_power"],
+        terminal_transport_version=OPAQUE_TERMINAL)])
+    try:
+        env = vector.envs[0]
+        vector.reset()
+        terminals = 0
+        for _ in range(96):
+            action = env.behavior_action("max_power")
+            obs, _, done, infos = vector.step(np.array([action]))
+            if done[0] and not infos[0]["TimeLimit.truncated"]:
+                assert infos[0]["terminal_transport_version"] == OPAQUE_TERMINAL
+                assert not np.any(infos[0]["terminal_observation"])
+                assert np.any(obs)  # Real reset state replaces terminal transport.
+                terminals += 1
+                break
+        assert terminals == 1
+        m = MaskablePPO(PublicCategoricalPolicy, vector, n_steps=8, batch_size=8,
+            n_epochs=1, gamma=1, gae_lambda=.95, seed=19, device="cpu")
+        calls = []
+        original_rows = m.policy.mlp_extractor._public_rows
+        def checked_rows(features):
+            assert torch.any(features != 0, dim=1).all()
+            calls.append(1)
+            return original_rows(features)
+        m.policy.mlp_extractor._public_rows = checked_rows
+        m.learn(32)
+        assert optimizer_steps(m) == 4 and calls
+        m.policy.mlp_extractor._public_rows = original_rows
+        env.native.max_decisions = 1
+        vector.reset()
+        _, _, dones, infos = vector.step(np.array([env.behavior_action("max_power")]))
+        assert dones[0] and infos[0]["TimeLimit.truncated"]
+        assert "terminal_transport_version" not in infos[0]
+        assert np.any(infos[0]["terminal_observation"])
+    finally:
+        vector.close()

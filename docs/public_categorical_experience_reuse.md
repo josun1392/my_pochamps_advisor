@@ -28,6 +28,15 @@ transport features are never a dataset row, critic input, return target or
 truncation bootstrap. Ordinary online training still fails closed on unsupported
 encodings. A separate versioned terminal-identity design is needed for that gap.
 
+Native PPO can opt in to `native-opaque-terminal-transport-v1`: a true native
+terminal transports a zero administrative array, never an encoded state or
+identity guess. SB3 VecEnv resets before the next policy input and does not
+bootstrap true terminals. Time-limit truncations keep their real public
+continuation features. Actor/critic hooks and actual native termination tests
+verify the opaque array never enters either network. The encoder, rewards,
+gamma/GAE and all live decision features stay unchanged. Default legacy terminal
+transport is unchanged; config/source identity explicitly binds this opt-in.
+
 The existing offline seam trains masked likelihood plus .5 Monte Carlo value
 regression and .01 entropy. BC uses unit actor weights; AWR uses the detached,
 temperature1 exponential of native terminal return minus current public critic

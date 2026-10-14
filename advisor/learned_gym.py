@@ -9,6 +9,8 @@ from advisor.learned_scenarios import scenario
 from advisor.learned_encoder import fingerprint
 from copy import deepcopy
 
+OPAQUE_TERMINAL = "native-opaque-terminal-transport-v1"
+
 
 class ShowdownLearningEnv(gym.Env):
     metadata = {"render_modes": []}
@@ -27,9 +29,12 @@ class ShowdownLearningEnv(gym.Env):
         collect_tactical_metrics=False,
         diagnostic_directory=None,
         collect_public_trajectories=False,
+        terminal_transport_version=None,
     ):
         if collect_public_trajectories and not collect_tactical_metrics:
             raise ValueError("public_collection_requires_public_execution_metrics")
+        if terminal_transport_version not in (None, OPAQUE_TERMINAL):
+            raise ValueError("unsupported_native_terminal_transport")
         self.native = ShowdownEnvironment(checkout, max_decisions=max_decisions)
         self.encoder, self.split, self.index, self.offset = (
             encoder,
@@ -50,6 +55,7 @@ class ShowdownLearningEnv(gym.Env):
         self.diagnostic_directory = diagnostic_directory
         self.collect_public_trajectories = collect_public_trajectories
         self._collection_step = None
+        self.terminal_transport_version = terminal_transport_version
         self.tactical_counts = Counter()
         self.retry_diagnostics = []
         self.public_behavior_counts = Counter()
@@ -220,7 +226,13 @@ class ShowdownLearningEnv(gym.Env):
                       if result["truncated"] else self.current)
         terminal_encoding_unavailable = False
         try:
-            final_features = self._encode_public(final_view)
+            if result["terminated"] and getattr(self, "terminal_transport_version", None) == OPAQUE_TERMINAL:
+                # Native terminal has no future policy decision/value bootstrap.
+                # VecEnv replaces this administrative array with reset features.
+                # Do not fabricate an encoded/public identity for the ended state.
+                final_features = np.zeros(self.encoder.dimension, dtype=np.float32)
+            else:
+                final_features = self._encode_public(final_view)
         except ValueError:
             if not (getattr(self, "collect_public_trajectories", False) and result["terminated"]):
                 raise
@@ -239,6 +251,8 @@ class ShowdownLearningEnv(gym.Env):
             {
                 **self._policy_info(),
                 **({"collector_terminal_encoding_unavailable": True} if terminal_encoding_unavailable else {}),
+                **({"terminal_transport_version": OPAQUE_TERMINAL}
+                   if result["terminated"] and getattr(self, "terminal_transport_version", None) == OPAQUE_TERMINAL else {}),
                 "native_outcome": {
                     k: result[k]
                     for k in (
