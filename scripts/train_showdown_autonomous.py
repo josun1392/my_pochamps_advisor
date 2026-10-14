@@ -1104,7 +1104,7 @@ def run(
                         collection_env.close()
                 state["warmstart_decisions"] += state["warmstart"]["decisions"]
                 state["offline"] = None
-                if not experiment.get("offline"):
+                if not experiment.get("offline") or experiment.get("record_initial_checkpoint", False):
                     checkpoint("initial", {})
             if experiment.get("offline") and not (state.get("offline") or {}).get(
                 "complete", False

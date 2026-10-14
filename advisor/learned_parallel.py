@@ -23,6 +23,7 @@ class LearningEnvFactory:
     collect_tactical_metrics: bool = False
     max_decisions: int = 256
     diagnostic_directory: str | None = None
+    collect_public_trajectories: bool = False
 
     def __call__(self):
         import torch
@@ -62,4 +63,5 @@ class LearningEnvFactory:
             collect_tactical_metrics=self.collect_tactical_metrics,
             max_decisions=self.max_decisions,
             diagnostic_directory=self.diagnostic_directory,
+            collect_public_trajectories=self.collect_public_trajectories,
         )

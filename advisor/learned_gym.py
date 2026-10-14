@@ -26,7 +26,10 @@ class ShowdownLearningEnv(gym.Env):
         opponent_factory=None,
         collect_tactical_metrics=False,
         diagnostic_directory=None,
+        collect_public_trajectories=False,
     ):
+        if collect_public_trajectories and not collect_tactical_metrics:
+            raise ValueError("public_collection_requires_public_execution_metrics")
         self.native = ShowdownEnvironment(checkout, max_decisions=max_decisions)
         self.encoder, self.split, self.index, self.offset = (
             encoder,
@@ -45,6 +48,8 @@ class ShowdownLearningEnv(gym.Env):
         self.coverage_counts = {}
         self.collect_tactical_metrics = collect_tactical_metrics
         self.diagnostic_directory = diagnostic_directory
+        self.collect_public_trajectories = collect_public_trajectories
+        self._collection_step = None
         self.tactical_counts = Counter()
         self.retry_diagnostics = []
         self.public_behavior_counts = Counter()
@@ -166,6 +171,12 @@ class ShowdownLearningEnv(gym.Env):
             or not self.action_masks()[int(action)]
         ):
             raise ValueError("masked_learning_action")
+        if getattr(self, "collect_public_trajectories", False):
+            from advisor.learned_failure_opponent import request_move
+            before_counts = Counter(self.public_behavior_counts)
+            before_rejections = self._rejected_choices
+            before_history = len(self.current["public_history"])
+            selected_move = request_move(self.current, int(action))
         if self.collect_tactical_metrics:
             from advisor.learned_tactical_diagnostics import action_class
 
@@ -178,6 +189,18 @@ class ShowdownLearningEnv(gym.Env):
         ):
             result = self._native_step(26)
             self.current = self.native.observation("self", include_history=True)
+        if getattr(self, "collect_public_trajectories", False):
+            from advisor.learned_encoder import identifier
+            events = self.current["public_history"][before_history:]
+            self._collection_step = {
+                "schema_version": "showdown-owner-public-execution-diagnostics-v1",
+                "action": int(action), "selected_public_move": selected_move,
+                "native_rejections": self._rejected_choices - before_rejections,
+                "counts": {k.removeprefix("self:"): v - before_counts[k]
+                           for k, v in self.public_behavior_counts.items() if k.startswith("self:")},
+                "executed_public_moves": [identifier(p[3]) for line in events
+                    for p in [line.split("|")] if len(p) > 3 and p[1] == "move" and p[2].startswith("p1")],
+            }
         if result["terminated"] or result["truncated"]:
             self.completed.append(
                 {
@@ -231,6 +254,15 @@ class ShowdownLearningEnv(gym.Env):
                     "case_index": self._episode_identity["case_index"], "public_observation": view,
                 })
             raise
+
+    def collection_step_diagnostics(self):
+        """Coordinator-only owner-visible evidence; survives VecEnv auto-reset.
+
+        Never Gym info, policy/value features, opponent private view or RNG.
+        """
+        if not self.collect_public_trajectories or self._collection_step is None:
+            raise ValueError("public_collection_diagnostics_not_enabled")
+        return deepcopy(self._collection_step)
 
     def _native_step(self, action):
         other = self.native.observation("opponent", include_history=True)

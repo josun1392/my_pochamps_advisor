@@ -18,6 +18,7 @@ from advisor.learning_resources import atomic_json
 from advisor.showdown_bridge import FORMAT_ID, SHOWDOWN_COMMIT
 
 SCHEMA = "showdown-public-trajectory-dataset-v1"
+PUBLIC_CATEGORICAL_SCHEMA = "showdown-public-trajectory-dataset-v2"
 FIELDS = {
     "observations": np.float32,
     "masks": np.bool_,
@@ -90,7 +91,7 @@ class TrajectoryWriter:
         manifest = {
             **self.metadata,
             **details,
-            "schema_version": SCHEMA,
+            "schema_version": self.metadata.get("schema_version", SCHEMA),
             "evidence_scope": "actually_executed_partial_observation_episode_returns_not_optimal_action_labels",
             "rows": self.count,
             "completed_episodes": self.episodes,
@@ -110,8 +111,21 @@ def load_dataset(path, encoder, *, expected_id=None, gamma=0.99):
     if expected_id and expected_id != identity:
         raise ValueError("offline_dataset_identity_changed")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schema_version") not in {SCHEMA, PUBLIC_CATEGORICAL_SCHEMA}:
+        raise ValueError("offline_dataset_schema_mismatch")
+    if manifest["schema_version"] == PUBLIC_CATEGORICAL_SCHEMA:
+        from advisor.learned_objective import objective_contract
+        from advisor.learned_public_categories import RUNTIME_ABILITY_VERSION
+        if (encoder.version != RUNTIME_ABILITY_VERSION or gamma != 1.0
+                or manifest.get("feature_contract") != getattr(encoder, "feature_contract", None)
+                or manifest.get("training_objective") != objective_contract(gamma, 0.95)
+                or manifest.get("terminal_label_scope") != "native_terminated_no_truncation_no_rejected_episode"
+                or manifest.get("policy_information_scope") != "owner_visible_features_masks_and_executed_choices_only"):
+            raise ValueError("public_categorical_offline_contract_mismatch")
+        diagnostics = path / "public_diagnostics.jsonl"
+        if file_hash(diagnostics) != manifest.get("public_diagnostics_sha256"):
+            raise ValueError("public_trajectory_diagnostics_hash_mismatch")
     required = {
-        "schema_version": SCHEMA,
         "engine_commit": SHOWDOWN_COMMIT,
         "format_id": FORMAT_ID,
         "encoder_version": encoder.version,
