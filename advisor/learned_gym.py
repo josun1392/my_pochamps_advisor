@@ -44,6 +44,8 @@ class ShowdownLearningEnv(gym.Env):
         self.coverage_counts = {}
         self.collect_tactical_metrics = collect_tactical_metrics
         self.tactical_counts = Counter()
+        self.retry_diagnostics = []
+        self.public_behavior_counts = Counter()
         try:
             self.reset()
         except BaseException:
@@ -74,6 +76,8 @@ class ShowdownLearningEnv(gym.Env):
             "preview": deepcopy(current["preview"]), "native_seed": list(current["seed"]),
         }
         self._rejected_choices = 0
+        from advisor.learned_public_metrics import PublicDecisionMetrics
+        self._public_metrics = {side: PublicDecisionMetrics() for side in ("self", "opponent")}
         if self.curriculum_version in {
             "showdown-learning-curriculum-v7",
             "showdown-learning-curriculum-v8",
@@ -164,30 +168,13 @@ class ShowdownLearningEnv(gym.Env):
             from advisor.learned_tactical_diagnostics import action_class
 
             self.tactical_counts[action_class(self.current, int(action))] += 1
-        result = self.native.step(
-            {
-                "self": int(action),
-                "opponent": self.opponent.act(
-                    self.native.observation("opponent", include_history=True)
-                ),
-            },
-            revision=self.current["revision"],
-        )
-        self._rejected_choices += int(result["action_rejected"])
+        result = self._native_step(int(action))
         self.current = self.native.observation("self", include_history=True)
         while (
             not (result["terminated"] or result["truncated"])
             and self.current["action_mask"][26]
         ):
-            result = self.native.step(
-                {
-                    "self": 26,
-                    "opponent": self.opponent.act(
-                        self.native.observation("opponent", include_history=True)
-                    ),
-                },
-                revision=self.current["revision"],
-            )
+            result = self._native_step(26)
             self.current = self.native.observation("self", include_history=True)
         if result["terminated"] or result["truncated"]:
             self.completed.append(
@@ -227,6 +214,40 @@ class ShowdownLearningEnv(gym.Env):
             },
         )
 
+    def _native_step(self, action):
+        other = self.native.observation("opponent", include_history=True)
+        views = {"self": self.current, "opponent": other}
+        actions = {"self": action, "opponent": self.opponent.act(other)}
+        if self.collect_tactical_metrics:
+            for side, view in views.items():
+                self._public_metrics[side].decision(view, actions[side])
+        result = self.native.step(actions, revision=self.current["revision"])
+        self._rejected_choices += int(result["action_rejected"])
+        if result["action_rejected"]:
+            def flags(view, index):
+                active = view["own_request"].get("active", [{}])[0]
+                return {"choice": view["choices"][index], "action_index": index,
+                        "action_mask": list(view["action_mask"]), "phase": view["request_state"],
+                        "wait": bool(view["own_request"].get("wait")),
+                        "trapped": active.get("trapped"), "maybeTrapped": active.get("maybeTrapped"),
+                        "maybeDisabled": active.get("maybeDisabled")}
+            self.retry_diagnostics.append({"episode_id": self.current["episode_id"],
+                "episode_case": self._episode_identity["case_index"], "revision_before": self.current["revision"],
+                "revision_after": result["revision"], "native_decisions": result["decisions"],
+                "before": {s: flags(v, actions[s]) for s, v in views.items()},
+                "after": {s: flags(self.native.observation(s), actions[s]) for s in views},
+                "error_reason": "not_exposed_by_native_service_no_hidden_cause_inferred"})
+        if self.collect_tactical_metrics:
+            for side, view in views.items():
+                after = self.native.observation(side, include_history=True)
+                self._public_metrics[side].outcome(view, after["public_history"][len(view["public_history"]):])
+                for name, count in self._public_metrics[side].drain_counts().items():
+                    self.public_behavior_counts[f"{side}:{name}"] += count
+            if hasattr(self.opponent, "drain_counts"):
+                for name, count in self.opponent.drain_counts().items():
+                    self.public_behavior_counts[f"opponent_policy:{name}"] += count
+        return result
+
     def drain_completed(self):
         rows, self.completed = self.completed, []
         return rows
@@ -244,6 +265,15 @@ class ShowdownLearningEnv(gym.Env):
         self.tactical_counts.clear()
         return result
 
+    def drain_public_behavior_counts(self):
+        result = dict(self.public_behavior_counts)
+        self.public_behavior_counts.clear()
+        return result
+
+    def drain_retry_diagnostics(self):
+        rows, self.retry_diagnostics = self.retry_diagnostics, []
+        return rows
+
     def pending_completed_count(self):
         return len(self.completed)
 
@@ -251,6 +281,7 @@ class ShowdownLearningEnv(gym.Env):
         """Coordinator audit inputs, not an exact mid-rollout restart checkpoint."""
         return {"episode_identity": deepcopy(self._episode_identity), "next_case_index": self.index,
                 "revision": self.current["revision"], "request_state": self.current["request_state"],
+                "native_rejected_choices": self._rejected_choices,
                 "scope": "initial_scenario_reconstructable_no_training_action_log_or_rollout_rng_restoration"}
 
     def close(self):

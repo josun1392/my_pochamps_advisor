@@ -222,6 +222,7 @@ def validate_config(config):
                 "tactical_heuristic",
                 "previous",
                 "historical",
+                "public_failure_aware_v1",
             }
             - set(frozen)
         ):
@@ -521,6 +522,12 @@ def training_config_fingerprint(config):
     )
     if any(e.get("encoder_version") in PUBLIC_CATEGORICAL_VERSIONS for e in config.get("experiments", [])):
         content = {**content, "categorical_learning_source_sha256": categorical_learning_source_identity()}
+    if any("public_failure_aware_v1" in e.get("opponents", []) for e in config["experiments"]):
+        from advisor.learned_failure_opponent import VERSION as failure_version
+        content = {**content, "public_failure_opponent": failure_version,
+                   "public_failure_source_sha256": {
+                       name: sha256((Path(__file__).resolve().parents[1] / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+                       for name in ("advisor/learned_failure_opponent.py", "advisor/learned_public_metrics.py")}}
     return sha256(json.dumps(content, sort_keys=True).encode()).hexdigest(), identity
 
 
@@ -869,6 +876,11 @@ def run(
                     directory,
                     {
                         "experiment": experiment,
+                        "training_config_fingerprint": fingerprint,
+                        **({"public_failure_opponent_source_sha256": {
+                            name: sha256((Path(__file__).resolve().parents[1] / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+                            for name in ("advisor/learned_failure_opponent.py", "advisor/learned_public_metrics.py")}}
+                           if "public_failure_aware_v1" in experiment.get("opponents", []) else {}),
                         "curriculum_version": curriculum,
                         **(
                             {"full_domain_identity": full_domain_identity}
@@ -927,6 +939,10 @@ def run(
                     "checkpoint_binding": "training_interval_endpoint_not_each_step_policy_identity",
                     "episodes": episodes, "pending": vector.env_method("episode_cursor"),
                 })
+                atomic_json(directory / "public_retry_diagnostics.json", {
+                    "scope": "coordinator_only_owner_visible_requests_no_private_truth_or_native_error_cause",
+                    "records": [row for worker in vector.env_method("drain_retry_diagnostics") for row in worker],
+                })
                 view = vector.get_attr("current", indices=0)[0]
                 if not any(view["action_mask"]):
                     vector.env_method("reset", indices=0)
@@ -965,6 +981,16 @@ def run(
                 for counts in vector.env_method("drain_tactical_counts"):
                     tactical.update(counts)
                 state["public_tactical_action_counts"] = dict(tactical)
+                behavior = Counter(state.get("public_behavior_counts", {}))
+                interval_behavior = Counter()
+                for counts in vector.env_method("drain_public_behavior_counts"):
+                    behavior.update(counts)
+                    interval_behavior.update(counts)
+                state["public_behavior_counts"] = dict(behavior)
+                atomic_json(directory / "public_behavior_metrics.json", {
+                    "scope": "coordinator_only_public_opportunity_selection_and_execution_not_optimality",
+                    "counts": dict(interval_behavior),
+                })
                 state["outcome_tally_scope"] = (
                     "checkpoints_written_by_outcome_aware_trainer"
                 )

@@ -31,6 +31,15 @@ class LearningEnvFactory:
         cache = {}
 
         def opponent(kind, seed):
+            if kind == "public_failure_aware_v1":
+                from advisor.learned_failure_opponent import PublicFailureAwareOpponent
+                if kind not in self.references:
+                    return PublicFailureAwareOpponent(seed)
+                if kind not in cache:
+                    from advisor.learned_policy import LearnedPolicy
+                    path, identity = self.references[kind]
+                    cache[kind] = LearnedPolicy(path, self.catalog, expected_model_id=identity)
+                return PublicFailureAwareOpponent(seed, base=cache[kind])
             if kind not in self.references:
                 return VisibleBaseline(kind, seed)
             if kind not in cache:
