@@ -25,6 +25,8 @@ class LearningEnvFactory:
     diagnostic_directory: str | None = None
     collect_public_trajectories: bool = False
     terminal_transport_version: str | None = None
+    training_subset_path: str | None = None
+    training_subset_sha256: str | None = None
 
     def __call__(self):
         import torch
@@ -54,6 +56,10 @@ class LearningEnvFactory:
                 )
             return cache[kind]
 
+        subset = None
+        if self.training_subset_path:
+            from advisor.learned_training_subset import NativeTrainingSubset
+            subset = NativeTrainingSubset(self.training_subset_path, self.training_subset_sha256)
         return ShowdownLearningEnv(
             self.checkout,
             make_encoder(self.catalog, self.encoder_version),
@@ -66,4 +72,5 @@ class LearningEnvFactory:
             diagnostic_directory=self.diagnostic_directory,
             collect_public_trajectories=self.collect_public_trajectories,
             terminal_transport_version=self.terminal_transport_version,
+            training_subset=subset,
         )

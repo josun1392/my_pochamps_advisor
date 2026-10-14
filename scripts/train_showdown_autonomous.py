@@ -51,6 +51,22 @@ CURRICULUM = "showdown-learning-curriculum-v2"
 def validate_config(config):
     if config.get("schema_version") != "showdown-autonomous-training-v1":
         raise ValueError("unsupported_trainer_config")
+    if config.get("validation_selection_mode", "best_and_plateau") not in {
+        "best_and_plateau", "diagnostic_fixed_budget_v1",
+    } or type(config.get("collect_rollout_diagnostics", False)) is not bool:
+        raise ValueError("unsupported_learning_diagnostic_contract")
+    if config.get("validation_selection_mode") == "diagnostic_fixed_budget_v1" and config.get("final_test_cases", 0):
+        raise ValueError("diagnostic_mode_has_no_selected_final_test")
+    if config.get("training_subset"):
+        from advisor.learned_training_subset import NativeTrainingSubset
+        if config.get("curriculum_version") != "showdown-learning-curriculum-v8":
+            raise ValueError("training_subset_requires_native_v8")
+        NativeTrainingSubset(config["training_subset"], config.get("training_subset_sha256"))
+    if config.get("validation_subset_probes") and (
+        not config.get("training_subset") or not config.get("validation_case_bank")
+        or config.get("validation_selection_mode") != "diagnostic_fixed_budget_v1"
+    ):
+        raise ValueError("subset_probes_require_separate_heldout_and_diagnostic_mode")
     if config.get("terminal_transport_version") not in (None, "native-opaque-terminal-transport-v1"):
         raise ValueError("unsupported_native_terminal_transport")
     if config.get("validation_case_bank"):
@@ -357,11 +373,16 @@ def require_finite_ppo(model, *, rollout=False):
 
 
 class BudgetCallback(BaseCallback):
-    def __init__(self, budget, progress=None):
+    def __init__(self, budget, progress=None, collect_diagnostics=False):
         super().__init__()
         self.budget = budget
         self.progress = progress
         self.last_progress = 0
+        self.collect_diagnostics = collect_diagnostics
+        self.measurements = {"rollout_seconds": 0., "ppo_update_seconds": 0.,
+                             "public_diagnostic_seconds": 0., "rollouts": []}
+        self.rollout_start = None
+        self.update_start = None
 
     def _on_step(self):
         if self.progress and time() - self.last_progress >= 2:
@@ -371,12 +392,45 @@ class BudgetCallback(BaseCallback):
 
     def _on_rollout_start(self):
         require_finite_ppo(self.model)
+        if self.collect_diagnostics:
+            now = perf_counter()
+            if self.update_start is not None:
+                self.measurements["ppo_update_seconds"] += now - self.update_start
+            self.rollout_start, self.update_start = now, None
 
     def _on_rollout_end(self):
         require_finite_ppo(self.model, rollout=True)
+        if self.collect_diagnostics:
+            now = perf_counter()
+            self.measurements["rollout_seconds"] += now - self.rollout_start
+            buffer = self.model.rollout_buffer
+            observations = buffer.observations.reshape(-1, *self.model.observation_space.shape)
+            masks = buffer.action_masks.reshape(-1, self.model.action_space.n)
+            maxima, entropies = [], []
+            with torch.no_grad():
+                for i in range(0, len(observations), 128):
+                    dist = self.model.policy.get_distribution(
+                        torch.as_tensor(observations[i:i+128], device=self.model.device),
+                        action_masks=masks[i:i+128])
+                    selected = ~masks[i:i+128, 26].astype(bool)
+                    maxima.extend(dist.distribution.probs.max(dim=1).values.cpu().numpy()[selected].tolist())
+                    entropies.extend(dist.entropy().cpu().numpy()[selected].tolist())
+            self.measurements["rollouts"].append({
+                "model_timesteps": self.model.num_timesteps,
+                "scope": "pre_update_own_public_rollout_excluding_wait_only_decisions",
+                "decisions": len(maxima),
+                "max_legal_action_probability_quantiles": np.quantile(maxima, [0, .25, .5, .75, .95, 1]).tolist() if maxima else [],
+                "mean_action_entropy": float(np.mean(entropies)) if entropies else None,
+                "effective_rollout_transitions": len(observations),
+            })
+            self.update_start = perf_counter()
+            self.measurements["public_diagnostic_seconds"] += self.update_start - now
 
     def _on_training_end(self):
         require_finite_ppo(self.model)
+        if self.collect_diagnostics and self.update_start is not None:
+            self.measurements["ppo_update_seconds"] += perf_counter() - self.update_start
+            self.update_start = None
 
 
 def warmstart(
@@ -524,6 +578,10 @@ def training_config_fingerprint(config):
     )
     if any(e.get("encoder_version") in PUBLIC_CATEGORICAL_VERSIONS for e in config.get("experiments", [])):
         content = {**content, "categorical_learning_source_sha256": categorical_learning_source_identity()}
+    if config.get("training_subset"):
+        from advisor.learned_training_subset import NativeTrainingSubset
+        content = {**content, "native_training_subset": NativeTrainingSubset(
+            config["training_subset"], config["training_subset_sha256"]).identity}
     if any("public_failure_aware_v1" in e.get("opponents", []) for e in config["experiments"]):
         from advisor.learned_failure_opponent import VERSION as failure_version
         content = {**content, "public_failure_opponent": failure_version,
@@ -668,6 +726,10 @@ def run(
         )
         state["previous_model_id"] = previous.model_id if previous else None
         curriculum = config.get("curriculum_version", CURRICULUM)
+        subset_identity = None
+        if config.get("training_subset"):
+            from advisor.learned_training_subset import NativeTrainingSubset
+            subset_identity = NativeTrainingSubset(config["training_subset"], config["training_subset_sha256"]).identity
         validation_provider = None
         if config.get("validation_case_bank"):
             from advisor.learned_evaluation_bank import EvaluationCaseBank
@@ -676,6 +738,10 @@ def run(
                 config["validation_case_bank"], config["validation_case_bank_sha256"],
                 scope="validation",
             )
+            if config.get("validation_subset_probes"):
+                from advisor.learned_training_subset import NativeTrainingSubset, SubsetProbeBank
+                validation_provider = SubsetProbeBank(NativeTrainingSubset(
+                    config["training_subset"], config["training_subset_sha256"]), validation_provider)
         evaluation_rivals = {
             kind: previous if kind == "previous" else kind
             for kind in config.get(
@@ -749,6 +815,8 @@ def run(
                     max_decisions=config.get("max_decisions", 256),
                     diagnostic_directory=str(output / "public_encoding_failures"),
                     terminal_transport_version=config.get("terminal_transport_version"),
+                    training_subset_path=config.get("training_subset"),
+                    training_subset_sha256=config.get("training_subset_sha256"),
                 )
                 for i in range(config.get("envs", 4))
             ]
@@ -929,8 +997,15 @@ def run(
                         "action_selection": {
                             "training": "upstream_maskable_ppo_stochastic",
                             "evaluation": "learned_masked_argmax_and_seeded_public_baselines",
-                            "preview": "coordinator_seeded_random_ordered_three_of_six",
+                            "preview": "coordinator_seeded_random_ordered_three_of_six"
+                            if not config.get("training_subset") else subset_identity["selection_mode"],
                         },
+                        **({"training_subset_identity": subset_identity} if subset_identity else {}),
+                        "ppo_update_contract": {"n_steps": model.n_steps, "batch_size": model.batch_size,
+                            "n_epochs": model.n_epochs, "n_envs": model.n_envs,
+                            "target_kl": model.target_kl,
+                            "lr_schedule": "existing_constant_learning_rate",
+                            "validation_selection_mode": config.get("validation_selection_mode", "best_and_plateau")},
                         "native_max_decisions": config.get("max_decisions", 256),
                         "training_metrics": details,
                         "vector_backend": config.get("vector_backend", "dummy"),
@@ -1060,7 +1135,7 @@ def run(
                     state["plateau"] = 0
                 else:
                     state["plateau"] = state.get("plateau", 0) + 1
-                if not summary["truncated"] and score > state["best_score"]:
+                if config.get("validation_selection_mode", "best_and_plateau") == "best_and_plateau" and not summary["truncated"] and score > state["best_score"]:
                     state["best"], state["best_score"] = path, score
                 atomic_json(state_path, state)
                 print(
@@ -1185,12 +1260,12 @@ def run(
                         resources=job.usage(),
                     )
 
+                callback = BudgetCallback(budget, live_progress if event_callback else None,
+                    collect_diagnostics=config.get("collect_rollout_diagnostics", False))
                 model.learn(
                     total_timesteps=chunk,
                     reset_num_timesteps=False,
-                    callback=BudgetCallback(
-                        budget, live_progress if event_callback else None
-                    ),
+                    callback=callback,
                 )
                 taken = model.num_timesteps - steps_before
                 state["experiment_steps"] += taken
@@ -1230,10 +1305,12 @@ def run(
                     and isinstance(v, (float, int, np.floating))
                     and np.isfinite(v)
                 }
+                if config.get("collect_rollout_diagnostics", False):
+                    metrics["public_rollout_diagnostics"] = callback.measurements
                 if completed and delta <= 0:
                     raise AssertionError("optimizer_did_not_change_parameters")
                 checkpoint("ppo", metrics)
-                if state.get("plateau", 0) >= config.get("plateau_patience", 4):
+                if config.get("validation_selection_mode", "best_and_plateau") == "best_and_plateau" and state.get("plateau", 0) >= config.get("plateau_patience", 4):
                     break
             vector.close()
             vector = None

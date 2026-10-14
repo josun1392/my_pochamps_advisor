@@ -30,11 +30,14 @@ class ShowdownLearningEnv(gym.Env):
         diagnostic_directory=None,
         collect_public_trajectories=False,
         terminal_transport_version=None,
+        training_subset=None,
     ):
         if collect_public_trajectories and not collect_tactical_metrics:
             raise ValueError("public_collection_requires_public_execution_metrics")
         if terminal_transport_version not in (None, OPAQUE_TERMINAL):
             raise ValueError("unsupported_native_terminal_transport")
+        if training_subset is not None and curriculum_version != "showdown-learning-curriculum-v8":
+            raise ValueError("training_subset_requires_native_v8")
         self.native = ShowdownEnvironment(checkout, max_decisions=max_decisions)
         self.encoder, self.split, self.index, self.offset = (
             encoder,
@@ -56,6 +59,7 @@ class ShowdownLearningEnv(gym.Env):
         self.collect_public_trajectories = collect_public_trajectories
         self._collection_step = None
         self.terminal_transport_version = terminal_transport_version
+        self.training_subset = training_subset
         self.tactical_counts = Counter()
         self.retry_diagnostics = []
         self.public_behavior_counts = Counter()
@@ -72,6 +76,7 @@ class ShowdownLearningEnv(gym.Env):
         index = self.index
         self.index += 1
         current = (
+            self.training_subset(self.split, index) if self.training_subset is not None else
             scenario(self.split, index, version=self.curriculum_version)
             if self.curriculum_version != "showdown-learning-curriculum-v1"
             else scenario(self.split, index)
@@ -87,6 +92,9 @@ class ShowdownLearningEnv(gym.Env):
             "scenario_sha256": fingerprint(current),
             "team_sha256": {side: fingerprint(team) for side, team in current["teams"].items()},
             "preview": deepcopy(current["preview"]), "native_seed": list(current["seed"]),
+            **({"training_subset_sha256": self.training_subset.identity["sha256"],
+                "preview_protocol": self.training_subset.contract["selection_mode"]}
+               if self.training_subset is not None else {}),
         }
         self._rejected_choices = 0
         from advisor.learned_public_metrics import PublicDecisionMetrics

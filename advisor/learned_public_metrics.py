@@ -1,5 +1,6 @@
 """Coordinator-only public affordance/execution counters, never reward/labels."""
 from collections import Counter
+from functools import lru_cache
 from advisor.learned_failure_opponent import established_failures, move_metadata, request_move
 
 DEFENSE = {"protect", "detect", "endure", "substitute", "wideguard", "kingsshield", "spikyshield", "banefulbunker", "obstruct", "silktrap", "burningbulwark"}
@@ -10,6 +11,19 @@ def recovery(name):
         return False
     _, heal, target = move_metadata(name)
     return heal and target in {"self", "allies"} or name in {"rest", "wish"}
+
+
+@lru_cache(maxsize=1024)
+def public_move_families(name):
+    """Descriptive overlapping public move classes, not rewards or action labels."""
+    from poke_env.battle import Move
+    move = Move(name, gen=9)
+    return {
+        "attack": move.category.name.lower() in {"physical", "special"},
+        "setup": bool(move.boosts and any(v > 0 for v in move.boosts.values())
+                      and getattr(move.target, "name", "").lower() == "self"),
+        "status_move": move.category.name.lower() == "status",
+    }
 
 
 class PublicDecisionMetrics:
@@ -46,6 +60,9 @@ class PublicDecisionMetrics:
         self.counts["injured_recovery_selected"] += injured and recovery(name)
         self.counts["defense_available"] += has_defense
         self.counts["defense_selected"] += name in DEFENSE
+        for family in ("attack", "setup", "status_move"):
+            self.counts[family + "_available"] += any(public_move_families(m)[family] for m in moves)
+            self.counts[family + "_selected"] += bool(name and public_move_families(name)[family])
         guards = established_failures(view)
         self.counts["established_ineffective_available"] += bool(moves & guards.keys())
         self.counts["established_ineffective_selected"] += name in guards

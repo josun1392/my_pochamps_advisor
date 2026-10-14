@@ -22,6 +22,7 @@ def categorical_learning_source_identity():
         "scripts/build_showdown_runtime_categories.py", "tools/showdown_bridge/runtime-abilities.cjs",
         "models/showdown_public_categories_v3/catalog.json",
         "advisor/learned_offline.py", "scripts/collect_showdown_public_trajectories.py",
+        "advisor/learned_training_subset.py",
     ]
     return {name: sha256((root / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() for name in names}
 
