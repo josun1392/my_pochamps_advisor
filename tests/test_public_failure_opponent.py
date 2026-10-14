@@ -139,3 +139,24 @@ def test_wait_loop_retries_are_counted_without_info_or_reward_change():
     assert env._rejected_choices==1 and len(env.retry_diagnostics)==1
     assert env.completed[0]["native_rejected_choices"]==1
     assert "before" not in info and "opponent" not in info
+
+
+def test_native_simple_beam_reveals_real_ability_outside_frozen_v2_catalog():
+    checkout=os.environ.get("POKEADVICE_SHOWDOWN_CHECKOUT")
+    if not checkout:pytest.skip("pinned native engine required")
+    from pathlib import Path
+    from advisor.learned_public_categories import RequestIdentityCategoricalEncoder
+    s=fixture_scenarios()[0]
+    s["teams"]["self"][0]={"species":"Audino","ability":"Klutz","moves":["Simple Beam","Thunder"],
+        "gender":"M","level":50,"nature":"Hardy","evs":{"hp":32,"spa":32,"spd":2}}
+    encoder=RequestIdentityCategoricalEncoder(Path(__file__).resolve().parents[1]/"models/showdown_mc_domain_v1/catalog.json")
+    with ShowdownEnvironment(checkout) as env:
+        env.reset(s);view=env.observation("self",include_history=True)
+        encoder.encode(view)
+        result=env.step({"self":6,"opponent":7},revision=view["revision"])
+        assert not result["action_rejected"]
+        after=env.observation("self",include_history=True)
+        opponent=after["state"]["opponent_side"]
+        assert opponent["pokemon"][opponent["active_identity"]]["current_ability"]=="simple"
+        assert "simple" not in encoder.tokens["abilities"]
+        with pytest.raises(ValueError,match="unsupported_known_public_abilities"):encoder.encode(after)

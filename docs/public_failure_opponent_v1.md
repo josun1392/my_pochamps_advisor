@@ -40,3 +40,12 @@ observed guard exposure. The original V8 teams/pick-three protocol, categorical
 V2, PPO2477 transfer/fresh Adam, gamma 1, GAE .95, PPO hyperparameters and
 guaranteed-first production recommendations remain unchanged. Experiment plans,
 native sanity results, banks and trained models live outside the repository.
+
+The first treatment launch stopped after its durable 32,768-transition
+checkpoint because categorical V2 rejected a known public ability. A separate
+no-learning native probe and regression reproduce a concrete gap: legal
+Simple Beam reveals `simple`, absent from V2's frozen ability vocabulary.
+The opponent and native legality are valid; this observation cannot be aliased
+to Unknown or an existing category. The 131k/two-seed ablation is incomplete
+pending a separately versioned runtime-ability coverage/compatibility fix.
+The original V2 catalog and historical checkpoints remain unchanged.
