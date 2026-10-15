@@ -8,7 +8,7 @@ from advisor.learned_training_subset import (
 )
 from tests.test_learnability_ladder import subset
 from scripts.train_showdown_snapshot_league import (
-    VERSION, FIXED_VERSION, COMBAT_VERSION, generation_config, validate_chain_plan,
+    VERSION, FIXED_VERSION, COMBAT_VERSION, COMBAT_FIXED_VERSION, generation_config, validate_chain_plan,
 )
 
 
@@ -116,3 +116,20 @@ def test_v4_combat_chain_restores_actual_parent_and_freezes_completed_snapshots(
     for change in ({"fresh_optimizer":True},{"transfer_model":"other.zip"}):
         changed=deepcopy(plan);changed["base_config"]["experiments"][0].update(change)
         with pytest.raises(ValueError):validate_chain_plan(changed,"L-s1")
+
+    fixed = {**plan, "schema_version":COMBAT_FIXED_VERSION}
+    validate_chain_plan(fixed,"F-s1")
+    with pytest.raises(ValueError):validate_chain_plan(fixed,"L-s1")
+    f0 = generation_config(fixed,"F-s1",0,parent,[])["experiments"][0]
+    f1 = generation_config(fixed,"F-s1",1,completed,[completed])["experiments"][0]
+    assert {k:v for k,v in f0.items() if k!="name"} == {k:v for k,v in first.items() if k!="name"}
+    assert f1["initial_model_id"] == completed["sha256"]  # Learner still continues.
+    assert f1["frozen_opponent_ids"] == {"league_s0":parent["sha256"]}
+    assert f1["opponents"] == f0["opponents"] and f1["opponents"].count("league_s0") == 5
+    assert f1["historical_model"] == f0["historical_model"] == "history.zip"
+    assert f1["seed"] == second["seed"] and not f1["fresh_optimizer"]
+    assert f1["frozen_opponent_ids"] != second["frozen_opponent_ids"]
+    # Original F mode remains five fixed slots, not the 30/20/50 control.
+    legacy={**fixed,"schema_version":FIXED_VERSION}
+    old = generation_config(legacy,"F-s1",1,completed,[completed])["experiments"][0]
+    assert len(old["opponents"]) == 5 and old["frozen_opponent_ids"] == {}

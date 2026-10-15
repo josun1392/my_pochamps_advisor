@@ -23,14 +23,16 @@ from scripts.train_showdown_autonomous import run, validate_config, training_con
 VERSION = "showdown-matched-snapshot-continuation-study-v1"
 FIXED_VERSION = "showdown-fixed-continuation-windows-v1"
 COMBAT_VERSION = "showdown-v4-combat-snapshot-continuation-v1"
+COMBAT_FIXED_VERSION = "showdown-v4-combat-fixed-snapshot-control-v1"
 
 
 def validate_chain_plan(plan, chain):
     """Preserve old plans; opt in to one bounded V4 combat snapshot chain."""
     fixed = plan.get("schema_version") == FIXED_VERSION
-    combat = plan.get("schema_version") == COMBAT_VERSION
-    if (plan.get("schema_version") not in (VERSION, FIXED_VERSION, COMBAT_VERSION)
-            or chain not in ({"F-s1"} if fixed else {"L-s1"} if combat else {"F-s1", "F-s2", "L-s1", "L-s2"})
+    combat_fixed = plan.get("schema_version") == COMBAT_FIXED_VERSION
+    combat = plan.get("schema_version") in (COMBAT_VERSION, COMBAT_FIXED_VERSION)
+    if (plan.get("schema_version") not in (VERSION, FIXED_VERSION, COMBAT_VERSION, COMBAT_FIXED_VERSION)
+            or chain not in ({"F-s1"} if fixed or combat_fixed else {"L-s1"} if combat else {"F-s1", "F-s2", "L-s1", "L-s2"})
             or type(plan.get("generations")) is not int
             or not 1 <= plan["generations"] <= (2 if fixed else 4)
             or type(plan.get("generation_transitions")) is not int
@@ -57,8 +59,10 @@ def generation_config(plan, chain, generation, parent, completed):
                       steps=plan["generation_transitions"], initial_model=parent["path"],
                       initial_model_id=parent["sha256"], fresh_optimizer=False,
                       zero_avoiding_beta=plan["beta"])
-    if chain.startswith("L-"):
-        mix = generation_mixture(plan["fixed_opponents"], [plan["B0"], *completed])
+    combat_fixed = plan.get("schema_version") == COMBAT_FIXED_VERSION
+    if chain.startswith("L-") or combat_fixed:
+        snapshots = [plan["B0"]] if combat_fixed else [plan["B0"], *completed]
+        mix = generation_mixture(plan["fixed_opponents"], snapshots)
         experiment.update({k: mix[k] for k in ("opponents", "frozen_opponents", "frozen_opponent_ids")})
     else:
         experiment.update(opponents=plan["fixed_opponents"], frozen_opponents={}, frozen_opponent_ids={})

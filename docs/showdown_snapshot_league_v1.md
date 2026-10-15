@@ -70,3 +70,11 @@ outside Git. Runtime limits apply per generation/launch. This reuses random
 ordered bring-three; it does not train or invoke the separate Preview policy.
 Source execution owns its Windows job and checkpoints; it does not promise
 survival after the hosting terminal/session is destroyed.
+
+For a matched 30/20/50 control, use the separate opt-in
+`showdown-v4-combat-fixed-snapshot-control-v1` plan with `--chain F-s1`.
+It retains the same five fixed slots and five `league_s0` slots at every
+generation. Only the learner follows the preceding endpoint; completed children
+never enter this control's opponent pool. Its V4/Adam/regularizer checks and
+bounds match the combat snapshot chain. Original `F-*` plans keep their
+historical five-slot behavior and must not be described as this control.
