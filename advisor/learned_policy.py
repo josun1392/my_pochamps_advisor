@@ -92,8 +92,11 @@ class LearnedPolicy:
             from advisor.learned_strategic_public_policy import StrategicPublicCategoricalPolicy
             from advisor.learned_own_hp import VERSIONS as HP_VERSIONS
             from advisor.learned_own_hp_policy import OwnExactHPCategoricalPolicy
+            from advisor.learned_history_sequence import VERSIONS as HISTORY_VERSIONS
+            from advisor.learned_history_sequence_policy import PublicHistorySequencePolicy
 
-            required = (OwnExactHPCategoricalPolicy if self.encoder.version in HP_VERSIONS
+            required = (PublicHistorySequencePolicy if self.encoder.version in HISTORY_VERSIONS
+                        else OwnExactHPCategoricalPolicy if self.encoder.version in HP_VERSIONS
                         else StrategicPublicCategoricalPolicy if self.encoder.version == "showdown-public-categorical-observation-v4"
                         else PublicCategoricalPolicy if self.encoder.version in CATEGORICAL_VERSIONS
                         else OwnMoveTokenPolicy)

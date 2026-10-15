@@ -180,6 +180,10 @@ class ActionObservationEncoder(PartialObservationEncoder):
 def make_encoder(catalog, version):
     from advisor.learned_move_identity import VERSIONS, OwnMoveTokenEncoder
     from advisor.learned_own_hp import VERSIONS as HP_VERSIONS, OwnExactHPCategoricalEncoder
+    from advisor.learned_history_sequence import VERSIONS as HISTORY_VERSIONS, PublicHistorySequenceEncoder
+
+    if version in HISTORY_VERSIONS:
+        return PublicHistorySequenceEncoder(catalog, version)
 
     if version in HP_VERSIONS:
         return OwnExactHPCategoricalEncoder(catalog, version)

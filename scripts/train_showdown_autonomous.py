@@ -38,6 +38,8 @@ from advisor.learned_public_categories_policy import PublicCategoricalPolicy, tr
 from advisor.learned_strategic_public_policy import StrategicPublicCategoricalPolicy, transfer_strategic_public_weights
 from advisor.learned_own_hp import VERSIONS as HP_VERSIONS
 from advisor.learned_own_hp_policy import OwnExactHPCategoricalPolicy, transfer_own_hp_weights
+from advisor.learned_history_sequence import VERSIONS as HISTORY_VERSIONS
+from advisor.learned_history_sequence_policy import PublicHistorySequencePolicy, transfer_history_sequence_weights
 from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
 from advisor.learning_resources import (
     WindowsJob,
@@ -885,7 +887,9 @@ def run(
             else:
                 algorithm = RegularizedMaskablePPO if "zero_avoiding_beta" in experiment else MaskablePPO
                 model = algorithm(
-                    OwnExactHPCategoricalPolicy
+                    PublicHistorySequencePolicy
+                    if encoder.version in HISTORY_VERSIONS
+                    else OwnExactHPCategoricalPolicy
                     if encoder.version in HP_VERSIONS
                     else StrategicPublicCategoricalPolicy
                     if encoder.version == "showdown-public-categorical-observation-v4"
@@ -935,7 +939,9 @@ def run(
                 transfer_source = LearnedPolicy(experiment["transfer_model"], catalog,
                     expected_model_id=experiment.get("transfer_model_id"))
                 if encoder.version in PUBLIC_CATEGORICAL_VERSIONS:
-                    if encoder.version in HP_VERSIONS:
+                    if encoder.version in HISTORY_VERSIONS:
+                        transfer_history_sequence_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
+                    elif encoder.version in HP_VERSIONS:
                         transfer_own_hp_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
                     elif encoder.version == "showdown-public-categorical-observation-v4":
                         transfer_strategic_public_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)

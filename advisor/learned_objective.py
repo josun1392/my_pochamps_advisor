@@ -6,7 +6,9 @@ from pathlib import Path
 CATEGORICAL = "showdown-public-categorical-observation-v1"
 CATEGORICAL_VERSIONS = (CATEGORICAL, "showdown-public-categorical-observation-v2", "showdown-public-categorical-observation-v3", "showdown-public-categorical-observation-v4",
                         "showdown-public-categorical-observation-v4-own-exact-hp-v1",
-                        "showdown-public-categorical-observation-v4-own-exact-hp-ablated-v1")
+                        "showdown-public-categorical-observation-v4-own-exact-hp-ablated-v1",
+                        "showdown-public-categorical-observation-v4-history-sequence-v1",
+                        "showdown-public-categorical-observation-v4-history-sequence-ablated-v1")
 UNDISCOUNTED = "native_terminal_win_loss_draw_undiscounted_v1"
 DISCOUNTED = "native_terminal_win_loss_draw_discounted_v1"
 
@@ -19,6 +21,7 @@ def categorical_learning_source_identity():
         "advisor/learned_public_categories_policy.py", "advisor/learned_action_policy.py",
         "advisor/learned_strategic_public.py", "advisor/learned_strategic_public_policy.py",
         "advisor/learned_own_hp.py", "advisor/learned_own_hp_policy.py",
+        "advisor/learned_history_sequence.py", "advisor/learned_history_sequence_policy.py",
         "advisor/learned_action_encoder.py", "advisor/learned_public_interactions.py",
         "advisor/learned_tactics_encoder.py", "advisor/learned_encoder.py",
         "advisor/learned_gym.py", "advisor/learned_parallel.py",
