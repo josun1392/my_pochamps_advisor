@@ -126,13 +126,15 @@ def test_v2_64_team_subset_exclusion_and_legacy_unchanged(tmp_path):
 
 
 def test_seat_swap_real_team_preview_order_and_history_guard():
-    from scripts.evaluate_showdown_policy import seat_scenario, native_heal_failures
+    from scripts.evaluate_showdown_policy import seat_scenario, native_heal_failures, FIXTURE_SEAT_CONTRACT
     case = dict(teams={"self":["A","B"], "opponent":["C","D"]},
                 preview={"self":[2,1], "opponent":[1,2]}, seed=[1,2,3,4], history=[])
     swapped = seat_scenario(case, "p2")
     assert swapped["teams"]["opponent"] == case["teams"]["self"]
     assert swapped["preview"]["opponent"] == [2,1] and swapped["seed"] == case["seed"]
     assert seat_scenario(swapped,"p2") == case and case["teams"]["self"] == ["A","B"]
+    assert seat_scenario(case,"p2",FIXTURE_SEAT_CONTRACT) == case
+    with pytest.raises(ValueError): seat_scenario(case,"p1","unversioned")
     with pytest.raises(ValueError): seat_scenario({**case, "history":["|turn|1"]},"p2")
     history=["|move|p2a: X|Recover|p2a: X", "|-fail|p2a: X|heal"]
     assert native_heal_failures(history,"p2")[0] == 1 and native_heal_failures(history)[0] == 0
@@ -169,7 +171,8 @@ def test_native_regularized_categorical_loader_and_frozen_opponent(tmp_path):
         vector.close()
 
 
-def test_native_seat_evaluation_and_opponent_request_ownership(tmp_path):
+@pytest.mark.parametrize("contract", ["own_team_preserving_native_seats_v1", "fixed_fixture_policy_seats_v1"])
+def test_native_seat_evaluation_and_opponent_request_ownership(tmp_path, contract):
     checkout = os.environ.get("POKEADVICE_SHOWDOWN_CHECKOUT")
     if not checkout: pytest.skip("pinned engine required")
     from scripts.evaluate_showdown_policy import evaluate
@@ -193,10 +196,12 @@ def test_native_seat_evaluation_and_opponent_request_ownership(tmp_path):
     for seat, own, other in (("p1","self","opponent"), ("p2","opponent","self")):
         result = evaluate(checkout, CATALOG, {"probe":OwnerProbe(own)}, cases=2, offset=49259000,
                           rivals={"rival":OwnerProbe(other)}, case_provider=Bank(), candidate_seat=seat,
-                          tactical_diagnostics=True)
+                          tactical_diagnostics=True, seat_contract=contract)
         assert len(result["records"]) == 2
         for row in result["records"]:
             expected = 1 if row["raw_native_winner"] == own else -1 if row["raw_native_winner"] == other else 0
             assert row["return"] == expected
             assert row["candidate_seat"] == seat
+            if contract == "fixed_fixture_policy_seats_v1":
+                assert row["native_scenario_sha256"] == row["canonical_scenario_sha256"]
             assert row["winner"] == ("self" if expected == 1 else "opponent" if expected == -1 else None)

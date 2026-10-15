@@ -48,12 +48,23 @@ def native_heal_failures(history, role="p1"):
     return total, longest
 
 
-def seat_scenario(case, candidate_seat):
-    """Swap actual teams/preview roles, preserving their internal order and seed."""
+NATIVE_SEAT_CONTRACT = "own_team_preserving_native_seats_v1"
+FIXTURE_SEAT_CONTRACT = "fixed_fixture_policy_seats_v1"
+
+
+def seat_scenario(case, candidate_seat, contract=NATIVE_SEAT_CONTRACT):
+    """Explicitly distinguish physical-seat swaps from paired team assignment.
+
+    The original contract moves a candidate's own team with it to p2. The fixed
+    fixture contract keeps both native teams/preview orders in place and assigns
+    the candidate to the other real request owner; it therefore plays each team.
+    """
     if candidate_seat not in ("p1", "p2"):
         raise ValueError("invalid_candidate_seat")
+    if contract not in (NATIVE_SEAT_CONTRACT, FIXTURE_SEAT_CONTRACT):
+        raise ValueError("invalid_evaluation_seat_contract")
     case = deepcopy(case)
-    if candidate_seat == "p2":
+    if candidate_seat == "p2" and contract == NATIVE_SEAT_CONTRACT:
         if case.get("history"):
             raise ValueError("seat_swap_cannot_reinterpret_observed_history")
         for key in ("teams", "preview"):
@@ -136,6 +147,7 @@ def evaluate(
     tactical_diagnostics=False,
     case_provider=None,
     candidate_seat="p1",
+    seat_contract=NATIVE_SEAT_CONTRACT,
 ):
     if candidate_seat not in ("p1", "p2"):
         raise ValueError("invalid_candidate_seat")
@@ -169,7 +181,7 @@ def evaluate(
 
                     canonical_case = (case_provider(split, index) if case_provider is not None
                                       else scenario(split, index, version=curriculum_version))
-                    native_case = seat_scenario(canonical_case, candidate_seat)
+                    native_case = seat_scenario(canonical_case, candidate_seat, seat_contract)
                     start_info = reset_learning_episode(env, native_case)
                     rival = (
                         VisibleBaseline(rival_policy, index + 919)
@@ -294,6 +306,7 @@ def evaluate(
                                        if result["winner"] == rival_side else None),
                             "raw_native_winner": result["winner"],
                             "candidate_seat": candidate_seat,
+                            "seat_contract": seat_contract,
                             "canonical_scenario_sha256": fingerprint(canonical_case),
                             "native_scenario_sha256": fingerprint(native_case),
                             "initial_native_seed": native_case.get("seed"),
@@ -409,6 +422,7 @@ def evaluate(
         "cases_per_opponent": cases,
         "offset": offset,
         "candidate_seat": candidate_seat,
+        "seat_contract": seat_contract,
         "interpretation": "held_out_sampled_win_frequencies_not_exact_probabilities",
         "elapsed_s": perf_counter() - started,
         "policies": {

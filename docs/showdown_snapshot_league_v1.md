@@ -39,6 +39,14 @@ Public histories cannot be reinterpreted by a seat swap. Both physical seats and
 all rival strata must remain in each bootstrap case cluster. Initial RNG matching
 does not imply identical downstream random consumption after actions diverge.
 
+Seat assignments have explicit contracts. The original default
+`own_team_preserving_native_seats_v1` retains its meaning and historical records.
+For paired team-balanced benchmarks use `fixed_fixture_policy_seats_v1`: the
+fixture's two native teams and ordered previews stay fixed while the candidate
+and rival exchange actual p1/p2 request ownership. Each policy then plays both
+teams in the cluster. Both modes execute native games; neither only relabels
+winners. Reports must state which balance was tested.
+
 These continuations are repetitions from one trained parent, not independent
 fresh-training seeds. Fixed-budget endpoints are compared; diagnosis does not
 replace endpoints with validation-best models. No learned policy is promoted
