@@ -175,8 +175,19 @@ class ShowdownEnvironment:
             raise ShowdownEnvironmentError("detached_checkpoint_integrity_mismatch")
         return self._initialize("import_native", checkpoint=deepcopy(checkpoint))
 
-    def restart(self, checkpoint):
-        return self._initialize("restart", checkpoint=deepcopy(checkpoint))
+    def restart(self, checkpoint, *, future_seed=None):
+        """Restore unchanged state; optional coordinator-only future RNG sample.
+
+        This is a new hypothetical branch, not recovery of the original random
+        trajectory. The seed never enters a player observation.
+        """
+        payload = {"checkpoint": deepcopy(checkpoint)}
+        if future_seed is not None:
+            if (not isinstance(future_seed, (list, tuple)) or len(future_seed) != 4
+                    or any(type(n) is not int or not 0 <= n <= 65535 for n in future_seed)):
+                raise ValueError("invalid_counterfactual_future_seed")
+            payload["future_seed"] = list(future_seed)
+        return self._initialize("restart", **payload)
 
     def observation(self, side, *, include_history=False):
         if side not in SIDES:

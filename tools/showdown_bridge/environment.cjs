@@ -135,6 +135,14 @@ function createEnvironmentService(engine) {
           created = engine.Battle.fromJSON(clone(cp.native_state));
           created.restart(() => {});
         }
+        if (row.future_seed !== undefined) {
+          requireInput(row.operation === 'restart' && Array.isArray(row.future_seed) && row.future_seed.length === 4 &&
+            row.future_seed.every(n => Number.isInteger(n) && n >= 0 && n <= 65535), 'invalid_counterfactual_future_seed');
+          // Same maintained PRNG sampling seam as bridge.cjs sample(). No
+          // hidden state edits or public "RNG reset" protocol announcement.
+          created.prng = new engine.PRNG(row.future_seed);
+          provenance = {...clone(provenance), counterfactual_future_seed: clone(row.future_seed)};
+        }
         requireInput(Number.isInteger(maxDecisions) && maxDecisions >= 1 && maxDecisions <= 4096, 'invalid_episode_budget');
         requireInput(created.ended || ['move', 'switch'].includes(created.requestState), 'unsupported_native_phase');
         requireInput(created.sides.length === 2 && created.gameType === 'singles', 'unsupported_native_battle');
