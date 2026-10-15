@@ -89,12 +89,14 @@ class LearnedPolicy:
         if hasattr(self.encoder, "feature_contract"):
             from advisor.learned_move_identity_policy import OwnMoveTokenPolicy
             from advisor.learned_public_categories_policy import PublicCategoricalPolicy
+            from advisor.learned_strategic_public_policy import StrategicPublicCategoricalPolicy
 
-            required = (PublicCategoricalPolicy if self.encoder.version in CATEGORICAL_VERSIONS
+            required = (StrategicPublicCategoricalPolicy if self.encoder.version == "showdown-public-categorical-observation-v4"
+                        else PublicCategoricalPolicy if self.encoder.version in CATEGORICAL_VERSIONS
                         else OwnMoveTokenPolicy)
             if type(self.model.policy) is not required:
                 raise ValueError("public_categorical_policy_required"
-                                 if required is PublicCategoricalPolicy
+                                 if self.encoder.version in CATEGORICAL_VERSIONS
                                  else "own_move_categorical_policy_required")
 
     def infer(self, observation):

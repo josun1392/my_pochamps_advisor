@@ -35,6 +35,7 @@ from advisor.learned_move_identity import VERSIONS as OWN_MOVE_VERSIONS
 from advisor.learned_move_identity_policy import OwnMoveTokenPolicy, transfer_v3_to_own_move
 from advisor.learned_public_categories import VERSIONS as PUBLIC_CATEGORICAL_VERSIONS
 from advisor.learned_public_categories_policy import PublicCategoricalPolicy, transfer_public_categorical_weights
+from advisor.learned_strategic_public_policy import StrategicPublicCategoricalPolicy, transfer_strategic_public_weights
 from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
 from advisor.learning_resources import (
     WindowsJob,
@@ -882,7 +883,9 @@ def run(
             else:
                 algorithm = RegularizedMaskablePPO if "zero_avoiding_beta" in experiment else MaskablePPO
                 model = algorithm(
-                    PublicCategoricalPolicy
+                    StrategicPublicCategoricalPolicy
+                    if encoder.version == "showdown-public-categorical-observation-v4"
+                    else PublicCategoricalPolicy
                     if encoder.version in PUBLIC_CATEGORICAL_VERSIONS
                     else OwnMoveTokenPolicy
                     if encoder.version in OWN_MOVE_VERSIONS
@@ -928,7 +931,9 @@ def run(
                 transfer_source = LearnedPolicy(experiment["transfer_model"], catalog,
                     expected_model_id=experiment.get("transfer_model_id"))
                 if encoder.version in PUBLIC_CATEGORICAL_VERSIONS:
-                    if (encoder.version == "showdown-public-categorical-observation-v3"
+                    if encoder.version == "showdown-public-categorical-observation-v4":
+                        transfer_strategic_public_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
+                    elif (encoder.version == "showdown-public-categorical-observation-v3"
                             and transfer_source.encoder.version == "showdown-public-categorical-observation-v2"):
                         from advisor.learned_public_categories_policy import transfer_runtime_ability_weights
                         transfer_runtime_ability_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)

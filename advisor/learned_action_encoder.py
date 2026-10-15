@@ -180,6 +180,11 @@ class ActionObservationEncoder(PartialObservationEncoder):
 def make_encoder(catalog, version):
     from advisor.learned_move_identity import VERSIONS, OwnMoveTokenEncoder
 
+    if version == "showdown-public-categorical-observation-v4":
+        from advisor.learned_strategic_public import StrategicPublicCategoricalEncoder
+
+        return StrategicPublicCategoricalEncoder(catalog)
+
     if version == "showdown-public-categorical-observation-v1":
         from advisor.learned_public_categories import PublicCategoricalEncoder
 

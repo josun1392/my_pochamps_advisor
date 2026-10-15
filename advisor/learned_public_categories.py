@@ -17,7 +17,7 @@ from advisor.showdown_bridge import SHOWDOWN_COMMIT, FORMAT_ID
 VERSION = "showdown-public-categorical-observation-v1"
 REQUEST_IDENTITY_VERSION = "showdown-public-categorical-observation-v2"
 RUNTIME_ABILITY_VERSION = "showdown-public-categorical-observation-v3"
-VERSIONS = (VERSION, REQUEST_IDENTITY_VERSION, RUNTIME_ABILITY_VERSION)
+VERSIONS = (VERSION, REQUEST_IDENTITY_VERSION, RUNTIME_ABILITY_VERSION, "showdown-public-categorical-observation-v4")
 CATALOG_PATH = Path(__file__).resolve().parents[1] / "models/showdown_public_categories_v1/catalog.json"
 PAD, UNKNOWN, ABSENT = 0, 1, 2
 BITS = {"species": 11, "abilities": 9, "items": 8, "moves": 10}
