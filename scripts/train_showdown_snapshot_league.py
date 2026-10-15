@@ -21,6 +21,22 @@ from advisor.learning_resources import atomic_json, WindowsJob
 from scripts.train_showdown_autonomous import run, validate_config, training_config_fingerprint
 
 VERSION = "showdown-matched-snapshot-continuation-study-v1"
+FIXED_VERSION = "showdown-fixed-continuation-windows-v1"
+
+
+def validate_chain_plan(plan, chain):
+    """Keep V0 league bounds; separately opt in to at most two 1M fixed windows."""
+    fixed = plan.get("schema_version") == FIXED_VERSION
+    if (plan.get("schema_version") not in (VERSION, FIXED_VERSION)
+            or chain not in ({"F-s1"} if fixed else {"F-s1", "F-s2", "L-s1", "L-s2"})
+            or type(plan.get("generations")) is not int
+            or not 1 <= plan["generations"] <= (2 if fixed else 4)
+            or type(plan.get("generation_transitions")) is not int
+            or not 1024 <= plan["generation_transitions"] <= (1048576 if fixed else 262144)
+            or plan["generation_transitions"] % 1024
+            or set(plan.get("continuation_seeds", {})) != ({"s1"} if fixed else {"s1", "s2"})):
+        raise ValueError("invalid_bounded_league_plan")
+    regularizer_contract(plan["beta"])
 
 
 def generation_config(plan, chain, generation, parent, completed):
@@ -41,15 +57,29 @@ def generation_config(plan, chain, generation, parent, completed):
     return config
 
 
+def fixed_budget_endpoint(directory, parent, result, config_fingerprint):
+    """Select durable trained endpoint, even if its validation was interrupted.
+
+    The trainer publishes checkpoints before evaluation and may clear latest on
+    completion. A validation-entry list alone is therefore not endpoint authority.
+    Never substitute validation-best or the preceding successfully evaluated model.
+    """
+    expected = parent["model_timesteps"] + result["transitions"]
+    candidates = []
+    for manifest in (Path(directory) / "experiment_00").glob("checkpoint_*/model.json"):
+        metadata = json.loads(manifest.read_text(encoding="utf-8"))
+        if (metadata.get("stage") == "ppo" and metadata.get("total_steps") == expected
+                and metadata.get("training_config_fingerprint") == config_fingerprint):
+            candidates.append(checkpoint_identity(manifest.with_suffix(".zip")))
+    if len(candidates) != 1:
+        raise ValueError("unique_durable_fixed_budget_endpoint_required")
+    return candidates[0]
+
+
 def run_chain(plan_path, output, chain, *, resume=False, stop_at_first_checkpoint=False):
     raw = Path(plan_path).read_bytes()
     plan = json.loads(raw)
-    if (plan.get("schema_version") != VERSION or chain not in {"F-s1", "F-s2", "L-s1", "L-s2"}
-            or not 1 <= plan["generations"] <= 4 or not 1024 <= plan["generation_transitions"] <= 262144
-            or plan["generation_transitions"] % 1024
-            or set(plan["continuation_seeds"]) != {"s1", "s2"}):
-        raise ValueError("invalid_bounded_league_plan")
-    regularizer_contract(plan["beta"])
+    validate_chain_plan(plan, chain)
     b0 = checkpoint_identity(plan["B0"]["path"], plan["B0"]["sha256"])
     if b0 != plan["B0"]:
         raise ValueError("B0_manifest_changed")
@@ -109,8 +139,7 @@ def run_chain(plan_path, output, chain, *, resume=False, stop_at_first_checkpoin
             return state
         if result["trained_rollout_transitions"] != plan["generation_transitions"]:
             raise ValueError("generation_trained_budget_mismatch_no_partial_rollout_promotion")
-        endpoints = [e for e in result["evaluations"] if e["stage"] == "ppo"]
-        child = checkpoint_identity(endpoints[-1]["checkpoint"])
+        child = fixed_budget_endpoint(generation_dir, parent, result, training_config_fingerprint(config)[0])
         validate_child(parent, child, plan["generation_transitions"], result["transitions"])
         if child["training_regularizer"] != regularizer_contract(plan["beta"]):
             raise ValueError("generation_regularizer_missing")

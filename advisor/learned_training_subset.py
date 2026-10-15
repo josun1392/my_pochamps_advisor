@@ -10,6 +10,7 @@ from advisor.showdown_bridge import FORMAT_ID, SHOWDOWN_COMMIT
 
 VERSION = "showdown-native-training-subset-v1"
 VERSION_64 = "showdown-native-training-subset-v2"
+VERSION_256 = "showdown-native-training-subset-v3"
 
 
 class NativeTrainingSubset:
@@ -21,7 +22,7 @@ class NativeTrainingSubset:
             raise ValueError("training_subset_hash_mismatch")
         contract = json.loads(raw)
         version = contract.get("schema_version")
-        if version not in (VERSION, VERSION_64) or any(contract.get(k) != v for k, v in {
+        if version not in (VERSION, VERSION_64, VERSION_256) or any(contract.get(k) != v for k, v in {
             "engine_commit": SHOWDOWN_COMMIT,
             "format_id": FORMAT_ID, "parent_curriculum": "showdown-learning-curriculum-v8",
             "parent_split": "train", "parent_bank_sha256": study_identity()["bank_sha256"],
@@ -29,13 +30,26 @@ class NativeTrainingSubset:
             raise ValueError("training_subset_authority_mismatch")
         indices = contract.get("team_indices")
         bank = load_bank()["teams"]["train"]
-        if (not isinstance(indices, list) or len(indices) not in ((1, 16) if version == VERSION else (64,))
+        sizes = {VERSION: (1, 16), VERSION_64: (64,), VERSION_256: (256,)}
+        if (not isinstance(indices, list) or len(indices) not in sizes[version]
                 or len(set(indices)) != len(indices)
                 or any(type(i) is not int or not 0 <= i < len(bank) for i in indices)):
             raise ValueError("training_subset_membership_mismatch")
         teams = [bank[i] for i in indices]
         if contract.get("team_sha256") != [fingerprint(t) for t in teams]:
             raise ValueError("training_subset_team_identity_mismatch")
+        if version == VERSION_256:
+            parent = contract.get("parent_team_indices")
+            excluded = contract.get("excluded_train_indices")
+            parent_sha = contract.get("parent_subset_sha256", "")
+            if (not isinstance(parent, list) or len(parent) != 64 or indices[:64] != parent
+                    or not isinstance(parent_sha, str) or len(parent_sha) != 64
+                    or any(c not in "0123456789abcdef" for c in parent_sha)
+                    or not isinstance(excluded, list) or len(set(excluded)) != len(excluded)
+                    or any(type(i) is not int or not 0 <= i < len(bank) for i in excluded)
+                    or set(indices) & set(excluded)
+                    or not set(contract.get("excluded_stage1_diagnostic_indices", [])) <= set(excluded)):
+                raise ValueError("expanded_training_subset_parent_or_exclusion_mismatch")
         mode = contract.get("selection_mode")
         if ((len(teams) == 1 and mode != "shared_fixed_ordered3")
                 or (len(teams) > 1 and mode != "independent_random_ordered3")
@@ -74,6 +88,38 @@ class NativeTrainingSubset:
                 "history": [], "assumptions": [
                     "Frozen native V8 training subset; hypothetical coordinator truth, not observed truth."
                 ]}
+
+
+def extend_native_training_subset(parent_path, parent_sha256, *, membership_seed,
+                                  seed_namespace, excluded_train_indices=()):
+    """Deterministically append 192 V8 train teams to a verified 64-team parent.
+
+    Construction/provenance only: no new generator, legality or policy input.
+    The file SHA of the resulting contract binds the exact draw and all hashes.
+    """
+    from advisor.learned_full_roster import load_bank
+    parent = NativeTrainingSubset(parent_path, parent_sha256)
+    if parent.contract["schema_version"] != VERSION_64 or type(membership_seed) is not int:
+        raise ValueError("verified_64_team_parent_and_integer_seed_required")
+    if not isinstance(seed_namespace, str) or not 1 <= len(seed_namespace) <= 128:
+        raise ValueError("training_subset_seed_namespace_required")
+    bank = load_bank()["teams"]["train"]
+    excluded = sorted(set(excluded_train_indices)
+                      | set(parent.contract.get("excluded_stage1_diagnostic_indices", []))
+                      | set(parent.contract.get("excluded_train_indices", [])))
+    if any(type(i) is not int or not 0 <= i < len(bank) for i in excluded):
+        raise ValueError("invalid_training_subset_exclusion")
+    original = parent.contract["team_indices"]
+    if set(original) & set(excluded):
+        raise ValueError("training_subset_parent_is_reserved")
+    eligible = [i for i in range(len(bank)) if i not in set(original) | set(excluded)]
+    indices = original + random.Random(membership_seed).sample(eligible, 192)
+    return {**deepcopy(parent.contract), "schema_version": VERSION_256,
+            "parent_subset_sha256": parent_sha256, "parent_team_indices": list(original),
+            "team_indices": indices, "team_sha256": [fingerprint(bank[i]) for i in indices],
+            "excluded_train_indices": excluded, "membership_seed": membership_seed,
+            "seed_namespace": seed_namespace, "selection_mode": "independent_random_ordered3",
+            "preview": None}
 
 
 class SubsetProbeBank:
