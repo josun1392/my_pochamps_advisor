@@ -16,6 +16,7 @@ from advisor.learned_policy import LearnedPolicy
 from advisor.learned_scenarios import scenario
 from advisor.learned_encoder import identifier, fingerprint
 from advisor.showdown_environment import ShowdownEnvironment
+from advisor.learned_public_metrics import public_heal_failure_attribution
 
 
 def wilson(wins, n):
@@ -30,7 +31,11 @@ def wilson(wins, n):
 
 
 def native_heal_failures(history, role="p1"):
-    """Count explicit native public heal failures, not full-HP legality guesses."""
+    """Legacy recipient-event count, not attribution to a requested recovery.
+
+    Opponent Heal Pulse can also fail on this recipient. Use the separate
+    versioned attribution field for explicit executed-move source evidence.
+    """
     total, longest, run = 0, 0, 0
     last_failed = False
     for line in history:
@@ -324,6 +329,8 @@ def evaluate(
                             "action_counts": dict(action_counts),
                             "native_own_move_counts": dict(own_moves),
                             "native_own_failed_heals": heal_failures,
+                            # Legacy count names the recipient, not the move's actor.
+                            "native_heal_failure_attribution": public_heal_failure_attribution(history, candidate_seat),
                             "native_own_max_consecutive_failed_heals": longest_failures,
                             "requested_heal_full_hp": requested_heal_full_hp
                             if tactical_diagnostics

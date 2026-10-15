@@ -13,6 +13,47 @@ def recovery(name):
     return heal and target in {"self", "allies"} or name in {"rest", "wish"}
 
 
+def public_heal_failure_attribution(history, role="p1"):
+    """Conservative event attribution, never selected-action quality labels.
+
+    A native -fail names the recipient, not necessarily the move's actor.
+    Attribute only an immediately preceding explicit public healing move;
+    delayed/residual/unknown causes remain unattributed. Called moves count as
+    executed moves, not proof about the player's originally requested slot.
+    """
+    if role not in {"p1", "p2"}:
+        raise ValueError("invalid_public_heal_failure_role")
+    from advisor.learned_encoder import identifier
+    counts = Counter()
+    previous = None
+    other = "p2" if role == "p1" else "p1"
+    for line in history:
+        p = line.split("|")
+        if len(p) > 3 and p[1] == "move":
+            previous = p
+            continue
+        if len(p) > 3 and p[1] == "-fail" and p[2].startswith((role + "a:", role + ":")) and p[3] == "heal":
+            counts["recipient_heal_failure_events"] += 1
+            category = "unattributed_heal_failure_events"
+            if previous:
+                actor, name = previous[2], identifier(previous[3])
+                try:
+                    if actor == p[2] and recovery(name):
+                        category = "own_executed_recovery_move_failures"
+                    elif (actor.startswith((other + "a:", other + ":")) and len(previous) > 4 and previous[4] == p[2]):
+                        # Native -fail already establishes a heal attempt; moves
+                        # such as Heal Pulse implement healing in onHit callbacks.
+                        category = "external_heal_failure_events_received"
+                except (ValueError, KeyError):
+                    pass  # Unknown diagnostic metadata is not evidence of a cause.
+            counts[category] += 1
+        previous = None
+    return {"schema_version": "showdown-public-heal-failure-attribution-v1",
+            "scope": "immediate_public_move_only_not_requested_action_or_optimality",
+            **{k: counts[k] for k in ("recipient_heal_failure_events", "own_executed_recovery_move_failures",
+                "external_heal_failure_events_received", "unattributed_heal_failure_events")}}
+
+
 @lru_cache(maxsize=1024)
 def public_move_families(name):
     """Descriptive overlapping public move classes, not rewards or action labels."""
@@ -75,6 +116,12 @@ class PublicDecisionMetrics:
                 if p[1] == "-fail":
                     self.counts["native_public_fail"] += 1
                     self.counts["native_heal_fail"] += len(p) > 3 and p[3] == "heal"
+        # Preserve legacy recipient-event counters, add explicit source scope.
+        attribution = public_heal_failure_attribution(events, role)
+        for key in ("own_executed_recovery_move_failures", "external_heal_failure_events_received",
+                    "unattributed_heal_failure_events"):
+            if attribution[key]:
+                self.counts[key] += attribution[key]
 
     def drain_counts(self):
         result = dict(self.counts)
