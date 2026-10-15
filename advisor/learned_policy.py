@@ -90,8 +90,11 @@ class LearnedPolicy:
             from advisor.learned_move_identity_policy import OwnMoveTokenPolicy
             from advisor.learned_public_categories_policy import PublicCategoricalPolicy
             from advisor.learned_strategic_public_policy import StrategicPublicCategoricalPolicy
+            from advisor.learned_own_hp import VERSIONS as HP_VERSIONS
+            from advisor.learned_own_hp_policy import OwnExactHPCategoricalPolicy
 
-            required = (StrategicPublicCategoricalPolicy if self.encoder.version == "showdown-public-categorical-observation-v4"
+            required = (OwnExactHPCategoricalPolicy if self.encoder.version in HP_VERSIONS
+                        else StrategicPublicCategoricalPolicy if self.encoder.version == "showdown-public-categorical-observation-v4"
                         else PublicCategoricalPolicy if self.encoder.version in CATEGORICAL_VERSIONS
                         else OwnMoveTokenPolicy)
             if type(self.model.policy) is not required:

@@ -179,6 +179,10 @@ class ActionObservationEncoder(PartialObservationEncoder):
 
 def make_encoder(catalog, version):
     from advisor.learned_move_identity import VERSIONS, OwnMoveTokenEncoder
+    from advisor.learned_own_hp import VERSIONS as HP_VERSIONS, OwnExactHPCategoricalEncoder
+
+    if version in HP_VERSIONS:
+        return OwnExactHPCategoricalEncoder(catalog, version)
 
     if version == "showdown-public-categorical-observation-v4":
         from advisor.learned_strategic_public import StrategicPublicCategoricalEncoder
