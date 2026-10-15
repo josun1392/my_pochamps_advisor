@@ -51,3 +51,22 @@ These continuations are repetitions from one trained parent, not independent
 fresh-training seeds. Fixed-budget endpoints are compared; diagnosis does not
 replace endpoints with validation-best models. No learned policy is promoted
 to the live guaranteed-first advisor.
+
+## V4 combat continuation
+
+The opt-in `showdown-v4-combat-snapshot-continuation-v1` plan runs one
+`L-s1` chain (one continuation repetition, not independent fresh-training seeds).
+It uses the same generation owner, five fixed slots, five snapshot slots and
+bounded generations as V0. The verified V4 parent and its regularizer must match;
+transfer and fresh-optimizer initialization are rejected. Completed V4 snapshots
+become opponents only at the next generation boundary. `previous` and
+`historical` remain hash-bound fixed models; each loads its original encoder.
+
+Run `scripts/train_showdown_snapshot_league.py --plan <external-plan.json>
+--output <external-chain-directory> --chain L-s1`; use `--resume` for a stopped
+chain. `--stop-at-first-checkpoint` exercises durable interruption without
+changing the reward or policy. All models, plans and generation events belong
+outside Git. Runtime limits apply per generation/launch. This reuses random
+ordered bring-three; it does not train or invoke the separate Preview policy.
+Source execution owns its Windows job and checkpoints; it does not promise
+survival after the hosting terminal/session is destroyed.

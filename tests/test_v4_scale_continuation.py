@@ -8,7 +8,7 @@ from advisor.learned_training_subset import (
 )
 from tests.test_learnability_ladder import subset
 from scripts.train_showdown_snapshot_league import (
-    VERSION, FIXED_VERSION, generation_config, validate_chain_plan,
+    VERSION, FIXED_VERSION, COMBAT_VERSION, generation_config, validate_chain_plan,
 )
 
 
@@ -81,3 +81,38 @@ def test_fixed_window_chains_from_actual_previous_parent_without_transfer():
     assert e["fresh_optimizer"] is False and "transfer_model" not in e
     assert e["zero_avoiding_beta"]==.001 and e["seed"]==79151
     assert c["transition_budget_scope"]=="trained_rollouts_v1"
+
+
+def test_v4_combat_chain_restores_actual_parent_and_freezes_completed_snapshots():
+    from advisor.learned_regularized_ppo import regularizer_contract
+    parent = {"path":"v4-parent.zip", "sha256":"a"*64,
+              "encoder_version":"showdown-public-categorical-observation-v4",
+              "training_regularizer":regularizer_contract(.001)}
+    completed = {**parent, "path":"v4-generation0.zip", "sha256":"b"*64}
+    plan = {"schema_version":COMBAT_VERSION, "generations":2, "generation_transitions":131072,
+            "continuation_seeds":{"s1":81011}, "beta":.001, "B0":parent,
+            "fixed_opponents":["max_power","champions_heuristic","tactical_heuristic","previous","historical"],
+            "base_config":{"schema_version":"showdown-autonomous-training-v1","max_runtime_seconds":1800,
+                "envs":8,"memory_mib":12288,"checkpoint_steps":32768,"previous_model":"previous.zip",
+                "experiments":[{"encoder_version":parent["encoder_version"],"gamma":1.,"gae_lambda":.95,
+                                "historical_model":"history.zip","fresh_optimizer":False}]}}
+    original = deepcopy(plan)
+    validate_chain_plan(plan,"L-s1")
+    first = generation_config(plan,"L-s1",0,parent,[])["experiments"][0]
+    second = generation_config(plan,"L-s1",1,completed,[completed])["experiments"][0]
+    assert first["initial_model_id"] == parent["sha256"]
+    assert second["initial_model_id"] == completed["sha256"]
+    assert second["initial_model"] == completed["path"] and not second["fresh_optimizer"]
+    assert second["frozen_opponent_ids"] == {"league_s0":"a"*64,"league_s1":"b"*64}
+    assert first["opponents"].count("league_s0") == 5
+    assert second["opponents"].count("league_s0") == 1 and second["opponents"].count("league_s1") == 4
+    assert first["seed"] == 81011 and second["seed"] == 82011
+    assert plan == original
+    for chain in ("F-s1","L-s2"):
+        with pytest.raises(ValueError):validate_chain_plan(plan,chain)
+    for change in ({"encoder_version":"showdown-public-categorical-observation-v3"},
+                   {"training_regularizer":regularizer_contract(0)}):
+        with pytest.raises(ValueError):validate_chain_plan({**plan,"B0":{**parent,**change}},"L-s1")
+    for change in ({"fresh_optimizer":True},{"transfer_model":"other.zip"}):
+        changed=deepcopy(plan);changed["base_config"]["experiments"][0].update(change)
+        with pytest.raises(ValueError):validate_chain_plan(changed,"L-s1")

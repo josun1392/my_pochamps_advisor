@@ -22,21 +22,30 @@ from scripts.train_showdown_autonomous import run, validate_config, training_con
 
 VERSION = "showdown-matched-snapshot-continuation-study-v1"
 FIXED_VERSION = "showdown-fixed-continuation-windows-v1"
+COMBAT_VERSION = "showdown-v4-combat-snapshot-continuation-v1"
 
 
 def validate_chain_plan(plan, chain):
-    """Keep V0 league bounds; separately opt in to at most two 1M fixed windows."""
+    """Preserve old plans; opt in to one bounded V4 combat snapshot chain."""
     fixed = plan.get("schema_version") == FIXED_VERSION
-    if (plan.get("schema_version") not in (VERSION, FIXED_VERSION)
-            or chain not in ({"F-s1"} if fixed else {"F-s1", "F-s2", "L-s1", "L-s2"})
+    combat = plan.get("schema_version") == COMBAT_VERSION
+    if (plan.get("schema_version") not in (VERSION, FIXED_VERSION, COMBAT_VERSION)
+            or chain not in ({"F-s1"} if fixed else {"L-s1"} if combat else {"F-s1", "F-s2", "L-s1", "L-s2"})
             or type(plan.get("generations")) is not int
             or not 1 <= plan["generations"] <= (2 if fixed else 4)
             or type(plan.get("generation_transitions")) is not int
             or not 1024 <= plan["generation_transitions"] <= (1048576 if fixed else 262144)
             or plan["generation_transitions"] % 1024
-            or set(plan.get("continuation_seeds", {})) != ({"s1"} if fixed else {"s1", "s2"})):
+            or set(plan.get("continuation_seeds", {})) != ({"s1"} if fixed or combat else {"s1", "s2"})):
         raise ValueError("invalid_bounded_league_plan")
     regularizer_contract(plan["beta"])
+    if combat:
+        experiment = plan["base_config"]["experiments"][0]
+        v4 = "showdown-public-categorical-observation-v4"
+        if (plan["B0"]["encoder_version"] != v4 or experiment.get("encoder_version") != v4
+                or plan["B0"].get("training_regularizer") != regularizer_contract(plan["beta"])
+                or experiment.get("transfer_model") or experiment.get("fresh_optimizer", False)):
+            raise ValueError("combat_chain_requires_compatible_V4_optimizer_continuation")
 
 
 def generation_config(plan, chain, generation, parent, completed):
