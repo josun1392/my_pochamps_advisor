@@ -68,13 +68,15 @@ class ShowdownBridge:
                 any(type(response["resources"].get(key)) is not int or response["resources"][key] < 0
                     for key in ("episodes", "rss_bytes", "heap_used_bytes")) or
                 any(not isinstance(row, dict) or row.get("owner") != expected.get("owner") or
-                    row.get("status") not in {"ready", "saved", "closed", "rejected"}
+                    row.get("status") not in {"ready", "saved", "closed", "rejected", "preview"}
                     for row, expected in zip(response["results"], request["requests"]))):
                 raise ShowdownBridgeError("showdown_environment_response_mismatch")
             for row, expected in zip(response["results"], request["requests"]):
                 if row["status"] == "rejected":
                     continue
-                revision = (0 if expected["operation"] in {"reset", "restart", "import_native"} else
+                if (row["status"] == "preview") != (expected["operation"] == "inspect_preview"):
+                    raise ShowdownBridgeError("showdown_preview_operation_mismatch")
+                revision = (0 if expected["operation"] in {"reset", "restart", "import_native", "inspect_preview"} else
                             expected["revision"] + (1 if expected["operation"] == "step" else 0))
                 if type(row.get("revision")) is not int or row["revision"] != revision:
                     raise ShowdownBridgeError("showdown_environment_revision_mismatch")

@@ -1,6 +1,6 @@
 'use strict';
 const {createHash} = require('node:crypto');
-const {createLegalBattle} = require('./legal-battle.cjs');
+const {createLegalBattle, createPreviewBattle} = require('./legal-battle.cjs');
 const SCHEMA = 'showdown-environment-v1';
 const PIN = '942cda71d14bf0618bd57991708a2e2734b6daba';
 const FORMAT = 'gen9championsbssregmc';
@@ -90,6 +90,20 @@ function createEnvironmentService(engine) {
     let created;
     try {
       requireInput(typeof row.owner === 'string' && /^[a-f0-9]{32}$/.test(row.owner), 'invalid_episode_owner');
+      if (row.operation === 'inspect_preview') {
+        // Temporary native battle before ANY team choice. No episode, selected
+        // three, future history, opposing request, set or engine RNG in a view.
+        created = createPreviewBattle(row.scenario, engine, requireInput);
+        requireInput(created.requestState === 'teampreview', 'native_preview_unavailable');
+        const logs = engine.extractChannelMessages(created.log.join('\n'), [1, 2]);
+        const observations = Object.fromEntries(SIDES.map((side, i) => [side, {
+          schema_version: 'showdown-public-preview-v1', side,
+          own_request: clone(created.sides[i].activeRequest),
+          events: logs[i + 1].filter(line => /^\|(poke|clearpoke|teampreview|teamsize|gametype|gen|tier|rule)\|/.test(line)),
+        }]));
+        created.destroy(); created = null;
+        return {status: 'preview', owner: row.owner, revision: 0, observations};
+      }
       if (row.operation === 'reset' || row.operation === 'restart' || row.operation === 'import_native') {
         requireInput(!episodes.has(row.owner), 'episode_owner_exists');
         requireInput(episodes.size < 128, 'environment_capacity_exceeded');

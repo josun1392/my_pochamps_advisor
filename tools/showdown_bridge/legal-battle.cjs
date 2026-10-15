@@ -1,7 +1,7 @@
 'use strict';
 // Shared native legality/preview construction. No battle mechanics here.
 const FORMAT = 'gen9championsbssregmc';
-function createLegalBattle(scenario, engine, requireInput) {
+function createPreviewBattle(scenario, engine, requireInput) {
   const {Battle, TeamValidator} = engine;
   const format = engine.Dex.formats.get(FORMAT);
   requireInput(format.exists && format.mod === 'champions' && format.gameType === 'singles', 'format_unavailable');
@@ -16,16 +16,21 @@ function createLegalBattle(scenario, engine, requireInput) {
     requireInput(Array.isArray(slots) && slots.length === 6 && new Set(slots).size === 6 &&
       slots.every(n => Number.isInteger(n) && n >= 0), 'invalid_slot_mapping');
     teams[side].forEach((pokemon, index) => { pokemon.name = `slot-${slots[index]}`; });
+  }
+  return new Battle({formatid: FORMAT, seed: scenario.seed, strictChoices: true,
+    p1: {name: 'self', team: teams.self}, p2: {name: 'opponent', team: teams.opponent}});
+}
+function createLegalBattle(scenario, engine, requireInput) {
+  for (const side of ['self', 'opponent']) {
     const pick = scenario.preview?.[side];
     requireInput(Array.isArray(pick) && pick.length === 3 && new Set(pick).size === 3 &&
       pick.every(n => Number.isInteger(n) && n >= 1 && n <= 6), 'invalid_team_preview');
   }
-  const battle = new Battle({formatid: FORMAT, seed: scenario.seed, strictChoices: true,
-    p1: {name: 'self', team: teams.self}, p2: {name: 'opponent', team: teams.opponent}});
+  const battle = createPreviewBattle(scenario, engine, requireInput);
   try {
     requireInput(battle.choose('p1', `team ${scenario.preview.self.join('')}`), 'illegal_preview');
     requireInput(battle.choose('p2', `team ${scenario.preview.opponent.join('')}`), 'illegal_preview');
     return battle;
   } catch (error) { battle.destroy(); throw error; }
 }
-module.exports = {createLegalBattle};
+module.exports = {createLegalBattle, createPreviewBattle};

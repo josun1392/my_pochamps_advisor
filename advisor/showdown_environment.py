@@ -151,6 +151,21 @@ class ShowdownEnvironment:
             scenario["seed"] = list(seed)
         return self._initialize("reset", scenario=scenario)
 
+    def preview(self, scenario, side):
+        """One owner's native six-member request and pre-choice public log only.
+
+        Does not start/modify an execution episode. Selection/RNG/scenario data
+        remain coordinator-owned; the opponent's private request is not returned.
+        """
+        if side not in SIDES:
+            raise ValueError("invalid_policy_side")
+        with self._lock:
+            row = self._check(self._request([{"operation": "inspect_preview",
+                "owner": uuid4().hex, "scenario": deepcopy(scenario)}])[0])
+            if row.get("status") != "preview" or set(row.get("observations", {})) != set(SIDES):
+                raise ShowdownEnvironmentError("invalid_native_preview")
+            return deepcopy(row["observations"][side])
+
     def from_native_checkpoint(self, checkpoint):
         """Import through the existing detached compatibility authority first."""
         from llm.advisor_showdown_simulation import _checkpoint_fingerprint
