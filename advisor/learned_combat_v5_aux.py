@@ -120,6 +120,8 @@ class IntegratedCombatV5PPO(RegularizedMaskablePPO):
         # Same time-major order as the appended targets, before SB3 swaps axes.
         self._auxiliary_observations=self.rollout_buffer.observations.reshape(-1,self.observation_space.shape[0]).copy()
         if len(self._auxiliary_rows)!=len(self._auxiliary_observations):raise ValueError("v5_rollout_target_alignment")
+    def _auxiliary_indices(self,n):return np.random.randint(0,len(self._auxiliary_rows),size=min(128,n))
+    def _supervised_loss(self,observations,labels):return supervised_loss(self.policy,observations,labels)
     def train(self):
         if not hasattr(self,"_auxiliary_rows") or len(self._auxiliary_rows)!=self.n_steps*self.n_envs:
             raise ValueError("v5_training_requires_aligned_coordinator_supervision")
@@ -131,9 +133,9 @@ class IntegratedCombatV5PPO(RegularizedMaskablePPO):
             values,logp,entropy=original(obs,actions,action_masks=action_masks)
             # Does not call get_distribution: the PPO action distribution and
             # legality state used by the enclosing KL regularizer stay intact.
-            ids=np.random.randint(0,len(self._auxiliary_rows),size=min(128,len(obs)))
+            ids=self._auxiliary_indices(len(obs))
             x=torch.as_tensor(self._auxiliary_observations[ids],device=self.device)
-            loss,last=supervised_loss(self.policy,x,[self._auxiliary_rows[i] for i in ids])
+            loss,last=self._supervised_loss(x,[self._auxiliary_rows[i] for i in ids])
             losses.append(float(loss.detach()));entropies.append(float(entropy.detach().mean()))
             return values,logp,entropy-(auxiliary_contract()["coefficient"]/self.ent_coef)*loss
         self.policy.evaluate_actions=evaluate

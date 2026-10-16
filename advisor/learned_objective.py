@@ -10,7 +10,8 @@ CATEGORICAL_VERSIONS = (CATEGORICAL, "showdown-public-categorical-observation-v2
                         "showdown-public-categorical-observation-v4-history-sequence-v1",
                         "showdown-public-categorical-observation-v4-history-sequence-ablated-v1",
                         "showdown-public-categorical-observation-v5-integrated-v1",
-                        "showdown-public-categorical-observation-v5-integrated-v2")
+                        "showdown-public-categorical-observation-v5-integrated-v2",
+                        "showdown-public-categorical-observation-v5-integrated-v3")
 UNDISCOUNTED = "native_terminal_win_loss_draw_undiscounted_v1"
 DISCOUNTED = "native_terminal_win_loss_draw_discounted_v1"
 
@@ -26,6 +27,10 @@ def categorical_learning_source_identity():
         "advisor/learned_history_sequence.py", "advisor/learned_history_sequence_policy.py",
         "advisor/learned_combat_v5.py", "advisor/learned_combat_v5_policy.py", "advisor/learned_combat_v5_aux.py",
         "advisor/learned_combat_v5_metrics.py",
+        "advisor/learned_combat_v5_strategic.py", "advisor/learned_combat_v5_strategic_policy.py",
+        "advisor/learned_combat_v5_strategic_aux.py", "advisor/learned_combat_v5_references.py",
+        "advisor/learned_public_boosts.py",
+        "advisor/learned_combat_v5_strategic_metrics.py", "models/showdown_combat_priors_v3/catalog.json",
         "advisor/learned_action_encoder.py", "advisor/learned_public_interactions.py",
         "advisor/learned_tactics_encoder.py", "advisor/learned_encoder.py",
         "advisor/learned_gym.py", "advisor/learned_parallel.py",

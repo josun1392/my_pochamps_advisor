@@ -62,7 +62,7 @@ class ShowdownLearningEnv(gym.Env):
         self.terminal_transport_version = terminal_transport_version
         self.training_subset = training_subset
         self.collect_v5_supervision = collect_v5_supervision
-        if collect_v5_supervision and encoder.version not in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2"):
+        if collect_v5_supervision and encoder.version not in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2", "showdown-public-categorical-observation-v5-integrated-v3"):
             raise ValueError("v5_supervision_requires_v5_public_encoder")
         self.tactical_counts = Counter()
         self.retry_diagnostics = []
@@ -263,6 +263,8 @@ class ShowdownLearningEnv(gym.Env):
         v5_targets = None
         if self.collect_v5_supervision:
             from advisor.learned_combat_v5_aux import supervision_targets
+            if self.encoder.version == "showdown-public-categorical-observation-v5-integrated-v3":
+                from advisor.learned_combat_v5_strategic_aux import supervision_targets
             v5_targets = supervision_targets(v5_before, v5_opponent,
                 self.current["public_history"][len(v5_before["public_history"]):], self.encoder)
         return (

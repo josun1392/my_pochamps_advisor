@@ -26,6 +26,9 @@ class IntegratedCombatV5Extractor(PublicHistorySequenceExtractor):
         self.scorer[0]=nn.Linear(64+LATENT_ACTION+NEW_ACTION,128)
         self.critic[0]=nn.Linear(OLD_CONTEXT+NEW_CONTEXT+LATENT_ACTION+NEW_ACTION,128)
 
+    def _prediction_input(self,public_context,auxiliary):
+        return public_context.detach()+.1*(public_context-public_context.detach()) if auxiliary else public_context
+
     def components(self,features,*,auxiliary=False):
         if features.shape[1]!=DIMENSION:raise ValueError("v5_input_shape_mismatch")
         offset=OLD_DIM
@@ -44,7 +47,7 @@ class IntegratedCombatV5Extractor(PublicHistorySequenceExtractor):
         if not torch.isfinite(tactic).all() or (tactic.abs()>4).any():raise ValueError("invalid_v5_tactical_feature")
         public_context=torch.cat((context,hp),dim=1)
         # Auxiliary gradients to the reused public encoder are deliberately 0.1x.
-        input_context=public_context.detach()+.1*(public_context-public_context.detach()) if auxiliary else public_context
+        input_context=self._prediction_input(public_context,auxiliary)
         latent=self.prediction_encoder(input_context)
         logits={k.removeprefix("head_"):head(latent) for k,head in self.prediction_heads.items()}
         supports={}

@@ -178,6 +178,9 @@ class ActionObservationEncoder(PartialObservationEncoder):
 
 
 def make_encoder(catalog, version):
+    if version == "showdown-public-categorical-observation-v5-integrated-v3":
+        from advisor.learned_combat_v5_strategic import StrategicCombatV5Encoder
+        return StrategicCombatV5Encoder(catalog)
     if version in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2"):
         from advisor.learned_combat_v5 import IntegratedCombatV5Encoder
         return IntegratedCombatV5Encoder(catalog, version=version)

@@ -43,6 +43,9 @@ from advisor.learned_history_sequence_policy import PublicHistorySequencePolicy,
 from advisor.learned_combat_v5 import VERSIONS as COMBAT_V5_VERSIONS
 from advisor.learned_combat_v5_policy import IntegratedCombatV5Policy, transfer_combat_v5_weights, transfer_combat_v5_appearance_weights
 from advisor.learned_combat_v5_aux import IntegratedCombatV5PPO
+from advisor.learned_combat_v5_strategic import VERSION as STRATEGIC_COMBAT_V5
+from advisor.learned_combat_v5_strategic_policy import StrategicCombatV5Policy, transfer_strategic_combat_v5_weights
+from advisor.learned_combat_v5_strategic_aux import StrategicCombatV5PPO
 from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
 from advisor.learning_resources import (
     WindowsJob,
@@ -872,7 +875,7 @@ def run(
                     raise ValueError("resume_regularizer_contract_mismatch")
                 # Enabling a new objective from an explicitly declared legacy parent
                 # preserves compatible tensors AND Adam, never a mid-rollout claim.
-                algorithm = type(loaded.model) if encoder.version in COMBAT_V5_VERSIONS else RegularizedMaskablePPO if requested_regularizer else type(loaded.model)
+                algorithm = type(loaded.model) if encoder.version in (*COMBAT_V5_VERSIONS, STRATEGIC_COMBAT_V5) else RegularizedMaskablePPO if requested_regularizer else type(loaded.model)
                 model = (
                     loaded.model
                     if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer
@@ -896,9 +899,11 @@ def run(
                             **model.policy.optimizer_kwargs,
                         )
             else:
-                algorithm = IntegratedCombatV5PPO if encoder.version in COMBAT_V5_VERSIONS else RegularizedMaskablePPO if "zero_avoiding_beta" in experiment else MaskablePPO
+                algorithm = StrategicCombatV5PPO if encoder.version == STRATEGIC_COMBAT_V5 else IntegratedCombatV5PPO if encoder.version in COMBAT_V5_VERSIONS else RegularizedMaskablePPO if "zero_avoiding_beta" in experiment else MaskablePPO
                 model = algorithm(
-                    IntegratedCombatV5Policy
+                    StrategicCombatV5Policy
+                    if encoder.version == STRATEGIC_COMBAT_V5
+                    else IntegratedCombatV5Policy
                     if encoder.version in COMBAT_V5_VERSIONS
                     else PublicHistorySequencePolicy
                     if encoder.version in HISTORY_VERSIONS
@@ -952,7 +957,9 @@ def run(
                 transfer_source = LearnedPolicy(experiment["transfer_model"], catalog,
                     expected_model_id=experiment.get("transfer_model_id"))
                 if encoder.version in PUBLIC_CATEGORICAL_VERSIONS:
-                    if encoder.version in COMBAT_V5_VERSIONS:
+                    if encoder.version == STRATEGIC_COMBAT_V5:
+                        transfer_strategic_combat_v5_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
+                    elif encoder.version in COMBAT_V5_VERSIONS:
                         if transfer_source.encoder.version in COMBAT_V5_VERSIONS:
                             transfer_combat_v5_appearance_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
                         else:

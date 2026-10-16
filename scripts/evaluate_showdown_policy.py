@@ -206,8 +206,10 @@ def evaluate(
                     requested_heal_full_hp = 0
                     native_rejections = 0
                     prediction_metrics = None
-                    if integrated_diagnostics and isinstance(player, LearnedPolicy) and player.encoder.version in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2"):
+                    if integrated_diagnostics and isinstance(player, LearnedPolicy) and player.encoder.version in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2", "showdown-public-categorical-observation-v5-integrated-v3"):
                         from advisor.learned_combat_v5_metrics import V5PredictionMetrics
+                        if player.encoder.version == "showdown-public-categorical-observation-v5-integrated-v3":
+                            from advisor.learned_combat_v5_strategic_metrics import StrategicV5PredictionMetrics as V5PredictionMetrics
                         prediction_metrics = V5PredictionMetrics()
                     prefix_history_length = len(
                         env.observation("self", include_history=True)["public_history"]

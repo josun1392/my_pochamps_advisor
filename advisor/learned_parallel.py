@@ -73,5 +73,5 @@ class LearningEnvFactory:
             collect_public_trajectories=self.collect_public_trajectories,
             terminal_transport_version=self.terminal_transport_version,
             training_subset=subset,
-            collect_v5_supervision=self.encoder_version in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2"),
+            collect_v5_supervision=self.encoder_version in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2", "showdown-public-categorical-observation-v5-integrated-v3"),
         )

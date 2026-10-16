@@ -96,8 +96,11 @@ class LearnedPolicy:
             from advisor.learned_history_sequence_policy import PublicHistorySequencePolicy
             from advisor.learned_combat_v5 import VERSIONS as COMBAT_V5_VERSIONS
             from advisor.learned_combat_v5_policy import IntegratedCombatV5Policy
+            from advisor.learned_combat_v5_strategic import VERSION as STRATEGIC_COMBAT_V5
+            from advisor.learned_combat_v5_strategic_policy import StrategicCombatV5Policy
 
-            required = (IntegratedCombatV5Policy if self.encoder.version in COMBAT_V5_VERSIONS
+            required = (StrategicCombatV5Policy if self.encoder.version == STRATEGIC_COMBAT_V5
+                        else IntegratedCombatV5Policy if self.encoder.version in COMBAT_V5_VERSIONS
                         else PublicHistorySequencePolicy if self.encoder.version in HISTORY_VERSIONS
                         else OwnExactHPCategoricalPolicy if self.encoder.version in HP_VERSIONS
                         else StrategicPublicCategoricalPolicy if self.encoder.version == "showdown-public-categorical-observation-v4"

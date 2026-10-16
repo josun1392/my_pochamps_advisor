@@ -88,6 +88,11 @@ def model_regularizer_contract(model):
 
 
 def checkpoint_algorithm(metadata):
+    if metadata.get("encoder_version") == "showdown-public-categorical-observation-v5-integrated-v3":
+        from advisor.learned_combat_v5_strategic_aux import StrategicCombatV5PPO, auxiliary_contract
+        if metadata.get("integrated_auxiliary") != auxiliary_contract():
+            raise ValueError("strategic_v5_auxiliary_checkpoint_contract_required")
+        return StrategicCombatV5PPO
     if metadata.get("encoder_version") in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2"):
         from advisor.learned_combat_v5_aux import IntegratedCombatV5PPO, auxiliary_contract
         if metadata.get("integrated_auxiliary") != auxiliary_contract():
