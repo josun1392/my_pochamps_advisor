@@ -88,6 +88,11 @@ def model_regularizer_contract(model):
 
 
 def checkpoint_algorithm(metadata):
+    if metadata.get("encoder_version") in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2"):
+        from advisor.learned_combat_v5_aux import IntegratedCombatV5PPO, auxiliary_contract
+        if metadata.get("integrated_auxiliary") != auxiliary_contract():
+            raise ValueError("v5_auxiliary_checkpoint_contract_required")
+        return IntegratedCombatV5PPO
     contract = metadata.get("training_regularizer")
     if contract is None:
         return MaskablePPO
@@ -99,3 +104,5 @@ def checkpoint_algorithm(metadata):
 def validate_loaded_regularizer(model, metadata):
     if model_regularizer_contract(model) != metadata.get("training_regularizer"):
         raise ValueError("checkpoint_regularizer_persistence_mismatch")
+    if hasattr(model, "auxiliary_metadata") and model.auxiliary_metadata() != metadata.get("integrated_auxiliary"):
+        raise ValueError("v5_auxiliary_persistence_mismatch")

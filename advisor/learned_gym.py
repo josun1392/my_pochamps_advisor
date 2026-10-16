@@ -31,6 +31,7 @@ class ShowdownLearningEnv(gym.Env):
         collect_public_trajectories=False,
         terminal_transport_version=None,
         training_subset=None,
+        collect_v5_supervision=False,
     ):
         if collect_public_trajectories and not collect_tactical_metrics:
             raise ValueError("public_collection_requires_public_execution_metrics")
@@ -60,6 +61,9 @@ class ShowdownLearningEnv(gym.Env):
         self._collection_step = None
         self.terminal_transport_version = terminal_transport_version
         self.training_subset = training_subset
+        self.collect_v5_supervision = collect_v5_supervision
+        if collect_v5_supervision and encoder.version not in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2"):
+            raise ValueError("v5_supervision_requires_v5_public_encoder")
         self.tactical_counts = Counter()
         self.retry_diagnostics = []
         self.public_behavior_counts = Counter()
@@ -185,6 +189,11 @@ class ShowdownLearningEnv(gym.Env):
             or not self.action_masks()[int(action)]
         ):
             raise ValueError("masked_learning_action")
+        if self.collect_v5_supervision:
+            # Loss-only predecision supervision. Never installed in self.current,
+            # encoder input, native rewards, actor observations or value targets.
+            v5_before = deepcopy(self.current)
+            v5_opponent = self.native.observation("opponent", include_history=True)
         if getattr(self, "collect_public_trajectories", False):
             from advisor.learned_failure_opponent import request_move
             collection_previous_features = self.encoder.encode(self.current)
@@ -251,6 +260,11 @@ class ShowdownLearningEnv(gym.Env):
             terminal_encoding_unavailable = True
         if getattr(self, "collect_public_trajectories", False):
             self._collection_step["terminal_encoding_unavailable"] = terminal_encoding_unavailable
+        v5_targets = None
+        if self.collect_v5_supervision:
+            from advisor.learned_combat_v5_aux import supervision_targets
+            v5_targets = supervision_targets(v5_before, v5_opponent,
+                self.current["public_history"][len(v5_before["public_history"]):], self.encoder)
         return (
             final_features,
             float(result["rewards"]["self"]),
@@ -258,6 +272,7 @@ class ShowdownLearningEnv(gym.Env):
             result["truncated"],
             {
                 **self._policy_info(),
+                **({"coordinator_v5_supervision": v5_targets} if self.collect_v5_supervision else {}),
                 **({"collector_terminal_encoding_unavailable": True} if terminal_encoding_unavailable else {}),
                 **({"terminal_transport_version": OPAQUE_TERMINAL}
                    if result["terminated"] and getattr(self, "terminal_transport_version", None) == OPAQUE_TERMINAL else {}),

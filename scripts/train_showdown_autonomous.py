@@ -40,6 +40,9 @@ from advisor.learned_own_hp import VERSIONS as HP_VERSIONS
 from advisor.learned_own_hp_policy import OwnExactHPCategoricalPolicy, transfer_own_hp_weights
 from advisor.learned_history_sequence import VERSIONS as HISTORY_VERSIONS
 from advisor.learned_history_sequence_policy import PublicHistorySequencePolicy, transfer_history_sequence_weights
+from advisor.learned_combat_v5 import VERSIONS as COMBAT_V5_VERSIONS
+from advisor.learned_combat_v5_policy import IntegratedCombatV5Policy, transfer_combat_v5_weights, transfer_combat_v5_appearance_weights
+from advisor.learned_combat_v5_aux import IntegratedCombatV5PPO
 from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
 from advisor.learning_resources import (
     WindowsJob,
@@ -323,6 +326,8 @@ def save_checkpoint(model, encoder, directory, metadata):
             "evidence_class": "learned_policy_value",
             "interpretation": "experimental_policy_distribution_and_discounted_return_not_exact_win_probability",
             "algorithm": "sb3-contrib-MaskablePPO",
+            **({"integrated_auxiliary": model.auxiliary_metadata()} if hasattr(model, "auxiliary_metadata") else {}),
+            **({"integrated_auxiliary_counts": getattr(model,"v5_target_counts",{})} if hasattr(model,"auxiliary_metadata") else {}),
             **({"training_regularizer": model_regularizer_contract(model)}
                if model_regularizer_contract(model) is not None else {}),
             "versions": {
@@ -405,12 +410,16 @@ class BudgetCallback(BaseCallback):
         self.update_start = None
 
     def _on_step(self):
+        if hasattr(self.model, "record_auxiliary"):
+            self.model.record_auxiliary(self.locals["infos"])
         if self.progress and time() - self.last_progress >= 2:
             self.progress(self.model.num_timesteps)
             self.last_progress = time()
         return not self.budget.stopping()
 
     def _on_rollout_start(self):
+        if hasattr(self.model, "begin_auxiliary_rollout"):
+            self.model.begin_auxiliary_rollout()
         require_finite_ppo(self.model)
         if self.collect_diagnostics:
             now = perf_counter()
@@ -419,6 +428,8 @@ class BudgetCallback(BaseCallback):
             self.rollout_start, self.update_start = now, None
 
     def _on_rollout_end(self):
+        if hasattr(self.model, "freeze_auxiliary_rollout"):
+            self.model.freeze_auxiliary_rollout()
         require_finite_ppo(self.model, rollout=True)
         if self.collect_diagnostics:
             now = perf_counter()
@@ -861,7 +872,7 @@ def run(
                     raise ValueError("resume_regularizer_contract_mismatch")
                 # Enabling a new objective from an explicitly declared legacy parent
                 # preserves compatible tensors AND Adam, never a mid-rollout claim.
-                algorithm = RegularizedMaskablePPO if requested_regularizer else type(loaded.model)
+                algorithm = type(loaded.model) if encoder.version in COMBAT_V5_VERSIONS else RegularizedMaskablePPO if requested_regularizer else type(loaded.model)
                 model = (
                     loaded.model
                     if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer
@@ -885,9 +896,11 @@ def run(
                             **model.policy.optimizer_kwargs,
                         )
             else:
-                algorithm = RegularizedMaskablePPO if "zero_avoiding_beta" in experiment else MaskablePPO
+                algorithm = IntegratedCombatV5PPO if encoder.version in COMBAT_V5_VERSIONS else RegularizedMaskablePPO if "zero_avoiding_beta" in experiment else MaskablePPO
                 model = algorithm(
-                    PublicHistorySequencePolicy
+                    IntegratedCombatV5Policy
+                    if encoder.version in COMBAT_V5_VERSIONS
+                    else PublicHistorySequencePolicy
                     if encoder.version in HISTORY_VERSIONS
                     else OwnExactHPCategoricalPolicy
                     if encoder.version in HP_VERSIONS
@@ -939,7 +952,12 @@ def run(
                 transfer_source = LearnedPolicy(experiment["transfer_model"], catalog,
                     expected_model_id=experiment.get("transfer_model_id"))
                 if encoder.version in PUBLIC_CATEGORICAL_VERSIONS:
-                    if encoder.version in HISTORY_VERSIONS:
+                    if encoder.version in COMBAT_V5_VERSIONS:
+                        if transfer_source.encoder.version in COMBAT_V5_VERSIONS:
+                            transfer_combat_v5_appearance_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
+                        else:
+                            transfer_combat_v5_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
+                    elif encoder.version in HISTORY_VERSIONS:
                         transfer_history_sequence_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
                     elif encoder.version in HP_VERSIONS:
                         transfer_own_hp_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)

@@ -153,6 +153,7 @@ def evaluate(
     case_provider=None,
     candidate_seat="p1",
     seat_contract=NATIVE_SEAT_CONTRACT,
+    integrated_diagnostics=False,
 ):
     if candidate_seat not in ("p1", "p2"):
         raise ValueError("invalid_candidate_seat")
@@ -204,6 +205,10 @@ def evaluate(
                     tactical_counts = Counter()
                     requested_heal_full_hp = 0
                     native_rejections = 0
+                    prediction_metrics = None
+                    if integrated_diagnostics and isinstance(player, LearnedPolicy) and player.encoder.version in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2"):
+                        from advisor.learned_combat_v5_metrics import V5PredictionMetrics
+                        prediction_metrics = V5PredictionMetrics()
                     prefix_history_length = len(
                         env.observation("self", include_history=True)["public_history"]
                     )
@@ -273,6 +278,8 @@ def evaluate(
                             {candidate_side: action, rival_side: rival.act(other)},
                             revision=own["revision"],
                         )
+                        if prediction_metrics is not None and prediction_metrics.rows < 8 and not own["action_mask"][26]:
+                            prediction_metrics.observe(player, own, other, env.observation(candidate_side, include_history=True))
                         steps += 1
                         native_rejections += int(result["action_rejected"])
                         if result["terminated"] or result["truncated"]:
@@ -327,6 +334,7 @@ def evaluate(
                             if values
                             else None,
                             "action_counts": dict(action_counts),
+                            **({"v5_prediction_metrics": prediction_metrics.result()} if prediction_metrics is not None else {}),
                             "native_own_move_counts": dict(own_moves),
                             "native_own_failed_heals": heal_failures,
                             # Legacy count names the recipient, not the move's actor.

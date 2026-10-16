@@ -21,7 +21,9 @@ VERSIONS = (VERSION, REQUEST_IDENTITY_VERSION, RUNTIME_ABILITY_VERSION, "showdow
             "showdown-public-categorical-observation-v4-own-exact-hp-v1",
             "showdown-public-categorical-observation-v4-own-exact-hp-ablated-v1",
             "showdown-public-categorical-observation-v4-history-sequence-v1",
-            "showdown-public-categorical-observation-v4-history-sequence-ablated-v1")
+            "showdown-public-categorical-observation-v4-history-sequence-ablated-v1",
+            "showdown-public-categorical-observation-v5-integrated-v1",
+            "showdown-public-categorical-observation-v5-integrated-v2")
 CATALOG_PATH = Path(__file__).resolve().parents[1] / "models/showdown_public_categories_v1/catalog.json"
 PAD, UNKNOWN, ABSENT = 0, 1, 2
 BITS = {"species": 11, "abilities": 9, "items": 8, "moves": 10}
