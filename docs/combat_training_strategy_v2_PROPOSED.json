@@ -1,0 +1,58 @@
+{
+  "schema_version": "combat-training-strategy-v2-deterministic-generalization-proposal",
+  "status": "T1_AUTHORIZATION_REQUIRED_NOT_STARTED",
+  "authorized_ppo_transitions": 0,
+  "future_transition_budget": null,
+  "not_an_executable_trainer_config": true,
+  "decision": "REVISED_TRAINING_STRATEGY_REQUIRED",
+  "deployment_execution": "native_masked_argmax",
+  "learning_execution": "upstream_maskable_PPO_stochastic_rollouts",
+  "objective_interpretation": "sparse_terminal_expected_return_PPO_surrogate_not_exact_gradient_of_argmax_return",
+  "parent": {
+    "foundation_contract": "showdown-combat-foundation-v1",
+    "model_sha256": "9b3eb94aabea1fb25e75dfdba0b733c2a9acd45434ae368a86e14d8979950ccf",
+    "parent_trained_transitions": 1048576,
+    "restored_Adam_clock": 32768,
+    "fresh_optimizer": false,
+    "historical_campaign_resume": false,
+    "required_new_run_namespace": true
+  },
+  "single_training_variable_to_change": {
+    "variable": "TRAIN_team_distribution_coverage",
+    "from": "SHA_bound_256_team_subset",
+    "to": "existing_native_V8_full_4096_TRAIN_team_bank",
+    "causal_status": "hypothesis_not_demonstrated_bottleneck_or_guaranteed_improvement"
+  },
+  "unchanged": [
+    "foundation_architecture_and_encoder_contract",
+    "existing_public_priors_and_their_256_team_provenance",
+    "native_35_action_schema_and_mask_authority",
+    "terminal_win_loss_draw_reward",
+    "gamma_GAE_learning_rate_epochs_clipping_value_coefficient",
+    "entropy_reverse_KL_and_auxiliary_losses",
+    "original_10_slot_frozen_opponent_mixture_and_SHA_identities",
+    "coordinator_preview_selection_protocol",
+    "four_workers_CPU50_percent_RAM12GiB_CPU_only"
+  ],
+  "pretraining_gates": [
+    "T1_sets_explicit_budget_and_authorizes_new_campaign",
+    "freeze_new_source_config_parent_Adam_and_team_bank_identities",
+    "audit_full_TRAIN_public_encoder_support_and_unknown_out_of_support_rates",
+    "fail_closed_if_native_legality_privacy_or_resource_support_is_inadequate",
+    "do_not_change_architecture_priors_reward_or_PPO_hyperparameters_to_force_pass"
+  ],
+  "selection_contract": {
+    "candidate_scope": "predeclared_endpoints_only_no_repeated_panel_maximum",
+    "primary_execution": "argmax",
+    "controls": [
+      "original_V4_acb98005c664bd9f272d9a35871b0a60d618af37b64213da44960c4ad884aa2a",
+      "fixed_Stage1_parent_9b3eb94aabea1fb25e75dfdba0b733c2a9acd45434ae368a86e14d8979950ccf"
+    ],
+    "evaluation": "fresh_validation_manifest_fixed_before_training_both_seats_S0_and_anchor_case_cluster_uncertainty",
+    "success_requires": "argmax_competitive_improvement_and_multiplicity_aware_anchor_guard_not_sampling_or_auxiliary_accuracy_alone",
+    "panels_from_execution_alignment_study": "CONSUMED_DO_NOT_REUSE_AS_UNTOUCHED",
+    "sealed_final_rare_98171000": "UNCONSUMED_RESERVED_FOR_FINAL_SELECTION_ONLY",
+    "no_automatic_budget_extension_or_production_promotion": true
+  },
+  "campaign_launch_authorized_by_this_file": false
+}
