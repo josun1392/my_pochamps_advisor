@@ -27,6 +27,7 @@ class LearningEnvFactory:
     terminal_transport_version: str | None = None
     training_subset_path: str | None = None
     training_subset_sha256: str | None = None
+    foundation_profile: bool = False
 
     def __call__(self):
         import torch
@@ -60,9 +61,15 @@ class LearningEnvFactory:
         if self.training_subset_path:
             from advisor.learned_training_subset import NativeTrainingSubset
             subset = NativeTrainingSubset(self.training_subset_path, self.training_subset_sha256)
-        return ShowdownLearningEnv(
+        encoder = make_encoder(self.catalog, self.encoder_version)
+        if self.foundation_profile:
+            from advisor.learned_combat_foundation import FoundationCombatEncoder, ENCODER_VERSION
+            if self.encoder_version != ENCODER_VERSION:
+                raise ValueError("foundation_public_encoder_required")
+            encoder = FoundationCombatEncoder(self.catalog)
+        env = ShowdownLearningEnv(
             self.checkout,
-            make_encoder(self.catalog, self.encoder_version),
+            encoder,
             index_offset=self.index_offset,
             curriculum_version=self.curriculum_version,
             opponents=self.opponents,
@@ -75,3 +82,7 @@ class LearningEnvFactory:
             training_subset=subset,
             collect_v5_supervision=self.encoder_version in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2", "showdown-public-categorical-observation-v5-integrated-v3"),
         )
+        if self.foundation_profile:
+            from advisor.learned_combat_foundation import install_environment_profile
+            install_environment_profile(env)
+        return env

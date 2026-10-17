@@ -34,6 +34,9 @@ class LearnedPolicy:
             if require_manifest
             else ENCODER_VERSION,
         )
+        if "combat_foundation" in self.metadata:
+            from advisor.learned_combat_foundation import FoundationCombatEncoder
+            self.encoder = FoundationCombatEncoder(catalog)
         if require_manifest and (
             self.metadata.get("schema_version") != "showdown-learned-model-v1"
             or self.metadata.get("evidence_class") != "learned_policy_value"
@@ -106,6 +109,9 @@ class LearnedPolicy:
                         else StrategicPublicCategoricalPolicy if self.encoder.version == "showdown-public-categorical-observation-v4"
                         else PublicCategoricalPolicy if self.encoder.version in CATEGORICAL_VERSIONS
                         else OwnMoveTokenPolicy)
+            if "combat_foundation" in self.metadata:
+                from advisor.learned_combat_foundation import FoundationCombatPolicy
+                required = FoundationCombatPolicy
             if type(self.model.policy) is not required:
                 raise ValueError("public_categorical_policy_required"
                                  if self.encoder.version in CATEGORICAL_VERSIONS
@@ -118,11 +124,14 @@ class LearnedPolicy:
             raise ValueError("no_native_policy_action")
         with torch.no_grad():
             tensor = torch.tensor(features)[None, :]
-            distribution = self.model.policy.get_distribution(
-                tensor, action_masks=mask[None, :]
-            )
+            if "combat_foundation" in self.metadata:
+                _, values, _ = self.model.policy(tensor, action_masks=mask[None, :], deterministic=True)
+                distribution = self.model.policy.action_dist
+                value = float(values.flatten()[0])
+            else:
+                distribution = self.model.policy.get_distribution(tensor, action_masks=mask[None, :])
+                value = float(self.model.policy.predict_values(tensor).flatten()[0])
             probabilities = distribution.distribution.probs[0].cpu().numpy()
-            value = float(self.model.policy.predict_values(tensor).flatten()[0])
         if (
             not math.isfinite(value)
             or not np.all(np.isfinite(probabilities))

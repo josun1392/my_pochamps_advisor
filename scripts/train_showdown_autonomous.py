@@ -46,6 +46,9 @@ from advisor.learned_combat_v5_aux import IntegratedCombatV5PPO
 from advisor.learned_combat_v5_strategic import VERSION as STRATEGIC_COMBAT_V5
 from advisor.learned_combat_v5_strategic_policy import StrategicCombatV5Policy, transfer_strategic_combat_v5_weights
 from advisor.learned_combat_v5_strategic_aux import StrategicCombatV5PPO
+from advisor.learned_combat_foundation import (
+    FoundationCombatPPO, FoundationCombatPolicy, FoundationCombatEncoder, foundation_contract, transfer_foundation_weights,
+)
 from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
 from advisor.learning_resources import (
     WindowsJob,
@@ -163,6 +166,17 @@ def validate_config(config):
         raise ValueError("invalid_reference_models")
     rollout = 128 * config.get("envs", 4)
     for experiment in config["experiments"]:
+        if "combat_foundation" in experiment:
+            if (experiment["combat_foundation"] != foundation_contract()
+                    or experiment.get("encoder_version") != STRATEGIC_COMBAT_V5
+                    or experiment.get("gamma") != 1 or experiment.get("gae_lambda") != .95
+                    or experiment.get("zero_avoiding_beta") != .001
+                    or experiment.get("ent_coef") != .01
+                    or experiment.get("warmstart_decisions", 0) or experiment.get("offline")
+                    or config.get("memory_mib", 0) > 12288 or config.get("cpu_percent", 0) > 50
+                    or config.get("cpu_threads", 1) != 1
+                    or config.get("transition_budget_scope") != "trained_rollouts_v1"):
+                raise ValueError("combat_foundation_training_contract_mismatch")
         experiment_objective(experiment, experiment.get("encoder_version", VERSION))
         if "zero_avoiding_beta" in experiment:
             regularizer_contract(experiment["zero_avoiding_beta"])
@@ -345,6 +359,7 @@ def save_checkpoint(model, encoder, directory, metadata):
                 )
             },
             "policy_class": type(model.policy).__name__,
+            **({"combat_foundation": foundation_contract()} if isinstance(model, FoundationCombatPPO) else {}),
             "model_seed": model.seed,
             "encoder_version": encoder.version,
             "catalog_fingerprint": encoder.catalog_fingerprint,
@@ -791,6 +806,8 @@ def run(
             np.random.seed(seed)
             random.seed(seed)
             encoder = make_encoder(catalog, experiment.get("encoder_version", VERSION))
+            if "combat_foundation" in experiment:
+                encoder = FoundationCombatEncoder(catalog)
             historical_path = freeze_historical_reference(
                 state,
                 number,
@@ -851,6 +868,7 @@ def run(
                     terminal_transport_version=config.get("terminal_transport_version"),
                     training_subset_path=config.get("training_subset"),
                     training_subset_sha256=config.get("training_subset_sha256"),
+                    foundation_profile="combat_foundation" in experiment,
                 )
                 for i in range(config.get("envs", 4))
             ]
@@ -866,6 +884,8 @@ def run(
                     expected_model_id=None if source else experiment.get("initial_model_id"))
                 if loaded.encoder.version != encoder.version:
                     raise ValueError("initial_model_encoder_mismatch")
+                if loaded.metadata.get("combat_foundation") != experiment.get("combat_foundation"):
+                    raise ValueError("foundation_initialization_requires_explicit_weight_transfer")
                 require_resume_objective(loaded.model, experiment, encoder.version)
                 requested_regularizer = (regularizer_contract(experiment["zero_avoiding_beta"])
                                          if "zero_avoiding_beta" in experiment else None)
@@ -899,9 +919,11 @@ def run(
                             **model.policy.optimizer_kwargs,
                         )
             else:
-                algorithm = StrategicCombatV5PPO if encoder.version == STRATEGIC_COMBAT_V5 else IntegratedCombatV5PPO if encoder.version in COMBAT_V5_VERSIONS else RegularizedMaskablePPO if "zero_avoiding_beta" in experiment else MaskablePPO
+                algorithm = FoundationCombatPPO if "combat_foundation" in experiment else StrategicCombatV5PPO if encoder.version == STRATEGIC_COMBAT_V5 else IntegratedCombatV5PPO if encoder.version in COMBAT_V5_VERSIONS else RegularizedMaskablePPO if "zero_avoiding_beta" in experiment else MaskablePPO
                 model = algorithm(
-                    StrategicCombatV5Policy
+                    FoundationCombatPolicy
+                    if "combat_foundation" in experiment
+                    else StrategicCombatV5Policy
                     if encoder.version == STRATEGIC_COMBAT_V5
                     else IntegratedCombatV5Policy
                     if encoder.version in COMBAT_V5_VERSIONS
@@ -957,7 +979,9 @@ def run(
                 transfer_source = LearnedPolicy(experiment["transfer_model"], catalog,
                     expected_model_id=experiment.get("transfer_model_id"))
                 if encoder.version in PUBLIC_CATEGORICAL_VERSIONS:
-                    if encoder.version == STRATEGIC_COMBAT_V5:
+                    if "combat_foundation" in experiment:
+                        transfer_foundation_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
+                    elif encoder.version == STRATEGIC_COMBAT_V5:
                         transfer_strategic_combat_v5_weights(model.policy, transfer_source.model.policy, encoder, transfer_source.encoder)
                     elif encoder.version in COMBAT_V5_VERSIONS:
                         if transfer_source.encoder.version in COMBAT_V5_VERSIONS:
@@ -1375,12 +1399,16 @@ def run(
                 metrics["ppo"] = {
                     k: float(v)
                     for k, v in model.logger.name_to_value.items()
-                    if k.startswith("train/")
+                    if k.startswith(("train/", "foundation/"))
                     and isinstance(v, (float, int, np.floating))
                     and np.isfinite(v)
                 }
                 if config.get("collect_rollout_diagnostics", False):
                     metrics["public_rollout_diagnostics"] = callback.measurements
+                if isinstance(model, FoundationCombatPPO):
+                    metrics["foundation_environment"] = vector.env_method("drain_foundation_profile")
+                    metrics["foundation_updates"] = getattr(model, "foundation_profile_rows", [])
+                    model.foundation_profile_rows = []
                 if completed and delta <= 0:
                     raise AssertionError("optimizer_did_not_change_parameters")
                 checkpoint("ppo", metrics)

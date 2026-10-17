@@ -88,6 +88,14 @@ def model_regularizer_contract(model):
 
 
 def checkpoint_algorithm(metadata):
+    if "combat_foundation" in metadata:
+        from advisor.learned_combat_foundation import FoundationCombatPPO, foundation_contract
+        if metadata["combat_foundation"] != foundation_contract() or metadata.get("encoder_version") != foundation_contract()["encoder"]:
+            raise ValueError("combat_foundation_checkpoint_contract_mismatch")
+        from advisor.learned_combat_v5_strategic_aux import auxiliary_contract
+        if metadata.get("integrated_auxiliary") != auxiliary_contract():
+            raise ValueError("combat_foundation_auxiliary_contract_mismatch")
+        return FoundationCombatPPO
     if metadata.get("encoder_version") == "showdown-public-categorical-observation-v5-integrated-v3":
         from advisor.learned_combat_v5_strategic_aux import StrategicCombatV5PPO, auxiliary_contract
         if metadata.get("integrated_auxiliary") != auxiliary_contract():
