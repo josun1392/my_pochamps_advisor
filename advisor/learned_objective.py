@@ -41,6 +41,7 @@ def categorical_learning_source_identity():
         "models/showdown_public_categories_v3/catalog.json",
         "advisor/learned_offline.py", "scripts/collect_showdown_public_trajectories.py",
         "advisor/learned_training_subset.py",
+        "advisor/learned_training_operations.py",
         "advisor/learned_regularized_ppo.py", "advisor/learned_snapshot_league.py",
         "scripts/train_showdown_snapshot_league.py",
     ]

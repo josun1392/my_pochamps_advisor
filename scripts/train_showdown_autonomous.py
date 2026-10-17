@@ -50,6 +50,9 @@ from advisor.learned_combat_foundation import (
     FoundationCombatPPO, FoundationCombatPolicy, FoundationCombatEncoder, foundation_contract, transfer_foundation_weights,
 )
 from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
+from advisor.learned_training_operations import (
+    ACCOUNTING_VERSION, OPERATIONS_VERSION, CompletedRollouts, RetryMonitor, TrainingJournal,
+)
 from advisor.learning_resources import (
     WindowsJob,
     RuntimeLimit,
@@ -426,6 +429,7 @@ class BudgetCallback(BaseCallback):
                              "public_diagnostic_seconds": 0., "rollouts": []}
         self.rollout_start = None
         self.update_start = None
+        self.completed_rollouts = CompletedRollouts()
 
     def _on_step(self):
         if hasattr(self.model, "record_auxiliary"):
@@ -436,6 +440,7 @@ class BudgetCallback(BaseCallback):
         return not self.budget.stopping()
 
     def _on_rollout_start(self):
+        self.completed_rollouts.settle(optimizer_steps(self.model))
         if hasattr(self.model, "begin_auxiliary_rollout"):
             self.model.begin_auxiliary_rollout()
         require_finite_ppo(self.model)
@@ -449,6 +454,7 @@ class BudgetCallback(BaseCallback):
         if hasattr(self.model, "freeze_auxiliary_rollout"):
             self.model.freeze_auxiliary_rollout()
         require_finite_ppo(self.model, rollout=True)
+        self.completed_rollouts.collected(self.model.n_steps * self.model.n_envs, optimizer_steps(self.model))
         if self.collect_diagnostics:
             now = perf_counter()
             self.measurements["rollout_seconds"] += now - self.rollout_start
@@ -471,12 +477,18 @@ class BudgetCallback(BaseCallback):
                 "max_legal_action_probability_quantiles": np.quantile(maxima, [0, .25, .5, .75, .95, 1]).tolist() if maxima else [],
                 "mean_action_entropy": float(np.mean(entropies)) if entropies else None,
                 "effective_rollout_transitions": len(observations),
+                "advantage_mean": float(buffer.advantages.mean()),
+                "advantage_std": float(buffer.advantages.std()),
+                "return_mean": float(buffer.returns.mean()),
+                "return_std": float(buffer.returns.std()),
+                "nonzero_reward_count": int(np.count_nonzero(buffer.rewards)),
             })
             self.update_start = perf_counter()
             self.measurements["public_diagnostic_seconds"] += self.update_start - now
 
     def _on_training_end(self):
         require_finite_ppo(self.model)
+        self.completed_rollouts.settle(optimizer_steps(self.model))
         if self.collect_diagnostics and self.update_start is not None:
             self.measurements["ppo_update_seconds"] += perf_counter() - self.update_start
             self.update_start = None
@@ -685,11 +697,18 @@ def run(
         "trained_rollout_transitions": 0,
         "warmstart_decisions": 0,
         "launches": 0,
+        "operations_version": OPERATIONS_VERSION,
+        "training_accounting_version": ACCOUNTING_VERSION,
     }
     vector = None
     execution_failed = False
+    journal = None
 
     def notify(phase, **extra):
+        if journal is not None:
+            journal.append(phase, transitions=extra.get("transitions", state["transitions"]),
+                completed_battles=extra.get("completed_battles", state["completed_battles"]),
+                details=extra)
         if event_callback:
             event_callback(
                 {
@@ -722,25 +741,18 @@ def run(
             state = json.loads(state_path.read_text())
             if state["config_fingerprint"] != fingerprint:
                 raise ValueError("resume_config_fingerprint_mismatch")
+            if state.get("training_accounting_version") != ACCOUNTING_VERSION:
+                raise ValueError("resume_accounting_version_mismatch_no_legacy_reinterpretation")
             if (output / "STOP").exists():
                 (output / "STOP").unlink()
-            if "trained_rollout_transitions" not in state:
-                # Compatibility with early local trainer states: count only complete rollouts.
-                paths = {row["checkpoint"] for row in state["evaluations"]}
-                if state.get("latest"):
-                    paths.add(state["latest"])
-                rollout = 128 * config.get("envs", 4)
-                state["trained_rollout_transitions"] = sum(
-                    json.loads(Path(path).with_suffix(".json").read_text())[
-                        "training_metrics"
-                    ].get("collected_transitions", 0)
-                    // rollout
-                    * rollout
-                    for path in paths
-                )
-                state["prior_rollout_count_inferred_from_checkpoint_metrics"] = True
         elif state_path.exists():
             raise ValueError("existing_output_requires_resume")
+        journal = TrainingJournal(output, state)
+        if resume and state.get("retry_monitor_pending"):
+            journal.append("retry_episodes_retired_on_resume", pending=state["retry_monitor_pending"],
+                reason="native_episodes_reset_not_exact_mid_episode_restore")
+        retry_monitor = RetryMonitor()
+        state["retry_monitor_pending"] = {}
         state["launches"] += 1
         state["status"] = "running"
         atomic_json(output / "config.json", config)
@@ -1052,6 +1064,8 @@ def run(
                     {
                         "experiment": experiment,
                         "training_config_fingerprint": fingerprint,
+                        "operations_version": OPERATIONS_VERSION,
+                        "training_accounting_version": ACCOUNTING_VERSION,
                         **({"public_failure_opponent_source_sha256": {
                             name: sha256((Path(__file__).resolve().parents[1] / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
                             for name in ("advisor/learned_failure_opponent.py", "advisor/learned_public_metrics.py")}}
@@ -1121,10 +1135,15 @@ def run(
                     "checkpoint_binding": "training_interval_endpoint_not_each_step_policy_identity",
                     "episodes": episodes, "pending": vector.env_method("episode_cursor"),
                 })
+                retry_records = [row for worker in vector.env_method("drain_retry_diagnostics") for row in worker]
                 atomic_json(directory / "public_retry_diagnostics.json", {
                     "scope": "coordinator_only_owner_visible_requests_no_private_truth_or_native_error_cause",
-                    "records": [row for worker in vector.env_method("drain_retry_diagnostics") for row in worker],
+                    "records": retry_records,
                 })
+                alerts = retry_monitor.inspect(retry_records, episodes, details.get("collected_transitions", 0))
+                state["retry_monitor_pending"] = retry_monitor.pending
+                atomic_json(directory / "operational_monitor.json", {"schema_version": OPERATIONS_VERSION,
+                    "alerts": alerts, "retry_monitor_pending": retry_monitor.pending})
                 view = vector.get_attr("current", indices=0)[0]
                 if not any(view["action_mask"]):
                     vector.env_method("reset", indices=0)
@@ -1142,6 +1161,7 @@ def run(
                 if a != b:
                     raise AssertionError("checkpoint_reload_action_changed")
                 state["latest"] = path
+                state["latest_model_sha256"] = restored.model_id
                 state["optimizer_steps"] = optimizer_steps(model)
                 state["experiment_index"] = number
                 state["completed_battles"] += len(episodes)
@@ -1190,6 +1210,10 @@ def run(
                 }
                 # Publish a recoverable checkpoint before potentially slower evaluation.
                 atomic_json(state_path, state)
+                journal.publish(state)
+                if alerts:
+                    (output / "STOP").touch()
+                notify("checkpoint_committed", checkpoint=path, operational_alerts=alerts)
                 if budget.stopping():
                     return False
                 notify("evaluating", resources=state["resources"], checkpoint=path)
@@ -1355,9 +1379,11 @@ def run(
                         transitions=state["transitions"] + current - steps_before,
                         completed_battles=state["completed_battles"] + pending,
                         resources=job.usage(),
+                        observed_trained_rollout_transitions=state["trained_rollout_transitions"] + callback.completed_rollouts.transitions,
+                        optimizer_steps=optimizer_steps(model),
                     )
 
-                callback = BudgetCallback(budget, live_progress if event_callback else None,
+                callback = BudgetCallback(budget, live_progress,
                     collect_diagnostics=config.get("collect_rollout_diagnostics", False))
                 model.learn(
                     total_timesteps=chunk,
@@ -1366,11 +1392,9 @@ def run(
                 )
                 taken = model.num_timesteps - steps_before
                 state["transitions"] += taken
-                trained = (
-                    taken
-                    // (128 * config.get("envs", 4))
-                    * (128 * config.get("envs", 4))
-                )
+                trained = callback.completed_rollouts.transitions
+                if not 0 <= trained <= taken:
+                    raise ValueError("invalid_completed_rollout_accounting")
                 state["experiment_steps"] += (trained if config.get("transition_budget_scope") == "trained_rollouts_v1" else taken)
                 state["trained_rollout_transitions"] = (
                     state.get("trained_rollout_transitions", 0) + trained
@@ -1391,9 +1415,9 @@ def run(
                     "trained_rollout_transitions": trained,
                     "parameter_l1_change": delta,
                     "optimizer_updates": optimizer_steps(model) - updates_before,
-                    "partial_rollout_discarded_on_resume": taken
-                    % (128 * config.get("envs", 4))
-                    != 0,
+                    "partial_rollout_discarded_on_resume": taken != trained,
+                    "untrained_collected_transitions": taken - trained,
+                    "training_accounting_version": ACCOUNTING_VERSION,
                     "transition_budget_scope": config.get("transition_budget_scope", "legacy_collected_v1"),
                 }
                 metrics["ppo"] = {
@@ -1464,9 +1488,16 @@ def run(
         state["network"] = network
         state["resources"].update(job.usage()) if state.get("resources") else None
         atomic_json(state_path, state)
+        journal.publish(state)
+        notify("launch_end", status=state["status"])
         return state
     except BaseException as error:
         execution_failed = True
+        if journal is not None:
+            try:
+                journal.append("launch_failed", error=type(error).__name__, message=str(error))
+            except OSError:
+                pass
         atomic_json(
             output / "failure.json",
             {
