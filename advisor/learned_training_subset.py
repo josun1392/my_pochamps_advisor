@@ -11,6 +11,7 @@ from advisor.showdown_bridge import FORMAT_ID, SHOWDOWN_COMMIT
 VERSION = "showdown-native-training-subset-v1"
 VERSION_64 = "showdown-native-training-subset-v2"
 VERSION_256 = "showdown-native-training-subset-v3"
+VERSION_FULL = "showdown-native-training-population-v4"
 
 
 class NativeTrainingSubset:
@@ -22,7 +23,7 @@ class NativeTrainingSubset:
             raise ValueError("training_subset_hash_mismatch")
         contract = json.loads(raw)
         version = contract.get("schema_version")
-        if version not in (VERSION, VERSION_64, VERSION_256) or any(contract.get(k) != v for k, v in {
+        if version not in (VERSION, VERSION_64, VERSION_256, VERSION_FULL) or any(contract.get(k) != v for k, v in {
             "engine_commit": SHOWDOWN_COMMIT,
             "format_id": FORMAT_ID, "parent_curriculum": "showdown-learning-curriculum-v8",
             "parent_split": "train", "parent_bank_sha256": study_identity()["bank_sha256"],
@@ -30,7 +31,7 @@ class NativeTrainingSubset:
             raise ValueError("training_subset_authority_mismatch")
         indices = contract.get("team_indices")
         bank = load_bank()["teams"]["train"]
-        sizes = {VERSION: (1, 16), VERSION_64: (64,), VERSION_256: (256,)}
+        sizes = {VERSION: (1, 16), VERSION_64: (64,), VERSION_256: (256,), VERSION_FULL: (4096,)}
         if (not isinstance(indices, list) or len(indices) not in sizes[version]
                 or len(set(indices)) != len(indices)
                 or any(type(i) is not int or not 0 <= i < len(bank) for i in indices)):
@@ -38,6 +39,9 @@ class NativeTrainingSubset:
         teams = [bank[i] for i in indices]
         if contract.get("team_sha256") != [fingerprint(t) for t in teams]:
             raise ValueError("training_subset_team_identity_mismatch")
+        if version == VERSION_FULL and (indices != list(range(len(bank)))
+                or contract.get("membership") != "all_native_v8_train_teams"):
+            raise ValueError("full_training_population_must_include_exact_train_bank")
         if version == VERSION_256:
             parent = contract.get("parent_team_indices")
             excluded = contract.get("excluded_train_indices")
@@ -88,6 +92,27 @@ class NativeTrainingSubset:
                 "history": [], "assumptions": [
                     "Frozen native V8 training subset; hypothetical coordinator truth, not observed truth."
                 ]}
+
+
+def full_native_training_population(*, seed_namespace):
+    """Use the original TRAIN bank through the same ordered-three case owner.
+
+    Historical 1/16/64/256 contracts, seeds and case semantics are unchanged.
+    Earlier train-only diagnostic exclusions become exposed; validation/test
+    banks are never accessed by this builder.
+    """
+    from advisor.learned_full_roster import load_bank, study_identity
+    if not isinstance(seed_namespace, str) or not 1 <= len(seed_namespace) <= 128:
+        raise ValueError("training_subset_seed_namespace_required")
+    teams = load_bank()["teams"]["train"]
+    if len(teams) != 4096:
+        raise ValueError("full_training_population_requires_pinned_4096_bank")
+    return {"schema_version": VERSION_FULL, "engine_commit": SHOWDOWN_COMMIT,
+            "format_id": FORMAT_ID, "parent_curriculum": "showdown-learning-curriculum-v8",
+            "parent_split": "train", "parent_bank_sha256": study_identity()["bank_sha256"],
+            "membership": "all_native_v8_train_teams", "team_indices": list(range(4096)),
+            "team_sha256": [fingerprint(t) for t in teams],
+            "selection_mode": "independent_random_ordered3", "seed_namespace": seed_namespace}
 
 
 def extend_native_training_subset(parent_path, parent_sha256, *, membership_seed,
