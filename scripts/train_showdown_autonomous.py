@@ -52,6 +52,7 @@ from advisor.learned_combat_foundation import (
 from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
 from advisor.learned_training_operations import (
     ACCOUNTING_VERSION, OPERATIONS_VERSION, CompletedRollouts, RetryMonitor, TrainingJournal,
+    ProgressRetryMonitor, LEGACY_RETRY_VERSION, PROGRESS_RETRY_VERSION,
 )
 from advisor.learning_resources import (
     WindowsJob,
@@ -67,6 +68,8 @@ CURRICULUM = "showdown-learning-curriculum-v2"
 
 
 def validate_config(config):
+    if config.get("retry_monitor_version", LEGACY_RETRY_VERSION) not in {LEGACY_RETRY_VERSION, PROGRESS_RETRY_VERSION}:
+        raise ValueError("unsupported_retry_monitor_version")
     if config.get("transition_budget_scope", "legacy_collected_v1") not in {"legacy_collected_v1", "trained_rollouts_v1"}:
         raise ValueError("invalid_transition_budget_scope")
     if config.get("schema_version") != "showdown-autonomous-training-v1":
@@ -751,7 +754,10 @@ def run(
         if resume and state.get("retry_monitor_pending"):
             journal.append("retry_episodes_retired_on_resume", pending=state["retry_monitor_pending"],
                 reason="native_episodes_reset_not_exact_mid_episode_restore")
-        retry_monitor = RetryMonitor()
+        retry_version = config.get("retry_monitor_version", LEGACY_RETRY_VERSION)
+        retry_monitor = ProgressRetryMonitor() if retry_version == PROGRESS_RETRY_VERSION else RetryMonitor()
+        if retry_version == PROGRESS_RETRY_VERSION:
+            state["retry_monitor_version"] = retry_version
         state["retry_monitor_pending"] = {}
         state["launches"] += 1
         state["status"] = "running"
@@ -1066,6 +1072,7 @@ def run(
                         "training_config_fingerprint": fingerprint,
                         "operations_version": OPERATIONS_VERSION,
                         "training_accounting_version": ACCOUNTING_VERSION,
+                        **({"retry_monitor_version": retry_version} if retry_version == PROGRESS_RETRY_VERSION else {}),
                         **({"public_failure_opponent_source_sha256": {
                             name: sha256((Path(__file__).resolve().parents[1] / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
                             for name in ("advisor/learned_failure_opponent.py", "advisor/learned_public_metrics.py")}}
@@ -1128,22 +1135,27 @@ def run(
                     },
                 )
                 restored = LearnedPolicy(path, catalog)
+                episode_cursors = vector.env_method("episode_cursor")
                 atomic_json(directory / "episodes.json", {
                     "schema_version": "showdown-training-episode-audit-v1",
                     "scope": "coordinator_only_inputs_not_policy_features_or_exact_rollout_replay",
                     "source_checkpoint": state.get("latest"), "endpoint_checkpoint_sha256": restored.model_id,
                     "checkpoint_binding": "training_interval_endpoint_not_each_step_policy_identity",
-                    "episodes": episodes, "pending": vector.env_method("episode_cursor"),
+                    "episodes": episodes, "pending": episode_cursors,
                 })
                 retry_records = [row for worker in vector.env_method("drain_retry_diagnostics") for row in worker]
                 atomic_json(directory / "public_retry_diagnostics.json", {
                     "scope": "coordinator_only_owner_visible_requests_no_private_truth_or_native_error_cause",
                     "records": retry_records,
                 })
-                alerts = retry_monitor.inspect(retry_records, episodes, details.get("collected_transitions", 0))
+                alerts = retry_monitor.inspect(retry_records, episodes, details.get("collected_transitions", 0),
+                    **({"progress": episode_cursors} if retry_version == PROGRESS_RETRY_VERSION else {}))
                 state["retry_monitor_pending"] = retry_monitor.pending
                 atomic_json(directory / "operational_monitor.json", {"schema_version": OPERATIONS_VERSION,
-                    "alerts": alerts, "retry_monitor_pending": retry_monitor.pending})
+                    "alerts": alerts, "retry_monitor_pending": retry_monitor.pending,
+                    **({"retry_monitor_version": retry_version,
+                        "episode_retry_statistics": retry_monitor.statistics()}
+                       if retry_version == PROGRESS_RETRY_VERSION else {})})
                 view = vector.get_attr("current", indices=0)[0]
                 if not any(view["action_mask"]):
                     vector.env_method("reset", indices=0)

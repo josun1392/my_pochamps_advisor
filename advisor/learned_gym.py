@@ -386,6 +386,8 @@ class ShowdownLearningEnv(gym.Env):
         return {"episode_identity": deepcopy(self._episode_identity), "next_case_index": self.index,
                 "revision": self.current["revision"], "request_state": self.current["request_state"],
                 "native_rejected_choices": self._rejected_choices,
+                "native_progress": {"episode_id": self.current["episode_id"],
+                                    "native_decisions": self.native._transition["decisions"]},
                 "scope": "initial_scenario_reconstructable_no_training_action_log_or_rollout_rng_restoration"}
 
     def close(self):
