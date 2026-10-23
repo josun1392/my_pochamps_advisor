@@ -309,6 +309,9 @@ def main(*, study=anchor_study):
     if not args.owned:
         raise RuntimeError("launch_from_independent_desktop_owned_process_required")
     plan = read(args.plan)
+    # Historical owner defaults are unchanged. A study adapter can predeclare a
+    # bounded, measured evaluation allowance without changing PPO resources.
+    study.verify_plan(args.plan)
     out = Path(plan["output"])
     control = out/"control.json"
     if control.exists() and process_alive(read(control)["pid"]):
@@ -320,7 +323,7 @@ def main(*, study=anchor_study):
     atomic_json(control,{"pid":os.getpid(),"parent_pid":os.getppid(),"started_utc":utc(),
         "inherited_job":False,"own_job":True,"cpu_percent":50,"memory_mib":12288,"workers":4,
         "automatic_restarts":0,"plan_sha256":digest(args.plan)})
-    outer = RuntimeLimit(out, 7200)
+    outer = RuntimeLimit(out, getattr(study, "OVERALL_SECONDS", 7200))
     training_limit = RuntimeLimit(out, 3600)
     evaluation_limit = None
     try:
@@ -328,7 +331,7 @@ def main(*, study=anchor_study):
         training_limit.finished.set()
         if state is None or outer.stopping():
             return
-        evaluation_limit = RuntimeLimit(out,3600)
+        evaluation_limit = RuntimeLimit(out,getattr(study, "EVALUATION_SECONDS", 3600))
         result = evaluate_all(args.plan,state,job,evaluation_limit,study=study)
         if result is None:
             return

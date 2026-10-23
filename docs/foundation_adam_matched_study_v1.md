@@ -39,3 +39,9 @@ interval lower bounds, positive direction in both repetitions, and no material
 safety/integrity regression. Otherwise scaling is NO-GO; uncertain evidence is
 not equivalence or proof that optimizer choice never matters. No model promotion
 is authorized by this study.
+
+The training deadline remains 3,600 seconds. Prior measured evaluation throughput
+was 1.31 games/s (~73 minutes for 5,760 games), so this adapter has a predeclared
+5,400-second evaluation deadline and 9,000-second combined deadline. CPU, memory,
+worker limits and zero automatic restart remain unchanged. Historical owner
+defaults stay 3,600/7,200 seconds for evaluation/combined execution.

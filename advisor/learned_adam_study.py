@@ -11,6 +11,8 @@ VERSION = "foundation-fresh-versus-restored-adam-study-v1"
 SEEDS = (98111, 98519)
 POLICIES = ("parent", "A_98111", "B_98111", "A_98519", "B_98519")
 RIVALS = paired.RIVALS
+EVALUATION_SECONDS = 5400  # Prior measured 1.31 games/s -> ~73 minutes for 5,760.
+OVERALL_SECONDS = 9000
 
 
 def matched_configs(configs, parent_sha):
@@ -46,7 +48,10 @@ def matched_configs(configs, parent_sha):
 def verify_plan(path):
     p = json.loads(Path(path).read_text(encoding="utf-8"))
     if (p.get("schema_version") != VERSION or p.get("automatic_restarts") != 0
-            or p.get("evaluation_games") != 5760):
+            or p.get("evaluation_games") != 5760
+            or p.get("training_seconds_ceiling") != 3600
+            or p.get("evaluation_seconds_ceiling") != EVALUATION_SECONDS
+            or p.get("overall_seconds_ceiling") != OVERALL_SECONDS):
         raise ValueError("unrecognized_Adam_study")
     for name, expected in p["source_sha256"].items():
         if sha256((Path(p["source_root"])/name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() != expected:
