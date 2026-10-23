@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from advisor.learning_resources import WindowsJob, RuntimeLimit, atomic_json, process_alive, enforce_local_network_only
 from advisor.learned_execution_alignment import digest, content_hash, durable_json, sampling_rng, masked_sample
-from advisor.learned_anchor_study import verify_plan, game_slots, slot_key, analyze, POLICIES
+from advisor import learned_anchor_study as anchor_study
 from advisor.learned_team_scale import checkpoint_alerts
 
 
@@ -70,9 +70,9 @@ class FrozenCase:
         return deepcopy(self.row["scenario"])
 
 
-def train_arms(plan_path, job, limit, resume):
+def train_arms(plan_path, job, limit, resume, *, study=anchor_study):
     from scripts.train_showdown_autonomous import run, validate_config
-    plan, configs = verify_plan(plan_path)
+    plan, configs = study.verify_plan(plan_path)
     out = Path(plan["output"])
     state_path = out/"campaign_state.json"
     if state_path.exists() and not resume:
@@ -85,12 +85,13 @@ def train_arms(plan_path, job, limit, resume):
         key = arm["key"]
         if key in state["completed"]:
             bound = state["completed"][key]
-            checkpoint_integrity(bound["path"], bound["sha256"], 34816)
+            checkpoint_integrity(bound["path"], bound["sha256"],
+                study.endpoint_clock(key, read(Path(bound["path"]).with_suffix(".json"))) if hasattr(study, "endpoint_clock") else 34816)
             continue
         if limit.stopping():
             atomic_json(state_path, {**state, "status": "stopped", "utc": utc()})
             return None
-        verify_plan(plan_path)
+        study.verify_plan(plan_path)
         config = configs[key]
         validate_config(config)
         run_out = Path(arm["run"])
@@ -114,6 +115,9 @@ def train_arms(plan_path, job, limit, resume):
             seen.add(path)
             metadata = read(Path(path).with_suffix(".json"))
             current = read(run_out/"state.json")
+            if hasattr(study, "verify_initial_checkpoint") and current["trained_rollout_transitions"] == 0:
+                proof = study.verify_initial_checkpoint(path, key, plan, config)
+                append(out/"initial_checkpoint_proofs.jsonl", {"arm": key, **proof})
             for episode in read(Path(path).parent/"episodes.json")["episodes"]:
                 identity = episode["episode_identity"]
                 native = content_hash({"teams": identity["team_sha256"],
@@ -145,7 +149,8 @@ def train_arms(plan_path, job, limit, resume):
             if len(matches) != 1:
                 raise ValueError("missing_fixed_endpoint_receipt")
             final = {"path": str(matches[0]), "sha256": digest(matches[0])}
-        proof = checkpoint_integrity(final["path"], final["sha256"], 34816)
+        proof = checkpoint_integrity(final["path"], final["sha256"],
+            study.endpoint_clock(key, read(Path(final["path"]).with_suffix(".json"))) if hasattr(study, "endpoint_clock") else 34816)
         metadata = read(Path(final["path"]).with_suffix(".json"))
         if metadata.get("parent_policy_anchor") != config["experiments"][0].get("parent_policy_anchor"):
             raise ValueError("anchor_endpoint_objective_changed")
@@ -158,19 +163,19 @@ def train_arms(plan_path, job, limit, resume):
     return state
 
 
-def evaluate_all(plan_path, state, job, limit):
+def evaluate_all(plan_path, state, job, limit, *, study=anchor_study):
     import numpy as np
     import torch
     from advisor.learned_policy import LearnedPolicy
     from scripts.evaluate_showdown_policy import evaluate
-    plan, configs = verify_plan(plan_path)
+    plan, configs = study.verify_plan(plan_path)
     out = Path(plan["output"])
     config = next(iter(configs.values()))
     torch.set_num_threads(1)
     cases = read(plan["cases_path"])["cases"]
-    slots = game_slots(cases)
-    if len(slots) != 4480:
-        raise ValueError("anchor_evaluation_4480_required")
+    slots = study.game_slots(cases)
+    if len(slots) != plan["evaluation_games"]:
+        raise ValueError("frozen_evaluation_game_budget_mismatch")
     case_lookup = {(r["scope"], r["index"]): r for r in cases}
     bindings = {"parent": {"path": plan["parent_path"], "sha256": plan["parent_sha256"]}, **state["completed"]}
     frozen = out/"frozen_endpoint_models.json"
@@ -248,6 +253,13 @@ def evaluate_all(plan_path, state, job, limit):
         def receipt(records):
             if len(records) != 1:
                 raise ValueError("anchor_single_native_receipt_required")
+            record = records[0]
+            case = case_lookup[(slot["scope"], slot["case"])]["scenario"]
+            if (record["canonical_scenario_sha256"] != slot["scenario_sha256"]
+                    or record["candidate_seat"] != slot["seat"]
+                    or record["initial_native_seed"] != case.get("seed")
+                    or record["policy"] != slot["policy"] or record["opponent"] != slot["rival"]):
+                raise ValueError("frozen_native_receipt_case_seat_seed_or_policy_mismatch")
             row = {"slot": slot, "record": records[0], "record_sha256": content_hash(records[0]),
                 "execution_diagnostic": diagnostic, "model_sha256": bindings[slot["policy"]]["sha256"],
                 "plan_sha256": digest(plan_path), "source_commit": plan["source_commit"],
@@ -274,21 +286,21 @@ def evaluate_all(plan_path, state, job, limit):
             atomic_json(out/"evaluation_status.json", {"status": "running_sealed", "pid": os.getpid(), "utc": utc(),
                 "completed": len(done), "remaining": len(slots)-len(done), "target": len(slots),
                 "games_per_second": (len(done)-initial_done)/max(1,time.monotonic()-launch_start), "resources": job.usage()})
-    verify_plan(plan_path)
+    study.verify_plan(plan_path)
     for bound in bindings.values():
         if digest(bound["path"]) != bound["sha256"]:
             raise ValueError("anchor_model_mutated")
-    result = analyze(rows, cases)
+    result = study.analyze(rows, cases)
     result.update(plan_sha256=digest(plan_path), trained_transitions=262144,
         resources=job.usage(), evaluation_seconds=time.monotonic()-launch_start,
         rows=[{"slot":r["slot"], "record_sha256":r["record_sha256"]} for r in rows])
     durable_json(out/"analysis.json", result)
-    atomic_json(out/"evaluation_status.json", {"status": "complete", "completed": len(rows), "target":4480,
+    atomic_json(out/"evaluation_status.json", {"status": "complete", "completed": len(rows), "target":plan["evaluation_games"],
         "utc":utc(), "analysis_sha256":digest(out/"analysis.json"), "no_model_promotion":True})
     return result
 
 
-def main():
+def main(*, study=anchor_study):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", required=True, type=Path)
     parser.add_argument("--owned", action="store_true")
@@ -312,16 +324,16 @@ def main():
     training_limit = RuntimeLimit(out, 3600)
     evaluation_limit = None
     try:
-        state = train_arms(args.plan,job,training_limit,args.resume)
+        state = train_arms(args.plan,job,training_limit,args.resume,study=study)
         training_limit.finished.set()
         if state is None or outer.stopping():
             return
         evaluation_limit = RuntimeLimit(out,3600)
-        result = evaluate_all(args.plan,state,job,evaluation_limit)
+        result = evaluate_all(args.plan,state,job,evaluation_limit,study=study)
         if result is None:
             return
         durable_json(out/"execution_complete.json",{"status":"complete_pending_independent_closure_audit",
-            "utc":utc(),"trained_transitions":262144,"evaluation_games":4480,"network":network,
+            "utc":utc(),"trained_transitions":262144,"evaluation_games":plan["evaluation_games"],"network":network,
             "analysis_sha256":digest(out/"analysis.json"),"resources":job.usage(),"no_model_promotion":True})
     except BaseException as error:
         atomic_json(out/"failure.json",{"utc":utc(),"type":type(error).__name__,"message":str(error),

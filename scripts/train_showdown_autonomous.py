@@ -70,7 +70,25 @@ from scripts.evaluate_showdown_policy import evaluate
 CURRICULUM = "showdown-learning-curriculum-v2"
 
 
+def checkpoint_validation_enabled(config):
+    """Explicitly bounded studies can reserve every battle for a frozen panel.
+
+    Default behavior, checkpoint creation and native training are unchanged.
+    Disabling validation is only supported with fixed-budget (no selection)
+    experiments and no final test inside this trainer.
+    """
+    mode = config.get("checkpoint_evaluation_mode", "automatic_validation_v1")
+    if mode not in {"automatic_validation_v1", "disabled_for_frozen_study_v1"}:
+        raise ValueError("unsupported_checkpoint_evaluation_mode")
+    enabled = mode == "automatic_validation_v1"
+    if not enabled and (config.get("validation_selection_mode") != "diagnostic_fixed_budget_v1"
+                        or config.get("final_test_cases", 0)):
+        raise ValueError("disabled_validation_requires_fixed_budget_no_final_test")
+    return enabled
+
+
 def validate_config(config):
+    checkpoint_validation_enabled(config)
     if type(config.get("collect_learning_signal_joins", False)) is not bool:
         raise ValueError("boolean_public_signal_collection_required")
     if config.get("retry_monitor_version", LEGACY_RETRY_VERSION) not in {LEGACY_RETRY_VERSION, PROGRESS_RETRY_VERSION}:
@@ -1269,6 +1287,8 @@ def run(
                 notify("checkpoint_committed", checkpoint=path, operational_alerts=alerts)
                 if budget.stopping():
                     return False
+                if not checkpoint_validation_enabled(config):
+                    return True
                 notify("evaluating", resources=state["resources"], checkpoint=path)
                 try:
                     result = evaluate(

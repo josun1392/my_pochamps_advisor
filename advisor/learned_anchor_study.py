@@ -59,7 +59,7 @@ def verify_plan(path):
     return p, configs
 
 
-def game_slots(cases):
+def game_slots(cases, *, policies=POLICIES):
     slots = []
     for case in cases:
         modes = ["argmax"] + (["sample0", "sample1"] if case.get("sampled") else [])
@@ -67,7 +67,7 @@ def game_slots(cases):
             rivals = RIVALS if mode == "argmax" else RIVALS[:1]
             for seat in ("p1", "p2"):
                 for rival in rivals:
-                    for policy in POLICIES:
+                    for policy in policies:
                         slots.append({"policy": policy, "scope": case["scope"], "case": case["index"],
                             "scenario_sha256": case["scenario_sha256"], "seat": seat,
                             "rival": rival, "mode": mode})
@@ -78,12 +78,13 @@ def slot_key(slot):
     return tuple(slot[k] for k in ("scope", "case", "seat", "rival", "mode", "policy"))
 
 
-def analyze(rows, cases, *, resamples=20000):
-    expected = {slot_key(s) for s in game_slots(cases)}
+def analyze(rows, cases, *, resamples=20000, policies=POLICIES, seeds=SEEDS, arm_names=("C", "T")):
+    expected = {slot_key(s) for s in game_slots(cases, policies=policies)}
     lookup = {slot_key(r["slot"]): r["record"] for r in rows}
     if len(lookup) != len(rows) or set(lookup) != expected:
         raise ValueError("anchor_evaluation_duplicate_or_missing_slot")
     summaries, differences, retention = [], [], []
+    control, treatment = arm_names
     def win(record):
         return float(record["winner"] == "self" and not record["truncated"])
     for mode in ("argmax", "sampling"):
@@ -98,7 +99,7 @@ def analyze(rows, cases, *, resamples=20000):
                     continue
                 clusters = sorted({k[:2] for k in pool})
                 values = {}
-                for policy in POLICIES:
+                for policy in policies:
                     values[policy] = np.asarray([np.mean([win(lookup[k]) for k in pool
                         if k[:2] == cluster and k[-1] == policy]) for cluster in clusters])
                     for seat in ("all", "p1", "p2"):
@@ -117,17 +118,17 @@ def analyze(rows, cases, *, resamples=20000):
                         "new_win": counts[(0., 1.)], "neither_win": counts[(0., 0.)],
                         "interpretation": "paired_terminal_outcomes_not_optimal_action_labels"})
                 draws = np.random.default_rng(2026102301).integers(len(clusters), size=(resamples, len(clusters)))
-                contrasts = {f"T_{seed}-C_{seed}": values[f"T_{seed}"]-values[f"C_{seed}"] for seed in SEEDS}
-                for policy in POLICIES[1:]:
+                contrasts = {f"{treatment}_{seed}-{control}_{seed}": values[f"{treatment}_{seed}"]-values[f"{control}_{seed}"] for seed in seeds}
+                for policy in policies[1:]:
                     contrasts[policy+"-parent"] = values[policy]-values["parent"]
-                contrasts["mean_seed(T-C)"] = np.mean([contrasts[f"T_{s}-C_{s}"] for s in SEEDS], axis=0)
+                contrasts[f"mean_seed({treatment}-{control})"] = np.mean([contrasts[f"{treatment}_{s}-{control}_{s}"] for s in seeds], axis=0)
                 for name, delta in contrasts.items():
                     differences.append({"mode": mode, "scope": scope, "rival": rival, "comparison": name,
                         "delta": float(delta.mean()), "case_clusters": len(clusters),
                         "case_cluster_95": np.quantile(delta[draws].mean(1), [.025,.975]).tolist()})
     return {"games": len(rows), "summaries": summaries, "paired_differences": differences,
         "parent_win_retention_and_acquisition": retention, "resamples": resamples,
-        "primary": "argmax heldout all-rival mean_seed(T-C)",
+        "primary": f"argmax heldout all-rival mean_seed({treatment}-{control})",
         "uncertainty": "case_clusters_retain_seats_rivals_streams_and_repetitions_not_seed_population_CI",
         "sampling": "secondary_32clusters_Champions_two_shared_uniform_streams_not_extra_training_seeds",
         "multiplicity": "one_primary_all_other_contrasts_descriptive",
