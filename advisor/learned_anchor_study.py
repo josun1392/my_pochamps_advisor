@@ -59,14 +59,14 @@ def verify_plan(path):
     return p, configs
 
 
-def game_slots(cases, *, policies=POLICIES):
+def game_slots(cases, *, policies=POLICIES, rivals=RIVALS):
     slots = []
     for case in cases:
         modes = ["argmax"] + (["sample0", "sample1"] if case.get("sampled") else [])
         for mode in modes:
-            rivals = RIVALS if mode == "argmax" else RIVALS[:1]
+            selected_rivals = case.get("rivals", rivals) if mode == "argmax" else rivals[:1]
             for seat in ("p1", "p2"):
-                for rival in rivals:
+                for rival in selected_rivals:
                     for policy in policies:
                         slots.append({"policy": policy, "scope": case["scope"], "case": case["index"],
                             "scenario_sha256": case["scenario_sha256"], "seat": seat,
@@ -78,8 +78,8 @@ def slot_key(slot):
     return tuple(slot[k] for k in ("scope", "case", "seat", "rival", "mode", "policy"))
 
 
-def analyze(rows, cases, *, resamples=20000, policies=POLICIES, seeds=SEEDS, arm_names=("C", "T")):
-    expected = {slot_key(s) for s in game_slots(cases, policies=policies)}
+def analyze(rows, cases, *, resamples=20000, policies=POLICIES, seeds=SEEDS, arm_names=("C", "T"), rivals=RIVALS):
+    expected = {slot_key(s) for s in game_slots(cases, policies=policies, rivals=rivals)}
     lookup = {slot_key(r["slot"]): r["record"] for r in rows}
     if len(lookup) != len(rows) or set(lookup) != expected:
         raise ValueError("anchor_evaluation_duplicate_or_missing_slot")
@@ -93,7 +93,7 @@ def analyze(rows, cases, *, resamples=20000, policies=POLICIES, seeds=SEEDS, arm
                     and ((k[4] == "argmax") == (mode == "argmax"))]
             if not keys:
                 continue
-            for rival in ("all", *RIVALS):
+            for rival in ("all", *rivals):
                 pool = [k for k in keys if rival == "all" or k[3] == rival]
                 if not pool:
                     continue

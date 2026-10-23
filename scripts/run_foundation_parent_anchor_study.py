@@ -81,6 +81,8 @@ def train_arms(plan_path, job, limit, resume, *, study=anchor_study):
     if state["plan_sha256"] != digest(plan_path):
         raise ValueError("anchor_resume_plan_changed")
     evaluation_native_ids = {r["native_identity"] for r in read(plan["cases_path"])["cases"]}
+    if hasattr(study, "evaluation_native_ids"):
+        evaluation_native_ids = study.evaluation_native_ids(read(plan["cases_path"])["cases"])
     for arm in plan["arms"]:
         key = arm["key"]
         if key in state["completed"]:
@@ -118,6 +120,9 @@ def train_arms(plan_path, job, limit, resume, *, study=anchor_study):
             if hasattr(study, "verify_initial_checkpoint") and current["trained_rollout_transitions"] == 0:
                 proof = study.verify_initial_checkpoint(path, key, plan, config)
                 append(out/"initial_checkpoint_proofs.jsonl", {"arm": key, **proof})
+            if hasattr(study, "verify_sampling_checkpoint"):
+                sampling = study.verify_sampling_checkpoint(path, config, current["trained_rollout_transitions"])
+                append(out/"sampling_checkpoint_proofs.jsonl", {"arm": key, "path": path, **sampling})
             for episode in read(Path(path).parent/"episodes.json")["episodes"]:
                 identity = episode["episode_identity"]
                 native = content_hash({"teams": identity["team_sha256"],
@@ -189,6 +194,8 @@ def evaluate_all(plan_path, state, job, limit, *, study=anchor_study):
     e = config["experiments"][0]
     rivals["league_anchor"] = LearnedPolicy(e["frozen_opponents"]["league_anchor"], config["catalog"],
         expected_model_id=e["frozen_opponent_ids"]["league_anchor"])
+    if hasattr(study, "evaluation_rivals"):
+        rivals = study.evaluation_rivals(config)
     sealed = out/"sealed"
     sealed.mkdir(exist_ok=True)
     # Actual destination durable-write preflight BEFORE any battle.
@@ -277,7 +284,9 @@ def evaluate_all(plan_path, state, job, limit, *, study=anchor_study):
                 offset=slot["case"], curriculum_version=config["curriculum_version"], rivals={slot["rival"]: rivals[slot["rival"]]},
                 case_provider=FrozenCase(case_lookup[(slot["scope"],slot["case"])], digest(plan_path)),
                 candidate_seat=slot["seat"], seat_contract="own_team_preserving_native_seats_v1",
-                tactical_diagnostics=True, progress=receipt)
+                tactical_diagnostics=True, progress=receipt,
+                **({"transition_observer": study.evaluation_observer(out, slot)}
+                   if hasattr(study, "evaluation_observer") else {}))
         finally:
             player.infer = original
         if index not in done:

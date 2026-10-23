@@ -32,6 +32,8 @@ class ShowdownLearningEnv(gym.Env):
         terminal_transport_version=None,
         training_subset=None,
         collect_v5_supervision=False,
+        opponent_schedule=None,
+        collect_opponent_selections=False,
     ):
         if collect_public_trajectories and not collect_tactical_metrics:
             raise ValueError("public_collection_requires_public_execution_metrics")
@@ -52,6 +54,16 @@ class ShowdownLearningEnv(gym.Env):
         self.current = None
         self.curriculum_version = curriculum_version
         self.opponents = opponents or ("random", "max_power", "heuristic")
+        if opponent_schedule is not None:
+            from advisor.learned_opponent_curriculum import validate_schedule
+            opponent_schedule = validate_schedule(opponent_schedule, self.opponents)
+            if not collect_opponent_selections:
+                raise ValueError("opponent_schedule_requires_selection_audit")
+        self.opponent_schedule = opponent_schedule
+        self.collect_opponent_selections = collect_opponent_selections
+        self._opponent_trained_cursor = 0
+        self._opponent_selections = []
+        self._selection_receipt = None
         self.opponent_factory = opponent_factory
         self._behavior_cache = {}
         self.coverage_counts = {}
@@ -128,6 +140,12 @@ class ShowdownLearningEnv(gym.Env):
         kind = (options or {}).get(
             "opponent", self.opponents[index % len(self.opponents)]
         )
+        selection = None
+        if self.collect_opponent_selections:
+            if (options or {}).get("opponent") is not None:
+                raise ValueError("audited_opponent_override_forbidden")
+            from advisor.learned_opponent_curriculum import stage_selection
+            kind, selection = stage_selection(self.opponent_schedule, self.opponents, index, self._opponent_trained_cursor)
         self.opponent = (
             self.opponent_factory(kind, index + 91)
             if self.opponent_factory
@@ -136,6 +154,13 @@ class ShowdownLearningEnv(gym.Env):
         self.opponent_kind = kind
         self._episode_identity.update(opponent=kind, opponent_model_id=getattr(self.opponent, "model_id", None))
         self.current = self.native.observation("self", include_history=True)
+        if selection is not None:
+            self._selection_receipt = {**selection, "case_index": index,
+                "episode_id": self.current["episode_id"], "index_offset": self.offset,
+                "scenario_sha256": self._episode_identity["scenario_sha256"],
+                "opponent_model_id": getattr(self.opponent, "model_id", None), "learner_steps": 0}
+            self._episode_identity["opponent_selection"] = self._selection_receipt
+            self._opponent_selections.append(self._selection_receipt)
         encoded = self._encode_public(self.current)
         if self.observation_space is None:
             self.observation_space = gym.spaces.Box(
@@ -189,6 +214,8 @@ class ShowdownLearningEnv(gym.Env):
             or not self.action_masks()[int(action)]
         ):
             raise ValueError("masked_learning_action")
+        if getattr(self, "_selection_receipt", None) is not None:
+            self._selection_receipt["learner_steps"] += 1
         if self.collect_v5_supervision:
             # Loss-only predecision supervision. Never installed in self.current,
             # encoder input, native rewards, actor observations or value targets.
@@ -355,6 +382,16 @@ class ShowdownLearningEnv(gym.Env):
     def drain_completed(self):
         rows, self.completed = self.completed, []
         return rows
+
+    def set_opponent_schedule_cursor(self, trained):
+        """Apply only to future resets; never hot-swap an active opponent."""
+        if type(trained) is not int or trained < self._opponent_trained_cursor:
+            raise ValueError("opponent_schedule_cursor_regressed")
+        self._opponent_trained_cursor = trained
+
+    def drain_opponent_selections(self):
+        rows, self._opponent_selections = self._opponent_selections, []
+        return deepcopy(rows)
 
     def drain_coverage(self):
         result = {key: dict(value) for key, value in self.coverage_counts.items()}

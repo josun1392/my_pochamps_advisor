@@ -28,6 +28,8 @@ class LearningEnvFactory:
     training_subset_path: str | None = None
     training_subset_sha256: str | None = None
     foundation_profile: bool = False
+    opponent_schedule: dict | None = None
+    collect_opponent_selections: bool = False
 
     def __call__(self):
         import torch
@@ -81,6 +83,8 @@ class LearningEnvFactory:
             terminal_transport_version=self.terminal_transport_version,
             training_subset=subset,
             collect_v5_supervision=self.encoder_version in ("showdown-public-categorical-observation-v5-integrated-v1", "showdown-public-categorical-observation-v5-integrated-v2", "showdown-public-categorical-observation-v5-integrated-v3"),
+            opponent_schedule=self.opponent_schedule,
+            collect_opponent_selections=self.collect_opponent_selections,
         )
         if self.foundation_profile:
             from advisor.learned_combat_foundation import install_environment_profile

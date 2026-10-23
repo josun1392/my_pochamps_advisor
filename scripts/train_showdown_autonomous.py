@@ -89,6 +89,8 @@ def checkpoint_validation_enabled(config):
 
 def validate_config(config):
     checkpoint_validation_enabled(config)
+    if type(config.get("collect_opponent_selections", False)) is not bool:
+        raise ValueError("boolean_opponent_selection_audit_required")
     if type(config.get("collect_learning_signal_joins", False)) is not bool:
         raise ValueError("boolean_public_signal_collection_required")
     if config.get("retry_monitor_version", LEGACY_RETRY_VERSION) not in {LEGACY_RETRY_VERSION, PROGRESS_RETRY_VERSION}:
@@ -302,6 +304,13 @@ def validate_config(config):
         ):
             raise ValueError("unsafe_warmstart_budget")
         opponents = experiment.get("opponents", ["random", "max_power", "heuristic"])
+        if experiment.get("opponent_schedule") is not None:
+            from advisor.learned_opponent_curriculum import validate_schedule
+            validate_schedule(experiment["opponent_schedule"], opponents)
+            if (not config.get("collect_opponent_selections") or experiment["steps"] != 65536
+                    or experiment.get("warmstart_decisions", 0) or experiment.get("offline")
+                    or config.get("transition_budget_scope") != "trained_rollouts_v1"):
+                raise ValueError("opponent_schedule_requires_audited_fixed_budget")
         if (
             not opponents
             or len(opponents) > 12
@@ -931,6 +940,8 @@ def run(
                     training_subset_path=config.get("training_subset"),
                     training_subset_sha256=config.get("training_subset_sha256"),
                     foundation_profile="combat_foundation" in experiment,
+                    opponent_schedule=experiment.get("opponent_schedule"),
+                    collect_opponent_selections=config.get("collect_opponent_selections", False),
                 )
                 for i in range(config.get("envs", 4))
             ]
@@ -1202,6 +1213,13 @@ def run(
                     "checkpoint_binding": "training_interval_endpoint_not_each_step_policy_identity",
                     "episodes": episodes, "pending": episode_cursors,
                 })
+                if config.get("collect_opponent_selections", False):
+                    atomic_json(directory / "opponent_selections.json", {
+                        "scope": "coordinator_episode_start_receipts_not_policy_inputs",
+                        "receipts": [r for worker in vector.env_method("drain_opponent_selections") for r in worker],
+                        "schedule": experiment.get("opponent_schedule"),
+                        "completed_trained_transitions": state["experiment_steps"],
+                    })
                 retry_records = [row for worker in vector.env_method("drain_retry_diagnostics") for row in worker]
                 atomic_json(directory / "public_retry_diagnostics.json", {
                     "scope": "coordinator_only_owner_visible_requests_no_private_truth_or_native_error_cause",
@@ -1442,6 +1460,10 @@ def run(
                     config.get("checkpoint_steps", 8192),
                     experiment["steps"] - state["experiment_steps"],
                 )
+                if config.get("collect_opponent_selections", False):
+                    from advisor.learned_opponent_curriculum import next_boundary
+                    chunk = next_boundary(experiment.get("opponent_schedule"), state["experiment_steps"], chunk)
+                    vector.env_method("set_opponent_schedule_cursor", state["experiment_steps"])
                 torch.set_num_threads(config.get("cpu_threads", 1))
                 notify("running", resources=job.usage())
 
