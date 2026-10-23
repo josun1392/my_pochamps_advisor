@@ -30,6 +30,8 @@ def categorical_learning_source_identity():
         "advisor/learned_combat_v5_strategic.py", "advisor/learned_combat_v5_strategic_policy.py",
         "advisor/learned_combat_v5_strategic_aux.py", "advisor/learned_combat_v5_references.py",
         "advisor/learned_combat_foundation.py",
+        "advisor/learned_parent_anchor.py",
+        "advisor/learned_signal_recorder.py",
         "advisor/learned_public_boosts.py",
         "advisor/learned_combat_v5_strategic_metrics.py", "models/showdown_combat_priors_v3/catalog.json",
         "advisor/learned_action_encoder.py", "advisor/learned_public_interactions.py",

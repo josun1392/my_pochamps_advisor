@@ -49,6 +49,9 @@ from advisor.learned_combat_v5_strategic_aux import StrategicCombatV5PPO
 from advisor.learned_combat_foundation import (
     FoundationCombatPPO, FoundationCombatPolicy, FoundationCombatEncoder, foundation_contract, transfer_foundation_weights,
 )
+from advisor.learned_parent_anchor import (
+    ParentAnchoredFoundationPPO, validate_anchor_contract, model_parent_anchor_contract,
+)
 from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
 from advisor.learned_training_operations import (
     ACCOUNTING_VERSION, OPERATIONS_VERSION, CompletedRollouts, RetryMonitor, TrainingJournal,
@@ -68,6 +71,8 @@ CURRICULUM = "showdown-learning-curriculum-v2"
 
 
 def validate_config(config):
+    if type(config.get("collect_learning_signal_joins", False)) is not bool:
+        raise ValueError("boolean_public_signal_collection_required")
     if config.get("retry_monitor_version", LEGACY_RETRY_VERSION) not in {LEGACY_RETRY_VERSION, PROGRESS_RETRY_VERSION}:
         raise ValueError("unsupported_retry_monitor_version")
     if config.get("transition_budget_scope", "legacy_collected_v1") not in {"legacy_collected_v1", "trained_rollouts_v1"}:
@@ -172,6 +177,13 @@ def validate_config(config):
         raise ValueError("invalid_reference_models")
     rollout = 128 * config.get("envs", 4)
     for experiment in config["experiments"]:
+        if "parent_policy_anchor" in experiment:
+            anchor = validate_anchor_contract(experiment["parent_policy_anchor"])
+            if ("combat_foundation" not in experiment or not experiment.get("initial_model")
+                    or experiment.get("initial_model_id") != anchor["parent_model_sha256"]
+                    or experiment.get("fresh_optimizer") is not False
+                    or experiment.get("transfer_model") or config.get("device", "cpu") != "cpu"):
+                raise ValueError("parent_anchor_requires_declared_foundation_parent_and_Adam")
         if "combat_foundation" in experiment:
             if (experiment["combat_foundation"] != foundation_contract()
                     or experiment.get("encoder_version") != STRATEGIC_COMBAT_V5
@@ -338,6 +350,8 @@ def freeze_historical_reference(
 
 
 def save_checkpoint(model, encoder, directory, metadata):
+    parent_proof = (model.parent_reference_proof()
+                    if model_parent_anchor_contract(model) is not None else None)
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=False)
     path = directory / "model"
@@ -383,6 +397,9 @@ def save_checkpoint(model, encoder, directory, metadata):
             "gamma": model.gamma,
             "gae_lambda": model.gae_lambda,
             "training_objective": objective_contract(model.gamma, model.gae_lambda),
+            **({"parent_policy_anchor": model_parent_anchor_contract(model)}
+               if model_parent_anchor_contract(model) is not None else {}),
+            **({"parent_reference_proof": parent_proof} if parent_proof is not None else {}),
             **({"categorical_learning_source_sha256": categorical_learning_source_identity()}
                if encoder.version in PUBLIC_CATEGORICAL_VERSIONS else {}),
             **({"feature_contract": encoder.feature_contract} if hasattr(encoder, "feature_contract") else {}),
@@ -422,7 +439,7 @@ def require_finite_ppo(model, *, rollout=False):
 
 
 class BudgetCallback(BaseCallback):
-    def __init__(self, budget, progress=None, collect_diagnostics=False):
+    def __init__(self, budget, progress=None, collect_diagnostics=False, signal_recorder=None):
         super().__init__()
         self.budget = budget
         self.progress = progress
@@ -433,8 +450,11 @@ class BudgetCallback(BaseCallback):
         self.rollout_start = None
         self.update_start = None
         self.completed_rollouts = CompletedRollouts()
+        self.signal_recorder = signal_recorder
 
     def _on_step(self):
+        if self.signal_recorder is not None:
+            self.signal_recorder.step(self.locals["infos"], self.locals["dones"])
         if hasattr(self.model, "record_auxiliary"):
             self.model.record_auxiliary(self.locals["infos"])
         if self.progress and time() - self.last_progress >= 2:
@@ -444,6 +464,8 @@ class BudgetCallback(BaseCallback):
 
     def _on_rollout_start(self):
         self.completed_rollouts.settle(optimizer_steps(self.model))
+        if self.signal_recorder is not None:
+            self.signal_recorder.start(self.model, optimizer_steps(self.model))
         if hasattr(self.model, "begin_auxiliary_rollout"):
             self.model.begin_auxiliary_rollout()
         require_finite_ppo(self.model)
@@ -458,6 +480,8 @@ class BudgetCallback(BaseCallback):
             self.model.freeze_auxiliary_rollout()
         require_finite_ppo(self.model, rollout=True)
         self.completed_rollouts.collected(self.model.n_steps * self.model.n_envs, optimizer_steps(self.model))
+        if self.signal_recorder is not None:
+            self.signal_recorder.end(self.model, optimizer_steps(self.model))
         if self.collect_diagnostics:
             now = perf_counter()
             self.measurements["rollout_seconds"] += now - self.rollout_start
@@ -492,6 +516,8 @@ class BudgetCallback(BaseCallback):
     def _on_training_end(self):
         require_finite_ppo(self.model)
         self.completed_rollouts.settle(optimizer_steps(self.model))
+        if self.signal_recorder is not None:
+            self.signal_recorder.settled(optimizer_steps(self.model), self.model)
         if self.collect_diagnostics and self.update_start is not None:
             self.measurements["ppo_update_seconds"] += perf_counter() - self.update_start
             self.update_start = None
@@ -908,21 +934,36 @@ def run(
                 requested_regularizer = (regularizer_contract(experiment["zero_avoiding_beta"])
                                          if "zero_avoiding_beta" in experiment else None)
                 actual_regularizer = model_regularizer_contract(loaded.model)
+                requested_anchor = experiment.get("parent_policy_anchor")
+                actual_anchor = model_parent_anchor_contract(loaded.model)
+                if actual_anchor != requested_anchor and (source or actual_anchor is not None):
+                    raise ValueError("resume_parent_anchor_contract_mismatch")
+                if requested_anchor is not None and encoder.catalog_fingerprint != requested_anchor["catalog_fingerprint"]:
+                    raise ValueError("parent_anchor_encoder_mismatch")
                 if actual_regularizer != requested_regularizer and (
                         source or actual_regularizer is not None or requested_regularizer is None):
                     raise ValueError("resume_regularizer_contract_mismatch")
                 # Enabling a new objective from an explicitly declared legacy parent
                 # preserves compatible tensors AND Adam, never a mid-rollout claim.
-                algorithm = type(loaded.model) if encoder.version in (*COMBAT_V5_VERSIONS, STRATEGIC_COMBAT_V5) else RegularizedMaskablePPO if requested_regularizer else type(loaded.model)
+                algorithm = (ParentAnchoredFoundationPPO if requested_anchor is not None
+                    else type(loaded.model) if encoder.version in (*COMBAT_V5_VERSIONS, STRATEGIC_COMBAT_V5)
+                    else RegularizedMaskablePPO if requested_regularizer else type(loaded.model))
                 model = (
                     loaded.model
-                    if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer
+                    if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer and actual_anchor == requested_anchor
                     else algorithm.load(initial_source, env=vector, device=device,
                                         **({"zero_avoiding_beta": requested_regularizer["beta"]}
-                                           if requested_regularizer else {}))
+                                           if requested_regularizer else {}),
+                                        **({"parent_policy_anchor": requested_anchor,
+                                            "parent_reference_path": experiment["initial_model"],
+                                            "parent_catalog_path": str(catalog)} if requested_anchor is not None else {}))
                 )
                 if model_regularizer_contract(model) != requested_regularizer:
                     raise ValueError("training_regularizer_restore_failed")
+                if model_parent_anchor_contract(model) != requested_anchor:
+                    raise ValueError("training_parent_anchor_restore_failed")
+                if requested_anchor is not None:
+                    model.parent_reference_proof()
                 model.set_env(vector)
                 if not source:
                     model.seed = seed
@@ -1395,8 +1436,14 @@ def run(
                         optimizer_steps=optimizer_steps(model),
                     )
 
+                if config.get("collect_learning_signal_joins", False):
+                    from advisor.learned_signal_recorder import PublicSignalRecorder
+                    signal_recorder = PublicSignalRecorder(output / "public_signal_joins", encoder)
+                else:
+                    signal_recorder = None
                 callback = BudgetCallback(budget, live_progress,
-                    collect_diagnostics=config.get("collect_rollout_diagnostics", False))
+                    collect_diagnostics=config.get("collect_rollout_diagnostics", False),
+                    signal_recorder=signal_recorder)
                 model.learn(
                     total_timesteps=chunk,
                     reset_num_timesteps=False,

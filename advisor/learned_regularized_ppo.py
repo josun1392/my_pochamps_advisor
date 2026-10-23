@@ -95,7 +95,13 @@ def checkpoint_algorithm(metadata):
         from advisor.learned_combat_v5_strategic_aux import auxiliary_contract
         if metadata.get("integrated_auxiliary") != auxiliary_contract():
             raise ValueError("combat_foundation_auxiliary_contract_mismatch")
+        if "parent_policy_anchor" in metadata:
+            from advisor.learned_parent_anchor import ParentAnchoredFoundationPPO, validate_anchor_contract
+            validate_anchor_contract(metadata["parent_policy_anchor"])
+            return ParentAnchoredFoundationPPO
         return FoundationCombatPPO
+    if "parent_policy_anchor" in metadata:
+        raise ValueError("parent_anchor_requires_foundation_contract")
     if metadata.get("encoder_version") == "showdown-public-categorical-observation-v5-integrated-v3":
         from advisor.learned_combat_v5_strategic_aux import StrategicCombatV5PPO, auxiliary_contract
         if metadata.get("integrated_auxiliary") != auxiliary_contract():
@@ -119,3 +125,5 @@ def validate_loaded_regularizer(model, metadata):
         raise ValueError("checkpoint_regularizer_persistence_mismatch")
     if hasattr(model, "auxiliary_metadata") and model.auxiliary_metadata() != metadata.get("integrated_auxiliary"):
         raise ValueError("v5_auxiliary_persistence_mismatch")
+    from advisor.learned_parent_anchor import validate_loaded_parent_anchor
+    validate_loaded_parent_anchor(model, metadata)
