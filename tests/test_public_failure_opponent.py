@@ -126,6 +126,7 @@ def test_wait_loop_retries_are_counted_without_info_or_reward_change():
     view["action_mask"][6]=1;view["choices"][6]="move 1"
     env.current=deepcopy(view);env._episode_identity={"case_index":12};env._rejected_choices=0
     env.retry_diagnostics=[];env.collect_tactical_metrics=False;env.opponent=SimpleNamespace(act=lambda _:26)
+    env.collect_v5_supervision=False  # Match the real constructor's default.
     env.encoder=SimpleNamespace(encode=lambda _: [0.0]);env.completed=[];env.opponent_kind="max_power"
     cursor=[0]
     def step(actions,revision):

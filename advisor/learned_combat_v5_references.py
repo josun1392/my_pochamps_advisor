@@ -89,7 +89,13 @@ def public_stat_template_unsupported(view,identity):
             return True
     return False
 
-def reference_features(view,base,native_moves):
+def reference_features(view,base,native_moves,*,incoming_move_hypotheses=None):
+    """Default encoder path remains revealed-only and bit-compatible.
+
+    An opt-in scripted opponent may supply separately labeled conditional move
+    hypotheses. They are not inserted into public known_moves or neural inputs;
+    this function does not claim they are the opponent's actual available moves.
+    """
     projection=base.project(view);foe=active_public(view);foe_id=identifier(foe.get('details',''))
     ft=projection['active'][1]['types'];roster=view['own_request'].get('side',{}).get('pokemon',[])
     active=next((p for p in roster if p.get('active')),None)
@@ -154,8 +160,9 @@ def reference_features(view,base,native_moves):
             ab=ability(fa);mold=identifier(sa) in ('moldbreaker','teravolt','turboblaze')
             if fa:
                 row[7:9]=[float(is_immune_by_ability(m['type'].lower(),mid,tuple(k for k,v in m['flags'].items() if v),ab,'Flying' not in ft,mold)),1]
-        # Only moves actually revealed to the player can supply incoming references.
-        for mid in foe.get('known_moves',[]):
+        # Historical encoders retain revealed-only references. Hypothetical
+        # calls have an explicit separate argument, never forged public facts.
+        for mid in (foe.get('known_moves',[]) if incoming_move_hypotheses is None else incoming_move_hypotheses):
             m=native_moves.get(identifier(mid),{})
             if not m.get('referenceSupported') or not ft or own_types is None or not omax or hp_fraction is None or fh is None or unmodeled_ability:continue
             physical=m['category']=='Physical';stat='atk' if physical else 'spa';defstat='def' if physical else 'spd';attack_range=stat_range(foe_id,stat)

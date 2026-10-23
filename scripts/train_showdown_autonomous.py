@@ -324,6 +324,7 @@ def validate_config(config):
                 "previous",
                 "historical",
                 "public_failure_aware_v1",
+                "public_tactical_exchange_v1",
             }
             - set(frozen)
         ):

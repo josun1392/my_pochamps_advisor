@@ -39,6 +39,9 @@ class LearningEnvFactory:
         cache = {}
 
         def opponent(kind, seed):
+            if kind == "public_tactical_exchange_v1":
+                from advisor.learned_public_tactical_opponent import PublicTacticalOpponent
+                return PublicTacticalOpponent(seed, catalog=self.catalog, checkout=self.checkout)
             if kind == "public_failure_aware_v1":
                 from advisor.learned_failure_opponent import PublicFailureAwareOpponent
                 if kind not in self.references:
