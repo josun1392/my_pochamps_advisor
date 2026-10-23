@@ -154,6 +154,7 @@ def evaluate(
     candidate_seat="p1",
     seat_contract=NATIVE_SEAT_CONTRACT,
     integrated_diagnostics=False,
+    transition_observer=None,
 ):
     if candidate_seat not in ("p1", "p2"):
         raise ValueError("invalid_candidate_seat")
@@ -276,10 +277,21 @@ def evaluate(
                             if action < 6
                             else "attack_or_status"
                         ] += 1
+                        actions = {candidate_side: action, rival_side: rival.act(other)}
                         result = env.step(
-                            {candidate_side: action, rival_side: rival.act(other)},
+                            actions,
                             revision=own["revision"],
                         )
+                        if transition_observer is not None:
+                            # Coordinator-only, opt-in audit. Each view is still
+                            # passed only to its own policy above; no env/checkpoint
+                            # or hidden scenario truth is supplied to this hook.
+                            transition_observer({
+                                "before": {candidate_side: deepcopy(own), rival_side: deepcopy(other)},
+                                "actions": dict(actions), "result": deepcopy(result),
+                                "after": {side: env.observation(side, include_history=True)
+                                          for side in (candidate_side, rival_side)},
+                            })
                         if prediction_metrics is not None and prediction_metrics.rows < 8 and not own["action_mask"][26]:
                             prediction_metrics.observe(player, own, other, env.observation(candidate_side, include_history=True))
                         steps += 1
