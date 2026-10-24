@@ -88,6 +88,8 @@ def model_regularizer_contract(model):
 
 
 def checkpoint_algorithm(metadata):
+    if "masked_temperature" in metadata and "combat_foundation" not in metadata:
+        raise ValueError("temperature_requires_foundation_checkpoint")
     if "combat_foundation" in metadata:
         from advisor.learned_combat_foundation import FoundationCombatPPO, foundation_contract
         if metadata["combat_foundation"] != foundation_contract() or metadata.get("encoder_version") != foundation_contract()["encoder"]:
@@ -95,6 +97,12 @@ def checkpoint_algorithm(metadata):
         from advisor.learned_combat_v5_strategic_aux import auxiliary_contract
         if metadata.get("integrated_auxiliary") != auxiliary_contract():
             raise ValueError("combat_foundation_auxiliary_contract_mismatch")
+        if "masked_temperature" in metadata:
+            from advisor.learned_temperature import TemperatureFoundationPPO, validate_temperature
+            validate_temperature(metadata["masked_temperature"])
+            if "parent_policy_anchor" in metadata:
+                raise ValueError("temperature_parent_anchor_combination_not_supported")
+            return TemperatureFoundationPPO
         if "parent_policy_anchor" in metadata:
             from advisor.learned_parent_anchor import ParentAnchoredFoundationPPO, validate_anchor_contract
             validate_anchor_contract(metadata["parent_policy_anchor"])
@@ -127,3 +135,5 @@ def validate_loaded_regularizer(model, metadata):
         raise ValueError("v5_auxiliary_persistence_mismatch")
     from advisor.learned_parent_anchor import validate_loaded_parent_anchor
     validate_loaded_parent_anchor(model, metadata)
+    from advisor.learned_temperature import validate_loaded_temperature
+    validate_loaded_temperature(model, metadata)

@@ -52,6 +52,9 @@ from advisor.learned_combat_foundation import (
 from advisor.learned_parent_anchor import (
     ParentAnchoredFoundationPPO, validate_anchor_contract, model_parent_anchor_contract,
 )
+from advisor.learned_temperature import (
+    TemperatureFoundationPPO, validate_temperature, model_temperature_contract,
+)
 from advisor.learned_objective import objective_contract, experiment_objective, require_resume_objective, categorical_learning_source_identity
 from advisor.learned_training_operations import (
     ACCOUNTING_VERSION, OPERATIONS_VERSION, CompletedRollouts, RetryMonitor, TrainingJournal,
@@ -197,6 +200,13 @@ def validate_config(config):
         raise ValueError("invalid_reference_models")
     rollout = 128 * config.get("envs", 4)
     for experiment in config["experiments"]:
+        if "masked_temperature" in experiment:
+            validate_temperature(experiment["masked_temperature"])
+            if ("combat_foundation" not in experiment or not experiment.get("initial_model")
+                    or experiment.get("fresh_optimizer") is not False or experiment.get("parent_policy_anchor")
+                    or experiment.get("transfer_model") or experiment.get("steps") != 65536
+                    or rollout != 512 or experiment.get("warmstart_decisions", 0) or experiment.get("offline")):
+                raise ValueError("temperature_requires_matched_Foundation_Adam_65536_512")
         if "parent_policy_anchor" in experiment:
             anchor = validate_anchor_contract(experiment["parent_policy_anchor"])
             if ("combat_foundation" not in experiment or not experiment.get("initial_model")
@@ -409,6 +419,8 @@ def save_checkpoint(model, encoder, directory, metadata):
             },
             "policy_class": type(model.policy).__name__,
             **({"combat_foundation": foundation_contract()} if isinstance(model, FoundationCombatPPO) else {}),
+            **({"masked_temperature": model_temperature_contract(model), "temperature_state": model.temperature_state()}
+               if model_temperature_contract(model) is not None else {}),
             "model_seed": model.seed,
             "encoder_version": encoder.version,
             "catalog_fingerprint": encoder.catalog_fingerprint,
@@ -967,6 +979,10 @@ def run(
                 actual_regularizer = model_regularizer_contract(loaded.model)
                 requested_anchor = experiment.get("parent_policy_anchor")
                 actual_anchor = model_parent_anchor_contract(loaded.model)
+                requested_temperature = experiment.get("masked_temperature")
+                actual_temperature = model_temperature_contract(loaded.model)
+                if actual_temperature != requested_temperature and (source or actual_temperature is not None):
+                    raise ValueError("resume_temperature_contract_mismatch")
                 if actual_anchor != requested_anchor and (source or actual_anchor is not None):
                     raise ValueError("resume_parent_anchor_contract_mismatch")
                 if requested_anchor is not None and encoder.catalog_fingerprint != requested_anchor["catalog_fingerprint"]:
@@ -976,15 +992,17 @@ def run(
                     raise ValueError("resume_regularizer_contract_mismatch")
                 # Enabling a new objective from an explicitly declared legacy parent
                 # preserves compatible tensors AND Adam, never a mid-rollout claim.
-                algorithm = (ParentAnchoredFoundationPPO if requested_anchor is not None
+                algorithm = (TemperatureFoundationPPO if requested_temperature is not None
+                    else ParentAnchoredFoundationPPO if requested_anchor is not None
                     else type(loaded.model) if encoder.version in (*COMBAT_V5_VERSIONS, STRATEGIC_COMBAT_V5)
                     else RegularizedMaskablePPO if requested_regularizer else type(loaded.model))
                 model = (
                     loaded.model
-                    if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer and actual_anchor == requested_anchor
+                    if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer and actual_anchor == requested_anchor and actual_temperature == requested_temperature
                     else algorithm.load(initial_source, env=vector, device=device,
                                         **({"zero_avoiding_beta": requested_regularizer["beta"]}
                                            if requested_regularizer else {}),
+                                        **({"masked_temperature": requested_temperature} if requested_temperature is not None else {}),
                                         **({"parent_policy_anchor": requested_anchor,
                                             "parent_reference_path": experiment["initial_model"],
                                             "parent_catalog_path": str(catalog)} if requested_anchor is not None else {}))
@@ -993,6 +1011,12 @@ def run(
                     raise ValueError("training_regularizer_restore_failed")
                 if model_parent_anchor_contract(model) != requested_anchor:
                     raise ValueError("training_parent_anchor_restore_failed")
+                if model_temperature_contract(model) != requested_temperature:
+                    raise ValueError("training_temperature_restore_failed")
+                if requested_temperature is not None:
+                    if model.temperature_trained != state["experiment_steps"]:
+                        raise ValueError("temperature_trained_checkpoint_accounting_mismatch")
+                    model.set_temperature_audit_directory(output / "temperature_audit")
                 if requested_anchor is not None:
                     model.parent_reference_proof()
                 model.set_env(vector)
