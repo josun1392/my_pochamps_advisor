@@ -20,7 +20,7 @@ import time
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from advisor.learned_execution_alignment import content_hash, digest, durable_json
-from advisor.learned_response_predictor import (VERSION, ResponseEncoder, public_input,
+from advisor.learned_response_predictor import (VERSION, LABEL_VERSION, ResponseEncoder, public_input,
     selected_label, audit_split, team_signature, frequency_predictions,
     score_predictions, make_model, model_probabilities)
 from advisor.learned_difficulty_calibration import RIVALS, PublicRetryAudit, AttemptRateGuard
@@ -127,7 +127,63 @@ def verify(plan_path):
         raise ValueError("predictor_native_checkout_dirty")
     cases=read(p["cases_path"])["cases"];audit_split(cases)
     if encoder(p).fingerprint!=p["encoder_fingerprint"] or len(p["slots"])!=1792:raise ValueError("predictor_encoder_or_budget_changed")
+    if p.get("offline_completion"):
+        source=verify_collected_source(p["collection_plan_path"])
+        original=source["plan"]
+        if digest(p["collection_plan_path"])!=p["offline_completion"]["collection_plan_sha256"]:
+            raise ValueError("offline_collection_plan_mutated")
+        unchanged=("checkout","engine_commit","format_id","catalog","parent","parent_semantic_identity","rivals",
+            "training_subset","training_subset_sha256","cases_path","slots","games","parent_action_mode",
+            "rival_actions","team_protocol","nominal_mixture","fold_rival_case_quotas","split","learner","statistics",
+            "resources","encoder_identity","encoder_fingerprint")
+        if any(p.get(k)!=original.get(k) for k in unchanged):
+            raise ValueError("offline_completion_changed_frozen_experiment")
+        if p["label_contract"]!={"version":LABEL_VERSION,"delta":"exclude_authenticated_forced_recharge_request_sentinel_not_a_Dex_move"}:
+            raise ValueError("offline_label_repair_contract")
     return p,cases
+
+
+def verify_collected_source(path):
+    """Verify immutable collection against recorded Git blobs, not new code.
+
+    This never creates a native environment or loads a combat policy. The old
+    failed data-conversion outputs/plan stay in their original directory.
+    """
+    old=read(path);out=Path(old["output"])
+    if (old["schema_version"]!=VERSION or old["games"]!=1792 or old["new_PPO_transitions"]!=0
+            or old["parent_action_mode"]!="argmax"):
+        raise ValueError("offline_requires_original_argmax_collection")
+    for name,h in old["immutable_files"].items():
+        if digest(name)!=h:raise ValueError("offline_original_input_mutated:"+name)
+    for name,h in old["source_sha256"].items():
+        raw=subprocess.check_output(["git","show",old["source_commit"]+":"+name],cwd=ROOT)
+        if sha256(raw.replace(b"\r\n",b"\n")).hexdigest()!=h:
+            raise ValueError("offline_recorded_source_mismatch:"+name)
+    rows=audit_games(out,old["slots"],digest(path));done=read(out/"collection_complete.json")
+    if (len(rows)!=1792 or done["games"]!=1792 or done["new_PPO"]!=0
+            or done["parent_before"]!=old["parent_semantic_identity"] or done["parent_after"]!=done["parent_before"]):
+        raise ValueError("offline_incomplete_or_unfrozen_collection")
+    if any((out/f).exists() for f in ("fit_started.json","test_started.json","execution_complete.json")):
+        raise ValueError("offline_original_fit_or_test_already_started")
+    return {"plan":old,"rows":rows,"complete":done}
+
+
+def prepare_offline(collection_path,output):
+    source=verify_collected_source(collection_path);old=source["plan"]
+    out=Path(output);out.mkdir(exist_ok=False)
+    p=deepcopy(old)
+    p.update(output=str(out),frozen_utc=utc(),collection_output=old["output"],collection_plan_path=str(collection_path),
+        source_commit=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
+        offline_completion={"schema_version":"foundation-response-predictor-offline-completion-v1",
+            "collection_plan_sha256":digest(collection_path),"collection_source_commit":old["source_commit"],
+            "new_native_games":0,"new_PPO_transitions":0,"previous_fit_started":False,"previous_test_opened":False},
+        label_contract={"version":LABEL_VERSION,"delta":"exclude_authenticated_forced_recharge_request_sentinel_not_a_Dex_move"})
+    paths=[str(collection_path),str(Path(old["output"])/"collection_complete.json"),str(Path(old["output"])/"failure.json")]
+    p["immutable_files"]={**old["immutable_files"],**{path:digest(path) for path in paths}}
+    p["source_sha256"]={name:sha256((ROOT/name).read_bytes().replace(b"\r\n",b"\n")).hexdigest() for name in old["source_sha256"]}
+    durable_json(out/"plan.json",p)
+    verify(out/"plan.json")
+    print(json.dumps({"offline_plan":str(out/"plan.json"),"original_native_games":1792,"new_native_games":0,"new_PPO":0,"label_contract":p["label_contract"]}))
 
 
 class ArgmaxRecorder:
@@ -164,6 +220,8 @@ def audit_games(out,slots,plan_sha):
 
 
 def collect(plan_path,job,limit,resume):
+    if read(plan_path).get("offline_completion"):
+        raise ValueError("offline_completion_native_collection_forbidden")
     import torch
     from advisor.learned_policy import LearnedPolicy
     from advisor.learned_parent_anchor import tensor_digest,optimizer_digest
@@ -235,7 +293,9 @@ def build_dataset(p):
     import numpy as np
     from advisor.showdown_observation import project_policy_observation
     out=Path(p["output"]);e=encoder(p);lookup={c["index"]:c for c in read(p["cases_path"])["cases"]}
-    rows=audit_games(out,p["slots"],digest(out/"plan.json"));xs=[];supports=[];labels=[];heuristics=[];meta=[];excluded=Counter();hashes=0;encoding_times=[]
+    collection_out=Path(p.get("collection_output",p["output"]))
+    collection_plan=Path(p.get("collection_plan_path",collection_out/"plan.json"))
+    rows=audit_games(collection_out,p["slots"],digest(collection_plan));xs=[];supports=[];labels=[];heuristics=[];meta=[];excluded=Counter();hashes=0;encoding_times=[]
     for game,r in enumerate(rows):
         slot=r["slot"];target_side="self" if slot["seat"]=="p1" else "opponent";observer_side="opponent" if target_side=="self" else "self";hist={}
         with gzip.open(r["trace"],"rt",encoding="utf-8") as stream:
@@ -346,7 +406,8 @@ def fit_and_test(plan_path,job,limit):
     model_binding={"schema_version":VERSION,"encoder_fingerprint":e.fingerprint,"outputs":e.outputs,"temperature":temperature,
         "parameter_count":sum(v.numel() for v in model.parameters()),"chosen_epoch":chosen["epoch"],"optimizer_updates":updates,
         "checkpoint_sha256":digest(out/"predictor_best_validation.pt"),"plan_sha256":digest(plan_path),
-        "runtime_scope":"offline_observer_public_only_not_BR_connected","training_mode":"Foundation_argmax_labels"}
+        "runtime_scope":"offline_observer_public_only_not_BR_connected","training_mode":"Foundation_argmax_labels",
+        "label_contract":p.get("label_contract",{"version":LABEL_VERSION})}
     durable_json(out/"predictor.json",model_binding)
     # Restart numerical equality, including the actual optimizer state.
     clone=make_model(e.dimension,len(e.outputs));clone.load_state_dict(chosen["model"])
@@ -405,9 +466,13 @@ def fit_and_test(plan_path,job,limit):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("--prepare",type=Path);parser.add_argument("--output",type=Path)
+    parser.add_argument("--prepare-offline",type=Path);parser.add_argument("--offline-only",action="store_true")
     parser.add_argument("--plan",type=Path);parser.add_argument("--owned",action="store_true");parser.add_argument("--resume",action="store_true");args=parser.parse_args()
     if args.prepare:prepare(args.prepare,args.output);return
+    if args.prepare_offline:prepare_offline(args.prepare_offline,args.output);return
     p,_=verify(args.plan);out=Path(p["output"])
+    if bool(args.offline_only)!=bool(p.get("offline_completion")):
+        raise ValueError("offline_completion_requires_explicit_offline_only_mode")
     if not args.owned:raise ValueError("predictor_detached_owned_process_required")
     if (out/"control.json").exists() and process_alive(read(out/"control.json")["pid"]):raise ValueError("predictor_owner_already_alive")
     if any((out/f).exists() for f in ("failure.json","STOP","watchdog.json","execution_complete.json")):raise ValueError("predictor_existing_failure_STOP_or_completion")
@@ -417,11 +482,12 @@ def main():
     atomic_json(out/"control.json",{"pid":os.getpid(),"parent_pid":os.getppid(),"utc":utc(),"plan_sha256":digest(args.plan),"own_job":True,"inherited_job":False,"automatic_restarts":0,"resources":p["resources"]})
     started=time.monotonic()
     try:
-        collect(args.plan,job,limit,args.resume)
+        if not args.offline_only:collect(args.plan,job,limit,args.resume)
         result=fit_and_test(args.plan,job,limit)
         verify(args.plan)
         durable_json(out/"execution_complete.json",{"status":"complete_pending_independent_audit","utc":utc(),"native_games":1792,"new_PPO":0,
-            "verdict":result["verdict"],"test_sha256":digest(out/"test_complete.json"),"wall_seconds":time.monotonic()-started,"resources":job.usage(),"network":network})
+            "verdict":result["verdict"],"test_sha256":digest(out/"test_complete.json"),"wall_seconds":time.monotonic()-started,"resources":job.usage(),"network":network,
+            "this_launch_new_native_games":0 if args.offline_only else 1792,"offline_only":bool(args.offline_only)})
         atomic_json(out/"status.json",{"phase":"complete_pending_independent_audit","utc":utc(),"games":1792,"test_complete":True})
     except BaseException as err:
         import traceback

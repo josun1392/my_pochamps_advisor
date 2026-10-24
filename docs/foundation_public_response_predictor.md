@@ -60,3 +60,20 @@ labels. Keep source archives restricted to coordinator use. All model/data/test
 artifacts stay external. The offline predictor checkpoint stores its encoder,
 plan/dataset hashes, optimizer and RNG state separately from combat checkpoints.
 GO concerns probabilistic prediction only; battle strength needs another task.
+
+## Completed-collection offline recovery
+
+Label contract `foundation-public-selected-response-labels-v1.1` excludes the
+native `recharge` request sentinel only when its sole request move is Recharge,
+`trapped` is confirmed and the selected action is the only legal action. This
+is a mandatory no-choice phase, not a Dex move or a status/attack target. Other
+unsupported identities and ambiguous recharge requests still fail closed.
+
+If collection completed before fitting/test began, `--prepare-offline` creates
+a separate revision referencing the unchanged original plan,1792 receipts,
+collection completion and failure record. Recorded collection source hashes
+are verified against their original Git commit. Team split, cases, learner,
+baseline definitions, statistical gates and all frozen combat inputs must stay
+identical. `--offline-only` cannot enter native collection; the original failed
+directory is never overwritten. It permits the previously unstarted single
+supervised fit/test, never an automatic refit, retest or extra battle.

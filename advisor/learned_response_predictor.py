@@ -14,6 +14,7 @@ from advisor.learned_encoder import PartialObservationEncoder, fingerprint, iden
 from advisor.learned_combat_v5 import FAMILIES, active_public
 
 VERSION = "foundation-public-selected-response-predictor-v1"
+LABEL_VERSION = "foundation-public-selected-response-labels-v1.1"
 FEATURE_KEYS = ("schema_version", "interpretation", "side", "turn", "request_state",
                 "own_request", "visible_active_health", "action_schema_version",
                 "action_mask", "choices", "state", "public_history")
@@ -73,6 +74,14 @@ def selected_label(observer, target, action, result, tactics, native):
     if not match or not 0 <= int(match[1])-1 < len(moves):
         raise ValueError("predictor_selected_move_slot_unavailable")
     mid = identifier(moves[int(match[1])-1]["id"])
+    if mid == "recharge":
+        # A native request sentinel, not a selectable Dex move. Authenticate
+        # the forced path instead of inventing an attack/status label.
+        active = target["own_request"]["active"][0]
+        if (len(moves) == 1 and active.get("trapped") is True
+                and [i for i,v in enumerate(target["action_mask"]) if v] == [action]):
+            return None, "target_forced_recharge_no_strategic_selection"
+        raise ValueError("predictor_unconfirmed_recharge_request")
     if mid not in native:
         raise ValueError("predictor_unknown_selected_move:" + mid)
     family = move_family(mid, tactics, native)

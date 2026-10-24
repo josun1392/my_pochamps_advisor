@@ -82,6 +82,43 @@ def test_label_choices_not_execution_and_rejections_wait_and_forced_excluded(enc
     with pytest.raises(ValueError,match="illegal"):selected_label(obs,target,6,{"action_rejected":False},encoder.tactics,encoder.native)
 
 
+def test_native_forced_recharge_is_not_a_move_label(encoder):
+    observer,target=view(),view("opponent")
+    target["own_request"]["active"]=[{"moves":[{"id":"recharge","move":"Recharge"}],"trapped":True}]
+    target["action_mask"]=[int(i==6) for i in range(35)]
+    label,reason=selected_label(observer,target,6,{"action_rejected":False},encoder.tactics,encoder.native)
+    assert label is None and reason=="target_forced_recharge_no_strategic_selection"
+    for mutation in ("not_trapped","alternative_action"):
+        wrong=deepcopy(target)
+        if mutation=="not_trapped":wrong["own_request"]["active"][0]["trapped"]=False
+        else:wrong["action_mask"][0]=1
+        with pytest.raises(ValueError,match="unconfirmed_recharge"):
+            selected_label(observer,wrong,6,{"action_rejected":False},encoder.tactics,encoder.native)
+    target["own_request"]["active"][0]["moves"][0]["id"]="notarealmove"
+    with pytest.raises(ValueError,match="unknown_selected_move"):
+        selected_label(observer,target,6,{"action_rejected":False},encoder.tactics,encoder.native)
+
+
+def test_offline_completion_cannot_enter_native_collector(tmp_path):
+    from scripts.run_foundation_response_predictor import collect
+    path=tmp_path/"plan.json";path.write_text(json.dumps({"offline_completion":True}))
+    with pytest.raises(ValueError,match="native_collection_forbidden"):
+        collect(path,None,None,False)
+
+
+def test_completed_collection_cannot_be_reused_after_fit_started(tmp_path,monkeypatch):
+    import scripts.run_foundation_response_predictor as runner
+    identity={"parameters":"p","Adam":"a"}
+    p={"schema_version":runner.VERSION,"games":1792,"new_PPO_transitions":0,"parent_action_mode":"argmax","output":str(tmp_path),
+       "immutable_files":{},"source_sha256":{},"slots":[],"parent_semantic_identity":identity}
+    path=tmp_path/"plan.json";path.write_text(json.dumps(p))
+    (tmp_path/"collection_complete.json").write_text(json.dumps({"games":1792,"new_PPO":0,"parent_before":identity,"parent_after":identity}))
+    monkeypatch.setattr(runner,"audit_games",lambda *args:[{}]*1792)
+    assert runner.verify_collected_source(path)["complete"]["games"]==1792
+    (tmp_path/"fit_started.json").write_text("{}")
+    with pytest.raises(ValueError,match="fit_or_test_already_started"):runner.verify_collected_source(path)
+
+
 def test_public_mask_normalization_never_target_private_mask(encoder):
     v=view(revealed=True)
     x,s=encoder.encode(v);model=make_model(len(x),len(s));torch.set_num_threads(1)
