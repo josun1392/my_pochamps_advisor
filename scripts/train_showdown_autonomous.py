@@ -325,6 +325,7 @@ def validate_config(config):
                 "historical",
                 "public_failure_aware_v1",
                 "public_tactical_exchange_v1",
+                "public_observation_best_response_v1",
             }
             - set(frozen)
         ):
