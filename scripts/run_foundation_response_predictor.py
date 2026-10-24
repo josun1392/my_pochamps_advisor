@@ -219,7 +219,7 @@ def audit_games(out,slots,plan_sha):
     return rows
 
 
-def collect(plan_path,job,limit,resume):
+def collect(plan_path,job,limit,resume, *, plan_validator=None):
     if read(plan_path).get("offline_completion"):
         raise ValueError("offline_completion_native_collection_forbidden")
     import torch
@@ -228,7 +228,10 @@ def collect(plan_path,job,limit,resume):
     from scripts.run_foundation_parent_anchor_study import checkpoint_integrity,FrozenCase
     from scripts.run_foundation_difficulty_calibration import compact_view
     from scripts.evaluate_showdown_policy import evaluate
-    p,cases=verify(plan_path);out=Path(p["output"]);plan_sha=digest(plan_path)
+    validate=plan_validator or verify
+    p,cases=validate(plan_path);out=Path(p["output"]);plan_sha=digest(plan_path);target_games=p["games"]
+    if type(target_games)is not int or not 1<=target_games<=1792 or len(p["slots"])!=target_games:
+        raise ValueError("public_argmax_collection_budget_contract")
     for d in ("receipts","traces"): (out/d).mkdir(exist_ok=True)
     rows=audit_games(out,p["slots"],plan_sha)
     if rows and not resume:raise ValueError("predictor_existing_games_require_explicit_resume")
@@ -278,18 +281,18 @@ def collect(plan_path,job,limit,resume):
         append(out/"game_ledger.jsonl",{"phase":"game_committed","index":i,"receipt_sha256":digest(path)})
         rows.append(receipt)
         if len(rows)%8==0:
-            atomic_json(out/"status.json",{"phase":"collection","pid":os.getpid(),"utc":utc(),"games":len(rows),"target":1792,
+            atomic_json(out/"status.json",{"phase":"collection","pid":os.getpid(),"utc":utc(),"games":len(rows),"target":target_games,
                 "games_per_second":(len(rows)-initial)/max(1,time.monotonic()-start),"wall_seconds":time.monotonic()-start,"resources":job.usage()})
     audited=audit_games(out,p["slots"],plan_sha)
-    if len(audited)!=1792 or before!=identity() or frozen!={name:tensor_digest(v.model.policy.state_dict()) for name,v in rivals.items() if not isinstance(v,str)}:
+    if len(audited)!=target_games or before!=identity() or frozen!={name:tensor_digest(v.model.policy.state_dict()) for name,v in rivals.items() if not isinstance(v,str)}:
         raise ValueError("predictor_collection_or_frozen_identity")
-    verify(plan_path)
-    durable_json(out/"collection_complete.json",{"games":1792,"new_PPO":0,"new_strength_evaluations":0,"parent_before":before,"parent_after":identity(),
+    validate(plan_path)
+    durable_json(out/"collection_complete.json",{"games":target_games,"new_PPO":0,"new_strength_evaluations":0,"parent_before":before,"parent_after":identity(),
         "native_rejections":sum(r["record"]["native_choice_rejections"] for r in rows),"truncations":sum(r["record"]["truncated"] for r in rows),
         "utc":utc(),"wall_seconds":time.monotonic()-start,"resources":job.usage()})
 
 
-def build_dataset(p):
+def build_dataset(p, *, folds=("train","validation","test")):
     import numpy as np
     from advisor.showdown_observation import project_policy_observation
     out=Path(p["output"]);e=encoder(p);lookup={c["index"]:c for c in read(p["cases_path"])["cases"]}
@@ -329,7 +332,9 @@ def build_dataset(p):
                     if content_hash(hist[side])!=v["public_history_sha256"] or content_hash(project_policy_observation(v,hist[side])["state"])!=v["state_sha256"]:raise ValueError("predictor_after_digest")
                     hashes+=2
     X=np.asarray(xs,np.float32);S=np.asarray(supports,bool);Y=np.asarray(labels,np.int64);H=np.asarray(heuristics,np.float32)
-    fold_indices={f:np.asarray([i for i,m in enumerate(meta) if m["fold"]==f]) for f in ("train","validation","test")}
+    if not folds or set(folds)-{"train","validation","test"}:raise ValueError("invalid_public_dataset_fold_scope")
+    if any(m["fold"]not in folds for m in meta):raise ValueError("public_dataset_unexpected_fold")
+    fold_indices={f:np.asarray([i for i,m in enumerate(meta) if m["fold"]==f],dtype=np.int64) for f in folds}
     # Identical feature states across folds are audited, not silently deleted.
     owners={};overlap=Counter()
     for m in meta:
@@ -337,7 +342,7 @@ def build_dataset(p):
         if key in owners and owners[key]!=m["fold"]:overlap["public_input_cross_fold"]+=1
         owners[key]=m["fold"]
     for f,ix in fold_indices.items():
-        if len(ix)<p["split"]["minimum_rows"][f] or len({meta[i]["pair"] for i in ix})<24:raise ValueError("predictor_insufficient_independent_data:"+f)
+        if len(ix)<p["split"]["minimum_rows"][f] or len({meta[i]["pair"] for i in ix})<p["split"].get("minimum_pairs_per_fold",24):raise ValueError("predictor_insufficient_independent_data:"+f)
     if overlap:raise ValueError("predictor_cross_fold_public_input_leak")
     summary={"rows":len(meta),"excluded":dict(excluded),"verified_original_digests":hashes,"folds":{},"cross_fold_identical_public_inputs":dict(overlap),
         "encoder_ms":{"samples":len(encoding_times),"median":float(np.median(encoding_times)*1000),"p95":float(np.quantile(encoding_times,.95)*1000)}}
