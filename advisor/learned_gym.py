@@ -34,6 +34,7 @@ class ShowdownLearningEnv(gym.Env):
         collect_v5_supervision=False,
         opponent_schedule=None,
         collect_opponent_selections=False,
+        decision_snapshot_recorder=None,
     ):
         if collect_public_trajectories and not collect_tactical_metrics:
             raise ValueError("public_collection_requires_public_execution_metrics")
@@ -41,6 +42,8 @@ class ShowdownLearningEnv(gym.Env):
             raise ValueError("unsupported_native_terminal_transport")
         if training_subset is not None and curriculum_version != "showdown-learning-curriculum-v8":
             raise ValueError("training_subset_requires_native_v8")
+        if decision_snapshot_recorder is not None and split != "train":
+            raise ValueError("decision_snapshots_require_train_split")
         self.native = ShowdownEnvironment(checkout, max_decisions=max_decisions)
         self.encoder, self.split, self.index, self.offset = (
             encoder,
@@ -70,6 +73,7 @@ class ShowdownLearningEnv(gym.Env):
         self.collect_tactical_metrics = collect_tactical_metrics
         self.diagnostic_directory = diagnostic_directory
         self.collect_public_trajectories = collect_public_trajectories
+        self.decision_snapshot_recorder = decision_snapshot_recorder
         self._collection_step = None
         self.terminal_transport_version = terminal_transport_version
         self.training_subset = training_subset
@@ -349,10 +353,15 @@ class ShowdownLearningEnv(gym.Env):
         other = self.native.observation("opponent", include_history=True)
         views = {"self": self.current, "opponent": other}
         actions = {"self": action, "opponent": self.opponent.act(other)}
+        recorder = getattr(self, "decision_snapshot_recorder", None)
+        if recorder is not None:
+            recorder.native_before(self.native, views, actions)
         if self.collect_tactical_metrics:
             for side, view in views.items():
                 self._public_metrics[side].decision(view, actions[side])
         result = self.native.step(actions, revision=self.current["revision"])
+        if recorder is not None:
+            recorder.native_after(self.native, result)
         self._rejected_choices += int(result["action_rejected"])
         if result["action_rejected"]:
             def flags(view, index):
