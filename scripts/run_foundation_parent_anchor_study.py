@@ -73,6 +73,7 @@ class FrozenCase:
 def train_arms(plan_path, job, limit, resume, *, study=anchor_study):
     from scripts.train_showdown_autonomous import run, validate_config
     plan, configs = study.verify_plan(plan_path)
+    verify_integrity = getattr(study, "checkpoint_integrity", checkpoint_integrity)
     out = Path(plan["output"])
     state_path = out/"campaign_state.json"
     if state_path.exists() and not resume:
@@ -87,7 +88,7 @@ def train_arms(plan_path, job, limit, resume, *, study=anchor_study):
         key = arm["key"]
         if key in state["completed"]:
             bound = state["completed"][key]
-            checkpoint_integrity(bound["path"], bound["sha256"],
+            verify_integrity(bound["path"], bound["sha256"],
                 study.endpoint_clock(key, read(Path(bound["path"]).with_suffix(".json"))) if hasattr(study, "endpoint_clock") else 34816)
             continue
         if limit.stopping():
@@ -154,7 +155,7 @@ def train_arms(plan_path, job, limit, resume, *, study=anchor_study):
             if len(matches) != 1:
                 raise ValueError("missing_fixed_endpoint_receipt")
             final = {"path": str(matches[0]), "sha256": digest(matches[0])}
-        proof = checkpoint_integrity(final["path"], final["sha256"],
+        proof = verify_integrity(final["path"], final["sha256"],
             study.endpoint_clock(key, read(Path(final["path"]).with_suffix(".json"))) if hasattr(study, "endpoint_clock") else 34816)
         metadata = read(Path(final["path"]).with_suffix(".json"))
         if metadata.get("parent_policy_anchor") != config["experiments"][0].get("parent_policy_anchor"):

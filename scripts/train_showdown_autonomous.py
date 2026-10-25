@@ -199,9 +199,16 @@ def validate_config(config):
     ):
         raise ValueError("invalid_reference_models")
     rollout = 128 * config.get("envs", 4)
+    if "ppo_update_audit" in config:
+        from advisor.learned_ppo_contract_audit import VERSION as audit_version
+        if config["ppo_update_audit"] != audit_version or not config.get("collect_learning_signal_joins"):
+            raise ValueError("invalid_PPO_update_audit_opt_in")
     for experiment in config["experiments"]:
-        if "actor_set_context" in experiment:
-            raise ValueError("legal_set_context_offline_contract_only_no_training_opt_in")
+        if "actor_set_context" in experiment or "legal_set_training" in experiment:
+            from advisor.learned_legal_set_context import validate_legal_set_training
+            validate_legal_set_training(experiment)
+            if config.get("envs") != 4 or config.get("device") != "cpu":
+                raise ValueError("legal_set_training_requires_CPU_four_workers")
         if "masked_temperature" in experiment:
             validate_temperature(experiment["masked_temperature"])
             if ("combat_foundation" not in experiment or not experiment.get("initial_model")
@@ -977,8 +984,12 @@ def run(
                 loaded = LearnedPolicy(initial_source, catalog,
                     expected_model_id=None if source else experiment.get("initial_model_id"))
                 from advisor.learned_legal_set_context import model_legal_set_context_contract
-                if model_legal_set_context_contract(loaded.model) is not None:
-                    raise ValueError("legal_set_context_offline_contract_only_no_training_opt_in")
+                actual_set = model_legal_set_context_contract(loaded.model)
+                requested_set = experiment.get("actor_set_context")
+                if actual_set != requested_set and (source or actual_set is not None):
+                    raise ValueError("resume_legal_set_context_contract_mismatch")
+                if source and loaded.metadata.get("legal_set_training") != experiment.get("legal_set_training"):
+                    raise ValueError("resume_legal_set_training_contract_mismatch")
                 if loaded.encoder.version != encoder.version:
                     raise ValueError("initial_model_encoder_mismatch")
                 if loaded.metadata.get("combat_foundation") != experiment.get("combat_foundation"):
@@ -1023,6 +1034,9 @@ def run(
                     raise ValueError("training_parent_anchor_restore_failed")
                 if model_temperature_contract(model) != requested_temperature:
                     raise ValueError("training_temperature_restore_failed")
+                if requested_set is not None and actual_set is None:
+                    from advisor.learned_legal_set_context import extend_foundation_legal_set_context
+                    model = extend_foundation_legal_set_context(model)
                 if requested_temperature is not None:
                     if model.temperature_trained != state["experiment_steps"]:
                         raise ValueError("temperature_trained_checkpoint_accounting_mismatch")
@@ -1197,6 +1211,9 @@ def run(
                         else "fresh_same_encoder"
                         if initial_source
                         else "fresh",
+                        **({"legal_set_training": experiment["legal_set_training"],
+                            "legal_set_optimizer": "old_named_states_preserved_new_residual_empty_at_transfer"}
+                           if "legal_set_training" in experiment else {}),
                         "weight_transfer_source_sha256": transfer_id,
                         "initial_value_transfer_scope": "source_value_initialization_no_functional_objective_conversion"
                         if transfer_id else None,
@@ -1516,17 +1533,21 @@ def run(
 
                 if config.get("collect_learning_signal_joins", False):
                     from advisor.learned_signal_recorder import PublicSignalRecorder
-                    signal_recorder = PublicSignalRecorder(output / "public_signal_joins", encoder)
+                    if config.get("ppo_update_audit"):
+                        from advisor.learned_ppo_contract_audit import AuditedSignalRecorder
+                        signal_recorder = AuditedSignalRecorder(output / "public_signal_joins", encoder)
+                    else:
+                        signal_recorder = PublicSignalRecorder(output / "public_signal_joins", encoder)
                 else:
                     signal_recorder = None
                 callback = BudgetCallback(budget, live_progress,
                     collect_diagnostics=config.get("collect_rollout_diagnostics", False),
                     signal_recorder=signal_recorder)
-                model.learn(
-                    total_timesteps=chunk,
-                    reset_num_timesteps=False,
-                    callback=callback,
-                )
+                try:
+                    model.learn(total_timesteps=chunk, reset_num_timesteps=False, callback=callback)
+                finally:
+                    if signal_recorder is not None and hasattr(signal_recorder, "close"):
+                        signal_recorder.close()
                 taken = model.num_timesteps - steps_before
                 state["transitions"] += taken
                 trained = callback.completed_rollouts.transitions

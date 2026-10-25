@@ -59,9 +59,10 @@ parent-KL or temperature-study metadata fail closed. Original observation and
 base Foundation metadata remain a base binding; the additional policy contract
 identifies the architectural change explicitly.
 
-The source trainer rejects this contract as a training opt-in and rejects an
-initial model carrying it. **No PPO launch is enabled by this implementation.**
-T2 must review the offline result before a separate training integration/task.
+At the `7fb0ba7` acceptance boundary the source trainer rejected training with
+this marker alone. The separately authorized [matched PPO study](foundation_legal_set_matched_PPO_v1.md)
+adds a strict `legal_set_training` opt-in; the historical architecture marker
+and its meaning remain unchanged. A marker alone never enables PPO training.
 
 ## Offline acceptance
 

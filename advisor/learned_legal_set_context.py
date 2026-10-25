@@ -18,6 +18,25 @@ from advisor.learned_public_categories import ACTION
 VERSION = "showdown-foundation-legal-action-set-context-v1"
 
 
+def legal_set_training_contract():
+    """Separate opt-in; never reinterpret the historical architecture marker."""
+    return {"schema_version": "showdown-foundation-legal-set-matched-PPO-v1",
+            "initialization": "old_parameters_and_named_Adam_preserved_new_states_empty",
+            "temperature": 1, "per_arm_trained_transitions": 65536,
+            "reward_GAE_PPO_auxiliary": "unchanged_Foundation",
+            "resume": "same_policy_and_named_Adam_fresh_rollout_boundary"}
+
+
+def validate_legal_set_training(experiment):
+    if (experiment.get("actor_set_context") != legal_set_context_contract()
+            or experiment.get("legal_set_training") != legal_set_training_contract()
+            or not experiment.get("initial_model") or experiment.get("fresh_optimizer") is not False
+            or experiment.get("steps") != 65536 or "combat_foundation" not in experiment
+            or any(experiment.get(k) for k in ("masked_temperature", "parent_policy_anchor", "transfer_model",
+                                               "offline", "warmstart_decisions", "opponent_schedule"))):
+        raise ValueError("legal_set_context_offline_contract_only_or_invalid_training_opt_in")
+
+
 def legal_set_context_contract():
     return {
         "schema_version": VERSION,
