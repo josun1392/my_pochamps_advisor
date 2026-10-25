@@ -144,10 +144,15 @@ class FirstOpponentThenFoundation:
         return self.foundation.act(public)
 
 
-def native_comparisons(plan, output, recorder, foundation, cfg, limit):
+def native_comparisons(plan, output, recorder, foundation, cfg, limit, *,
+                       original_replay_repetitions=2, native_maximum=256,
+                       behavior_verifier=None, alternative_by_root=None):
     valid = [r for r in recorder.roots if r["native_terminal_recorded"]
              and r["trace"][-1]["result"]["terminated"] and not r["trace"][0]["result"]["action_rejected"]]
-    path = output / "native_units"; path.mkdir(); budget = NativeBudget(path)
+    if (original_replay_repetitions not in (1, 2) or not 1 <= native_maximum <= 256
+            or len(valid) * (2 + original_replay_repetitions + 2 * len(plan["future_seeds"])) > native_maximum):
+        raise ValueError("native_comparison_execution_contract")
+    path = output / "native_units"; path.mkdir(); budget = NativeBudget(path, maximum=native_maximum)
     verified_public = output / "verified_public"; verified_public.mkdir()
     before = {"weights": tensor_digest(foundation.model.policy.state_dict()), "Adam": optimizer_digest(foundation.model.policy)}
     replay, pairs, duplicate = [], [], []
@@ -163,8 +168,11 @@ def native_comparisons(plan, output, recorder, foundation, cfg, limit):
                 if native.save() != cp or sha256(features.tobytes()).hexdigest() != r["observation_sha256"]:
                     raise ValueError("restored_root_encoded_observation_mismatch")
                 with torch.no_grad():
-                    value, logp, _ = foundation.model.policy.evaluate_actions(torch.as_tensor(features)[None],
-                        torch.tensor([r["action"]]), action_masks=np.array([r["action_mask"]], bool))
+                    if behavior_verifier is None:
+                        value, logp, _ = foundation.model.policy.evaluate_actions(torch.as_tensor(features)[None],
+                            torch.tensor([r["action"]]), action_masks=np.array([r["action_mask"]], bool))
+                    else:
+                        value, logp = behavior_verifier(public, r)
                 lp_error, v_error = abs(float(logp.item())-r["old_logp"]), abs(float(value.item())-r["value"])
                 if lp_error > 2e-5 or v_error > 2e-5:
                     raise ValueError("restored_root_logp_value_mismatch")
@@ -173,7 +181,7 @@ def native_comparisons(plan, output, recorder, foundation, cfg, limit):
                         "logp_error": lp_error, "value_error": v_error}
             budget.run(f"bind_{r['id']}", bind)
             public = json.loads((verified_public / (r["id"] + ".json")).read_text())
-            for rep in range(2):
+            for rep in range(original_replay_repetitions):
                 replay.append(budget.run(f"replay_{r['id']}_{rep}",
                     lambda: replay_original(native, cp, r, public, stopping=limit.stopping)))
         write_new(output / "replay_gate_passed.json", {"roots": len(valid), "exact_suffix_replays": len(replay),
@@ -181,11 +189,17 @@ def native_comparisons(plan, output, recorder, foundation, cfg, limit):
         for r in valid:
             cp = read_root(recorder.directory, r)
             public = json.loads((verified_public / (r["id"] + ".json")).read_text())
-            options = candidate_actions(public, limit=8)
-            alternatives = [a for a in options if a != r["action"]]
-            if not alternatives: continue
             family = action_class(public, r["action"])
-            alternative = min(alternatives, key=lambda a: (action_class(public, a) == family, options.index(a)))
+            if alternative_by_root is not None:
+                alternative = alternative_by_root[r["id"]]
+                if (type(alternative) is not int or alternative == r["action"]
+                        or not 0 <= alternative < 35 or not public["action_mask"][alternative]):
+                    raise ValueError("predeclared_alternative_not_legal")
+            else:
+                options = candidate_actions(public, limit=8)
+                alternatives = [a for a in options if a != r["action"]]
+                if not alternatives: continue
+                alternative = min(alternatives, key=lambda a: (action_class(public, a) == family, options.index(a)))
             first_other = r["trace"][0]["actions"]["opponent"]
             def branch(action, seed):
                 return branch_candidate(native, cp, public, side="self", action=action, future_seed=seed,

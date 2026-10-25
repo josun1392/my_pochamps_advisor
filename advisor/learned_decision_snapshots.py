@@ -16,6 +16,8 @@ import numpy as np
 from advisor.learned_action_signals import public_identity
 
 VERSION = "showdown-decision-snapshot-GAE-join-v1"
+FROZEN_GAE_SCOPE = "new_frozen_policy_rollout_not_historical_training_or_optimal_action_label"
+PPO_GAE_SCOPE = "new_standard_PPO_rollout_not_counterfactual_or_historical_label"
 
 
 def digest(value):
@@ -48,11 +50,14 @@ def transition_identity(result):
 
 class DecisionSnapshotRecorder:
     def __init__(self, directory, *, policy_id, every=64, max_snapshots=16,
-                 max_checkpoint_bytes=32 * 1024 * 1024):
+                 max_checkpoint_bytes=32 * 1024 * 1024, gae_scope=FROZEN_GAE_SCOPE):
         if (type(every) is not int or every < 1 or type(max_snapshots) is not int
                 or not 1 <= max_snapshots <= 32 or not 1024 <= max_checkpoint_bytes <= 32 * 1024 * 1024
                 or len(policy_id) != 64 or any(c not in "0123456789abcdef" for c in policy_id)):
             raise ValueError("bounded_snapshot_contract_required")
+        if gae_scope not in (FROZEN_GAE_SCOPE, PPO_GAE_SCOPE):
+            raise ValueError("explicit_snapshot_GAE_scope_required")
+        self.gae_scope = gae_scope
         self.directory = outside_git(directory)
         self.directory.mkdir(parents=True, exist_ok=False)
         for name in ("private", "public", "joins"):
@@ -167,7 +172,7 @@ class DecisionSnapshotRecorder:
                 raise ValueError("nonfinite_snapshot_GAE")
             write_new(self.directory / "joins" / (root["id"] + ".json"), {
                 **{k: v for k, v in root.items() if k != "trace"}, "schema_version": VERSION,
-                "GAE_scope": "new_frozen_policy_rollout_not_historical_training_or_optimal_action_label"})
+                "GAE_scope": self.gae_scope})
 
     def finish(self):
         if self.pending_native is not None or self.prepared is not None or any(not r["joined"] for r in self.roots):
