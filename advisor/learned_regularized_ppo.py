@@ -88,6 +88,12 @@ def model_regularizer_contract(model):
 
 
 def checkpoint_algorithm(metadata):
+    if "actor_set_context" in metadata:
+        from advisor.learned_legal_set_context import legal_set_context_contract
+        if (metadata["actor_set_context"] != legal_set_context_contract()
+                or "combat_foundation" not in metadata
+                or any(k in metadata for k in ("masked_temperature", "parent_policy_anchor"))):
+            raise ValueError("legal_set_context_checkpoint_contract_mismatch")
     if "masked_temperature" in metadata and "combat_foundation" not in metadata:
         raise ValueError("temperature_requires_foundation_checkpoint")
     if "combat_foundation" in metadata:
@@ -137,3 +143,5 @@ def validate_loaded_regularizer(model, metadata):
     validate_loaded_parent_anchor(model, metadata)
     from advisor.learned_temperature import validate_loaded_temperature
     validate_loaded_temperature(model, metadata)
+    from advisor.learned_legal_set_context import validate_loaded_legal_set_context
+    validate_loaded_legal_set_context(model, metadata)

@@ -200,6 +200,8 @@ def validate_config(config):
         raise ValueError("invalid_reference_models")
     rollout = 128 * config.get("envs", 4)
     for experiment in config["experiments"]:
+        if "actor_set_context" in experiment:
+            raise ValueError("legal_set_context_offline_contract_only_no_training_opt_in")
         if "masked_temperature" in experiment:
             validate_temperature(experiment["masked_temperature"])
             if ("combat_foundation" not in experiment or not experiment.get("initial_model")
@@ -389,6 +391,10 @@ def freeze_historical_reference(
 
 
 def save_checkpoint(model, encoder, directory, metadata):
+    from advisor.learned_legal_set_context import model_legal_set_context_contract
+    set_context = model_legal_set_context_contract(model)
+    if "actor_set_context" in metadata and metadata["actor_set_context"] != set_context:
+        raise ValueError("legal_set_context_save_metadata_mismatch")
     parent_proof = (model.parent_reference_proof()
                     if model_parent_anchor_contract(model) is not None else None)
     directory = Path(directory)
@@ -419,6 +425,7 @@ def save_checkpoint(model, encoder, directory, metadata):
             },
             "policy_class": type(model.policy).__name__,
             **({"combat_foundation": foundation_contract()} if isinstance(model, FoundationCombatPPO) else {}),
+            **({"actor_set_context": set_context} if set_context is not None else {}),
             **({"masked_temperature": model_temperature_contract(model), "temperature_state": model.temperature_state()}
                if model_temperature_contract(model) is not None else {}),
             "model_seed": model.seed,
@@ -969,6 +976,9 @@ def run(
             if initial_source:
                 loaded = LearnedPolicy(initial_source, catalog,
                     expected_model_id=None if source else experiment.get("initial_model_id"))
+                from advisor.learned_legal_set_context import model_legal_set_context_contract
+                if model_legal_set_context_contract(loaded.model) is not None:
+                    raise ValueError("legal_set_context_offline_contract_only_no_training_opt_in")
                 if loaded.encoder.version != encoder.version:
                     raise ValueError("initial_model_encoder_mismatch")
                 if loaded.metadata.get("combat_foundation") != experiment.get("combat_foundation"):

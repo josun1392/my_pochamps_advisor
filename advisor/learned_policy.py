@@ -112,6 +112,9 @@ class LearnedPolicy:
             if "combat_foundation" in self.metadata:
                 from advisor.learned_combat_foundation import FoundationCombatPolicy
                 required = FoundationCombatPolicy
+                if "actor_set_context" in self.metadata:
+                    from advisor.learned_legal_set_context import LegalSetContextFoundationPolicy
+                    required = LegalSetContextFoundationPolicy
             if type(self.model.policy) is not required:
                 raise ValueError("public_categorical_policy_required"
                                  if self.encoder.version in CATEGORICAL_VERSIONS
