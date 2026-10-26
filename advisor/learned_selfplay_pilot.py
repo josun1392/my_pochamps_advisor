@@ -26,8 +26,9 @@ def read(path):
 
 class StartBudget:
     """Exclusive worker directory, durable intents before resets, no reuse."""
-    def __init__(self, directory, maximum, stop):
+    def __init__(self, directory, maximum, stop, ordinal_offset=0):
         self.directory, self.maximum, self.stop = Path(directory), maximum, Path(stop)
+        self.ordinal_offset = ordinal_offset
         self.directory.mkdir(parents=True, exist_ok=True)
         self.count = len(list(self.directory.glob('start_*.json')))
 
@@ -36,7 +37,7 @@ class StartBudget:
             raise RuntimeError('pilot_STOP_before_new_native_start')
         if self.count >= self.maximum:
             raise RuntimeError('pilot_native_start_budget_exhausted')
-        ordinal = self.count
+        ordinal = self.count + self.ordinal_offset
         durable_json(self.directory / f'start_{ordinal:04d}.json',
                      {'ordinal': ordinal, **provenance})
         self.count += 1
@@ -108,6 +109,7 @@ class NativePublicTrace:
 
     def native_after(self, native, result):
         from scripts.run_foundation_difficulty_calibration import compact_view
+        from advisor.learned_selfplay_retry import ResolvedRequestRateGuard
         w = self.wrapper
         after = {s: native.observation(s, include_history=True) for s in self._before}
         row = {**self.pending, 'result': result, 'after': {s: compact_view(v) for s, v in after.items()},
@@ -120,7 +122,7 @@ class NativePublicTrace:
         # can raise; keep guard order, thresholds and recovery behavior intact.
         try:
             w.retry.observe({'before': self._before, 'actions': row['actions'], 'result': result})
-            w.rate.observe(result['action_rejected'])
+            w.rate.observe(row if isinstance(w.rate, ResolvedRequestRateGuard) else result['action_rejected'])
         except Exception as error:
             import os
             w.stream.flush(); w.raw.flush(); os.fsync(w.raw.fileno())
@@ -131,18 +133,23 @@ class NativePublicTrace:
                 'rate_rejections': getattr(w.rate, 'rejections', None),
                 'trace': str(w.trace_path), 'row': row,
                 'native_error_text': 'not_exposed_by_existing_native_response',
-                'guard_behavior_changed': False})
+                'guard_behavior_changed': isinstance(w.rate, ResolvedRequestRateGuard),
+                'classified_rate': w.rate.statistics() if isinstance(w.rate, ResolvedRequestRateGuard) else None})
             raise
 
 
 class AuditedPilotEnv(gym.Wrapper):
-    def __init__(self, env, directory, budget, initial_episode, worker):
+    def __init__(self, env, directory, budget, initial_episode, worker, classified_retries=False):
         super().__init__(env)
         from advisor.learned_difficulty_calibration import AttemptRateGuard
         self.directory, self.budget, self.worker = Path(directory), budget, worker
         self.last_encoded, self.last_result = None, None
         self.stream = self.raw = None
-        self.rate = AttemptRateGuard()
+        if classified_retries:
+            from advisor.learned_selfplay_retry import ResolvedRequestRateGuard
+            self.rate = ResolvedRequestRateGuard()
+        else:
+            self.rate = AttemptRateGuard()
         encode = env.encoder.encode
         def encoded(view):
             value = encode(view)
@@ -181,11 +188,13 @@ class AuditedPilotEnv(gym.Wrapper):
         import os
         self.stream.close(); self.raw.flush(); os.fsync(self.raw.fileno()); self.raw.close()
         self.stream = self.raw = None
+        from advisor.learned_selfplay_retry import ResolvedRequestRateGuard
         durable_json(self.directory / f'episode_{self.episode:04d}.json', {
             'episode': self.episode, 'worker': self.worker, 'status': status,
             'native_steps': self.recorder.ordinal, 'trace': str(self.trace_path),
             'trace_SHA256': digest(self.trace_path), 'last_native_result': self.last_result,
             'native_rejections': self.retry.rejections,
+            'classified_rate': self.rate.statistics() if isinstance(self.rate, ResolvedRequestRateGuard) else None,
             'identity_SHA256': digest(self.directory / f'identity_{self.episode:04d}.json')})
 
     def reset(self, **kwargs):
@@ -223,9 +232,11 @@ class PilotEnvFactory(LearningEnvFactory):
         if any(self.references[k][1] != plan['parent']['sha256'] for k in MODES):
             raise ValueError('pilot_frozen_Foundation_identity')
         directory = root / 'native_training' / f'worker_{worker}'
-        budget = StartBudget(directory, 2048, root / 'STOP')
+        recovery = plan.get('recovery')
+        budget = StartBudget(directory, 512 if recovery else 2048, root / 'STOP',
+                             recovery['prior_worker_starts'][worker] if recovery else 0)
         initial = budget.reserve({'phase': 'training', 'reason': 'existing_Gym_constructor_reset', 'worker': worker})
-        return AuditedPilotEnv(super().__call__(), directory, budget, initial, worker)
+        return AuditedPilotEnv(super().__call__(), directory, budget, initial, worker, bool(recovery))
 
 
 def exploration_gate(probabilities, masks, actions, families):

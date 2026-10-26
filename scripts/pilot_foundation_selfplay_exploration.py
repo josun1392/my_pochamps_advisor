@@ -32,13 +32,52 @@ def verify(plan_path):
     for path, expected in plan['input_hashes'].items():
         if digest(path) != expected:
             raise ValueError('pilot_frozen_input_changed:' + path)
+    if plan.get('recovery'):
+        validate_recovery(plan)
     return plan
+
+
+def validate_recovery(plan):
+    r = plan['recovery']
+    if (r['version'] != 'foundation-selfplay-partial-recovery-v1'
+            or r['checkpoint_trained'] != 57344 or r['checkpoint_Adam_steps'] != 34560
+            or r['prior_actual_steps'] != 1984 or r['additional_step_cap'] != 256
+            or r['lifetime_step_cap'] != 2240 or r['additional_TRAIN_start_cap'] != 2048
+            or sum(r['prior_worker_starts']) != 4991 or len(r['prior_worker_starts']) != 4
+            or r['RNG_semantics'] != 'fresh_rollout_fresh_native_episodes_not_uninterrupted_RNG'):
+        raise ValueError('recovery_budget_or_provenance_contract')
+    old = read(r['original_plan'])
+    # Only operational ownership/provenance changes; all scientific inputs stay.
+    for key in ('parent', 'reference_V4', 'training_config', 'evaluation_cases', 'seed',
+                'bootstrap_seed', 'primary', 'evaluation_method', 'trained_transitions',
+                'engine_commit', 'format_id', 'catalog', 'checkout'):
+        if plan[key] != old[key]:
+            raise ValueError('recovery_scientific_contract_changed:' + key)
+    if Path(plan['output']).resolve() == Path(old['output']).resolve():
+        raise ValueError('recovery_requires_separate_output_original_preserved')
+    proof = read(r['classification_proof'])
+    if (proof['status'] != 'CLASSIFICATION_PROVEN' or len(proof['proofs']) != 9
+            or any(p['classification'] != 'RESOLVED_REQUEST_REFRESH' for p in proof['proofs'])):
+        raise ValueError('recovery_historical_request_refresh_not_proven')
+
+
+def verify_resume_state(plan, state):
+    r = plan['recovery']
+    if (state['latest'] != r['checkpoint_path'] or state['latest_model_sha256'] != r['checkpoint_SHA256']
+            or state['trained_rollout_transitions'] != r['checkpoint_trained']
+            or state['experiment_steps'] != r['checkpoint_trained'] or state['transitions'] != r['checkpoint_trained']
+            or state['optimizer_steps'] != r['checkpoint_Adam_steps'] or state['launches'] != 1
+            or digest(state['latest']) != r['checkpoint_SHA256']):
+        raise ValueError('recovery_durable_state_mismatch_no_training')
 
 
 class FrozenEvalCases:
     def __init__(self, rows, budget, policy, rival, seat, plan_sha):
         self.rows, self.budget = rows, budget
         self.policy, self.rival, self.seat, self.plan_sha = policy, rival, seat, plan_sha
+        self.identity = {'schema_version': 'bounded-selfplay-frozen-evaluation-cases-v1',
+            'plan_SHA256': plan_sha, 'case_count': len(rows),
+            'cases_SHA256': content_hash({str(i): row['scenario_sha256'] for i, row in rows.items()})}
 
     def __call__(self, split, index):
         if split != 'validation' or index not in self.rows:
@@ -50,6 +89,34 @@ class FrozenEvalCases:
             'plan_SHA256': self.plan_sha})
         from copy import deepcopy
         return deepcopy(row['scenario'])
+
+
+def persist_evaluation_batch(directory, records, bindings, lookup, kind, rival, seat, plan_sha):
+    """The maintained evaluator passes a cumulative batch, not one game.
+
+    Validate/write every completed row. Repeated progress delivery is idempotent;
+    existing receipts are checked, never overwritten or counted twice.
+    """
+    created = 0
+    if len({x['case'] for x in records}) != len(records):
+        raise ValueError('pilot_duplicate_evaluation_case_in_batch')
+    for record in records:
+        index = record['case']; case = lookup[index]
+        if (record['canonical_scenario_sha256'] != case['scenario_sha256']
+                or record['candidate_seat'] != seat or record['initial_native_seed'] != case['scenario']['seed']
+                or record['policy'] != kind or record['opponent'] != rival):
+            raise ValueError('pilot_evaluation_case_seat_seed_mismatch')
+        key = f'{kind}:{rival}:{seat}:{index}'
+        path = directory / (key.replace(':', '_') + '.receipt.json')
+        receipt = {'key': key, 'policy': kind, 'rival': rival, 'seat': seat, 'case': index,
+            'model_SHA256': bindings[kind]['sha256'], 'record': record,
+            'record_SHA256': content_hash(record), 'plan_SHA256': plan_sha}
+        if path.exists():
+            if read(path) != receipt:
+                raise ValueError('pilot_existing_evaluation_receipt_conflict')
+        else:
+            durable_json(path, receipt); created += 1
+    return created
 
 
 def evaluation_worker(plan_path, worker):
@@ -78,7 +145,9 @@ def evaluation_worker(plan_path, worker):
               'tactical_heuristic': 'tactical_heuristic', 'champions_heuristic': 'champions_heuristic'}
     models = {**players, 'v4_argmax': rivals['v4_argmax']}
     before = {key: {'parameters': tensor_digest(m.model.policy.state_dict()), 'Adam': optimizer_digest(m.model.policy)} for key,m in models.items()}
-    completed = 0; started = time.monotonic(); rate = AttemptRateGuard()
+    from advisor.learned_selfplay_retry import ResolvedRequestRateGuard, compact
+    completed = 0; started = time.monotonic()
+    rate = ResolvedRequestRateGuard() if plan.get('recovery') else AttemptRateGuard()
     for seat in ('p1', 'p2'):
         for rival in RIVALS:
             for kind, player in players.items():
@@ -87,19 +156,20 @@ def evaluation_worker(plan_path, worker):
                     episode = next(iter(event['before'].values()))['episode_id']
                     if monitor[0] != episode:
                         monitor[:] = [episode, PublicRetryAudit(episode)]
-                    monitor[1].observe(event); rate.observe(event['result']['action_rejected'])
+                    if plan.get('recovery'):
+                        row = {**compact(event), 'ordinal': monitor[1].steps,
+                            'decision_id': f'{episode}:{next(iter(event["before"].values()))["revision"]}:joint'}
+                        if event['result']['action_rejected'] or rate.pending is not None:
+                            with (directory/'public_retry_evidence.jsonl').open('a', encoding='utf8') as stream:
+                                stream.write(json.dumps({'previous_native_decisions': rate.last_decisions, **row})+'\n')
+                                stream.flush(); os.fsync(stream.fileno())
+                        monitor[1].observe(event); rate.observe(row)
+                    else:
+                        monitor[1].observe(event); rate.observe(event['result']['action_rejected'])
                 def progress(records):
                     nonlocal completed
-                    record = records[-1]; index = record['case']; case = lookup[index]
-                    if (record['canonical_scenario_sha256'] != case['scenario_sha256']
-                            or record['candidate_seat'] != seat or record['initial_native_seed'] != case['scenario']['seed']):
-                        raise ValueError('pilot_evaluation_case_seat_seed_mismatch')
-                    key = f'{kind}:{rival}:{seat}:{index}'
-                    path = directory / (key.replace(':', '_') + '.receipt.json')
-                    durable_json(path, {'key': key, 'policy': kind, 'rival': rival, 'seat': seat, 'case': index,
-                        'model_SHA256': bindings[kind]['sha256'], 'record': record,
-                        'record_SHA256': content_hash(record), 'plan_SHA256': digest(plan_path)})
-                    completed += 1
+                    completed += persist_evaluation_batch(directory, records, bindings, lookup,
+                                                         kind, rival, seat, digest(plan_path))
                     if completed % 8 == 0:
                         atomic_json(directory / 'progress.json', {'status': 'running', 'PID': os.getpid(), 'completed': completed,
                             'target': 1024, 'games_per_second': completed/(time.monotonic()-started)})
@@ -108,11 +178,12 @@ def evaluation_worker(plan_path, worker):
                     rivals={rival: rivals[rival]}, candidate_seat=seat,
                     case_provider=FrozenEvalCases(lookup, budget, kind, rival, seat, digest(plan_path)),
                     stopping=lambda: (root/'STOP').exists(), tactical_diagnostics=True,
-                    transition_observer=observer, progress=progress)
+                    transition_observer=observer, progress=progress, per_game_progress=True)
     after = {key: {'parameters': tensor_digest(m.model.policy.state_dict()), 'Adam': optimizer_digest(m.model.policy)} for key,m in models.items()}
     if before != after or completed != 1024 or budget.count != 1024:
         raise ValueError('pilot_evaluation_count_or_model_mutation')
     durable_json(directory / 'complete.json', {'PID': os.getpid(), 'completed': completed, 'before': before, 'after': after,
+        'classified_rate': rate.statistics() if plan.get('recovery') else None,
         'seconds': time.monotonic()-started, 'training': 0, 'optimizer_updates': 0})
 
 
@@ -174,6 +245,12 @@ def owned_run(plan_path):
     plan = verify(plan_path); root=Path(plan['output']); root.mkdir(exist_ok=True,parents=True)
     if (root/'control.json').exists():
         raise RuntimeError('pilot_already_started_no_automatic_restart')
+    if plan.get('recovery'):
+        state = read(root/'training'/'state.json')
+        verify_resume_state(plan, state)
+        config_fingerprint, _ = trainer.training_config_fingerprint(read(plan['training_config']))
+        if config_fingerprint != state['config_fingerprint']:
+            raise ValueError('recovery_training_config_fingerprint_mismatch')
     job=WindowsJob(memory_mib=8192,cpu_percent=50,active_process_limit=24)
     if job.inherited_job:raise RuntimeError('pilot_requires_independent_desktop_owner')
     network=enforce_local_network_only();torch.set_num_threads(1)
@@ -192,7 +269,8 @@ def owned_run(plan_path):
             atomic_json(root/'progress.json',{'phase':'training',**event,'PID':os.getpid(),
                 'recorded_UTC':datetime.now(timezone.utc).isoformat(),'resources':job.usage()})
         try:
-            trainer.run(read(plan['training_config']),root/'training',event_callback=progress,resource_job=job)
+            trainer.run(read(plan['training_config']),root/'training',resume=bool(plan.get('recovery')),
+                        event_callback=progress,resource_job=job)
         finally:
             trainer.LearningEnvFactory=old_factory;audit.AuditedSignalRecorder=old_recorder
         state=read(root/'training'/'state.json')
@@ -206,9 +284,14 @@ def owned_run(plan_path):
         restored=LearnedPolicy(path,plan['catalog'],expected_model_id=digest(path))
         clock=optimizer_clock(restored.model.policy)
         if not 0<clock-plan['parent']['optimizer_steps']<=2048:raise ValueError('pilot_optimizer_accounting')
+        if plan.get('recovery') and clock != 34816:
+            raise ValueError('recovery_exact_endpoint_Adam_clock_mismatch')
         durable_json(root/'endpoint.json',{'parent':{'path':plan['parent']['path'],'sha256':plan['parent']['sha256']},
             'candidate':{'path':str(path),'sha256':digest(path),'optimizer_steps':clock}})
         durable_json(root/'training_complete.json',{'trained_transitions':65536,'collected_transitions':state['transitions'],
+            'recovery': ({'additional_steps': clock-34560, 'lifetime_actual_steps': 1984+clock-34560,
+                'additional_trained_transitions': state['trained_rollout_transitions']-57344,
+                'lost_prior_steps_not_restored':192, 'partial_rollout_reused':False} if plan.get('recovery') else None),
             'new_optimizer_steps':clock-plan['parent']['optimizer_steps'],'endpoint':str(path),'checkpoint_reload':'pass','resources':job.usage()})
         del restored
         import gc;gc.collect()

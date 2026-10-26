@@ -10,6 +10,16 @@ from advisor.learned_execution_alignment import durable_json, digest
 from advisor.learned_selfplay_pilot import read, exploration_gate
 
 
+def require_step_budget(plan, clock):
+    if clock - plan['parent']['optimizer_steps'] >= 2048:
+        raise ValueError('pilot_optimizer_step_cap')
+    r = plan.get('recovery')
+    if r and (clock - r['checkpoint_Adam_steps'] >= 256
+              or r['prior_actual_steps'] + clock - r['checkpoint_Adam_steps'] >= 2240
+              or clock < r['checkpoint_Adam_steps']):
+        raise ValueError('recovery_additional_or_lifetime_optimizer_step_cap')
+
+
 class PilotSignalRecorder(AuditedSignalRecorder):
     def __init__(self, directory, encoder, *, pilot_root):
         super().__init__(directory, encoder)
@@ -24,15 +34,25 @@ class PilotSignalRecorder(AuditedSignalRecorder):
         self.policy_sha = tensor_digest(model.policy.state_dict())
         if self.guard is None:
             def guard(optimizer, args, kwargs):
-                if optimizer_clock(model.policy) - self.plan['parent']['optimizer_steps'] >= 2048:
-                    raise ValueError('pilot_optimizer_step_cap')
+                require_step_budget(self.plan, optimizer_clock(model.policy))
                 if (self.root / 'DATA_GAP.json').exists():
                     raise ValueError('pilot_exploration_gate_failed_no_update')
             self.guard = model.policy.optimizer.register_step_pre_hook(guard)
         if not (self.root / 'initial_learner_identity.json').exists():
             initial = {'parameters': self.policy_sha, 'Adam': optimizer_digest(model.policy)}
-            if initial != self.plan['parent']['semantic_identity']:
+            expected = self.plan.get('recovery', {}).get('semantic_identity', self.plan['parent']['semantic_identity'])
+            if initial != expected:
                 raise ValueError('pilot_initial_weights_or_Adam_changed')
+            if self.plan.get('recovery'):
+                import torch, random
+                # Observe the newly seeded stream; never claim an old RNG restore.
+                durable_json(self.root / 'resume_RNG_provenance.json', {
+                    'semantics': 'maintained_resume_fresh_rollout_fresh_native_episodes_not_uninterrupted_RNG',
+                    'old_full_RNG_state_available': False,
+                    'torch_rng_SHA256': sha256(torch.get_rng_state().numpy().tobytes()).hexdigest(),
+                    'numpy_rng_state': str(np.random.get_state()), 'python_rng_state': str(random.getstate()),
+                    'continuation_seed': self.plan['seed'],
+                    'native_reset_seed_base': self.plan['seed'] + 57344 + 2 * 10000})
             durable_json(self.root / 'initial_learner_identity.json', {
                 **initial, 'Adam_steps': clock, 'model_timesteps': model.num_timesteps,
                 'policy_class': type(model.policy).__name__, 'temperature': 1,

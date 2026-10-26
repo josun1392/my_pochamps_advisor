@@ -65,3 +65,39 @@ guard raises. It preserves progress-guard-first ordering, the eight-unresolved-
 request stop and the 1%-per-512 rate stop. It exposes no native hidden state or
 unavailable server error text, and does not change choices, masks or rewards.
 This telemetry correction was tested offline; the failed run was not replayed.
+# Explicit partial recovery
+
+`foundation-selfplay-partial-recovery-v1` is an opt-in operational continuation,
+not a new experiment or an uninterrupted RNG restoration. It copies the durable
+57,344-transition state into a new output directory and uses the maintained
+trainer's resume path, discarding partial rollouts and resetting native episodes.
+Weights and Adam must match the saved checkpoint; scientific inputs, seed and
+all PPO settings remain bound to the original plan. New RNG-stream provenance
+is recorded before the first resumed rollout. No historical RNG is invented.
+
+The resumed computation is capped at 256 Adam steps / 8,192 completed rollout
+transitions. Counting the prior 1,984 computations, including 192 unsaved steps,
+the lifetime cap is 2,240; the resulting retained model has 2,048 new Adam steps.
+Four exclusive worker budgets permit at most 512 new TRAIN starts each, with
+episode ordinals offset by the original durable start-intent counts. The original
+plan/state/STOP/failure, models, traces and evaluation cases are never rewritten.
+
+Only this opt-in owner uses `public-request-refresh-resolution-v1` for the
+512-attempt rate guard. Both raw rejections and unresolved counts are retained.
+A rejection is resolved only after the next actual native commit with identical
+refreshed owner request/mask, unchanged public state/history at rejection, zero
+rejection reward, continuous battle/actor/turn/revision/decision identity and a
+proved maybeDisabled-to-disabled or maybeTrapped-to-trapped transition. Missing
+proof remains unresolved. Pending events count immediately at window boundaries.
+Six unresolved rejects in 512 attempts still stop; the existing eight consecutive
+unresolved-request guard runs first. Native retry recovery, action selection,
+legality, rewards and simulator mechanics are unchanged.
+
+Evaluation receipts must follow the maintained evaluator's callback contract:
+the legacy callback delivers a cumulative completed batch. Persist all rows
+idempotently, and provide the required frozen case-provider `identity`. The
+explicit `per_game_progress` option additionally delivers each completed game
+before the batch ends; its default is false for existing callers. A duplicate
+delivery verifies the immutable receipt rather than overwriting/counting it.
+This protects completed games if later batch/report construction fails.
+Unreceipted started games are never silently replayed or inferred from seeds.

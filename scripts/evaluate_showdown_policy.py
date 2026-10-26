@@ -155,6 +155,7 @@ def evaluate(
     seat_contract=NATIVE_SEAT_CONTRACT,
     integrated_diagnostics=False,
     transition_observer=None,
+    per_game_progress=False,
 ):
     if candidate_seat not in ("p1", "p2"):
         raise ValueError("invalid_candidate_seat")
@@ -370,6 +371,8 @@ def evaluate(
                             ),
                         }
                     )
+                    if progress and per_game_progress:
+                        progress(records[-1:])
                 if progress:
                     progress(records)
     summaries = []

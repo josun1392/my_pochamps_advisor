@@ -106,8 +106,8 @@ def trace_fixture(tmp_path, retry, rate):
         def observation(self,side,include_history=True):return views[side]
         def checkpoint(self):raise AssertionError('hidden native truth forbidden')
     def submit(rejected):
-        r.pending={'ordinal':r.ordinal,'actions':{'self':6,'opponent':6}}
         r._before['self']['revision']+=1
+        r.pending={'ordinal':r.ordinal,'actions':{'self':6,'opponent':6},'before':deepcopy(views)}
         result={'action_rejected':rejected,'decisions':0}
         r.native_after(Native(),result)
     return w,r,submit
