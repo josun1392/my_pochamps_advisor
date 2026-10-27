@@ -28,6 +28,34 @@ FIELDS = {
 }
 
 
+def public_teacher_loss(model, encoder, view, decision, *, policy_id, learning_step):
+    """Optional public-target cross entropy; never reward, return or GAE data.
+
+    Callers own producer admission. The current public search provider abstains
+    when only privileged branches or conditional surrogate values are available.
+    This consumer deliberately does not write a TrajectoryWriter row: a
+    hypothetical preference is not an actually executed terminal trajectory.
+    """
+    from advisor.learned_action_search_teacher import validate_public_teacher_target
+    target = validate_public_teacher_target(decision, view,
+        policy_id=policy_id, learning_step=learning_step)
+    if target is None:
+        return None
+    features = np.asarray(encoder.encode(view), dtype=np.float32)
+    if features.shape != model.observation_space.shape or not np.isfinite(features).all():
+        raise ValueError("teacher_encoder_contract_mismatch")
+    x = torch.as_tensor(features[None], device=model.device)
+    mask = np.asarray(view["action_mask"], dtype=bool)[None]
+    dist = model.policy.get_distribution(x, action_masks=mask).distribution
+    # Do not multiply zero by an illegal -inf log probability.
+    ids = np.flatnonzero(target > 0)
+    weights = torch.as_tensor(target[ids], dtype=dist.logits.dtype, device=model.device)
+    loss = -(dist.logits[0, ids] * weights).sum()
+    if not torch.isfinite(loss):
+        raise ValueError("nonfinite_public_teacher_loss")
+    return loss
+
+
 def file_hash(path):
     digest = sha256()
     with Path(path).open("rb") as stream:

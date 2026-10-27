@@ -380,6 +380,48 @@ def optimizer_steps(model):
     )
 
 
+def apply_public_teacher_decision(model, encoder, view, provider, *, policy_id,
+                                  learning_step, enabled, ledger, coefficient=.01):
+    """Explicit opt-in pre-rollout teacher consumer on the existing Adam.
+
+    Not called by historical configurations. The micro coordinator must first
+    pass public producer, TRAIN/held-out and coverage gates. No action override,
+    reward/GAE substitution or retained on-policy rollout is permitted here.
+    A test provider proves wiring only; it cannot establish real label coverage.
+    """
+    if type(enabled) is not bool or not 0 < coefficient <= .01:
+        raise ValueError("invalid_public_teacher_opt_in")
+    if not enabled:
+        return {"status": "disabled", "optimizer_updates": 0}
+    if learning_step != model.num_timesteps:
+        raise ValueError("teacher_learning_time_mismatch")
+    if getattr(model.rollout_buffer, "pos", 0):
+        raise ValueError("teacher_update_requires_empty_on_policy_rollout")
+    from advisor.learned_offline import public_teacher_loss
+    decision = provider.assess(view, policy_id=policy_id, learning_step=learning_step)
+    loss = public_teacher_loss(model, encoder, view, decision,
+        policy_id=policy_id, learning_step=learning_step)
+    if loss is None:
+        return {"status": "abstain", "reason": decision["reason"], "optimizer_updates": 0}
+    # The same durable ledger covers contract tests, teacher updates and PPO.
+    # Reserve BEFORE mutation. Failed updates consume the reservation and stop.
+    ledger.reserve("teacher_Adam", 1)
+    model.policy.optimizer.zero_grad()
+    weighted = coefficient * loss
+    weighted.backward()
+    norm = torch.nn.utils.clip_grad_norm_(model.policy.parameters(), .5, error_if_nonfinite=True)
+    model.policy.optimizer.step()
+    if (any(not torch.isfinite(p).all() for p in model.policy.parameters()) or
+            any(not torch.isfinite(v).all() for state in model.policy.optimizer.state.values()
+                for v in state.values() if torch.is_tensor(v))):
+        raise ValueError("nonfinite_public_teacher_update")
+    # Subsequent PPO must collect a fresh rollout with its own old logp/value.
+    model._last_obs = None
+    return {"status": "updated", "optimizer_updates": 1,
+        "teacher_loss": float(loss.detach()), "coefficient": coefficient,
+        "preclip_gradient_norm": float(norm)}
+
+
 def freeze_historical_reference(
     state, number, previous_path, *, resumed, required, fixed_path=None
 ):
