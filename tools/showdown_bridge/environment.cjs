@@ -211,4 +211,6 @@ function createEnvironmentService(engine) {
       results: input.requests.map(one), resources: stats()};
   };
 }
-module.exports = {createEnvironmentService};
+// Reuse request authority in offline public-hypothesis proofs. No hidden
+// trapping/disable probe or alternate action mapping is introduced.
+module.exports = {createEnvironmentService, publicRequestActions: actions};
