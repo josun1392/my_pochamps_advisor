@@ -26,9 +26,11 @@ class FixedMicroCases:
             raise ValueError('micro_TRAIN_only')
         # Opponent is index%4 in the existing Gym. Avoid coupling one family
         # exclusively to a subset of rivals.
-        which=(index//len(OPPONENTS))%2
+        members=self.plan.get('training_template_indices',[0,1])
+        which=members[(index//len(OPPONENTS))%len(members)]
         case=deepcopy(self.plan['templates'][which]['scenario'])
-        case.update(scenario_id=f'{VERSION}:TRAIN:{index}',seed=seed4(f'{VERSION}:TRAIN:{self.plan["seed"]}:{index}'))
+        version=self.plan.get('schema_version',VERSION)
+        case.update(scenario_id=f'{version}:TRAIN:{index}',seed=seed4(f'{version}:TRAIN:{self.plan["seed"]}:{index}'))
         return case
 
 

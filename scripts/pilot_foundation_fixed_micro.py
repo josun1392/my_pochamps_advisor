@@ -94,7 +94,8 @@ def eval_phase(plan, root, kind, player, parent, budget, runtime):
             class Cases(FrozenEvalCases):
                 def __call__(self,split,index):
                     value=super().__call__(split,index)
-                    rival.reset(int.from_bytes(sha256(f'{VERSION}:rival:{index}:{seat}'.encode()).digest()[:4],'big'))
+                    namespace=plan.get('schema_version',VERSION)
+                    rival.reset(int.from_bytes(sha256(f'{namespace}:rival:{index}:{seat}'.encode()).digest()[:4],'big'))
                     self.current=index
                     return value
             provider=Cases(lookup,budget,kind,rival_kind,seat,digest(root/'plan.json'))
