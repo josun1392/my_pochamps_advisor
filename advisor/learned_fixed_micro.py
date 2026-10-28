@@ -10,12 +10,18 @@ from advisor.learned_selfplay_pilot import OPPONENTS, MODES, FrozenPublicActor, 
 VERSION = 'foundation-teacher-free-fixed-scenario-micro-v1'
 CURVE_VERSION = 'foundation-frozen-micro-ppo-learning-curve-16k-v1'
 DIVERSE_VERSION = 'foundation-diverse-scenario-micro-ppo-generalization-v1'
+MATCHUP_VERSION = 'foundation-matchup-recombination-controlled-ppo-v1'
 
 
 def micro_budget(plan):
     """An exact opt-in study cap, not PPO hyperparameter configuration."""
     default={'transitions':4096,'Adam':128,'starts':512,'targets':[1024,2048,3072,4096]}
     if 'micro_budget'not in plan:return default
+    if plan.get('schema_version')==MATCHUP_VERSION:
+        expected={'transitions':16384,'Adam':512,'starts':4096,'targets':[4096,8192,12288,16384]}
+        if plan['micro_budget']!=expected or plan.get('opponents')!=['league_s0']:
+            raise ValueError('unsupported_matchup_micro_budget_or_opponent')
+        return deepcopy(expected)
     if plan.get('schema_version')==DIVERSE_VERSION:
         expected={'transitions':16384,'Adam':512,'starts':2048,'targets':[4096,8192,12288,16384]}
         if (plan.get('micro_prior_transitions')!=0 or plan['micro_budget']!=expected
@@ -70,15 +76,22 @@ class EpisodeRival:
         return self.actor.act(view)
 
 
-def training_vector(plan, root, parent):
+def training_vector(plan, root, parent, *, case_factory=None, start_budget=None):
     """Four sequential native workers using existing Gym/trace/retry owners."""
     from stable_baselines3.common.vec_env import DummyVecEnv
     from advisor.learned_gym import ShowdownLearningEnv, OPAQUE_TERMINAL
     from advisor.learned_baselines import VisibleBaseline
     from advisor.learned_combat_foundation import FoundationCombatEncoder,install_environment_profile
     root=Path(root)
-    budget=StartBudget(root/'TRAIN_starts',micro_budget(plan)['starts'],root/'STOP')
-    opponents=('league_s0',)if plan.get('schema_version')==DIVERSE_VERSION else OPPONENTS
+    limits=micro_budget(plan)
+    controlled=plan.get('schema_version')==MATCHUP_VERSION
+    if controlled:
+        if case_factory is None or start_budget is None or start_budget.maximum!=limits['starts']:
+            raise ValueError('matchup_requires_fixed_slot_factory_and_shared_budget')
+    elif case_factory is not None or start_budget is not None:
+        raise ValueError('custom_micro_cases_require_matchup_contract')
+    budget=start_budget if controlled else StartBudget(root/'TRAIN_starts',limits['starts'],root/'STOP')
+    opponents=('league_s0',)if plan.get('schema_version')in(DIVERSE_VERSION,MATCHUP_VERSION)else OPPONENTS
     def make(worker):
         initial=budget.reserve({'phase':'training','worker':worker,'reason':'Gym_constructor_reset'})
         def opponent(kind,seed):
@@ -87,7 +100,7 @@ def training_vector(plan, root, parent):
             index_offset=worker*100000,curriculum_version='showdown-learning-curriculum-v8',
             opponents=opponents,opponent_factory=opponent,collect_tactical_metrics=True,
             collect_v5_supervision=True,max_decisions=256,terminal_transport_version=OPAQUE_TERMINAL,
-            training_subset=FixedMicroCases(plan))
+            training_subset=case_factory(worker)if controlled else FixedMicroCases(plan))
         install_environment_profile(env)
         directory=root/'native_training'/f'worker_{worker}'
         directory.mkdir(parents=True,exist_ok=False)
