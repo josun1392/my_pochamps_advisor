@@ -9,12 +9,19 @@ from advisor.learned_selfplay_pilot import OPPONENTS, MODES, FrozenPublicActor, 
 
 VERSION = 'foundation-teacher-free-fixed-scenario-micro-v1'
 CURVE_VERSION = 'foundation-frozen-micro-ppo-learning-curve-16k-v1'
+DIVERSE_VERSION = 'foundation-diverse-scenario-micro-ppo-generalization-v1'
 
 
 def micro_budget(plan):
     """An exact opt-in study cap, not PPO hyperparameter configuration."""
     default={'transitions':4096,'Adam':128,'starts':512,'targets':[1024,2048,3072,4096]}
     if 'micro_budget'not in plan:return default
+    if plan.get('schema_version')==DIVERSE_VERSION:
+        expected={'transitions':16384,'Adam':512,'starts':2048,'targets':[4096,8192,12288,16384]}
+        if (plan.get('micro_prior_transitions')!=0 or plan['micro_budget']!=expected
+                or plan.get('opponents')!=['league_s0']):
+            raise ValueError('unsupported_diverse_micro_budget_or_opponent')
+        return deepcopy(expected)
     expected={'transitions':12288,'Adam':384,'starts':1024,'targets':[4096,8192,12288]}
     if (plan.get('schema_version')!=CURVE_VERSION or plan.get('micro_prior_transitions')!=4096
             or plan['micro_budget']!=expected):
@@ -39,7 +46,8 @@ class FixedMicroCases:
         # Opponent is index%4 in the existing Gym. Avoid coupling one family
         # exclusively to a subset of rivals.
         members=self.plan.get('training_template_indices',[0,1])
-        which=members[(index//len(OPPONENTS))%len(members)]
+        divisor=1 if self.plan.get('schema_version')==DIVERSE_VERSION else len(OPPONENTS)
+        which=members[(index//divisor)%len(members)]
         case=deepcopy(self.plan['templates'][which]['scenario'])
         version=self.plan.get('schema_version',VERSION)
         case.update(scenario_id=f'{version}:TRAIN:{index}',seed=seed4(f'{version}:TRAIN:{self.plan["seed"]}:{index}'))
@@ -70,13 +78,14 @@ def training_vector(plan, root, parent):
     from advisor.learned_combat_foundation import FoundationCombatEncoder,install_environment_profile
     root=Path(root)
     budget=StartBudget(root/'TRAIN_starts',micro_budget(plan)['starts'],root/'STOP')
+    opponents=('league_s0',)if plan.get('schema_version')==DIVERSE_VERSION else OPPONENTS
     def make(worker):
         initial=budget.reserve({'phase':'training','worker':worker,'reason':'Gym_constructor_reset'})
         def opponent(kind,seed):
             return parent if kind in MODES else VisibleBaseline(kind,seed)
         env=ShowdownLearningEnv(plan['checkout'],FoundationCombatEncoder(plan['catalog']),
             index_offset=worker*100000,curriculum_version='showdown-learning-curriculum-v8',
-            opponents=OPPONENTS,opponent_factory=opponent,collect_tactical_metrics=True,
+            opponents=opponents,opponent_factory=opponent,collect_tactical_metrics=True,
             collect_v5_supervision=True,max_decisions=256,terminal_transport_version=OPAQUE_TERMINAL,
             training_subset=FixedMicroCases(plan))
         install_environment_profile(env)
