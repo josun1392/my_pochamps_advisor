@@ -8,6 +8,18 @@ from advisor.learned_encoder import fingerprint
 from advisor.learned_selfplay_pilot import OPPONENTS, MODES, FrozenPublicActor, StartBudget, AuditedPilotEnv
 
 VERSION = 'foundation-teacher-free-fixed-scenario-micro-v1'
+CURVE_VERSION = 'foundation-frozen-micro-ppo-learning-curve-16k-v1'
+
+
+def micro_budget(plan):
+    """An exact opt-in study cap, not PPO hyperparameter configuration."""
+    default={'transitions':4096,'Adam':128,'starts':512,'targets':[1024,2048,3072,4096]}
+    if 'micro_budget'not in plan:return default
+    expected={'transitions':12288,'Adam':384,'starts':1024,'targets':[4096,8192,12288]}
+    if (plan.get('schema_version')!=CURVE_VERSION or plan.get('micro_prior_transitions')!=4096
+            or plan['micro_budget']!=expected):
+        raise ValueError('unsupported_micro_continuation_budget')
+    return deepcopy(expected)
 
 
 def seed4(namespace):
@@ -57,7 +69,7 @@ def training_vector(plan, root, parent):
     from advisor.learned_baselines import VisibleBaseline
     from advisor.learned_combat_foundation import FoundationCombatEncoder,install_environment_profile
     root=Path(root)
-    budget=StartBudget(root/'TRAIN_starts',512,root/'STOP')
+    budget=StartBudget(root/'TRAIN_starts',micro_budget(plan)['starts'],root/'STOP')
     def make(worker):
         initial=budget.reserve({'phase':'training','worker':worker,'reason':'Gym_constructor_reset'})
         def opponent(kind,seed):

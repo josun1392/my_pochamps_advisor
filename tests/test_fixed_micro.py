@@ -2,7 +2,7 @@
 from copy import deepcopy
 import numpy as np
 import pytest
-from advisor.learned_fixed_micro import FixedMicroCases, EpisodeRival, paired_summary, seed4
+from advisor.learned_fixed_micro import FixedMicroCases, EpisodeRival, paired_summary, seed4, micro_budget, CURVE_VERSION
 from advisor.learned_selfplay_pilot import OPPONENTS
 
 
@@ -101,3 +101,31 @@ def test_existing_launch_refused_before_any_new_native_start(tmp_path):
     with pytest.raises(ValueError,match='existing_micro_run'):
         run(tmp_path)
     assert not(tmp_path/'EVAL_starts').exists()
+
+
+def test_exact_16k_resume_cap_is_opt_in_and_old_budget_is_unchanged():
+    assert micro_budget({})=={'transitions':4096,'Adam':128,'starts':512,'targets':[1024,2048,3072,4096]}
+    cap={'transitions':12288,'Adam':384,'starts':1024,'targets':[4096,8192,12288]}
+    plan={'schema_version':CURVE_VERSION,'micro_prior_transitions':4096,'micro_budget':cap}
+    assert micro_budget(plan)==cap
+    micro_budget(plan)['targets'].append(99999)
+    assert micro_budget(plan)==cap
+    for key,value in [('schema_version','other'),('micro_prior_transitions',0),('micro_budget',{**cap,'Adam':385})]:
+        with pytest.raises(ValueError):micro_budget({**plan,key:value})
+
+
+def test_frozen_curve_32_case_blocks_cover_all_roots_and_seats_without_native(tmp_path,monkeypatch):
+    from scripts.pilot_foundation_fixed_micro import eval_phase
+    import scripts.evaluate_showdown_policy as evaluator
+    calls=[]
+    monkeypatch.setattr(evaluator,'evaluate',lambda *a,**kw:calls.append(kw))
+    rows=[{'index':i,'scenario_sha256':str(i)}for i in range(128)]
+    p={'evaluation_cases':rows,'evaluation_block_size':32,'checkout':'unused','catalog':'unused'}
+    (tmp_path/'plan.json').write_text('{}',encoding='utf8')
+    fake=type('Actor',(),{'model_id':'frozen'})()
+    runtime=type('Runtime',(),{'stopping':lambda self:False})()
+    eval_phase(p,tmp_path,'Foundation',fake,fake,None,runtime)
+    assert len(calls)==8 and {c['candidate_seat']for c in calls}=={'p1','p2'}
+    for seat in ('p1','p2'):
+        indices=[i for c in calls if c['candidate_seat']==seat for i in range(c['offset'],c['offset']+c['cases'])]
+        assert indices==list(range(128))

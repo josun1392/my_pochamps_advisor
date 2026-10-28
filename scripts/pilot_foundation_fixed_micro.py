@@ -14,7 +14,7 @@ import numpy as np
 
 from advisor.learning_resources import atomic_json, WindowsJob, RuntimeLimit
 from advisor.learned_execution_alignment import durable_json, digest, content_hash
-from advisor.learned_fixed_micro import VERSION, FixedMicroCases, EpisodeRival, training_vector, paired_summary, seed4
+from advisor.learned_fixed_micro import VERSION, FixedMicroCases, EpisodeRival, training_vector, paired_summary, seed4, micro_budget
 from advisor.learned_selfplay_pilot import OPPONENTS, MODES, StartBudget
 
 
@@ -85,9 +85,12 @@ def eval_phase(plan, root, kind, player, parent, budget, runtime):
     lookup={c['index']:c for c in plan['evaluation_cases']}
     bindings={kind:{'sha256':player.model_id}}
     directory=root/'evaluation';directory.mkdir(exist_ok=True)
+    block=plan.get('evaluation_block_size',16)
+    if type(block)is not int or block not in (16,32) or len(lookup)!=4*block:
+        raise ValueError('unsupported_frozen_micro_evaluation_size')
     for r,rival_kind in enumerate(OPPONENTS):
         for seat in ('p1','p2'):
-            expected=[directory/f'{kind}_{rival_kind}_{seat}_{i}.receipt.json'for i in range(r*16,r*16+16)]
+            expected=[directory/f'{kind}_{rival_kind}_{seat}_{i}.receipt.json'for i in range(r*block,(r+1)*block)]
             if all(p.exists()for p in expected):continue
             if any(p.exists()for p in expected):raise ValueError('partial_eval_batch_inspect_before_any_retry')
             rival=EpisodeRival(rival_kind,parent)
@@ -116,7 +119,7 @@ def eval_phase(plan, root, kind, player, parent, budget, runtime):
                 persist_evaluation_batch(directory,records,bindings,lookup,kind,rival_kind,seat,digest(root/'plan.json'))
                 atomic_json(root/'evaluation_progress.json',{'policy':kind,'rival':rival_kind,'seat':seat,
                     'valid_receipts':len(list(directory.glob('*.receipt.json'))),'starts':budget.count,'unix':time.time()})
-            evaluate(plan['checkout'],plan['catalog'],{kind:player},cases=16,offset=r*16,
+            evaluate(plan['checkout'],plan['catalog'],{kind:player},cases=block,offset=r*block,
                 curriculum_version='showdown-learning-curriculum-v8',rivals={rival_kind:rival},candidate_seat=seat,
                 case_provider=provider,tactical_diagnostics=True,transition_observer=observer,
                 per_game_progress=True,progress=progress,stopping=runtime.stopping)
@@ -128,6 +131,7 @@ def train(plan, root, parent, runtime):
     from advisor.learned_parent_anchor import tensor_digest,optimizer_digest,optimizer_clock
     from advisor.learned_ppo_contract_audit import AuditedSignalRecorder
     from scripts.train_showdown_autonomous import BudgetCallback,save_checkpoint,require_finite_ppo
+    limits=micro_budget(plan)
     candidate=LearnedPolicy(plan['parent']['path'],plan['catalog'],expected_model_id=plan['parent']['sha256'])
     m=candidate.model
     if tensor_digest(m.policy.state_dict())!=plan['parent']['parameters']or optimizer_digest(m.policy)!=plan['parent']['Adam']:
@@ -137,30 +141,32 @@ def train(plan, root, parent, runtime):
     initial=m.num_timesteps;steps=0;updates=0;checkpoints=[];metrics=[]
     def reserve_step(optimizer,args,kwargs):
         nonlocal updates
-        if updates>=128:raise RuntimeError('micro_Adam_cap')
+        if updates>=limits['Adam']:raise RuntimeError('micro_Adam_cap')
         durable_json(root/'Adam_intents'/f'{updates:04d}.json',{'step':updates,'Adam_before':optimizer_clock(m.policy)})
         updates+=1
     (root/'Adam_intents').mkdir()
     hook=m.policy.optimizer.register_step_pre_hook(reserve_step)
     try:
-        for target in (1024,2048,3072,4096):
+        for target in limits['targets']:
             recorder=AuditedSignalRecorder(root/'rollouts',candidate.encoder)
             callback=BudgetCallback(runtime,collect_diagnostics=True,signal_recorder=recorder)
-            try:m.learn(total_timesteps=1024,reset_num_timesteps=False,callback=callback)
+            try:m.learn(total_timesteps=target-steps,reset_num_timesteps=False,callback=callback)
             finally:recorder.close()
             steps=m.num_timesteps-initial
             require_finite_ppo(m,rollout=True)
-            if steps>4096 or updates>128:raise ValueError('micro_budget_exceeded')
+            if steps>limits['transitions']or updates>limits['Adam']:raise ValueError('micro_budget_exceeded')
             state={'PPO_collected':steps,'Adam_updates':updates,'Adam_clock':optimizer_clock(m.policy),
                 'metrics':{k:float(v)if np.isfinite(v)else None for k,v in m.logger.name_to_value.items()if isinstance(v,(int,float,np.number))},
                 'callback':callback.measurements,'completed':[x for batch in vector.env_method('drain_completed')for x in batch],
                 'tactical_counts':vector.env_method('drain_tactical_counts'),'public_counts':vector.env_method('drain_public_behavior_counts')}
-            path=save_checkpoint(m,candidate.encoder,root/f'checkpoint_{steps:04d}',{'micro_plan_SHA256':digest(root/'plan.json'),
-                'source_parent_SHA256':plan['parent']['sha256'],'micro_new_transitions':steps,'teacher_enabled':False})
-            checkpoints.append({'steps':steps,'path':path,'sha256':digest(path),'Adam':optimizer_digest(m.policy)})
+            cumulative=plan.get('micro_prior_transitions',0)+steps
+            path=save_checkpoint(m,candidate.encoder,root/f'checkpoint_{cumulative:04d}',{'micro_plan_SHA256':digest(root/'plan.json'),
+                'source_parent_SHA256':plan['parent']['sha256'],'micro_new_transitions':steps,
+                'micro_cumulative_transitions':cumulative,'teacher_enabled':False})
+            checkpoints.append({'steps':steps,'cumulative_micro_transitions':cumulative,'path':path,'sha256':digest(path),'Adam':optimizer_digest(m.policy)})
             metrics.append(state);atomic_json(root/'training_progress.json',{'checkpoints':checkpoints,'windows':metrics,'TRAIN_starts':start_budget.count})
             if runtime.stopping()or steps!=target:break
-        if steps!=4096:raise ValueError('micro_stopped_before_planned_complete_rollouts')
+        if steps!=limits['transitions']:raise ValueError('micro_stopped_before_planned_complete_rollouts')
     finally:
         hook.remove();vector.close()
     restored=LearnedPolicy(checkpoints[-1]['path'],plan['catalog'],expected_model_id=checkpoints[-1]['sha256'])
