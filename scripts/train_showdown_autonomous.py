@@ -203,7 +203,22 @@ def validate_config(config):
         from advisor.learned_ppo_contract_audit import VERSION as audit_version
         if config["ppo_update_audit"] != audit_version or not config.get("collect_learning_signal_joins"):
             raise ValueError("invalid_PPO_update_audit_opt_in")
+    if config.get('gae_matched_rollout') or config.get('gae_first_rollout_reference'):
+        from advisor.learned_gae_lambda import VERSION as gae_version
+        if config.get('gae_matched_rollout') != gae_version or not config.get('ppo_update_audit'):
+            raise ValueError('invalid_GAE_matched_rollout_contract')
     for experiment in config["experiments"]:
+        if 'gae_lambda_experiment' in experiment:
+            from advisor.learned_gae_lambda import validate_contract as validate_gae
+            validate_gae(experiment['gae_lambda_experiment'])
+            if ('combat_foundation' not in experiment or experiment.get('gae_lambda') != 1.
+                    or not experiment.get('initial_model') or experiment.get('fresh_optimizer') is not False
+                    or experiment.get('initial_model_id') != experiment['gae_lambda_experiment']['parent_model_sha256']
+                    or experiment.get('steps') != 65536 or config.get('envs') != 4
+                    or config.get('device') != 'cpu'
+                    or any(experiment.get(k) for k in ('actor_set_context', 'masked_temperature',
+                        'parent_policy_anchor', 'move_slot_consistency', 'transfer_model', 'offline', 'opponent_schedule'))):
+                raise ValueError('GAE_lambda_requires_matched_original_Foundation')
         if "actor_set_context" in experiment or "legal_set_training" in experiment:
             from advisor.learned_legal_set_context import validate_legal_set_training
             validate_legal_set_training(experiment)
@@ -235,7 +250,8 @@ def validate_config(config):
         if "combat_foundation" in experiment:
             if (experiment["combat_foundation"] != foundation_contract()
                     or experiment.get("encoder_version") != STRATEGIC_COMBAT_V5
-                    or experiment.get("gamma") != 1 or experiment.get("gae_lambda") != .95
+                    or experiment.get("gamma") != 1
+                    or experiment.get("gae_lambda") != (1. if 'gae_lambda_experiment' in experiment else .95)
                     or experiment.get("zero_avoiding_beta") != .001
                     or experiment.get("ent_coef") != .01
                     or experiment.get("warmstart_decisions", 0) or experiment.get("offline")
@@ -489,6 +505,9 @@ def save_checkpoint(model, encoder, directory, metadata):
             **({"move_slot_consistency": model.move_slot_consistency,
                 "move_slot_trained": model.move_slot_trained}
                if getattr(model, "move_slot_consistency", None) is not None else {}),
+            **({'gae_lambda_experiment': model.gae_lambda_experiment,
+                'gae_lambda_trained': model.gae_lambda_trained}
+               if getattr(model, 'gae_lambda_experiment', None) is not None else {}),
             "model_seed": model.seed,
             "encoder_version": encoder.version,
             "catalog_fingerprint": encoder.catalog_fingerprint,
@@ -1061,6 +1080,8 @@ def run(
                     raise ValueError("initial_model_encoder_mismatch")
                 if loaded.metadata.get("combat_foundation") != experiment.get("combat_foundation"):
                     raise ValueError("foundation_initialization_requires_explicit_weight_transfer")
+                from advisor.learned_gae_lambda import initial_model as initialize_gae
+                loaded.model = initialize_gae(loaded.model, initial_source, experiment, resume=bool(source))
                 require_resume_objective(loaded.model, experiment, encoder.version)
                 requested_regularizer = (regularizer_contract(experiment["zero_avoiding_beta"])
                                          if "zero_avoiding_beta" in experiment else None)
@@ -1110,6 +1131,10 @@ def run(
                     raise ValueError("training_temperature_restore_failed")
                 if getattr(model, "move_slot_consistency", None) != requested_slot:
                     raise ValueError("training_move_slot_restore_failed")
+                if getattr(model, 'gae_lambda_experiment', None) != experiment.get('gae_lambda_experiment'):
+                    raise ValueError('training_GAE_lambda_restore_failed')
+                if experiment.get('gae_lambda_experiment') is not None and model.gae_lambda_trained != state['experiment_steps']:
+                    raise ValueError('GAE_lambda_trained_checkpoint_accounting_mismatch')
                 if requested_slot is not None and model.move_slot_trained != state["experiment_steps"]:
                     raise ValueError("move_slot_trained_checkpoint_accounting_mismatch")
                 if requested_set is not None and actual_set is None:
@@ -1613,7 +1638,14 @@ def run(
                     from advisor.learned_signal_recorder import PublicSignalRecorder
                     if config.get("ppo_update_audit"):
                         from advisor.learned_ppo_contract_audit import AuditedSignalRecorder
-                        signal_recorder = AuditedSignalRecorder(output / "public_signal_joins", encoder)
+                        if config.get('gae_matched_rollout'):
+                            from advisor.learned_gae_lambda import GaeSignalRecorder, VERSION as gae_version
+                            if config['gae_matched_rollout'] != gae_version:
+                                raise ValueError('invalid_GAE_matched_rollout_contract')
+                            signal_recorder = GaeSignalRecorder(output / 'public_signal_joins', encoder,
+                                reference=config.get('gae_first_rollout_reference'))
+                        else:
+                            signal_recorder = AuditedSignalRecorder(output / "public_signal_joins", encoder)
                     else:
                         signal_recorder = PublicSignalRecorder(output / "public_signal_joins", encoder)
                 else:

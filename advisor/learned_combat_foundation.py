@@ -104,8 +104,10 @@ class FoundationCombatPPO(StrategicCombatV5PPO):
                                            "actor_value_seconds": inference_seconds})
 
     def train(self):
-        if self.max_grad_norm != .5 or self.gamma != 1 or self.gae_lambda != .95:
+        if self.max_grad_norm != .5 or self.gamma != 1:
             raise ValueError("foundation_ppo_contract_mismatch")
+        from advisor.learned_gae_lambda import validate_foundation_gae
+        validate_foundation_gae(self)  # Default remains .95; typed opt-in only.
         started = perf_counter()
         self.foundation_timings = {"auxiliary_forward_seconds": 0.}
         raw_norms, clipped_norms, hooks = [], [], []

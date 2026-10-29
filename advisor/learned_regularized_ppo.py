@@ -88,6 +88,21 @@ def model_regularizer_contract(model):
 
 
 def checkpoint_algorithm(metadata):
+    if "gae_lambda_experiment" in metadata:
+        from advisor.learned_gae_lambda import GaeOneFoundationPPO, validate_contract
+        from advisor.learned_objective import objective_contract
+        validate_contract(metadata['gae_lambda_experiment'])
+        if ('combat_foundation' not in metadata or metadata.get('gamma') != 1
+                or metadata.get('gae_lambda') != 1
+                or metadata.get('training_objective') != objective_contract(1., 1.)
+                or any(k in metadata for k in ('move_slot_consistency', 'actor_set_context',
+                    'parent_policy_anchor', 'masked_temperature'))):
+            raise ValueError('GAE_lambda_checkpoint_objective_mismatch')
+        ordinary = dict(metadata)
+        ordinary.pop('gae_lambda_experiment')
+        if checkpoint_algorithm(ordinary).__name__ != 'FoundationCombatPPO':
+            raise ValueError('GAE_lambda_requires_original_Foundation')
+        return GaeOneFoundationPPO
     if "move_slot_consistency" in metadata:
         from advisor.learned_move_slot_consistency import MoveSlotFoundationPPO, validate_contract
         validate_contract(metadata["move_slot_consistency"])
@@ -159,3 +174,5 @@ def validate_loaded_regularizer(model, metadata):
     validate_loaded_legal_set_context(model, metadata)
     from advisor.learned_move_slot_consistency import validate_loaded
     validate_loaded(model, metadata)
+    from advisor.learned_gae_lambda import validate_loaded as validate_gae
+    validate_gae(model, metadata)
