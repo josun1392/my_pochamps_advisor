@@ -17,6 +17,31 @@ EVALUATION_SECONDS, OVERALL_SECONDS = 5400, 10800
 TRAINING_SECONDS = 5400  # Four bounded arms combined; each trainer retains its own ceiling.
 
 
+def validate_detached_owner(plan, job):
+    """Retain the default fail-closed guard; opt in only with fresh OS evidence.
+
+    As in the accepted diverse/recombination pilots, a persistent outer app Job
+    can survive the short-lived tool Job. Our own nested Job remains mandatory.
+    This does not launch through the desktop or weaken CPU/RAM containment.
+    """
+    import sys
+    proof_path = plan.get('detached_survival_proof')
+    launcher_path = plan.get('detached_probe_launcher_receipt')
+    if (not proof_path or not launcher_path or digest(proof_path) != plan.get('detached_survival_proof_sha256')
+            or digest(launcher_path) != plan.get('detached_probe_launcher_receipt_sha256')):
+        raise RuntimeError('move_slot_detached_proof_missing_or_changed')
+    proof = json.loads(Path(proof_path).read_text())
+    launch = json.loads(Path(launcher_path).read_text())
+    if (proof.get('phase') != 'survived_launcher_exit' or proof.get('PID') != launch.get('probe_PID')
+            or proof.get('inherited_job') != job.inherited_job
+            or proof.get('completed_unix', 0) - launch.get('launcher_exit_unix', 0) < 7.5
+            or Path(proof.get('executable', '')).resolve() != Path(sys.executable).resolve()
+            or launch.get('training') != 0 or launch.get('native') != 0):
+        raise RuntimeError('move_slot_detached_lifetime_or_runtime_not_proven')
+    return {'path': proof_path, 'sha256': plan['detached_survival_proof_sha256'],
+        'persistent_outer_job': job.inherited_job, 'own_nested_CPU_RAM_job_required': True}
+
+
 def matched_configs(configs, parent_sha):
     if set(configs) != set(POLICIES[1:]):
         raise ValueError('move_slot_four_matched_arms_required')

@@ -327,11 +327,15 @@ def main(*, study=anchor_study):
     if control.exists() and process_alive(read(control)["pid"]):
         raise RuntimeError("anchor_study_already_running")
     job = WindowsJob(memory_mib=12288, cpu_percent=50, active_process_limit=24)
+    detached_proof = None
     if job.inherited_job:
-        raise RuntimeError("anchor_owner_inherited_launcher_job")
+        if not hasattr(study, "validate_detached_owner"):
+            raise RuntimeError("anchor_owner_inherited_launcher_job")
+        detached_proof = study.validate_detached_owner(plan, job)
     network = enforce_local_network_only()
     atomic_json(control,{"pid":os.getpid(),"parent_pid":os.getppid(),"started_utc":utc(),
-        "inherited_job":False,"own_job":True,"cpu_percent":50,"memory_mib":12288,"workers":4,
+        "inherited_job":job.inherited_job,"detached_survival_proof":detached_proof,
+        "own_job":True,"cpu_percent":50,"memory_mib":12288,"workers":4,
         "automatic_restarts":0,"plan_sha256":digest(args.plan)})
     outer = RuntimeLimit(out, getattr(study, "OVERALL_SECONDS", 7200))
     training_limit = RuntimeLimit(out, getattr(study, "TRAINING_SECONDS", 3600))

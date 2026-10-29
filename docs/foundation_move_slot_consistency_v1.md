@@ -82,3 +82,10 @@ The combined four-arm training ceiling is 5,400 seconds; the historical owners'
 default and individual trainer limits remain unchanged. Evaluation ceiling is
 5,400 seconds and whole-owner ceiling 10,800 seconds, automatic restarts zero.
 Full model and Adam files remain outside Git. Protected files are not read.
+
+The legacy owner's default rejects inherited launcher Jobs. The accepted
+diverse/recombination pilots additionally support a persistent outer app Job
+after the short-lived execution Job has exited. This study may use that path
+only with a fresh matching Python breakaway-child survival receipt, bound by
+SHA to the execution revision. CPU/RAM remain enforced by its own nested Job;
+there is no desktop automation, detached-guard bypass or automatic restart.

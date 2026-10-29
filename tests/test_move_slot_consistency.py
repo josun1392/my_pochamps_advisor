@@ -84,6 +84,24 @@ def test_objective_loader_rejects_removed_or_mismatched_metadata():
     with pytest.raises(ValueError):checkpoint_algorithm({'move_slot_consistency':consistency_contract()})
 
 
+def test_detached_owner_requires_actual_matching_survival_evidence(tmp_path):
+    import json,sys
+    from types import SimpleNamespace
+    from advisor.learned_execution_alignment import digest
+    from advisor.learned_move_slot_study import validate_detached_owner
+    job=SimpleNamespace(inherited_job=True)
+    with pytest.raises(RuntimeError):validate_detached_owner({},job)
+    p=tmp_path/'probe.json';l=tmp_path/'launcher.json'
+    p.write_text(json.dumps({'PID':123,'phase':'survived_launcher_exit','inherited_job':True,
+        'completed_unix':109.,'executable':sys.executable}))
+    l.write_text(json.dumps({'probe_PID':123,'launcher_exit_unix':100.,'training':0,'native':0}))
+    plan={'detached_survival_proof':str(p),'detached_probe_launcher_receipt':str(l),
+        'detached_survival_proof_sha256':digest(p),'detached_probe_launcher_receipt_sha256':digest(l)}
+    assert validate_detached_owner(plan,job)['own_nested_CPU_RAM_job_required']
+    p.write_text('{}')
+    with pytest.raises(RuntimeError):validate_detached_owner(plan,job)
+
+
 def test_JS_gradient_does_not_overwrite_distribution_or_inputs():
     x=fixture(); before=x.clone()
     class Actor(nn.Module):
