@@ -334,7 +334,7 @@ def main(*, study=anchor_study):
         "inherited_job":False,"own_job":True,"cpu_percent":50,"memory_mib":12288,"workers":4,
         "automatic_restarts":0,"plan_sha256":digest(args.plan)})
     outer = RuntimeLimit(out, getattr(study, "OVERALL_SECONDS", 7200))
-    training_limit = RuntimeLimit(out, 3600)
+    training_limit = RuntimeLimit(out, getattr(study, "TRAINING_SECONDS", 3600))
     evaluation_limit = None
     try:
         state = train_arms(args.plan,job,training_limit,args.resume,study=study)

@@ -31,6 +31,7 @@ def categorical_learning_source_identity():
         "advisor/learned_combat_v5_strategic_aux.py", "advisor/learned_combat_v5_references.py",
         "advisor/learned_combat_foundation.py",
         "advisor/learned_legal_set_context.py",
+        "advisor/learned_move_slot_consistency.py",
         "advisor/learned_ppo_contract_audit.py",
         "advisor/learned_temperature.py",
         "advisor/learned_parent_anchor.py",

@@ -88,6 +88,18 @@ def model_regularizer_contract(model):
 
 
 def checkpoint_algorithm(metadata):
+    if "move_slot_consistency" in metadata:
+        from advisor.learned_move_slot_consistency import MoveSlotFoundationPPO, validate_contract
+        validate_contract(metadata["move_slot_consistency"])
+        if "combat_foundation" not in metadata or any(k in metadata for k in (
+                "actor_set_context", "parent_policy_anchor", "masked_temperature")):
+            raise ValueError("move_slot_requires_original_foundation_objective")
+        # Validate the historical Foundation identity before selecting the opt-in.
+        ordinary = dict(metadata)
+        ordinary.pop("move_slot_consistency")
+        if checkpoint_algorithm(ordinary).__name__ != "FoundationCombatPPO":
+            raise ValueError("move_slot_foundation_algorithm_required")
+        return MoveSlotFoundationPPO
     if "actor_set_context" in metadata:
         from advisor.learned_legal_set_context import legal_set_context_contract
         if (metadata["actor_set_context"] != legal_set_context_contract()
@@ -145,3 +157,5 @@ def validate_loaded_regularizer(model, metadata):
     validate_loaded_temperature(model, metadata)
     from advisor.learned_legal_set_context import validate_loaded_legal_set_context
     validate_loaded_legal_set_context(model, metadata)
+    from advisor.learned_move_slot_consistency import validate_loaded
+    validate_loaded(model, metadata)

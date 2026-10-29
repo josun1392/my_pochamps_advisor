@@ -209,6 +209,15 @@ def validate_config(config):
             validate_legal_set_training(experiment)
             if config.get("envs") != 4 or config.get("device") != "cpu":
                 raise ValueError("legal_set_training_requires_CPU_four_workers")
+        if "move_slot_consistency" in experiment:
+            from advisor.learned_move_slot_consistency import validate_contract
+            validate_contract(experiment["move_slot_consistency"])
+            if ("combat_foundation" not in experiment or not experiment.get("initial_model")
+                    or experiment.get("fresh_optimizer") is not False or experiment.get("steps") != 65536
+                    or any(experiment.get(k) for k in ("actor_set_context", "masked_temperature",
+                        "parent_policy_anchor", "transfer_model", "offline", "opponent_schedule"))
+                    or config.get("envs") != 4 or config.get("device") != "cpu"):
+                raise ValueError("move_slot_requires_matched_original_foundation_continuation")
         if "masked_temperature" in experiment:
             validate_temperature(experiment["masked_temperature"])
             if ("combat_foundation" not in experiment or not experiment.get("initial_model")
@@ -477,6 +486,9 @@ def save_checkpoint(model, encoder, directory, metadata):
             **({"actor_set_context": set_context} if set_context is not None else {}),
             **({"masked_temperature": model_temperature_contract(model), "temperature_state": model.temperature_state()}
                if model_temperature_contract(model) is not None else {}),
+            **({"move_slot_consistency": model.move_slot_consistency,
+                "move_slot_trained": model.move_slot_trained}
+               if getattr(model, "move_slot_consistency", None) is not None else {}),
             "model_seed": model.seed,
             "encoder_version": encoder.version,
             "catalog_fingerprint": encoder.catalog_fingerprint,
@@ -1044,6 +1056,10 @@ def run(
                 actual_anchor = model_parent_anchor_contract(loaded.model)
                 requested_temperature = experiment.get("masked_temperature")
                 actual_temperature = model_temperature_contract(loaded.model)
+                requested_slot = experiment.get("move_slot_consistency")
+                actual_slot = getattr(loaded.model, "move_slot_consistency", None)
+                if actual_slot != requested_slot and (source or actual_slot is not None):
+                    raise ValueError("resume_move_slot_contract_mismatch")
                 if actual_temperature != requested_temperature and (source or actual_temperature is not None):
                     raise ValueError("resume_temperature_contract_mismatch")
                 if actual_anchor != requested_anchor and (source or actual_anchor is not None):
@@ -1055,17 +1071,20 @@ def run(
                     raise ValueError("resume_regularizer_contract_mismatch")
                 # Enabling a new objective from an explicitly declared legacy parent
                 # preserves compatible tensors AND Adam, never a mid-rollout claim.
-                algorithm = (TemperatureFoundationPPO if requested_temperature is not None
+                from advisor.learned_move_slot_consistency import MoveSlotFoundationPPO
+                algorithm = (MoveSlotFoundationPPO if requested_slot is not None
+                    else TemperatureFoundationPPO if requested_temperature is not None
                     else ParentAnchoredFoundationPPO if requested_anchor is not None
                     else type(loaded.model) if encoder.version in (*COMBAT_V5_VERSIONS, STRATEGIC_COMBAT_V5)
                     else RegularizedMaskablePPO if requested_regularizer else type(loaded.model))
                 model = (
                     loaded.model
-                    if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer and actual_anchor == requested_anchor and actual_temperature == requested_temperature
+                    if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer and actual_anchor == requested_anchor and actual_temperature == requested_temperature and actual_slot == requested_slot
                     else algorithm.load(initial_source, env=vector, device=device,
                                         **({"zero_avoiding_beta": requested_regularizer["beta"]}
                                            if requested_regularizer else {}),
                                         **({"masked_temperature": requested_temperature} if requested_temperature is not None else {}),
+                                        **({"move_slot_consistency": requested_slot} if requested_slot is not None else {}),
                                         **({"parent_policy_anchor": requested_anchor,
                                             "parent_reference_path": experiment["initial_model"],
                                             "parent_catalog_path": str(catalog)} if requested_anchor is not None else {}))
@@ -1076,6 +1095,10 @@ def run(
                     raise ValueError("training_parent_anchor_restore_failed")
                 if model_temperature_contract(model) != requested_temperature:
                     raise ValueError("training_temperature_restore_failed")
+                if getattr(model, "move_slot_consistency", None) != requested_slot:
+                    raise ValueError("training_move_slot_restore_failed")
+                if requested_slot is not None and model.move_slot_trained != state["experiment_steps"]:
+                    raise ValueError("move_slot_trained_checkpoint_accounting_mismatch")
                 if requested_set is not None and actual_set is None:
                     from advisor.learned_legal_set_context import extend_foundation_legal_set_context
                     model = extend_foundation_legal_set_context(model)
