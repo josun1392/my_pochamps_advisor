@@ -33,6 +33,7 @@ def categorical_learning_source_identity():
         "advisor/learned_legal_set_context.py",
         "advisor/learned_move_slot_consistency.py",
         "advisor/learned_gae_lambda.py",
+        "advisor/learned_public_potential.py", "advisor/learned_potential_ppo.py",
         "advisor/learned_ppo_contract_audit.py",
         "advisor/learned_temperature.py",
         "advisor/learned_parent_anchor.py",
@@ -55,12 +56,12 @@ def categorical_learning_source_identity():
     return {name: sha256((root / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() for name in names}
 
 
-def objective_contract(gamma, gae_lambda):
+def objective_contract(gamma, gae_lambda, public_potential_reward=None):
     if (type(gamma) not in (int, float) or gamma not in (0.99, 1.0)
             or type(gae_lambda) not in (int, float) or not math.isfinite(gae_lambda)
             or not 0 <= gae_lambda <= 1):
         raise ValueError("unsupported_terminal_learning_objective")
-    return {
+    result = {
         "schema_version": "showdown-terminal-learning-objective-v1",
         "objective_id": UNDISCOUNTED if gamma == 1 else DISCOUNTED,
         "gamma": float(gamma), "gae_lambda": float(gae_lambda),
@@ -71,10 +72,22 @@ def objective_contract(gamma, gae_lambda):
         "step_scope": "agent_decisions_with_native_wait_autoadvance",
         "value_scope": "learned_expected_return_not_exact_win_probability_or_mechanics_truth",
     }
+    if public_potential_reward is not None:
+        from advisor.learned_public_potential import validate_contract
+        marker = validate_contract(public_potential_reward)
+        if gamma != 1. or gae_lambda != .95:
+            raise ValueError("public_potential_gamma_or_GAE_mismatch")
+        result.update(schema_version="showdown-public-potential-learning-objective-v1",
+            objective_id="native_terminal_public_faint_potential_v1",
+            native_objective_id=UNDISCOUNTED, reward=marker["reward"],
+            public_potential_reward=marker,
+            value_scope="raw_shaped_return_native_diagnostic_adds_current_public_Phi_not_training_correction")
+    return result
 
 
 def experiment_objective(experiment, encoder_version):
-    contract = objective_contract(experiment.get("gamma", 0.99), experiment.get("gae_lambda", 0.95))
+    contract = objective_contract(experiment.get("gamma", 0.99), experiment.get("gae_lambda", 0.95),
+        experiment.get("public_potential_reward"))
     if contract["gamma"] == 1 and encoder_version not in CATEGORICAL_VERSIONS:
         raise ValueError("gamma_one_requires_new_public_categorical_experiment")
     if experiment.get("objective", contract["objective_id"]) != contract["objective_id"]:
@@ -84,7 +97,7 @@ def experiment_objective(experiment, encoder_version):
 
 def require_resume_objective(model, experiment, encoder_version):
     requested = experiment_objective(experiment, encoder_version)
-    actual = objective_contract(model.gamma, model.gae_lambda)
+    actual = objective_contract(model.gamma, model.gae_lambda, getattr(model, "public_potential_reward", None))
     if actual != requested:
         raise ValueError("checkpoint_objective_mismatch_no_silent_gamma_or_gae_mutation")
     return actual

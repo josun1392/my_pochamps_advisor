@@ -108,6 +108,8 @@ class FoundationCombatPPO(StrategicCombatV5PPO):
             raise ValueError("foundation_ppo_contract_mismatch")
         from advisor.learned_gae_lambda import validate_foundation_gae
         validate_foundation_gae(self)  # Default remains .95; typed opt-in only.
+        from advisor.learned_potential_ppo import validate_model as validate_potential
+        validate_potential(self)  # Reject a shaped ZIP silently loaded as base PPO.
         started = perf_counter()
         self.foundation_timings = {"auxiliary_forward_seconds": 0.}
         raw_norms, clipped_norms, hooks = [], [], []

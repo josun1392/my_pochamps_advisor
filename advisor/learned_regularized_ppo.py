@@ -88,6 +88,21 @@ def model_regularizer_contract(model):
 
 
 def checkpoint_algorithm(metadata):
+    if "public_potential_reward" in metadata:
+        from advisor.learned_public_potential import validate_contract
+        from advisor.learned_potential_ppo import PotentialFoundationPPO
+        from advisor.learned_objective import objective_contract
+        marker = validate_contract(metadata["public_potential_reward"])
+        if (metadata.get("training_objective") != objective_contract(1., .95, marker)
+                or metadata.get("gamma") != 1. or metadata.get("gae_lambda") != .95
+                or any(k in metadata for k in ("gae_lambda_experiment", "move_slot_consistency",
+                    "actor_set_context", "parent_policy_anchor", "masked_temperature"))):
+            raise ValueError("public_potential_checkpoint_objective_mismatch")
+        ordinary = dict(metadata)
+        ordinary.pop("public_potential_reward")
+        if checkpoint_algorithm(ordinary).__name__ != "FoundationCombatPPO":
+            raise ValueError("public_potential_requires_original_Foundation")
+        return PotentialFoundationPPO
     if "gae_lambda_experiment" in metadata:
         from advisor.learned_gae_lambda import GaeOneFoundationPPO, validate_contract
         from advisor.learned_objective import objective_contract
@@ -176,3 +191,5 @@ def validate_loaded_regularizer(model, metadata):
     validate_loaded(model, metadata)
     from advisor.learned_gae_lambda import validate_loaded as validate_gae
     validate_gae(model, metadata)
+    from advisor.learned_potential_ppo import validate_loaded as validate_potential
+    validate_potential(model, metadata)

@@ -207,7 +207,26 @@ def validate_config(config):
         from advisor.learned_gae_lambda import VERSION as gae_version
         if config.get('gae_matched_rollout') != gae_version or not config.get('ppo_update_audit'):
             raise ValueError('invalid_GAE_matched_rollout_contract')
+    if config.get('potential_matched_rollout') or config.get('potential_first_rollout_reference'):
+        from advisor.learned_potential_ppo import RECORDER_VERSION
+        if (config.get('potential_matched_rollout') != RECORDER_VERSION
+                or not config.get('ppo_update_audit') or not config.get('collect_learning_signal_joins')
+                or config.get('gae_matched_rollout')):
+            raise ValueError('invalid_potential_matched_rollout_contract')
     for experiment in config["experiments"]:
+        if 'public_potential_reward' in experiment:
+            from advisor.learned_public_potential import validate_contract as validate_potential
+            marker = validate_potential(experiment['public_potential_reward'])
+            if ('combat_foundation' not in experiment or experiment.get('gamma') != 1.
+                    or experiment.get('gae_lambda') != .95 or not experiment.get('initial_model')
+                    or experiment.get('fresh_optimizer') is not False
+                    or experiment.get('initial_model_id') != marker['parent_model_sha256']
+                    or experiment.get('steps') != marker['budget'] or rollout != marker['rollout']
+                    or config.get('envs') != 4 or config.get('device') != 'cpu'
+                    or any(experiment.get(k) for k in ('gae_lambda_experiment', 'actor_set_context',
+                        'masked_temperature', 'parent_policy_anchor', 'move_slot_consistency',
+                        'transfer_model', 'offline', 'opponent_schedule'))):
+                raise ValueError('public_potential_requires_matched_original_Foundation')
         if 'gae_lambda_experiment' in experiment:
             from advisor.learned_gae_lambda import validate_contract as validate_gae
             validate_gae(experiment['gae_lambda_experiment'])
@@ -465,6 +484,11 @@ def freeze_historical_reference(
 
 
 def save_checkpoint(model, encoder, directory, metadata):
+    from advisor.learned_potential_ppo import validate_model as validate_potential
+    validate_potential(model)
+    if ('public_potential_reward' in metadata
+            and metadata['public_potential_reward'] != getattr(model, 'public_potential_reward', None)):
+        raise ValueError('public_potential_save_metadata_mismatch')
     from advisor.learned_legal_set_context import model_legal_set_context_contract
     set_context = model_legal_set_context_contract(model)
     if "actor_set_context" in metadata and metadata["actor_set_context"] != set_context:
@@ -508,6 +532,9 @@ def save_checkpoint(model, encoder, directory, metadata):
             **({'gae_lambda_experiment': model.gae_lambda_experiment,
                 'gae_lambda_trained': model.gae_lambda_trained}
                if getattr(model, 'gae_lambda_experiment', None) is not None else {}),
+            **({'public_potential_reward': model.public_potential_reward,
+                'public_potential_trained': model.public_potential_trained}
+               if getattr(model, 'public_potential_reward', None) is not None else {}),
             "model_seed": model.seed,
             "encoder_version": encoder.version,
             "catalog_fingerprint": encoder.catalog_fingerprint,
@@ -524,7 +551,8 @@ def save_checkpoint(model, encoder, directory, metadata):
             **metadata,
             "gamma": model.gamma,
             "gae_lambda": model.gae_lambda,
-            "training_objective": objective_contract(model.gamma, model.gae_lambda),
+            "training_objective": objective_contract(model.gamma, model.gae_lambda,
+                getattr(model, 'public_potential_reward', None)),
             **({"parent_policy_anchor": model_parent_anchor_contract(model)}
                if model_parent_anchor_contract(model) is not None else {}),
             **({"parent_reference_proof": parent_proof} if parent_proof is not None else {}),
@@ -1056,6 +1084,7 @@ def run(
                     foundation_profile="combat_foundation" in experiment,
                     opponent_schedule=experiment.get("opponent_schedule"),
                     collect_opponent_selections=config.get("collect_opponent_selections", False),
+                    public_potential_reward=experiment.get("public_potential_reward"),
                 )
                 for i in range(config.get("envs", 4))
             ]
@@ -1082,6 +1111,8 @@ def run(
                     raise ValueError("foundation_initialization_requires_explicit_weight_transfer")
                 from advisor.learned_gae_lambda import initial_model as initialize_gae
                 loaded.model = initialize_gae(loaded.model, initial_source, experiment, resume=bool(source))
+                from advisor.learned_potential_ppo import initial_model as initialize_potential
+                loaded.model = initialize_potential(loaded.model, initial_source, experiment, resume=bool(source))
                 require_resume_objective(loaded.model, experiment, encoder.version)
                 requested_regularizer = (regularizer_contract(experiment["zero_avoiding_beta"])
                                          if "zero_avoiding_beta" in experiment else None)
@@ -1119,6 +1150,8 @@ def run(
                                            if requested_regularizer else {}),
                                         **({"masked_temperature": requested_temperature} if requested_temperature is not None else {}),
                                         **({"move_slot_consistency": requested_slot} if requested_slot is not None else {}),
+                                        **({"public_potential_reward": experiment['public_potential_reward']}
+                                           if experiment.get('public_potential_reward') is not None else {}),
                                         **({"parent_policy_anchor": requested_anchor,
                                             "parent_reference_path": experiment["initial_model"],
                                             "parent_catalog_path": str(catalog)} if requested_anchor is not None else {}))
@@ -1133,6 +1166,11 @@ def run(
                     raise ValueError("training_move_slot_restore_failed")
                 if getattr(model, 'gae_lambda_experiment', None) != experiment.get('gae_lambda_experiment'):
                     raise ValueError('training_GAE_lambda_restore_failed')
+                if getattr(model, 'public_potential_reward', None) != experiment.get('public_potential_reward'):
+                    raise ValueError('training_public_potential_restore_failed')
+                if (experiment.get('public_potential_reward') is not None
+                        and model.public_potential_trained != state['experiment_steps']):
+                    raise ValueError('public_potential_trained_checkpoint_accounting_mismatch')
                 if experiment.get('gae_lambda_experiment') is not None and model.gae_lambda_trained != state['experiment_steps']:
                     raise ValueError('GAE_lambda_trained_checkpoint_accounting_mismatch')
                 if requested_slot is not None and model.move_slot_trained != state["experiment_steps"]:
@@ -1638,7 +1676,13 @@ def run(
                     from advisor.learned_signal_recorder import PublicSignalRecorder
                     if config.get("ppo_update_audit"):
                         from advisor.learned_ppo_contract_audit import AuditedSignalRecorder
-                        if config.get('gae_matched_rollout'):
+                        if config.get('potential_matched_rollout'):
+                            from advisor.learned_potential_ppo import PotentialSignalRecorder, RECORDER_VERSION
+                            if config['potential_matched_rollout'] != RECORDER_VERSION:
+                                raise ValueError('invalid_potential_matched_rollout_contract')
+                            signal_recorder = PotentialSignalRecorder(output / 'public_signal_joins', encoder,
+                                reference=config.get('potential_first_rollout_reference'))
+                        elif config.get('gae_matched_rollout'):
                             from advisor.learned_gae_lambda import GaeSignalRecorder, VERSION as gae_version
                             if config['gae_matched_rollout'] != gae_version:
                                 raise ValueError('invalid_GAE_matched_rollout_contract')

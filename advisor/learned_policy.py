@@ -81,7 +81,8 @@ class LearnedPolicy:
         ):
             raise ValueError("incompatible_model_spaces")
         if require_manifest:
-            actual = objective_contract(self.model.gamma, self.model.gae_lambda)
+            actual = objective_contract(self.model.gamma, self.model.gae_lambda,
+                getattr(self.model, "public_potential_reward", None))
             if (type(self.metadata.get("gamma", self.model.gamma)) not in (int, float)
                     or self.metadata.get("gamma", self.model.gamma) != self.model.gamma
                     or self.metadata.get("gae_lambda", self.model.gae_lambda) != self.model.gae_lambda
@@ -165,7 +166,19 @@ class LearnedPolicy:
             **({"training_objective": self.metadata["training_objective"]}
                if "training_objective" in self.metadata else {}),
             "discounted_return_estimate": value,
+            **self._potential_value_diagnostic(observation, value),
         }
+
+    def _potential_value_diagnostic(self, observation, value):
+        if getattr(self.model, "public_potential_reward", None) is None:
+            return {}
+        from advisor.learned_public_potential import public_phi
+        phi = public_phi(observation)
+        # Reporting only. Never replaces predict_values in rollout or bootstrap.
+        return {"shaped_return_estimate": value, "public_potential": phi,
+            "discounted_return_estimate": value + phi,
+            "value_coordinate": "native_return_diagnostic_raw_shaped_value_plus_public_Phi",
+            "training_reward_scope": self.model.public_potential_reward["reward"]}
 
     def act(self, observation):
         return self.infer(observation)["action_index"]

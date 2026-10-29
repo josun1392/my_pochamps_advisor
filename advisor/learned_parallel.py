@@ -30,6 +30,7 @@ class LearningEnvFactory:
     foundation_profile: bool = False
     opponent_schedule: dict | None = None
     collect_opponent_selections: bool = False
+    public_potential_reward: dict | None = None
 
     def __call__(self):
         import torch
@@ -95,4 +96,9 @@ class LearningEnvFactory:
         if self.foundation_profile:
             from advisor.learned_combat_foundation import install_environment_profile
             install_environment_profile(env)
+        if self.public_potential_reward is not None:
+            if not self.foundation_profile:
+                raise ValueError("public_potential_requires_Foundation_environment")
+            from advisor.learned_public_potential import PublicPotentialReward
+            env = PublicPotentialReward(env, self.public_potential_reward)
         return env
