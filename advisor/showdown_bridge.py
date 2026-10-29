@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import subprocess
 from typing import Any
@@ -11,6 +12,16 @@ FORMAT_ID = "gen9championsbssregmc"
 SCHEMA_VERSION = "detached-showdown-v1"
 OBSERVATION_SCHEMA_VERSION = "showdown-observed-projection-v2"
 BRIDGE_SCRIPT = Path(__file__).resolve().parents[1] / "tools/showdown_bridge/bridge.cjs"
+
+
+def silent_process_options():
+    """Keep piped offline native/Git children headless on Windows.
+
+    A detached Python parent has no console to inherit. Without this flag,
+    Windows creates a new terminal for every short-lived Git/Node child.
+    No command, pipe, native input, timeout or RNG semantics are changed.
+    """
+    return {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
 
 
 class ShowdownBridgeError(RuntimeError):
@@ -31,6 +42,7 @@ class ShowdownBridge:
                 input=json.dumps(request, ensure_ascii=False, allow_nan=False),
                 capture_output=True, text=True, encoding="utf-8", timeout=self.timeout_s,
                 check=False,
+                **silent_process_options(),
             )
             response = json.loads(result.stdout)
         except subprocess.TimeoutExpired as exc:
@@ -46,10 +58,12 @@ class ShowdownBridge:
             revision = subprocess.run(
                 ["git", "rev-parse", "HEAD"], cwd=self.checkout,
                 capture_output=True, text=True, encoding="utf-8", timeout=5, check=True,
+                **silent_process_options(),
             ).stdout.strip()
             dirty = subprocess.run(
                 ["git", "status", "--porcelain", "--untracked-files=no"], cwd=self.checkout,
                 capture_output=True, text=True, encoding="utf-8", timeout=5, check=True,
+                **silent_process_options(),
             ).stdout.strip()
             if revision != SHOWDOWN_COMMIT or dirty:
                 raise ShowdownBridgeError("showdown_revision_or_tracked_sources_mismatch")

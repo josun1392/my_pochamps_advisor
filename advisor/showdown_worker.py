@@ -4,7 +4,7 @@ import json
 from queue import Empty, Queue
 import subprocess
 from threading import Event, Lock, Thread
-from advisor.showdown_bridge import BRIDGE_SCRIPT, ShowdownBridge, ShowdownBridgeError
+from advisor.showdown_bridge import BRIDGE_SCRIPT, ShowdownBridge, ShowdownBridgeError, silent_process_options
 
 
 class ShowdownWorker(ShowdownBridge):
@@ -35,6 +35,7 @@ class ShowdownWorker(ShowdownBridge):
             ["node", str(BRIDGE_SCRIPT.with_name("worker.cjs")), str(self.checkout)],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             text=True, encoding="utf-8", bufsize=1,
+            **silent_process_options(),
         )
         self._generation += 1
         stream, responses = self._process.stdout, self._responses
