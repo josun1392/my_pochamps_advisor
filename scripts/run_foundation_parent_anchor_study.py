@@ -143,7 +143,9 @@ def train_arms(plan_path, job, limit, resume, *, study=anchor_study):
             if current["trained_rollout_transitions"] == 65536:
                 final = row
         result = run(config, run_out, resume=resume and (run_out/"state.json").exists(),
-                     require_detached=True, event_callback=observe, resource_job=job)
+                     require_detached=True, event_callback=observe, resource_job=job,
+                     detached_owner_validator=(lambda resource: study.validate_detached_owner(plan, resource))
+                         if hasattr(study, "validate_detached_owner") else None)
         if result["status"] != "complete" or result["trained_rollout_transitions"] != 65536:
             atomic_json(state_path, {**state, "status": "stopped", "utc": utc()})
             return None

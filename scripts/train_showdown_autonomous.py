@@ -790,6 +790,18 @@ def training_config_fingerprint(config):
     return sha256(json.dumps(content, sort_keys=True).encode()).hexdigest(), identity
 
 
+def require_detached_owner(job, validator=None):
+    """A nested resource Job alone is not evidence of launcher independence."""
+    if not job.inherited_job:
+        return None
+    if validator is None or not callable(validator):
+        raise RuntimeError("trainer_still_in_launcher_job_persistence_not_verified")
+    proof = validator(job)
+    if not isinstance(proof, dict) or proof.get("own_nested_CPU_RAM_job_required") is not True:
+        raise RuntimeError("trainer_detached_owner_proof_invalid")
+    return proof
+
+
 def run(
     config,
     output,
@@ -798,6 +810,7 @@ def run(
     require_detached=False,
     event_callback=None,
     resource_job=None,
+    detached_owner_validator=None,
 ):
     validate_config(config)
     output = Path(output).resolve()
@@ -873,8 +886,8 @@ def run(
             torch.cuda.set_per_process_memory_fraction(
                 config.get("gpu_memory_fraction", 0.25)
             )
-        if require_detached and job.inherited_job:
-            raise RuntimeError("trainer_still_in_launcher_job_persistence_not_verified")
+        if require_detached:
+            require_detached_owner(job, detached_owner_validator)
         if resume:
             state = json.loads(state_path.read_text())
             if state["config_fingerprint"] != fingerprint:

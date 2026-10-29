@@ -102,6 +102,17 @@ def test_detached_owner_requires_actual_matching_survival_evidence(tmp_path):
     with pytest.raises(RuntimeError):validate_detached_owner(plan,job)
 
 
+def test_trainer_independently_requires_validated_owner_and_keeps_old_default():
+    from types import SimpleNamespace
+    from scripts.train_showdown_autonomous import require_detached_owner
+    job=SimpleNamespace(inherited_job=True)
+    with pytest.raises(RuntimeError,match='persistence_not_verified'):require_detached_owner(job)
+    with pytest.raises(RuntimeError,match='proof_invalid'):require_detached_owner(job,lambda j:{})
+    assert require_detached_owner(SimpleNamespace(inherited_job=False)) is None
+    proof={'own_nested_CPU_RAM_job_required':True}
+    assert require_detached_owner(job,lambda j:proof) is proof
+
+
 def test_JS_gradient_does_not_overwrite_distribution_or_inputs():
     x=fixture(); before=x.clone()
     class Actor(nn.Module):
