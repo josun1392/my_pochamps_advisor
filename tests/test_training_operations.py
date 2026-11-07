@@ -173,7 +173,7 @@ def test_resume_cannot_reinterpret_legacy_accounting_or_remove_stop(tmp_path, mo
     monkeypatch.setattr(trainer, "training_config_fingerprint", lambda value: ("frozen", {}))
     monkeypatch.setattr(trainer, "RuntimeLimit", lambda *args: SimpleNamespace(finished=threading.Event()))
     job = SimpleNamespace(inherited_job=False, usage=lambda: {})
-    with pytest.raises(ValueError, match="accounting_version_mismatch"):
+    with pytest.raises(ValueError, match="checkpoint_resume_unavailable_rng_native_sampler_state"):
         trainer.run({"max_runtime_seconds": 30}, tmp_path, resume=True, resource_job=job)
     assert (tmp_path / "state.json").read_bytes() == original
     assert (tmp_path / "STOP").exists()

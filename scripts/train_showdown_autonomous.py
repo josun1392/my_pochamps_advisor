@@ -1,4 +1,4 @@
-"""Resumable, validation-selected CPU training with a hard process-tree budget."""
+"""Bounded training; legacy cold resume fails closed without execution state."""
 
 from pathlib import Path
 import sys
@@ -31,6 +31,7 @@ from advisor.learned_action_policy import (
 from advisor.learned_baselines import VisibleBaseline
 from advisor.learned_parallel import LearningEnvFactory
 from advisor.learned_policy import LearnedPolicy
+from advisor.learned_checkpoint_rng import rng_neutral_load, reject_unrestorable_resume
 from advisor.learned_move_identity import VERSIONS as OWN_MOVE_VERSIONS
 from advisor.learned_move_identity_policy import OwnMoveTokenPolicy, transfer_v3_to_own_move
 from advisor.learned_public_categories import VERSIONS as PUBLIC_CATEGORICAL_VERSIONS
@@ -859,6 +860,10 @@ def run(
     resource_job=None,
     detached_owner_validator=None,
 ):
+    if resume:
+        # Current ZIP/state.json lack execution RNG/native/sampler snapshots.
+        # Reject before mkdir, stale-lock removal, STOP removal or any seeding.
+        reject_unrestorable_resume()
     validate_config(config)
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -1145,7 +1150,7 @@ def run(
                 model = (
                     loaded.model
                     if device == "cpu" and loaded.model.n_envs == vector.num_envs and actual_regularizer == requested_regularizer and actual_anchor == requested_anchor and actual_temperature == requested_temperature and actual_slot == requested_slot
-                    else algorithm.load(initial_source, env=vector, device=device,
+                    else rng_neutral_load(algorithm.load, initial_source, n_envs=vector.num_envs, device=device,
                                         **({"zero_avoiding_beta": requested_regularizer["beta"]}
                                            if requested_regularizer else {}),
                                         **({"masked_temperature": requested_temperature} if requested_temperature is not None else {}),
@@ -1847,6 +1852,8 @@ def run(
 
 def launch_detached(config_path, output, resume):
     """Use the real interpreter: Windows venv launchers create their own parent job."""
+    if resume:
+        reject_unrestorable_resume()
     if os.name != "nt":
         raise RuntimeError("detached_launcher_requires_windows")
     output = Path(output).resolve()
@@ -1917,6 +1924,8 @@ def main():
         (args.output / "STOP").touch()
         print("Graceful stop requested; hard shutdown after 30s grace.")
         return
+    if args.resume:
+        reject_unrestorable_resume()  # Also before the detached launcher writes/spawns.
     if not args.config:
         parser.error("--config is required")
     config = json.loads(args.config.read_text(encoding="utf-8-sig"))

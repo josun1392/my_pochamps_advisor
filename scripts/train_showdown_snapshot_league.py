@@ -1,7 +1,8 @@
 """Bounded generation chaining over the existing resource-controlled trainer.
 
-Each generation is independently resumable. Frozen completed snapshots are
-immutable; no worker hot swapping, privileged policy inputs or model promotion.
+Completed generations can be skipped and seed-addressed new generations chained.
+Incomplete legacy generations lack exact execution state and fail closed.
+Frozen completed snapshots are immutable; no hot swapping or model promotion.
 """
 from pathlib import Path
 import sys
@@ -18,6 +19,7 @@ from advisor.learned_snapshot_league import (
 )
 from advisor.learned_regularized_ppo import regularizer_contract
 from advisor.learning_resources import atomic_json, WindowsJob
+from advisor.learned_checkpoint_rng import reject_unrestorable_resume
 from scripts.train_showdown_autonomous import run, validate_config, training_config_fingerprint
 
 VERSION = "showdown-matched-snapshot-continuation-study-v1"
@@ -97,8 +99,10 @@ def run_chain(plan_path, output, chain, *, resume=False, stop_at_first_checkpoin
     if b0 != plan["B0"]:
         raise ValueError("B0_manifest_changed")
     output = Path(output).resolve()
-    output.mkdir(parents=True, exist_ok=True)
     state_path = output / "chain_state.json"
+    if resume and not state_path.exists():
+        reject_unrestorable_resume()
+    output.mkdir(parents=True, exist_ok=True)
     identity = sha256(raw).hexdigest()
     state = {"plan_sha256": identity, "chain": chain, "completed": []}
     if state_path.exists():
@@ -116,15 +120,18 @@ def run_chain(plan_path, output, chain, *, resume=False, stop_at_first_checkpoin
         parent = state["completed"][-1] if state["completed"] else b0
         config = generation_config(plan, chain, generation, parent, state["completed"])
         generation_dir = output / f"generation_{generation:02d}"
+        resumed = (generation_dir / "state.json").exists()
+        existing = json.loads((generation_dir / "state.json").read_text()) if resumed else None
+        if resumed and not resume:
+            raise ValueError("existing_generation_requires_resume")
+        if resumed and (not isinstance(existing, dict) or existing.get("status") != "complete"):
+            reject_unrestorable_resume()  # Before config/event/counter mutation.
         config_path = output / f"generation_{generation:02d}_config.json"
         if config_path.exists():
             if json.loads(config_path.read_text()) != config:
                 raise ValueError("league_generation_config_changed")
         else:
             atomic_json(config_path, config)
-        resumed = (generation_dir / "state.json").exists()
-        if resumed and not resume:
-            raise ValueError("existing_generation_requires_resume")
         append_generation_event(output / "generations.jsonl", {
             "event": "generation_resume" if resumed else "generation_start", "time_unix": time(),
             "generation": generation, "chain": chain, "parent": parent,
@@ -138,7 +145,6 @@ def run_chain(plan_path, output, chain, *, resume=False, stop_at_first_checkpoin
         def event_callback(event):
             if stop_at_first_checkpoint and event.get("phase") == "evaluating" and event.get("transitions", 0) >= config["checkpoint_steps"]:
                 (generation_dir / "STOP").write_text("intentional_checkpoint_boundary_smoke", encoding="utf-8")
-        existing = json.loads((generation_dir / "state.json").read_text()) if resumed else None
         result = (existing if existing and existing["status"] == "complete"
                   else run(config, generation_dir, resume=resumed, resource_job=job,
                            event_callback=event_callback if stop_at_first_checkpoint else None))

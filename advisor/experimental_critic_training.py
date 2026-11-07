@@ -13,6 +13,7 @@ from advisor.learned_combat_foundation import FoundationCombatPPO, FoundationCom
 from advisor.learned_parent_anchor import tensor_digest, optimizer_digest, optimizer_clock
 from advisor.learned_execution_alignment import digest, durable_json
 from advisor.learned_policy import LearnedPolicy
+from advisor.learned_checkpoint_rng import rng_neutral_load
 from advisor.learned_ppo_contract_audit import AuditedSignalRecorder
 
 VERSION = 'experimental-set-context-trainable-critic-PPO-v1'
@@ -114,7 +115,7 @@ class CriticTrainableActor(LearnedPolicy):
         self.encoder = FoundationCombatEncoder(catalog)
         if self.encoder.catalog_fingerprint != meta['encoder_fingerprint']:
             raise ValueError('experimental_critic_encoder_identity')
-        self.model = FoundationCombatPPO.load(path, device='cpu')
+        self.model = rng_neutral_load(FoundationCombatPPO.load, path, device='cpu')
         validate_model(self.model, meta['frozen_SHA256'])
         if (tensor_digest(self.model.policy.state_dict()) != meta['parameters_SHA256']
                 or optimizer_digest(self.model.policy) != meta['optimizer_SHA256']

@@ -14,6 +14,7 @@ from advisor.learned_legal_set_context import (
 from advisor.learned_parent_anchor import tensor_digest, optimizer_digest, optimizer_clock
 from advisor.learned_execution_alignment import digest, durable_json
 from advisor.learned_policy import LearnedPolicy
+from advisor.learned_checkpoint_rng import rng_neutral_load
 from advisor.learned_fixed_micro import seed4
 
 VERSION = "experimental-candidate-context-residual-only-PPO-v1"
@@ -147,7 +148,7 @@ class ResidualActor(LearnedPolicy):
         self.encoder = FoundationCombatEncoder(catalog)
         if self.encoder.catalog_fingerprint != metadata['encoder_fingerprint']:
             raise ValueError('experimental_residual_encoder_identity')
-        self.model = FoundationCombatPPO.load(path, device='cpu')
+        self.model = rng_neutral_load(FoundationCombatPPO.load, path, device='cpu')
         validate_model(self.model, metadata['mode'], metadata['frozen_SHA256'])
         if (metadata['contract'] != contract(metadata['mode'])
                 or tensor_digest(self.model.policy.state_dict()) != metadata['parameters_SHA256']

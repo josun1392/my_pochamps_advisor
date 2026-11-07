@@ -426,11 +426,13 @@ def test_standalone_lifecycle_and_new_budget_from_optimizer_checkpoint(
     checkpoint = state["evaluations"][-1]["checkpoint"]
     saved = LearnedPolicy(checkpoint, CATALOG)
     updates = optimizer_steps(saved.model)
+    original_state = (output / "state.json").read_bytes()
     result = subprocess.run(
         command + ["--resume"], capture_output=True, text=True, timeout=90, cwd=ROOT
     )
-    assert result.returncode == 0, result.stderr
-    assert json.loads((output / "state.json").read_text())["transitions"] == 512
+    assert result.returncode != 0
+    assert "checkpoint_resume_unavailable_rng_native_sampler_state" in result.stderr
+    assert (output / "state.json").read_bytes() == original_state
     config["experiments"][0].update(steps=256, initial_model=checkpoint, seed=29)
     config_file = tmp_path / "continuation.json"
     config_file.write_text(json.dumps(config))
