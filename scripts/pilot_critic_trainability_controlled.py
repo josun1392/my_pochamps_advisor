@@ -234,6 +234,9 @@ def train_arm(root,plan,label,seed,parent,runtime,*,implementation=None):
             CriticSignalRecorder as recorder_type)
     plan_file=plan.get('plan_file',PLAN);prefix=plan.get('treatment_prefix','Aprime')
     old=read(plan['training_plan']);folder=root/label;folder.mkdir()
+    adapter = (implementation.training_adapter(old['runtime_adapter'], seed, parent.model_id)
+               if implementation is not None and hasattr(implementation, 'training_adapter')
+               else old['runtime_adapter'])
     model=initialize(parent.model);fixed=frozen_digest(model.policy);start=model.num_timesteps
     budget=StartBudget(folder/'TRAIN_starts',4096,root/'STOP');(folder/'Adam_intents').mkdir()
     updates=0;previous={};segments=[];began=time.perf_counter();raw={}
@@ -268,7 +271,7 @@ def train_arm(root,plan,label,seed,parent,runtime,*,implementation=None):
             if runtime.stopping():raise RuntimeError('critic_STOP_or_deadline')
             verify({str(root/plan_file):read(root/'started.json')['plan_SHA256']})
             sr=folder/'segments'/f'{segment:02d}';sr.mkdir(parents=True)
-            vector,_=training_vector(old['runtime_adapter'],sr,parent,
+            vector,_=training_vector(adapter,sr,parent,
                 case_factory=lambda worker:TrainCases(old,seed,segment,worker),start_budget=budget)
             reference=plan['controls'][label.replace(prefix,'A')]['first_rollout']
             recorder=recorder_type(folder/'rollouts',parent.encoder,reference)
@@ -298,7 +301,11 @@ def train_arm(root,plan,label,seed,parent,runtime,*,implementation=None):
                 identity=read(p);episode=identity['episode_identity']
                 template=old['training_templates'][(segment*4+identity['worker'])%16]['scenario']
                 if (episode['team_sha256']!={s:content_hash(template['teams'][s]) for s in ('self','opponent')}
-                        or episode['opponent_model_id']!=plan['parent']['sha256'] or identity['opponent_mode']!='argmax'):
+                        or episode['opponent_model_id']!=plan['parent']['sha256']):
+                    raise ValueError('critic_training_exposure_or_opponent_changed')
+                if implementation is not None and hasattr(implementation, 'verify_training_identity'):
+                    implementation.verify_training_identity(identity, seed, parent.model_id)
+                elif identity['opponent_mode']!='argmax':
                     raise ValueError('critic_training_exposure_or_opponent_changed')
             record['verified_native_roster_identities']=len(identities);segments.append(record)
             if (segment+1)%4==0:
@@ -343,9 +350,10 @@ def analyze(rows,cases,draws=20000,seed=116063,*,treatment_prefix='Aprime'):
     indices=rng.integers(0,len(pairs),(draws,len(pairs)));means={};wins={};outcomes={}
     for m in models:
         rr=[by[m,c['index'],s] for c in cases for s in ('p1','p2')]
+        value_errors=[r['value_discounted_return_mse'] for r in rr if r['value_discounted_return_mse'] is not None]
         outcomes[m]={'games':len(rr),'wins':sum(r['winner']=='self' for r in rr),
             'losses':sum(r['winner']=='opponent' for r in rr),'draws':sum(r['winner'] is None for r in rr),
-            'visited_state_terminal_value_MSE':float(np.mean([r['value_discounted_return_mse'] for r in rr]))}
+            'visited_state_terminal_value_MSE':float(np.mean(value_errors)) if value_errors else None}
         means[m]=np.array([np.mean([by[m,c['index'],s]['return'] for c in cases if c['pair']==p for s in ('p1','p2')]) for p in pairs])
         wins[m]=np.array([np.mean([by[m,c['index'],s]['winner']=='self' for c in cases if c['pair']==p for s in ('p1','p2')]) for p in pairs])
     differences=[means[f'{treatment_prefix}_s{i}']-means[f'A_s{i}'] for i in (1,2)]

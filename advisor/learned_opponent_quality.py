@@ -35,16 +35,17 @@ class _CapturedProof(_ValidatedProof):
 
 
 class QualityActor:
-    def __init__(self, parent, policy, *, case, seat, role, record):
+    def __init__(self, parent, policy, *, case, seat, role, record, rng_namespace=116081):
         if (policy not in POLICIES or seat not in ('p1', 'p2')
                 or role not in ('candidate', 'rival') or type(case) is not int or case < 0
+                or type(rng_namespace) is not int or not 0 <= rng_namespace < 2**32
                 or 'combat_foundation' not in parent.metadata):
             raise ValueError('quality_public_actor_identity')
         self.parent, self.model_id = parent, parent.model_id
         self.policy, self.role, self.seat = policy, role, seat
         self.side = ('self' if seat == 'p1' else 'opponent')
         if role == 'rival': self.side = 'opponent' if self.side == 'self' else 'self'
-        self.address = {'version': VERSION, 'seed_namespace': 116081,
+        self.address = {'version': VERSION, 'seed_namespace': rng_namespace,
             'policy': policy, 'role': role, 'seat': seat, 'case': case,
             'model_SHA256': self.model_id}
         self.seed = addressed_policy_seed(policy, case + 91, self.address)
