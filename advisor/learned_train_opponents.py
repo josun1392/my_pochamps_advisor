@@ -39,6 +39,14 @@ def mixture_identity(manifest):
             'nominal_episode_probabilities': {p: n / len(slots) for p, n in Counter(slots).items()}}
 
 
+def addressed_policy_seed(policy, legacy_seed, address):
+    """Shared PCG64 addressing; callers keep TRAIN/evaluation authority separate."""
+    if policy not in POLICIES or type(legacy_seed) is not int or legacy_seed < 0:
+        raise ValueError('invalid_Foundation_policy_rng_address')
+    return (legacy_seed if policy == 'foundation_argmax'
+            else int.from_bytes(sha256(content_hash(address).encode()).digest()[:16], 'big'))
+
+
 class _ValidatedProof:
     def __init__(self, owner):
         self.owner, self.model_id = owner, owner.model_id
@@ -90,8 +98,7 @@ class TrainFoundationOpponent:
             'training_seed': self.manifest['training_seed'], 'worker': worker, 'segment': segment,
             'case_index': episode['case_index'], 'policy': self.policy_name, 'model_SHA256': self.model_id}
         # No hidden team/preview/native RNG value participates in the draw address.
-        self.seed = (legacy_seed if self.mode == 'argmax'
-                     else int.from_bytes(sha256(content_hash(self.address).encode()).digest()[:16], 'big'))
+        self.seed = addressed_policy_seed(self.policy_name, legacy_seed, self.address)
         self.core = FrozenPublicActor(_ValidatedProof(self), self.mode, self.seed)
         if type(self.core.rng.bit_generator) is not np.random.PCG64:
             raise ValueError('TRAIN_opponent_requires_versioned_PCG64')

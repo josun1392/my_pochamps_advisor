@@ -156,6 +156,7 @@ def evaluate(
     integrated_diagnostics=False,
     transition_observer=None,
     per_game_progress=False,
+    initial_state_observer=None,
 ):
     if candidate_seat not in ("p1", "p2"):
         raise ValueError("invalid_candidate_seat")
@@ -216,6 +217,17 @@ def evaluate(
                     prefix_history_length = len(
                         env.observation("self", include_history=True)["public_history"]
                     )
+                    if initial_state_observer is not None:
+                        # Coordinator-only digests. No native payload reaches either actor.
+                        checkpoint = env.save()
+                        initial_state_observer({
+                            "policy": kind, "opponent": opponent, "case": index,
+                            "candidate_seat": candidate_seat,
+                            "native_checkpoint_digest": checkpoint["digest"],
+                            "native_state_SHA256": fingerprint(checkpoint["native_state"]),
+                            "canonical_scenario_sha256": fingerprint(canonical_case),
+                            "native_scenario_sha256": fingerprint(native_case),
+                        })
                     if tactical_diagnostics:
                         from advisor.learned_tactical_diagnostics import (
                             TacticalDiagnostics,
