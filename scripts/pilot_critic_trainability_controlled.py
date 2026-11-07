@@ -220,10 +220,19 @@ def gate(root):
         'validation':validation_metrics(parent,rows),'native_battles':0,'optimizer_updates':0})
 
 
-def train_arm(root,plan,label,seed,parent,runtime):
+def train_arm(root,plan,label,seed,parent,runtime,*,implementation=None):
     from advisor.learned_fixed_micro import training_vector
     from advisor.learned_selfplay_pilot import StartBudget
     from scripts.train_showdown_autonomous import BudgetCallback,require_finite_ppo
+    if implementation is not None:
+        initialize,validate_model,frozen_digest,save,allowed,loader,recorder_type = (
+            implementation.initialize,implementation.validate_model,implementation.frozen_digest,
+            implementation.save,implementation.allowed,implementation.Actor,implementation.Recorder)
+    else:
+        from advisor.experimental_critic_training import (
+            initialize,validate_model,frozen_digest,save,allowed,CriticTrainableActor as loader,
+            CriticSignalRecorder as recorder_type)
+    plan_file=plan.get('plan_file',PLAN);prefix=plan.get('treatment_prefix','Aprime')
     old=read(plan['training_plan']);folder=root/label;folder.mkdir()
     model=initialize(parent.model);fixed=frozen_digest(model.policy);start=model.num_timesteps
     budget=StartBudget(folder/'TRAIN_starts',4096,root/'STOP');(folder/'Adam_intents').mkdir()
@@ -257,12 +266,12 @@ def train_arm(root,plan,label,seed,parent,runtime):
     try:
         for segment in range(16):
             if runtime.stopping():raise RuntimeError('critic_STOP_or_deadline')
-            verify({str(root/PLAN):read(root/'started.json')['plan_SHA256']})
+            verify({str(root/plan_file):read(root/'started.json')['plan_SHA256']})
             sr=folder/'segments'/f'{segment:02d}';sr.mkdir(parents=True)
             vector,_=training_vector(old['runtime_adapter'],sr,parent,
                 case_factory=lambda worker:TrainCases(old,seed,segment,worker),start_budget=budget)
-            reference=plan['controls'][label.replace('Aprime','A')]['first_rollout']
-            recorder=CriticSignalRecorder(folder/'rollouts',parent.encoder,reference)
+            reference=plan['controls'][label.replace(prefix,'A')]['first_rollout']
+            recorder=recorder_type(folder/'rollouts',parent.encoder,reference)
             callback=BudgetCallback(runtime,collect_diagnostics=True,signal_recorder=recorder)
             model.set_env(vector,force_reset=True)
             if segment==0:model.set_random_seed(seed)
@@ -294,21 +303,22 @@ def train_arm(root,plan,label,seed,parent,runtime):
             record['verified_native_roster_identities']=len(identities);segments.append(record)
             if (segment+1)%4==0:
                 last=save(model,parent.encoder,folder/f'checkpoint_{model.num_timesteps-start}',
-                    {'plan_SHA256':digest(root/PLAN),'new_collected':model.num_timesteps-start,
+                    {'plan_SHA256':digest(root/plan_file),'new_collected':model.num_timesteps-start,
                      'new_trained':len(audits)*512,'new_Adam':updates,'seed':seed})
-                check=CriticTrainableActor(last,plan['catalog'])
+                check=loader(last,plan['catalog'])
                 assert tensor_digest(check.model.policy.state_dict())==tensor_digest(model.policy.state_dict())
                 assert optimizer_digest(check.model.policy)==optimizer_digest(model.policy)
-                durable_json(folder/f'validation_{model.num_timesteps-start}.json',
-                    validation_metrics(check,read(root/VALIDATION),parent))
+                if plan.get('TRAIN_validation_enabled',True):
+                    durable_json(folder/f'validation_{model.num_timesteps-start}.json',
+                        validation_metrics(check,read(root/VALIDATION),parent))
             atomic_json(folder/'training_progress.json',{'segments':segments,'latest':last,
                 'new_collected':model.num_timesteps-start,'new_trained':len(audits)*512,'new_Adam':updates,'starts':budget.count})
             elapsed=time.perf_counter()-began
             atomic_json(root/'progress.json',{'phase':'training','arm':label,'arm_transitions':model.num_timesteps-start,
-                'completed_arms':len(list(root.glob('Aprime_s*/endpoint.json'))),'seconds':elapsed,
+                'completed_arms':len(list(root.glob(f'{prefix}_s*/endpoint.json'))),'seconds':elapsed,
                 'transitions_per_second':(model.num_timesteps-start)/elapsed,'unix':time.time()})
         if updates!=512 or model.num_timesteps-start!=16384:raise ValueError('critic_endpoint_budget')
-        actor=CriticTrainableActor(last,plan['catalog'])
+        actor=loader(last,plan['catalog'])
         durable_json(folder/'endpoint.json',{'path':last,'sha256':actor.model_id,'new_transitions':16384,'new_Adam':updates,
             'frozen_SHA256':fixed,'optimizer_SHA256':optimizer_digest(model.policy),'TRAIN_starts':budget.count,
             'completed_native_battles':sum(len(s['completed']) for s in segments),'seed':seed,'seconds':time.perf_counter()-began})
@@ -323,30 +333,31 @@ def train_arm(root,plan,label,seed,parent,runtime):
         log.flush();os.fsync(log.fileno());log.close()
 
 
-def analyze(rows,cases,draws=20000,seed=116063):
+def analyze(rows,cases,draws=20000,seed=116063,*,treatment_prefix='Aprime'):
+    models=('Foundation','A_s1','A_s2',f'{treatment_prefix}_s1',f'{treatment_prefix}_s2')
     by={(r['policy'],r['case'],r['seat']):r['record'] for r in rows}
-    expected={(m,c['index'],s) for m in MODELS for c in cases for s in ('p1','p2')}
+    expected={(m,c['index'],s) for m in models for c in cases for s in ('p1','p2')}
     if len(rows)!=len(expected) or set(by)!=expected:raise ValueError('critic_evaluation_missing_or_duplicate')
     if any(r['truncated'] or r['native_choice_rejections'] for r in by.values()):raise ValueError('critic_invalid_native_result')
     pairs=sorted({c['pair'] for c in cases});rng=np.random.default_rng(seed)
     indices=rng.integers(0,len(pairs),(draws,len(pairs)));means={};wins={};outcomes={}
-    for m in MODELS:
+    for m in models:
         rr=[by[m,c['index'],s] for c in cases for s in ('p1','p2')]
         outcomes[m]={'games':len(rr),'wins':sum(r['winner']=='self' for r in rr),
             'losses':sum(r['winner']=='opponent' for r in rr),'draws':sum(r['winner'] is None for r in rr),
             'visited_state_terminal_value_MSE':float(np.mean([r['value_discounted_return_mse'] for r in rr]))}
         means[m]=np.array([np.mean([by[m,c['index'],s]['return'] for c in cases if c['pair']==p for s in ('p1','p2')]) for p in pairs])
         wins[m]=np.array([np.mean([by[m,c['index'],s]['winner']=='self' for c in cases if c['pair']==p for s in ('p1','p2')]) for p in pairs])
-    differences=[means[f'Aprime_s{i}']-means[f'A_s{i}'] for i in (1,2)]
-    win_differences=[wins[f'Aprime_s{i}']-wins[f'A_s{i}'] for i in (1,2)]
+    differences=[means[f'{treatment_prefix}_s{i}']-means[f'A_s{i}'] for i in (1,2)]
+    win_differences=[wins[f'{treatment_prefix}_s{i}']-wins[f'A_s{i}'] for i in (1,2)]
     contrasts={}
     for name,d,w in [('s1',differences[0],win_differences[0]),('s2',differences[1],win_differences[1]),
                       ('two_seed_mean',np.mean(differences,axis=0),np.mean(win_differences,axis=0))]:
-        contrasts[name]={'Aprime_minus_A_terminal_return':float(d.mean()),'cluster95CI':np.quantile(d[indices].mean(1),[.025,.975]).tolist(),
+        contrasts[name]={f'{treatment_prefix}_minus_A_terminal_return':float(d.mean()),'cluster95CI':np.quantile(d[indices].mean(1),[.025,.975]).tolist(),
             'win_fraction_difference':float(w.mean()),'win_cluster95CI':np.quantile(w[indices].mean(1),[.025,.975]).tolist(),
             'pair_differences':d.tolist()}
     foundation={}
-    for m in MODELS[1:]:
+    for m in models[1:]:
         d=means[m]-means['Foundation'];w=wins[m]-wins['Foundation']
         parent_rows=[(by['Foundation',c['index'],s],by[m,c['index'],s]) for c in cases for s in ('p1','p2')]
         foundation[m]={'return_difference':float(d.mean()),'cluster95CI':np.quantile(d[indices].mean(1),[.025,.975]).tolist(),
@@ -369,7 +380,9 @@ def evaluate_models(root,plan,actors,runtime):
     directory=root/'evaluation';directory.mkdir()
     for n in ('receipts','decisions','initial_public','trace_receipts'):(directory/n).mkdir()
     trace=Trace(directory);budget=StartBudget(directory/'starts',6400,root/'STOP')
-    cases=read(root/'cases.json');lookup={c['index']:c for c in cases};plan_sha=digest(root/PLAN)
+    prefix=plan.get('treatment_prefix','Aprime')
+    models=('Foundation','A_s1','A_s2',f'{prefix}_s1',f'{prefix}_s2')
+    cases=read(root/'cases.json');lookup={c['index']:c for c in cases};plan_sha=digest(root/plan.get('plan_file',PLAN))
     bindings={n:{'sha256':a.model_id} for n,a in actors.items()};before={n:{'parameters':tensor_digest(a.model.policy.state_dict()),
         'Adam':optimizer_digest(a.model.policy),'clock':optimizer_clock(a.model.policy)} for n,a in actors.items()}
     durable_json(directory/'model_before.json',before);completed=0;begin=time.perf_counter()
@@ -378,7 +391,7 @@ def evaluate_models(root,plan,actors,runtime):
     for n,a in actors.items():
         original=a.infer;a.infer=lambda view,name=n,actor=a,f=original:trace.infer(name,actor,f,view)
     try:
-        for name in MODELS:
+        for name in models:
             for seat in ('p1','p2'):
                 for offset in range(0,640,16):
                     if runtime.stopping():raise RuntimeError('evaluation_STOP_or_deadline')
@@ -399,21 +412,21 @@ def evaluate_models(root,plan,actors,runtime):
                         candidate_seat=seat,case_provider=provider,stopping=runtime.stopping,
                         tactical_diagnostics=True,transition_observer=trace.observe,per_game_progress=True,progress=progress)
         rows=[read(p) for p in (directory/'receipts').glob('*.receipt.json')]
-        result=analyze(rows,cases,plan['analysis']['draws'],plan['analysis']['bootstrap_seed'])
+        result=analyze(rows,cases,plan['analysis']['draws'],plan['analysis']['bootstrap_seed'],treatment_prefix=prefix)
         first={}
         for rep in (1,2):
             matched=different=terminal=0
             for c in cases:
                 for seat in ('p1','p2'):
                     aa=[]
-                    for n in (f'A_s{rep}',f'Aprime_s{rep}'):
+                    for n in (f'A_s{rep}',f'{prefix}_s{rep}'):
                         tr=read(directory/'trace_receipts'/f'{n}_league_s0_{seat}_{c["index"]}.json')
                         aa.append(tr['first'])
                     a,b=aa
                     if (a['public_input_SHA256'],a['feature_SHA256'],a['mask'])!=(b['public_input_SHA256'],b['feature_SHA256'],b['mask']):
                         raise ValueError('initial_evaluation_inputs_not_paired')
                     matched+=1;different+=a['action']!=b['action']
-                    terminal+=a['action']!=b['action'] and next(r for r in rows if r['policy']==f'A_s{rep}' and r['case']==c['index'] and r['seat']==seat)['record']['return']!=next(r for r in rows if r['policy']==f'Aprime_s{rep}' and r['case']==c['index'] and r['seat']==seat)['record']['return']
+                    terminal+=a['action']!=b['action'] and next(r for r in rows if r['policy']==f'A_s{rep}' and r['case']==c['index'] and r['seat']==seat)['record']['return']!=next(r for r in rows if r['policy']==f'{prefix}_s{rep}' and r['case']==c['index'] and r['seat']==seat)['record']['return']
             first[f's{rep}']={'matched':matched,'different_first_actions':different,'different_first_and_terminal':terminal,
                 'causal_limit':'subsequent decisions differ; not first-action causal attribution'}
         result['first_actions']=first

@@ -104,6 +104,11 @@ class FoundationCombatPPO(StrategicCombatV5PPO):
                                            "actor_value_seconds": inference_seconds})
 
     def train(self):
+        if getattr(self, 'actionable_advantage_contract', None) is not None:
+            # A typed experimental ZIP must not silently resume through the
+            # historical normalizer when explicitly loaded via this base class.
+            from advisor.experimental_actionable_advantage import validate_model
+            validate_model(self)
         if self.max_grad_norm != .5 or self.gamma != 1:
             raise ValueError("foundation_ppo_contract_mismatch")
         from advisor.learned_gae_lambda import validate_foundation_gae
