@@ -90,6 +90,19 @@ def training_vector(plan, root, parent, *, case_factory=None, start_budget=None)
             raise ValueError('matchup_requires_fixed_slot_factory_and_shared_budget')
     elif case_factory is not None or start_budget is not None:
         raise ValueError('custom_micro_cases_require_matchup_contract')
+    manifest = plan.get('train_foundation_opponent')
+    prepared_subsets = None
+    if 'train_foundation_opponent' in plan:
+        from advisor.learned_train_opponents import validate_manifest
+        if not controlled or plan.get('opponents') != ['league_s0']:
+            raise ValueError('TRAIN_opponent_requires_explicit_controlled_factory')
+        manifest = validate_manifest(manifest, parent.model_id)
+        prepared_subsets = [case_factory(w) for w in range(4)]
+        if any(type(getattr(s, 'seed', None)) is not int or s.seed != manifest['training_seed']
+               or type(getattr(s, 'worker', None)) is not int or s.worker != w
+               or type(getattr(s, 'segment', None)) is not int or s.segment < 0
+               for w, s in enumerate(prepared_subsets)):
+            raise ValueError('TRAIN_opponent_case_stream_mismatch')
     budget=start_budget if controlled else StartBudget(root/'TRAIN_starts',limits['starts'],root/'STOP')
     opponents=('league_s0',)if plan.get('schema_version')in(DIVERSE_VERSION,MATCHUP_VERSION)else OPPONENTS
     def make(worker):
@@ -100,11 +113,13 @@ def training_vector(plan, root, parent, *, case_factory=None, start_budget=None)
             index_offset=worker*100000,curriculum_version='showdown-learning-curriculum-v8',
             opponents=opponents,opponent_factory=opponent,collect_tactical_metrics=True,
             collect_v5_supervision=True,max_decisions=256,terminal_transport_version=OPAQUE_TERMINAL,
-            training_subset=case_factory(worker)if controlled else FixedMicroCases(plan))
+            training_subset=(prepared_subsets[worker] if prepared_subsets is not None
+                             else case_factory(worker)if controlled else FixedMicroCases(plan)))
         install_environment_profile(env)
         directory=root/'native_training'/f'worker_{worker}'
         directory.mkdir(parents=True,exist_ok=False)
-        return AuditedPilotEnv(env,directory,budget,initial,worker,True)
+        return AuditedPilotEnv(env,directory,budget,initial,worker,True,
+            **({'train_foundation_opponent':manifest} if manifest is not None else {}))
     vector=DummyVecEnv([lambda w=w:make(w)for w in range(4)])
     return vector,budget
 

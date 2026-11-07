@@ -139,10 +139,15 @@ class NativePublicTrace:
 
 
 class AuditedPilotEnv(gym.Wrapper):
-    def __init__(self, env, directory, budget, initial_episode, worker, classified_retries=False):
+    def __init__(self, env, directory, budget, initial_episode, worker, classified_retries=False,
+                 *, train_foundation_opponent=None):
         super().__init__(env)
         from advisor.learned_difficulty_calibration import AttemptRateGuard
         self.directory, self.budget, self.worker = Path(directory), budget, worker
+        if train_foundation_opponent is not None:
+            from advisor.learned_train_opponents import validate_manifest
+            train_foundation_opponent = validate_manifest(train_foundation_opponent, env.opponent.model_id)
+        self.train_foundation_opponent = train_foundation_opponent
         self.last_encoded, self.last_result = None, None
         self.stream = self.raw = None
         if classified_retries:
@@ -159,6 +164,14 @@ class AuditedPilotEnv(gym.Wrapper):
         env.encoder.encode = encoded
         factory = env.opponent_factory
         def opponent(kind, seed):
+            if train_foundation_opponent is not None:
+                from advisor.learned_train_opponents import TrainFoundationOpponent
+                subset = env.training_subset
+                if (kind != 'league_s0' or env.split != 'train'
+                        or subset.seed != train_foundation_opponent['training_seed'] or subset.worker != worker):
+                    raise ValueError('TRAIN_opponent_factory_identity')
+                return TrainFoundationOpponent(factory('league_s0', seed), train_foundation_opponent,
+                    env._episode_identity, worker=worker, segment=subset.segment, legacy_seed=seed)
             # Both aliases share ONE immutable Foundation instance per worker.
             if kind in MODES:
                 return FrozenPublicActor(factory('league_s0', seed), MODES[kind], seed)
@@ -179,7 +192,10 @@ class AuditedPilotEnv(gym.Wrapper):
         durable_json(self.directory / f'identity_{ordinal:04d}.json', {
             'episode_id': self.env.current['episode_id'], 'worker': self.worker,
             'episode_identity': deepcopy(self.env._episode_identity),
-            'opponent_mode': MODES.get(self.env.opponent_kind, 'existing_heuristic'),
+            'opponent_mode': (self.env.opponent.mode if self.train_foundation_opponent is not None
+                              else MODES.get(self.env.opponent_kind, 'existing_heuristic')),
+            **({'TRAIN_foundation_opponent': self.env.opponent.identity()}
+               if self.train_foundation_opponent is not None else {}),
             'information_scope': 'coordinator_only_not_actor_critic_features'})
 
     def _finish_episode(self, status):
